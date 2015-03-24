@@ -3,6 +3,8 @@
 *.ko
 *.obj
 *.elf
+build
+bin/main
 
 # Precompiled Headers
 *.gch
@@ -27,3 +29,9 @@
 *.i*86
 *.x86_64
 *.hex
+
+# Miscelleneous
+*.pyc
+*.pyo
+__pycache__
+configs/pcre_table
