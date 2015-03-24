@@ -3,7 +3,7 @@
 #include <netinet/ip.h>
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 int DropBroadcasts::initialize()
 {

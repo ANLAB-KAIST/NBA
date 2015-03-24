@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_RANDOMWEIGHTEDBRANCH_HH__
-#define __NSHADER_ELEMENT_RANDOMWEIGHTEDBRANCH_HH__
+#ifndef __NBA_ELEMENT_RANDOMWEIGHTEDBRANCH_HH__
+#define __NBA_ELEMENT_RANDOMWEIGHTEDBRANCH_HH__
 
 
 #include <rte_config.h>
@@ -13,7 +13,7 @@
 #include <string>
 #include <random>
 
-namespace nshader {
+namespace nba {
 
 class RandomWeightedBranch : public Element {
 public:

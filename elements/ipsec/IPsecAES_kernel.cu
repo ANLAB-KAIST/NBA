@@ -787,7 +787,7 @@ __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
         checkbits_d[blockIdx.x] = 1;
 }
 
-void *nshader::ipsec_aes_encryption_get_cuda_kernel() {
+void *nba::ipsec_aes_encryption_get_cuda_kernel() {
     return reinterpret_cast<void *> (AES_ctr_encrypt_chunk_SharedMem_5);
 }
 

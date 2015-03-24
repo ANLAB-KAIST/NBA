@@ -1,5 +1,5 @@
-#ifndef __NSHADER_DUMMY_COMPUTECTX_HH__
-#define __NSHADER_DUMMY_COMPUTECTX_HH__
+#ifndef __NBA_DUMMY_COMPUTECTX_HH__
+#define __NBA_DUMMY_COMPUTECTX_HH__
 
 #include <deque>
 
@@ -8,7 +8,7 @@
 #include "../../lib/mempool.hh"
 #include "mempool.hh"
 
-namespace nshader
+namespace nba
 {
 
 class DummyComputeContext: public ComputeContext
@@ -69,6 +69,6 @@ private:
 };
 
 }
-#endif /*__NSHADER_DUMMY_COMPUTECTX_HH__ */
+#endif /*__NBA_DUMMY_COMPUTECTX_HH__ */
 
 // vim: ts=8 sts=4 sw=4 et

@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_FROMINPUT_HH__
-#define __NSHADER_ELEMENT_FROMINPUT_HH__
+#ifndef __NBA_ELEMENT_FROMINPUT_HH__
+#define __NBA_ELEMENT_FROMINPUT_HH__
 
 
 #include <rte_config.h>
@@ -11,7 +11,7 @@
 #include <vector>
 #include <string>
 
-namespace nshader {
+namespace nba {
 
 class FromInput : public SchedulableElement, PerBatchElement {
     /**

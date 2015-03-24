@@ -1,9 +1,9 @@
-#ifndef __NSHADER_COPROCESSOR_HH__
-#define __NSHADER_COPROCESSOR_HH__
+#ifndef __NBA_COPROCESSOR_HH__
+#define __NBA_COPROCESSOR_HH__
 
 #include "types.hh"
 
-namespace nshader {
+namespace nba {
 
 void *coproc_loop(void *arg);
 

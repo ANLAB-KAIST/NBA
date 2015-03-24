@@ -18,12 +18,12 @@
 #include <netinet/ip.h>
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 #define COALESC_COPY
 #undef  DEBUG_HOSTSIDE
 
-static thread_local char dummy_buffer[NSHADER_MAX_PACKET_SIZE] = {0,};
+static thread_local char dummy_buffer[NBA_MAX_PACKET_SIZE] = {0,};
 
 OffloadTask::OffloadTask()
 {
@@ -121,7 +121,7 @@ bool OffloadTask::copy_h2d()
     bool has_h2d_copies = false;
 
     /* Copy the datablock information for the first kernel argument. */
-    size_t dbarray_size = ALIGN(sizeof(struct datablock_kernel_arg) * NSHADER_MAX_DATABLOCKS, CACHE_LINE_SIZE);
+    size_t dbarray_size = ALIGN(sizeof(struct datablock_kernel_arg) * NBA_MAX_DATABLOCKS, CACHE_LINE_SIZE);
     cctx->alloc_input_buffer(dbarray_size, (void **) &dbarray_h, &dbarray_d);
     assert(dbarray_h != nullptr);
     size_t itemszarray_size = 0;

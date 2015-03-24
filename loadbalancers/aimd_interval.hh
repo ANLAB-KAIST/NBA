@@ -4,9 +4,9 @@
 #include "../lib/loadbalancer.hh"
 #include "../lib/common.hh"
 
-namespace nshader {
+namespace nba {
 
-// LB using AIMD interval: Just ported old nShader's dispatcher_cc.hh
+// LB using AIMD interval: Just ported old NBA's dispatcher_cc.hh
 class AIMDIntervalLB : public LoadBalancer
 {
 public:

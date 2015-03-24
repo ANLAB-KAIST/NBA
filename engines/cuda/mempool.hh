@@ -1,5 +1,5 @@
-#ifndef __NSHADER_CUDA_MEMPOOL_HH__
-#define __NSHADER_CUDA_MEMPOOL_HH__
+#ifndef __NBA_CUDA_MEMPOOL_HH__
+#define __NBA_CUDA_MEMPOOL_HH__
 
 #include <stdint.h>
 #include <assert.h>
@@ -8,9 +8,9 @@
 #include "../../lib/mempool.hh"
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
-namespace nshader {
+namespace nba {
 
 class CUDAMemoryPool : public MemoryPool
 {

@@ -1,5 +1,5 @@
-#ifndef __NSHADER_PACKETBATCH_HH__
-#define __NSHADER_PACKETBATCH_HH__
+#ifndef __NBA_PACKETBATCH_HH__
+#define __NBA_PACKETBATCH_HH__
 #include "types.hh"
 #include <cstdint>
 #include <cstring>
@@ -13,7 +13,7 @@
 #include "annotation.hh"
 #include "datablock.hh"
 
-namespace nshader {
+namespace nba {
 
 enum BatchDisposition {
     KEPT_BY_ELEMENT = -1,
@@ -28,10 +28,10 @@ public:
           delay_start(0), compute_time(0)
     {
         #ifdef DEBUG
-        memset(&results[0], 0xdd, sizeof(int) * NSHADER_MAX_COMPBATCH_SIZE);
-        memset(&excluded[0], 0xcc, sizeof(bool) * NSHADER_MAX_COMPBATCH_SIZE);
-        memset(&packets[0], 0xbb, sizeof(struct rte_mbuf*) * NSHADER_MAX_COMPBATCH_SIZE);
-        memset(&annos[0], 0xaa, sizeof(struct annotation_set) * NSHADER_MAX_COMPBATCH_SIZE);
+        memset(&results[0], 0xdd, sizeof(int) * NBA_MAX_COMPBATCH_SIZE);
+        memset(&excluded[0], 0xcc, sizeof(bool) * NBA_MAX_COMPBATCH_SIZE);
+        memset(&packets[0], 0xbb, sizeof(struct rte_mbuf*) * NBA_MAX_COMPBATCH_SIZE);
+        memset(&annos[0], 0xaa, sizeof(struct annotation_set) * NBA_MAX_COMPBATCH_SIZE);
         #endif
     }
 
@@ -52,10 +52,10 @@ public:
 
     struct annotation_set banno __rte_cache_aligned;
 
-    bool excluded[NSHADER_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
-    struct rte_mbuf *packets[NSHADER_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
-    struct annotation_set annos[NSHADER_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
-    int results[NSHADER_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
+    bool excluded[NBA_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
+    struct rte_mbuf *packets[NBA_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
+    struct annotation_set annos[NBA_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
+    int results[NBA_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
 };
 
 }

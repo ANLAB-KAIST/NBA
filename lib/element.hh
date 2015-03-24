@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_HH__
-#define __NSHADER_ELEMENT_HH__
+#ifndef __NBA_ELEMENT_HH__
+#define __NBA_ELEMENT_HH__
 
 #include "types.hh"
 #include "queue.hh"
@@ -19,7 +19,7 @@
 #include "offloadtask.hh"
 #include "nodelocalstorage.hh"
 
-namespace nshader {
+namespace nba {
 
 class Packet;   /* forward declaration */
 class Element;  /* forward declaration */
@@ -43,7 +43,7 @@ struct element_info {
 
 #define EXPORT_ELEMENT(...)
 
-#define NSHADER_MAX_ELEM_NEXTS (16)
+#define NBA_MAX_ELEM_NEXTS (16)
 
 class Element : public GraphMetaData{
 
@@ -52,7 +52,7 @@ class Element : public GraphMetaData{
 public:
     uint64_t branch_total = 0;
     uint64_t branch_miss = 0;
-    uint64_t branch_count[NSHADER_MAX_ELEM_NEXTS];
+    uint64_t branch_count[NBA_MAX_ELEM_NEXTS];
 
     Element();
     virtual ~Element();
@@ -82,8 +82,8 @@ public:
     comp_thread_context *ctx;
 
 protected:
-    FixedArray<Element*, nullptr, NSHADER_MAX_ELEM_NEXTS> next_elems;
-    FixedArray<int, -1, NSHADER_MAX_ELEM_NEXTS> next_connected_inputs;
+    FixedArray<Element*, nullptr, NBA_MAX_ELEM_NEXTS> next_elems;
+    FixedArray<int, -1, NBA_MAX_ELEM_NEXTS> next_connected_inputs;
 
     Packet *packet;
 
@@ -165,7 +165,7 @@ public:
             };
             offload_compute_handlers.insert({{"dummy", ch},});
         }
-        for (int i = 0; i < NSHADER_MAX_COPROCESSOR_TYPES; i++)
+        for (int i = 0; i < NBA_MAX_COPROCESSOR_TYPES; i++)
             tasks[i] = nullptr;
     }
     virtual ~OffloadableElement() {}
@@ -185,7 +185,7 @@ public:
     std::unordered_map<std::string, offload_init_handler> offload_init_handlers;
 
 private:
-    OffloadTask *tasks[NSHADER_MAX_COPROCESSOR_TYPES];
+    OffloadTask *tasks[NBA_MAX_COPROCESSOR_TYPES];
     void dummy_compute_handler(ComputeContext *ctx, struct resource_param *res);
 };
 

@@ -6,7 +6,7 @@
 #include <xmmintrin.h>
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 int IPsecESPencap::initialize()
 {
@@ -69,13 +69,13 @@ int IPsecESPencap::process(int input_port, struct rte_mbuf *pkt, struct annotati
     struct espencap_sa_entry *sa_entry = NULL;
     if (likely(sa_item != sa_table.end())) {
         sa_entry = sa_item->second;
-        anno_set(anno, NSHADER_ANNO_IPSEC_FLOW_ID, sa_entry->entry_idx);
+        anno_set(anno, NBA_ANNO_IPSEC_FLOW_ID, sa_entry->entry_idx);
     } else {
         // FIXME: this is to encrypt all traffic regardless sa_entry lookup results.
         //        (just for worst-case performance tests)
         unsigned f = (tunnel_counter ++) % num_tunnels;
         sa_entry = sa_table_linear[f];
-        anno_set(anno, NSHADER_ANNO_IPSEC_FLOW_ID, f);
+        anno_set(anno, NBA_ANNO_IPSEC_FLOW_ID, f);
     }
 
     int ip_len = ntohs(iph->tot_len);
@@ -85,7 +85,7 @@ int IPsecESPencap::process(int input_port, struct rte_mbuf *pkt, struct annotati
                          + sizeof(struct esphdr) + SHA_DIGEST_LENGTH);
     int length_to_extend = extended_ip_len - ip_len;
     if (rte_pktmbuf_append(pkt, length_to_extend) == NULL) {
-        fprintf(stderr, "nShader: error in IPsecESPencap element: failed to append tailroom space for ESP info.\n");
+        fprintf(stderr, "NBA: error in IPsecESPencap element: failed to append tailroom space for ESP info.\n");
     }
     assert(0 == (enc_size % AES_BLOCK_SIZE));
 
@@ -107,8 +107,8 @@ int IPsecESPencap::process(int input_port, struct rte_mbuf *pkt, struct annotati
     uint64_t iv_second_half = rand();
     __m128i new_iv = _mm_set_epi64((__m64) iv_first_half, (__m64) iv_second_half);
     _mm_storeu_si128((__m128i *) esph->esp_iv, new_iv);
-    anno_set(anno, NSHADER_ANNO_IPSEC_IV1, iv_first_half);
-    anno_set(anno, NSHADER_ANNO_IPSEC_IV2, iv_second_half);
+    anno_set(anno, NBA_ANNO_IPSEC_IV1, iv_first_half);
+    anno_set(anno, NBA_ANNO_IPSEC_IV2, iv_second_half);
 
     iph->ihl = (20 >> 2);               // standard IP header size.
     iph->tot_len = htons(extended_ip_len);

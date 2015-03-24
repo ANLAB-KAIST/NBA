@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_NONE_HH__
-#define __NSHADER_ELEMENT_NONE_HH__
+#ifndef __NBA_ELEMENT_NONE_HH__
+#define __NBA_ELEMENT_NONE_HH__
 
 
 #include <rte_config.h>
@@ -12,7 +12,7 @@
 #include <vector>
 #include <string>
 
-namespace nshader {
+namespace nba {
 
 class None : public Element {
 public:

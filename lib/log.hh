@@ -1,5 +1,5 @@
-#ifndef __NSHADER_LOG_HH__
-#define __NSHADER_LOG_HH__
+#ifndef __NBA_LOG_HH__
+#define __NBA_LOG_HH__
 
 
 #include <rte_config.h>
@@ -14,6 +14,6 @@
 #define RTE_LOGTYPE_ELEM    RTE_LOGTYPE_USER5
 #define RTE_LOGTYPE_LB      RTE_LOGTYPE_USER6
 
-#endif // __NSHADER_LOG_HH__
+#endif // __NBA_LOG_HH__
 
 // vim: ts=8 sts=4 sw=4 et

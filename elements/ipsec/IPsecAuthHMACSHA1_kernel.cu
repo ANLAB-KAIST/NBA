@@ -1273,7 +1273,7 @@ __global__ void computeHMAC_SHA1_3(
 
 }
 
-void *nshader::ipsec_hsha1_encryption_get_cuda_kernel() {
+void *nba::ipsec_hsha1_encryption_get_cuda_kernel() {
     return reinterpret_cast<void *> (computeHMAC_SHA1_3);
 }
 

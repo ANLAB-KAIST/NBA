@@ -1,5 +1,5 @@
-#ifndef __NSHADER_CUDA_COMPUTECTX_HH__
-#define __NSHADER_CUDA_COMPUTECTX_HH__
+#ifndef __NBA_CUDA_COMPUTECTX_HH__
+#define __NBA_CUDA_COMPUTECTX_HH__
 
 #include <deque>
 
@@ -12,7 +12,7 @@
 
 #define CUDA_MAX_KERNEL_ARGS    (16)
 
-namespace nshader
+namespace nba
 {
 
 class CUDAComputeContext: public ComputeContext
@@ -93,6 +93,6 @@ private:
 };
 
 }
-#endif /*__NSHADER_CUDA_COMPUTECTX_HH__ */
+#endif /*__NBA_CUDA_COMPUTECTX_HH__ */
 
 // vim: ts=8 sts=4 sw=4 et

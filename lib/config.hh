@@ -1,35 +1,35 @@
-#ifndef __NSHADER_CONFIG_HH__
-#define __NSHADER_CONFIG_HH__
+#ifndef __NBA_CONFIG_HH__
+#define __NBA_CONFIG_HH__
 
 #include <unordered_map>
 #include <vector>
 #include <string>
 
-#define NSHADER_MAX_NODES       (2)
-#define NSHADER_MAX_CORES       (64)
-#define NSHADER_MAX_PORTS       (16)
-#define NSHADER_MAX_QUEUES_PER_PORT (128)
-#define NSHADER_MAX_COPROCESSORS      (2)  // max number of coprocessor devices
-#define NSHADER_MAX_COPROCESSOR_TYPES (1)  // max number of device types
-#define NSHADER_MAX_PACKET_SIZE     (2048)
-#ifdef NSHADER_NO_HUGE
-  #define NSHADER_MAX_IOBATCH_SIZE    (4u)
-  #define NSHADER_MAX_COMPBATCH_SIZE  (4u)
+#define NBA_MAX_NODES       (2)
+#define NBA_MAX_CORES       (64)
+#define NBA_MAX_PORTS       (16)
+#define NBA_MAX_QUEUES_PER_PORT (128)
+#define NBA_MAX_COPROCESSORS      (2)  // max number of coprocessor devices
+#define NBA_MAX_COPROCESSOR_TYPES (1)  // max number of device types
+#define NBA_MAX_PACKET_SIZE     (2048)
+#ifdef NBA_NO_HUGE
+  #define NBA_MAX_IOBATCH_SIZE    (4u)
+  #define NBA_MAX_COMPBATCH_SIZE  (4u)
 #else
-  #define NSHADER_MAX_IOBATCH_SIZE    (256u)
-  #define NSHADER_MAX_COMPBATCH_SIZE  (256u)
+  #define NBA_MAX_IOBATCH_SIZE    (256u)
+  #define NBA_MAX_COMPBATCH_SIZE  (256u)
 #endif
-#define NSHADER_MAX_SW_RXRING_LENGTH  (2048u)
-#define NSHADER_MAX_COMP_PPDEPTH   (256u)
-#define NSHADER_MAX_COPROC_PPDEPTH (32u)
-#define NSHADER_MAX_BATCHPOOL_SIZE  (2048u)
-#define NSHADER_MAX_ANNOTATION_SET_SIZE (7)  // maximum possible: 64
-#define NSHADER_MAX_NODELOCALSTORAGE_ENTRIES    (16)
-#define NSHADER_MAX_KERNEL_OVERLAP  (8)
-#define NSHADER_MAX_DATABLOCKS (12)  // If too large (e.g., 64), batch_pool can not be allocated.
-#define NSHADER_OQ  (true)  // Use output-queuing semantics when possible.
+#define NBA_MAX_SW_RXRING_LENGTH  (2048u)
+#define NBA_MAX_COMP_PPDEPTH   (256u)
+#define NBA_MAX_COPROC_PPDEPTH (32u)
+#define NBA_MAX_BATCHPOOL_SIZE  (2048u)
+#define NBA_MAX_ANNOTATION_SET_SIZE (7)  // maximum possible: 64
+#define NBA_MAX_NODELOCALSTORAGE_ENTRIES    (16)
+#define NBA_MAX_KERNEL_OVERLAP  (8)
+#define NBA_MAX_DATABLOCKS (12)  // If too large (e.g., 64), batch_pool can not be allocated.
+#define NBA_OQ  (true)  // Use output-queuing semantics when possible.
 
-namespace nshader {
+namespace nba {
 
 enum io_thread_mode {
     IO_NORMAL = 0,
@@ -113,7 +113,7 @@ bool check_ht_enabled();
  * depending on the system configuration.
  * (see lib/io.cc)
  */
-//#define NSHADER_SLEEPY_IO
+//#define NBA_SLEEPY_IO
 
 #endif
 

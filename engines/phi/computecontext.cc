@@ -4,7 +4,7 @@
 #include <rte_common.h>
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 struct phi_event_context {
     ComputeContext *computectx;

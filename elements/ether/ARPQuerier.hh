@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_ETHER_ARPQUERIER_HH__
-#define __NSHADER_ELEMENT_ETHER_ARPQUERIER_HH__
+#ifndef __NBA_ELEMENT_ETHER_ARPQUERIER_HH__
+#define __NBA_ELEMENT_ETHER_ARPQUERIER_HH__
 
 
 #include <rte_config.h>
@@ -19,7 +19,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 
-namespace nshader {
+namespace nba {
 
 class ARPQuerier : public SchedulableElement {
 public:

@@ -506,7 +506,7 @@ __global__ void computeAES_CBC(
  * AES_ecb_128_encryption and AES_decrypt_key_prepare_cbc(),
  * AES_cbc_128_encrypt_gpu() is only used in NBA, for now. */
  
-void *nshader::ipsec_aes_encryption_cbc_get_cuda_kernel() {
+void *nba::ipsec_aes_encryption_cbc_get_cuda_kernel() {
 	return reinterpret_cast<void *> (computeAES_CBC);
 }
 

@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_QUEUE_HH__
-#define __NSHADER_ELEMENT_QUEUE_HH__
+#ifndef __NBA_ELEMENT_QUEUE_HH__
+#define __NBA_ELEMENT_QUEUE_HH__
 
 
 #include <rte_errno.h>
@@ -10,7 +10,7 @@
 #include <vector>
 #include <string>
 
-namespace nshader {
+namespace nba {
 
 class Queue : public SchedulableElement, PerBatchElement {
 public:

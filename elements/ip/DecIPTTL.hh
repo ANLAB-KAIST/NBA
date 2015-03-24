@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_IP_DECIPTTL_HH__
-#define __NSHADER_ELEMENT_IP_DECIPTTL_HH__
+#ifndef __NBA_ELEMENT_IP_DECIPTTL_HH__
+#define __NBA_ELEMENT_IP_DECIPTTL_HH__
 
 
 #include <rte_config.h>
@@ -14,7 +14,7 @@
 
 #include <netinet/ip.h>
 
-namespace nshader {
+namespace nba {
 
 class DecIPTTL : public Element {
 public:

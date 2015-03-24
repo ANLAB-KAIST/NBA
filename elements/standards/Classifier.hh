@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_STANDARD_CLASSIFIER_HH__
-#define __NSHADER_ELEMENT_STANDARD_CLASSIFIER_HH__
+#ifndef __NBA_ELEMENT_STANDARD_CLASSIFIER_HH__
+#define __NBA_ELEMENT_STANDARD_CLASSIFIER_HH__
 
 
 #include <rte_config.h>
@@ -13,7 +13,7 @@
 #include <queue>
 #include <string>
 
-namespace nshader {
+namespace nba {
 
 struct MatchCondition {
     int pos;

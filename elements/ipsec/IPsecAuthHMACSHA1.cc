@@ -5,7 +5,7 @@
 #include "../../lib/types.hh"
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 /* Array which stores per-tunnel HMAC key for each tunnel.
  * It is copied to each node's node local storage during per-node initialization
@@ -125,8 +125,8 @@ int IPsecAuthHMACSHA1::process(int input_port, struct rte_mbuf *pkt, struct anno
     struct hmac_sa_entry *sa_entry;
 
     uint8_t *hmac_key;
-    if (likely(anno_isset(anno, NSHADER_ANNO_IPSEC_FLOW_ID))) {
-        sa_entry = &h_key_array[anno_get(anno, NSHADER_ANNO_IPSEC_FLOW_ID)];
+    if (likely(anno_isset(anno, NBA_ANNO_IPSEC_FLOW_ID))) {
+        sa_entry = &h_key_array[anno_get(anno, NBA_ANNO_IPSEC_FLOW_ID)];
         hmac_key = sa_entry->hmac_key;
 
         rte_memcpy(hmac_buf + 64, payload_out, payload_len);

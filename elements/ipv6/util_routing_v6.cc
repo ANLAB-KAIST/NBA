@@ -122,7 +122,7 @@ void RoutingTableV6::copy_to(RoutingTableV6 *new_table)
     build_lock_.acquire();
 
     if (new_table == NULL) {
-        printf("nShader: RoutingTableV6:copy_to: argument not alloced.\n");
+        printf("NBA: RoutingTableV6:copy_to: argument not alloced.\n");
         exit(EXIT_FAILURE);
     }
     new_table->m_IsBuilt = m_IsBuilt;

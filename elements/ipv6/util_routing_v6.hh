@@ -1,5 +1,5 @@
-#ifndef __NSHADER_IPv6_ROUTINGTABLE_HH__
-#define __NSHADER_IPv6_ROUTINGTABLE_HH__
+#ifndef __NBA_IPv6_ROUTINGTABLE_HH__
+#define __NBA_IPv6_ROUTINGTABLE_HH__
 
 #include <cstdint>
 #include "util_hash_table.hh"
@@ -7,7 +7,7 @@
 #include "../../lib/types.hh"
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 inline uint128_t mask(const uint128_t aa, int len)
 {
@@ -50,7 +50,7 @@ public:
     int build();
     uint16_t lookup(uint128_t *ip);
     RoutingTableV6 *clone();
-    void copy_to(RoutingTableV6 *new_table);    // added function in modular-nshader
+    void copy_to(RoutingTableV6 *new_table);    // added function in modular-nba
 
     HashTable128 *m_Tables[128];
     bool m_IsBuilt;

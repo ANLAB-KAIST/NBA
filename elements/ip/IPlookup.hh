@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_IP_IPLOOKUP_HH__
-#define __NSHADER_ELEMENT_IP_IPLOOKUP_HH__
+#ifndef __NBA_ELEMENT_IP_IPLOOKUP_HH__
+#define __NBA_ELEMENT_IP_IPLOOKUP_HH__
 
 
 #include <rte_config.h>
@@ -35,7 +35,7 @@
 
 using namespace std;
 
-namespace nshader {
+namespace nba {
 
 class IPlookup : public OffloadableElement {
 protected:
@@ -53,7 +53,7 @@ protected:
         fp = fopen(filename, "r");
         if (fp == NULL) {
             getcwd(buf, 256);
-            printf("nShader: IpCPULookup element: error during opening file \'%s\' from \'%s\'.: %s\n", filename, buf, strerror(errno));
+            printf("NBA: IpCPULookup element: error during opening file \'%s\' from \'%s\'.: %s\n", filename, buf, strerror(errno));
         }
         assert(fp != NULL);
 

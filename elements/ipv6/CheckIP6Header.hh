@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_IPv6_CHECKIP6HEADER_HH__
-#define __NSHADER_ELEMENT_IPv6_CHECKIP6HEADER_HH__
+#ifndef __NBA_ELEMENT_IPv6_CHECKIP6HEADER_HH__
+#define __NBA_ELEMENT_IPv6_CHECKIP6HEADER_HH__
 
 
 #include <rte_config.h>
@@ -15,7 +15,7 @@
 #include <netinet/in.h>
 #include <netinet/ip6.h>
 
-namespace nshader {
+namespace nba {
 
 class CheckIP6Header : public Element {
 public:

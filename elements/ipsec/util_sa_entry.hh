@@ -1,5 +1,5 @@
-#ifndef __NSHADER_IPSEC_SA_ENTRY_HH__
-#define __NSHADER_IPSEC_SA_ENTRY_HH__
+#ifndef __NBA_IPSEC_SA_ENTRY_HH__
+#define __NBA_IPSEC_SA_ENTRY_HH__
 
 #include <openssl/aes.h>
 #include <openssl/evp.h>

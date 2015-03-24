@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_LOADBALANCEBYWEIGHT_HH__
-#define __NSHADER_ELEMENT_LOADBALANCEBYWEIGHT_HH__
+#ifndef __NBA_ELEMENT_LOADBALANCEBYWEIGHT_HH__
+#define __NBA_ELEMENT_LOADBALANCEBYWEIGHT_HH__
 
 #include "../../lib/element.hh"
 #include "../../lib/annotation.hh"
@@ -12,7 +12,7 @@
 #include <exception>
 #include <random>
 
-namespace nshader {
+namespace nba {
 
 class LoadBalanceByWeight : public SchedulableElement, PerBatchElement {
 public:
@@ -49,9 +49,9 @@ public:
 
         std::string num_str;
         if (args[0] == "from-env") {
-            const char *env = getenv("NSHADER_LOADBALANCER_CPU_RATIO");
+            const char *env = getenv("NBA_LOADBALANCER_CPU_RATIO");
             if (env == nullptr) {
-                RTE_LOG(WARNING, LB, "LoadBalanceByWeight: env-var NSHADER_LOADBALANCER_CPU_RATIO is not set. Falling back to CPU-only...\n");
+                RTE_LOG(WARNING, LB, "LoadBalanceByWeight: env-var NBA_LOADBALANCER_CPU_RATIO is not set. Falling back to CPU-only...\n");
                 num_str = "1.0";
             } else {
                 num_str = env;
@@ -87,7 +87,7 @@ public:
         }
         choice = idx - 1;
         assert(choice != -2);
-        anno_set(&batch->banno, NSHADER_BANNO_LB_DECISION, choice);
+        anno_set(&batch->banno, NBA_BANNO_LB_DECISION, choice);
         return 0;
     }
 

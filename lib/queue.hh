@@ -1,5 +1,5 @@
-#ifndef __NSHADER_QUEUE_HH__
-#define __NSHADER_QUEUE_HH__
+#ifndef __NBA_QUEUE_HH__
+#define __NBA_QUEUE_HH__
 
 #include <vector>
 #include <cassert>

@@ -1,5 +1,5 @@
-#ifndef __NSHADER_PHI_COMPUTECTX_HH__
-#define __NSHADER_PHI_COMPUTECTX_HH__
+#ifndef __NBA_PHI_COMPUTECTX_HH__
+#define __NBA_PHI_COMPUTECTX_HH__
 
 #include <deque>
 #include <CL/opencl.h>
@@ -9,7 +9,7 @@
 #include "utils.hh"
 #include "mempool.hh"
 
-namespace nshader
+namespace nba
 {
 
 #define PHI_MAX_KERNEL_ARGS     (16)
@@ -102,6 +102,6 @@ private:
 };
 
 }
-#endif /* __NSHADER_PHI_COMPUTECTX_HH__ */
+#endif /* __NBA_PHI_COMPUTECTX_HH__ */
 
 // vim: ts=8 sts=4 sw=4 et

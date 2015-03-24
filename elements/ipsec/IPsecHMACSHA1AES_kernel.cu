@@ -1774,7 +1774,7 @@ __global__ void computeHMAC_SHA1_AES(
  * AES_ecb_128_encryption and AES_decrypt_key_prepare(),
  * AES_cbc_128_encrypt_gpu() is only used in NBA, for now. */
  
-void *nshader::ipsec_hmac_sha1_aes_get_cuda_kernel() {
+void *nba::ipsec_hmac_sha1_aes_get_cuda_kernel() {
 	return reinterpret_cast<void *> (computeHMAC_SHA1_AES);
 }
 

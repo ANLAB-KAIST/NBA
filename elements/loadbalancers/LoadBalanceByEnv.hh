@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_LOADBALANCEBYENV_HH__
-#define __NSHADER_ELEMENT_LOADBALANCEBYENV_HH__
+#ifndef __NBA_ELEMENT_LOADBALANCEBYENV_HH__
+#define __NBA_ELEMENT_LOADBALANCEBYENV_HH__
 
 #include "../../lib/element.hh"
 #include "../../lib/annotation.hh"
@@ -10,7 +10,7 @@
 #include <vector>
 #include <string>
 
-namespace nshader {
+namespace nba {
 
 class LoadBalanceByEnv : public SchedulableElement, PerBatchElement {
 public:
@@ -31,7 +31,7 @@ public:
     int configure(comp_thread_context *ctx, std::vector<std::string> &args)
     {
         Element::configure(ctx, args);
-        char *lb_mode = getenv("NSHADER_LOADBALANCER_MODE");
+        char *lb_mode = getenv("NBA_LOADBALANCER_MODE");
         if (lb_mode == nullptr)
             lb_mode = const_cast<char*>("CPUOnly");
 
@@ -48,7 +48,7 @@ public:
 
     int process_batch(int input_port, PacketBatch *batch)
     {
-        anno_set(&batch->banno, NSHADER_BANNO_LB_DECISION, lb_decision);
+        anno_set(&batch->banno, NBA_BANNO_LB_DECISION, lb_decision);
         return 0;
     }
 

@@ -62,7 +62,7 @@ __global__ void ipv4_route_lookup_cuda(
 
 }
 
-void *nshader::ipv4_route_lookup_get_cuda_kernel() {
+void *nba::ipv4_route_lookup_get_cuda_kernel() {
     return reinterpret_cast<void *> (ipv4_route_lookup_cuda);
 }
 

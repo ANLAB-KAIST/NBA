@@ -1,5 +1,5 @@
-#ifndef __NSHADER_OFFLOAD_TASK_HH__
-#define __NSHADER_OFFLOAD_TASK_HH__
+#ifndef __NBA_OFFLOAD_TASK_HH__
+#define __NBA_OFFLOAD_TASK_HH__
 
 #include <cstdint>
 #include <functional>
@@ -12,9 +12,9 @@
 #include "packetbatch.hh"
 #include "datablock.hh"
 
-#define NSHADER_MAX_OFFLOADED_PACKETS (NSHADER_MAX_COPROC_PPDEPTH * NSHADER_MAX_COMPBATCH_SIZE)
+#define NBA_MAX_OFFLOADED_PACKETS (NBA_MAX_COPROC_PPDEPTH * NBA_MAX_COMPBATCH_SIZE)
 
-namespace nshader {
+namespace nba {
 
 typedef std::function<void(ComputeContext *ctx, struct resource_param *res)> offload_compute_handler;
 typedef std::function<void(ComputeDevice *dev)> offload_init_handler;
@@ -27,7 +27,7 @@ public:
     OffloadTask();
     virtual ~OffloadTask();
 
-    FixedArray<int, -1, NSHADER_MAX_DATABLOCKS> datablocks;
+    FixedArray<int, -1, NBA_MAX_DATABLOCKS> datablocks;
 
     /* Executed in worker threads. */
     void prepare_read_buffer();
@@ -61,10 +61,10 @@ public:
     coproc_thread_context *coproc_ctx;
     ComputeContext *cctx;
     ElementGraph *elemgraph;
-    FixedArray<PacketBatch*, nullptr, NSHADER_MAX_COPROC_PPDEPTH> batches;
-    FixedArray<int, -1, NSHADER_MAX_COPROC_PPDEPTH> input_ports;
+    FixedArray<PacketBatch*, nullptr, NBA_MAX_COPROC_PPDEPTH> batches;
+    FixedArray<int, -1, NBA_MAX_COPROC_PPDEPTH> input_ports;
     OffloadableElement* elem;
-    int dbid_h2d[NSHADER_MAX_DATABLOCKS];
+    int dbid_h2d[NBA_MAX_DATABLOCKS];
 
     struct datablock_kernel_arg *dbarray_h;
     memory_t dbarray_d;

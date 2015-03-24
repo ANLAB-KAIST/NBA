@@ -1,7 +1,7 @@
 #include "IPv6Datablocks.hh"
 #include <rte_malloc.h>
 
-namespace nshader {
+namespace nba {
 
 int dbid_ipv6_dest_addrs;
 int dbid_ipv6_lookup_results;

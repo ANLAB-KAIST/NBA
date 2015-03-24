@@ -1,14 +1,14 @@
-#ifndef __NSHADER_DUMMY_MEMPOOL_HH__
-#define __NSHADER_DUMMY_MEMPOOL_HH__
+#ifndef __NBA_DUMMY_MEMPOOL_HH__
+#define __NBA_DUMMY_MEMPOOL_HH__
 
 #include <stdint.h>
 #include <assert.h>
 #include "../../lib/mempool.hh"
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
-namespace nshader {
+namespace nba {
 
 class DummyCPUMemoryPool : public MemoryPool
 {

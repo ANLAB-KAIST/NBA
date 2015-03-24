@@ -6,7 +6,7 @@
 #include "../../lib/types.hh"
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 int LookupIP6Route::initialize()
 {
@@ -90,7 +90,7 @@ int LookupIP6Route::process(int input_port, struct rte_mbuf *pkt, struct annotat
         return DROP;
 
     rr_port = (rr_port + 1) % num_tx_ports;
-    anno_set(anno, NSHADER_ANNO_IFACE_OUT, rr_port);
+    anno_set(anno, NBA_ANNO_IFACE_OUT, rr_port);
     return 0;
 }
 
@@ -102,7 +102,7 @@ int LookupIP6Route::postproc(int input_port, void *custom_output,
         /* Could not find destination. Use the second output for "error" packets. */
         return DROP;
     rr_port = (rr_port + 1) % num_tx_ports;
-    anno_set(anno, NSHADER_ANNO_IFACE_OUT, rr_port);
+    anno_set(anno, NBA_ANNO_IFACE_OUT, rr_port);
     return 0;
 }
 

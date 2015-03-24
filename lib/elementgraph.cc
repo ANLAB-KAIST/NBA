@@ -21,7 +21,7 @@
 static const uint64_t BRANCH_TRUNC_LIMIT = (1<<24);
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 ElementGraph::ElementGraph(comp_thread_context *ctx)
     : elements(128, ctx->loc.node_id), sched_elements(16, ctx->loc.node_id),
@@ -31,7 +31,7 @@ ElementGraph::ElementGraph(comp_thread_context *ctx)
     input_elem = nullptr;
     assert(0 == rte_malloc_validate(ctx, NULL));
     /* IMPORTANT: ready_tasks must be larger than task_pool. */
-    for (int i = 0; i < NSHADER_MAX_COPROCESSOR_TYPES; i++)
+    for (int i = 0; i < NBA_MAX_COPROCESSOR_TYPES; i++)
         ready_tasks[i].init(256, ctx->loc.node_id);
 }
 
@@ -42,7 +42,7 @@ void ElementGraph::flush_offloaded_tasks()
     uint64_t len_ready_tasks = ready_tasks[0].size();
     print_ratelimit("# ready tasks", len_ready_tasks, 10000);
 
-    for (int dev_idx = 0; dev_idx < NSHADER_MAX_COPROCESSOR_TYPES; dev_idx++) {
+    for (int dev_idx = 0; dev_idx < NBA_MAX_COPROCESSOR_TYPES; dev_idx++) {
         // TODO: now it's possible to merge multiple tasks to increase batch size!
         while (!ready_tasks[dev_idx].empty()) {
             OffloadTask *task = ready_tasks[dev_idx].front();
@@ -70,7 +70,7 @@ void ElementGraph::flush_offloaded_tasks()
                 //        (COPROC_CTX_PER_COMPTHREAD 설정이 1이면 괜찮지만 아예 1로 고정할 것.)
                 task->cctx = cctx;
 
-                int datablock_ids[NSHADER_MAX_DATABLOCKS];
+                int datablock_ids[NBA_MAX_DATABLOCKS];
                 size_t num_db_used = task->elem->get_used_datablocks(datablock_ids);
                 for (unsigned k = 0; k < num_db_used; k++) {
                     int dbid = datablock_ids[k];
@@ -176,7 +176,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
         Element *current_elem = batch->element;
         int input_port = batch->input_port;
         int batch_disposition = CONTINUE_TO_PROCESS;
-        int64_t lb_decision = anno_get(&batch->banno, NSHADER_BANNO_LB_DECISION);
+        int64_t lb_decision = anno_get(&batch->banno, NBA_BANNO_LB_DECISION);
         uint64_t _cpu_start = rte_rdtsc();
 
         /* Check if we can and should offload. */
@@ -370,8 +370,8 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
             const int *const results = batch->results;
             PacketBatch *out_batches[num_max_outputs];
             // TODO: implement per-batch handling for branches
-#ifndef NSHADER_DISABLE_BRANCH_PREDICTION
-#ifndef NSHADER_BRANCH_PREDICTION_ALWAYS
+#ifndef NBA_DISABLE_BRANCH_PREDICTION
+#ifndef NBA_BRANCH_PREDICTION_ALWAYS
             /* use branch prediction when miss < total / 4. */
             if ((current_elem->branch_total >> 2) > (current_elem->branch_miss))
 #endif
@@ -409,7 +409,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                                     flush_offloaded_tasks();
                                 }
                                 new (out_batches[o]) PacketBatch();
-                                anno_set(&out_batches[o]->banno, NSHADER_BANNO_LB_DECISION, lb_decision);
+                                anno_set(&out_batches[o]->banno, NBA_BANNO_LB_DECISION, lb_decision);
                                 out_batches[o]->recv_timestamp = batch->recv_timestamp;
                             }
                             /* Append the packet to the output batch. */
@@ -488,11 +488,11 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                 }
                 continue;
             }
-#ifndef NSHADER_BRANCH_PREDICTION_ALWAYS
+#ifndef NBA_BRANCH_PREDICTION_ALWAYS
             else
 #endif
 #endif
-#ifndef NSHADER_BRANCH_PREDICTION_ALWAYS
+#ifndef NBA_BRANCH_PREDICTION_ALWAYS
             {
                 while (rte_mempool_get_bulk(ctx->batch_pool, (void **) out_batches, num_outputs) == -ENOENT
                        && !ctx->io_ctx->loop_broken) {
@@ -507,7 +507,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                 /* Initialize copy-batches. */
                 for (int o = 0; o < num_outputs; o++) {
                     new (out_batches[o]) PacketBatch();
-                    anno_set(&out_batches[o]->banno, NSHADER_BANNO_LB_DECISION, lb_decision);
+                    anno_set(&out_batches[o]->banno, NBA_BANNO_LB_DECISION, lb_decision);
                     out_batches[o]->recv_timestamp = batch->recv_timestamp;
                 }
 
@@ -598,7 +598,7 @@ void ElementGraph::enqueue_postproc_batch(PacketBatch *batch, Element *offloaded
 bool ElementGraph::check_datablock_reuse(Element *offloaded_elem, int datablock_id)
 {
     //bool is_offloadable = ((offloaded_elem->next_elems[0]->get_type() & ELEMTYPE_OFFLOADABLE) != 0);
-    //int used_dbids[NSHADER_MAX_DATABLOCKS];
+    //int used_dbids[NBA_MAX_DATABLOCKS];
     //if (is_offloadable) {
     //    OffloadableElement *oelem = dynamic_cast<OffloadableElement*> (offloaded_elem);
     //    assert(oelem != nullptr);

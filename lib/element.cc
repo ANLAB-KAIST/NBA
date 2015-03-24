@@ -20,7 +20,7 @@
 #include <climits>
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 Element::Element() : next_elems(), next_connected_inputs()
 {
@@ -99,8 +99,8 @@ void Element::update_port_count()
         num_min_outputs = atoi(range_left.c_str());
         num_max_outputs = atoi(range_right.c_str());
     }
-    if (num_max_outputs > NSHADER_MAX_ELEM_NEXTS) {
-        rte_panic("Element::update_port_count(): Too many possible output ports (max: %d)\n", NSHADER_MAX_ELEM_NEXTS);
+    if (num_max_outputs > NBA_MAX_ELEM_NEXTS) {
+        rte_panic("Element::update_port_count(): Too many possible output ports (max: %d)\n", NBA_MAX_ELEM_NEXTS);
     }
 
     delete port_str;

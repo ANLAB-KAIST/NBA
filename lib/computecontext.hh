@@ -1,5 +1,5 @@
-#ifndef __NSHADER_COMPUTECONTEXT_HH__
-#define __NSHADER_COMPUTECONTEXT_HH__
+#ifndef __NBA_COMPUTECONTEXT_HH__
+#define __NBA_COMPUTECONTEXT_HH__
 
 #include "common.hh"
 #include "types.hh"
@@ -7,7 +7,7 @@
 
 using namespace std;
 
-namespace nshader {
+namespace nba {
 
 struct resource_param {
     uint32_t num_workitems;

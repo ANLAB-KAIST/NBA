@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_IP_DROPBROADCASTS_HH__
-#define __NSHADER_ELEMENT_IP_DROPBROADCASTS_HH_
+#ifndef __NBA_ELEMENT_IP_DROPBROADCASTS_HH__
+#define __NBA_ELEMENT_IP_DROPBROADCASTS_HH_
 
 
 #include <rte_config.h>
@@ -12,7 +12,7 @@
 #include <vector>
 #include <string>
 
-namespace nshader {
+namespace nba {
 
 class DropBroadcasts : public Element {
 public:

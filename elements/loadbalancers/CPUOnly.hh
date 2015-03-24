@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_CPUONLY_HH__
-#define __NSHADER_ELEMENT_CPUONLY_HH__
+#ifndef __NBA_ELEMENT_CPUONLY_HH__
+#define __NBA_ELEMENT_CPUONLY_HH__
 
 
 #include <rte_errno.h>
@@ -9,7 +9,7 @@
 #include <vector>
 #include <string>
 
-namespace nshader {
+namespace nba {
 
 class CPUOnly : public SchedulableElement, PerBatchElement {
 public:
@@ -35,7 +35,7 @@ public:
 
     int process_batch(int input_port, PacketBatch *batch)
     {
-        anno_set(&batch->banno, NSHADER_BANNO_LB_DECISION, -1);
+        anno_set(&batch->banno, NBA_BANNO_LB_DECISION, -1);
         return 0;
     }
 

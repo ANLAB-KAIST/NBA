@@ -1,7 +1,7 @@
 #include "IPsecDatablocks.hh"
 #include <rte_malloc.h>
 
-namespace nshader {
+namespace nba {
 
 int dbid_enc_payloads;
 int dbid_iv;

@@ -6,7 +6,7 @@
 #include "../../lib/types.hh"
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 static unordered_map<uint32_t, uint16_t> pPrefixTable[33];
 static unsigned int current_TBLlong = 0;
@@ -80,7 +80,7 @@ int IPlookup::process(int input_port, struct rte_mbuf *pkt, struct annotation_se
     //unsigned n = (pkt->pkt.in_port <= (num_tx_ports / 2) - 1) ? 0 : (num_tx_ports / 2);
     //rr_port = (rr_port + 1) % (num_tx_ports / 2) + n;
     rr_port = (rr_port + 1) % (num_tx_ports);
-    anno_set(anno, NSHADER_ANNO_IFACE_OUT, rr_port);
+    anno_set(anno, NBA_ANNO_IFACE_OUT, rr_port);
     return 0;
 }
 
@@ -95,7 +95,7 @@ int IPlookup::postproc(int input_port, void *custom_output,
     //unsigned n = (pkt->pkt.in_port <= (num_tx_ports / 2) - 1) ? 0 : (num_tx_ports / 2);
     //rr_port = (rr_port + 1) % (num_tx_ports / 2) + n;
     rr_port = (rr_port + 1) % (num_tx_ports);
-    anno_set(anno, NSHADER_ANNO_IFACE_OUT, rr_port);
+    anno_set(anno, NBA_ANNO_IFACE_OUT, rr_port);
     return 0;
 }
 

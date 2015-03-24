@@ -1,5 +1,5 @@
-#ifndef __NSHADER_NODELOCALSTORAGE_HH__
-#define __NSHADER_NODELOCALSTORAGE_HH__
+#ifndef __NBA_NODELOCALSTORAGE_HH__
+#define __NBA_NODELOCALSTORAGE_HH__
 
 #include "log.hh"
 
@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <string>
 
-namespace nshader {
+namespace nba {
 
 class NodeLocalStorage {
     /**
@@ -40,7 +40,7 @@ public:
     NodeLocalStorage(unsigned node_id)
     {
         _node_id = node_id;
-        for (int i = 0; i < NSHADER_MAX_NODELOCALSTORAGE_ENTRIES; i++) {
+        for (int i = 0; i < NBA_MAX_NODELOCALSTORAGE_ENTRIES; i++) {
             _pointers[i] = NULL;
             //_rwlocks[i] = NULL;
         }
@@ -56,7 +56,7 @@ public:
     {
         rte_spinlock_lock(&_node_lock);
         size_t kid = _keys.size();
-        assert(kid < NSHADER_MAX_NODELOCALSTORAGE_ENTRIES);
+        assert(kid < NBA_MAX_NODELOCALSTORAGE_ENTRIES);
         _keys.insert(std::pair<std::string, int>(key, kid));
 
         void *ptr = rte_malloc_socket("nls_alloc", size, 64, _node_id);
@@ -117,8 +117,8 @@ public:
 
 protected:
     unsigned _node_id;
-    //rte_rwlock_t *_rwlocks[NSHADER_MAX_NODELOCALSTORAGE_ENTRIES];
-    void *_pointers[NSHADER_MAX_NODELOCALSTORAGE_ENTRIES];
+    //rte_rwlock_t *_rwlocks[NBA_MAX_NODELOCALSTORAGE_ENTRIES];
+    void *_pointers[NBA_MAX_NODELOCALSTORAGE_ENTRIES];
     std::unordered_map<std::string, int> _keys;
     rte_spinlock_t _node_lock;
 };

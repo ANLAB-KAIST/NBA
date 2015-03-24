@@ -10,10 +10,10 @@
 
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 /* empty currently */
-namespace nshader {
+namespace nba {
 
 }
 

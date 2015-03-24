@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMGRAPH_HH__
-#define __NSHADER_ELEMGRAPH_HH__
+#ifndef __NBA_ELEMGRAPH_HH__
+#define __NBA_ELEMGRAPH_HH__
 
 #include "element.hh"
 #include "types.hh"
@@ -8,7 +8,7 @@
 
 #include "computation.hh"
 
-namespace nshader {
+namespace nba {
 
 #define ROOT_ELEMENT (nullptr)
 
@@ -104,7 +104,7 @@ protected:
     comp_thread_context *ctx;
 
     FixedRing<PacketBatch *, nullptr> queue;
-    FixedRing<OffloadTask *, nullptr> ready_tasks[NSHADER_MAX_COPROCESSOR_TYPES];
+    FixedRing<OffloadTask *, nullptr> ready_tasks[NBA_MAX_COPROCESSOR_TYPES];
     FixedRing<PacketBatch *, nullptr> delayed_batches;
 
 private:

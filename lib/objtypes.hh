@@ -1,5 +1,5 @@
-#ifndef __NSHADER_OBJTYPES_HH__
-#define __NSHADER_OBJTYPES_HH__
+#ifndef __NBA_OBJTYPES_HH__
+#define __NBA_OBJTYPES_HH__
 
 #ifdef USE_CUDA
 #include <cuda_runtime.h>

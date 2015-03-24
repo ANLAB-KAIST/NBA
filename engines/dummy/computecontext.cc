@@ -3,7 +3,7 @@
 #include "../../lib/common.hh"
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 DummyComputeContext::DummyComputeContext(unsigned ctx_id, ComputeDevice *mother_device)
  : ComputeContext(ctx_id, mother_device)

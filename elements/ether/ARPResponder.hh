@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_ETHER_ARPRESPONDER_HH__
-#define __NSHADER_ELEMENT_ETHER_ARPRESPONDER_HH__
+#ifndef __NBA_ELEMENT_ETHER_ARPRESPONDER_HH__
+#define __NBA_ELEMENT_ETHER_ARPRESPONDER_HH__
 
 
 #include <rte_config.h>
@@ -20,7 +20,7 @@
 
 #include "util_arptable.hh"
 
-namespace nshader {
+namespace nba {
 
 class ARPResponder : public Element {
 public:

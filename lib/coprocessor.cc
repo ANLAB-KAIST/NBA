@@ -1,5 +1,5 @@
 /**
- * nShader's Coprocessor Handler.
+ * NBA's Coprocessor Handler.
  *
  * Author: Joongi Kim <joongi@an.kaist.ac.kr>
  */
@@ -35,11 +35,11 @@
 
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 RTE_DECLARE_PER_LCORE(unsigned, _lcore_id);
 
-namespace nshader {
+namespace nba {
 
 static void coproc_task_input_cb(struct ev_loop *loop, struct ev_async *watcher, int revents)
 {
@@ -93,7 +93,7 @@ static void coproc_task_d2h_cb(struct ev_loop *loop, struct ev_async *watcher, i
             //task->cctx->sync();
             task->copy_d2h();
             ctx->task_done_queue->push_back(task);
-            if (ctx->task_done_queue->size() >= NSHADER_MAX_KERNEL_OVERLAP || !ev_is_pending(ctx->task_input_watcher))
+            if (ctx->task_done_queue->size() >= NBA_MAX_KERNEL_OVERLAP || !ev_is_pending(ctx->task_input_watcher))
                 ev_feed_event(loop, ctx->task_done_watcher, EV_ASYNC);
         } else
             ctx->d2h_pending_queue->push_back(task);

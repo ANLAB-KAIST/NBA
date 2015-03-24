@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_IPSEC_IPSECESPENCAP_HH__
-#define __NSHADER_ELEMENT_IPSEC_IPSECESPENCAP_HH__
+#ifndef __NBA_ELEMENT_IPSEC_IPSECESPENCAP_HH__
+#define __NBA_ELEMENT_IPSEC_IPSECESPENCAP_HH__
 
 
 #include <rte_config.h>
@@ -25,7 +25,7 @@
 #include "../ipv6/util_hash_table.hh"
 #include "util_ipsec_key.hh"
 
-namespace nshader {
+namespace nba {
 
 class IPsecESPencap : public Element {
 public:

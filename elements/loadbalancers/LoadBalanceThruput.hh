@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_LOADBALANCETHRUPUT_HH__
-#define __NSHADER_ELEMENT_LOADBALANCETHRUPUT_HH__
+#ifndef __NBA_ELEMENT_LOADBALANCETHRUPUT_HH__
+#define __NBA_ELEMENT_LOADBALANCETHRUPUT_HH__
 
 #include "../../lib/element.hh"
 #include "../../lib/annotation.hh"
@@ -15,7 +15,7 @@
 #include <random>
 #include <cmath>
 
-namespace nshader {
+namespace nba {
 
 class LoadBalanceThruput : public SchedulableElement, PerBatchElement {
 public:
@@ -62,7 +62,7 @@ public:
         /* Generate a random number and find the interval where it belongs to. */
         int64_t x = uniform_dist(random_generator);
         int choice = (x > local_cpu_ratio) - 1;
-        anno_set(&batch->banno, NSHADER_BANNO_LB_DECISION, choice);
+        anno_set(&batch->banno, NBA_BANNO_LB_DECISION, choice);
         return 0;
     }
 

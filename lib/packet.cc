@@ -4,9 +4,9 @@
 #include <rte_mbuf.h>
 #include <rte_mempool.h>
 
-using namespace nshader;
+using namespace nba;
 
-namespace nshader {
+namespace nba {
 thread_local struct rte_mempool *packet_pool = nullptr;
 
 static void packet_init_packet(struct rte_mempool *mp, void *arg, void *obj, unsigned idx)

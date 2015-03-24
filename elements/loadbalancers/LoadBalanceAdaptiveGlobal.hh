@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_LOADBALANCEADAPTIVEGLOBAL_HH__
-#define __NSHADER_ELEMENT_LOADBALANCEADAPTIVEGLOBAL_HH__
+#ifndef __NBA_ELEMENT_LOADBALANCEADAPTIVEGLOBAL_HH__
+#define __NBA_ELEMENT_LOADBALANCEADAPTIVEGLOBAL_HH__
 
 #include "../../lib/element.hh"
 #include "../../lib/annotation.hh"
@@ -17,7 +17,7 @@
 #define _LB_PPC_GLOBAL_MY_CPU_TIME (1000)
 #define _LB_PPC_GLOBAL_MY_CPU_DELTA (10)
 
-namespace nshader {
+namespace nba {
 
 class LoadBalanceAdaptiveGlobal : public SchedulableElement, PerBatchElement {
 public:
@@ -55,7 +55,7 @@ public:
         /* Generate a random number and find the interval where it belongs to. */
         int64_t x = uniform_dist(random_generator);
         int _temp = (x > local_cpu_ratio) - 1;
-        anno_set(&batch->banno, NSHADER_BANNO_LB_DECISION, _temp);
+        anno_set(&batch->banno, NBA_BANNO_LB_DECISION, _temp);
         return 0;
     }
 

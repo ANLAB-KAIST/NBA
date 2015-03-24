@@ -1,5 +1,5 @@
-#ifndef __NSHADER_UTIL_HASH_TABLE_HH__
-#define __NSHADER_UTIL_HASH_TABLE_HH__
+#ifndef __NBA_UTIL_HASH_TABLE_HH__
+#define __NBA_UTIL_HASH_TABLE_HH__
 
 #include <stdint.h>
 #include <unistd.h>

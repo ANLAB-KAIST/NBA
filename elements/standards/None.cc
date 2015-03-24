@@ -2,7 +2,7 @@
 #include "../../lib/types.hh"
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 int None::initialize()
 {

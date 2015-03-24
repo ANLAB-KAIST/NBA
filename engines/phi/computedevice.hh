@@ -12,7 +12,7 @@
 #include "utils.hh"
 #include "computecontext.hh"
 
-namespace nshader
+namespace nba
 {
 
 class PhiComputeContext;
@@ -49,6 +49,6 @@ private:
 
 }
 
-#endif /* __NSHADER_PHI_ENGINE_HH__ */
+#endif /* __NBA_PHI_ENGINE_HH__ */
 
 // vim: ts=8 sts=4 sw=4 et

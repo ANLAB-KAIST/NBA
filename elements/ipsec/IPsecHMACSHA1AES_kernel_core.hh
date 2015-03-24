@@ -32,8 +32,8 @@
  *
  */
 
-#ifndef __NSHADER_UTIL_IPSEC_AES_CORE_HH__
-#define __NSHADER_UTIL_IPSEC_AES_CORE_HH__
+#ifndef __NBA_UTIL_IPSEC_AES_CORE_HH__
+#define __NBA_UTIL_IPSEC_AES_CORE_HH__
 
 #define AES_BLOCK_SIZE 16
 
@@ -1368,4 +1368,4 @@ AES_256_encrypt(const uint8_t *in,
 }
 
 
-#endif /* __NSHADER_UTIL_IPSEC_AES_CORE_HH__*/
+#endif /* __NBA_UTIL_IPSEC_AES_CORE_HH__*/

@@ -33,7 +33,7 @@ using namespace std;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wwrite-strings"
-namespace nshader {
+namespace nba {
 
 unordered_map<string, long> system_params __rte_cache_aligned;
 
@@ -94,7 +94,7 @@ static PyObject *coproc_thread_type;
 static PyObject *queue_type;
 
 static PyObject*
-nshader_get_netdevices(PyObject *self, PyObject *args)
+nba_get_netdevices(PyObject *self, PyObject *args)
 {
     PyObject *plist;
     if (emulate_io) {
@@ -195,7 +195,7 @@ nshader_get_netdevices(PyObject *self, PyObject *args)
 }
 
 static PyObject*
-nshader_get_coprocessors(PyObject *self, PyObject *args)
+nba_get_coprocessors(PyObject *self, PyObject *args)
 {
     int count = 0;
     PyObject *plist = PyList_New(0);
@@ -342,12 +342,12 @@ nshader_get_coprocessors(PyObject *self, PyObject *args)
 }
 
 static PyObject*
-nshader_get_cpu_node_mapping(PyObject *self, PyObject *args)
+nba_get_cpu_node_mapping(PyObject *self, PyObject *args)
 {
     int num_lcores = sysconf(_SC_NPROCESSORS_ONLN);
     int num_nodes = numa_num_configured_nodes();
     PyObject *plist = PyList_New(num_nodes);
-    PyObject *psublists[NSHADER_MAX_NODES];
+    PyObject *psublists[NBA_MAX_NODES];
     for (int i = 0; i < num_nodes; i++) {
         psublists[i] = PyList_New(0);
         PyList_SetItem(plist, i, psublists[i]);
@@ -361,17 +361,17 @@ nshader_get_cpu_node_mapping(PyObject *self, PyObject *args)
 }
 
 static PyMethodDef NSMethods[] = {
-    {"get_netdevices", nshader_get_netdevices, METH_VARARGS,
+    {"get_netdevices", nba_get_netdevices, METH_VARARGS,
      "Retreive detailed information of the devices recognized by Intel DPDK."},
-    {"get_coprocessors", nshader_get_coprocessors, METH_VARARGS,
+    {"get_coprocessors", nba_get_coprocessors, METH_VARARGS,
      "Retreive detailed information of the offloading devices (coprocessors) recognized by the framework."},
-    {"get_cpu_node_mapping", nshader_get_cpu_node_mapping, METH_VARARGS,
+    {"get_cpu_node_mapping", nba_get_cpu_node_mapping, METH_VARARGS,
      "Retreive the CPU cores inside each NUMA node configured in the system as a nested list."},
     {NULL, NULL, 0, NULL}
 };
 
 static PyModuleDef NSModule = {
-    PyModuleDef_HEAD_INIT, "nshader", NULL, -1, NSMethods,
+    PyModuleDef_HEAD_INIT, "nba", NULL, -1, NSMethods,
     NULL, NULL, NULL, NULL
 };
 
@@ -392,7 +392,7 @@ bool check_ht_enabled()
 }
 
 static PyObject *
-nshader_create_namedtuple(PyObject *namedtuple, char *name, char *fieldspec)
+nba_create_namedtuple(PyObject *namedtuple, char *name, char *fieldspec)
 {
     PyObject *args = PyTuple_New(2);
     PyObject *pname = PyUnicode_FromString(name);
@@ -406,7 +406,7 @@ nshader_create_namedtuple(PyObject *namedtuple, char *name, char *fieldspec)
 }
 
 PyMODINIT_FUNC
-PyInit_nshader(void)
+PyInit_nba(void)
 {
     PyObject *mod = PyModule_Create(&NSModule);
 
@@ -425,22 +425,22 @@ PyInit_nshader(void)
     PyObject *nt = PyObject_GetAttrString(col, "namedtuple");
     PyObject *ntclass;
 
-    ntclass = nshader_create_namedtuple(nt, "IOThread", "core_id attached_rxqs mode");
+    ntclass = nba_create_namedtuple(nt, "IOThread", "core_id attached_rxqs mode");
     PyModule_AddObject(mod, "IOThread", ntclass);
     Py_INCREF(ntclass);
     io_thread_type = ntclass;
     
-    ntclass = nshader_create_namedtuple(nt, "CompThread", "core_id");
+    ntclass = nba_create_namedtuple(nt, "CompThread", "core_id");
     PyModule_AddObject(mod, "CompThread", ntclass);
     Py_INCREF(ntclass);
     comp_thread_type = ntclass;
 
-    ntclass = nshader_create_namedtuple(nt, "CoprocThread", "core_id device_id");
+    ntclass = nba_create_namedtuple(nt, "CoprocThread", "core_id device_id");
     PyModule_AddObject(mod, "CoprocThread", ntclass);
     Py_INCREF(ntclass);
     coproc_thread_type = ntclass;
 
-    ntclass = nshader_create_namedtuple(nt, "Queue", "node_id template");
+    ntclass = nba_create_namedtuple(nt, "Queue", "node_id template");
     PyModule_AddObject(mod, "Queue", ntclass);
     Py_INCREF(ntclass);
     queue_type = ntclass;
@@ -491,7 +491,7 @@ bool load_config(const char *pyfilename)
     unordered_map<int, set<PyObject*> > queue_producers;
     unordered_map<int, set<PyObject*> > queue_consumers;
 
-    PyImport_AppendInittab("nshader", &PyInit_nshader);
+    PyImport_AppendInittab("nba", &PyInit_nba);
     Py_Initialize();
 
     p_main = PyImport_AddModule("__main__");

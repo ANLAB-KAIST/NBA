@@ -1,5 +1,5 @@
 /**
- * nShader's RX/TX common components and IO loop
+ * NBA's RX/TX common components and IO loop
  *
  * Author: Joongi Kim <joongi@an.kaist.ac.kr>
  */
@@ -132,13 +132,13 @@
 #include <random>
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
-namespace nshader {
+namespace nba {
 
 static thread_local uint64_t recv_batch_cnt = 0;
 
-#ifdef NSHADER_SLEEPY_IO
+#ifdef NBA_SLEEPY_IO
 struct rx_state {
     uint16_t rx_length;
     uint16_t rx_quick_sleep;
@@ -149,7 +149,7 @@ struct rx_state {
 #ifdef TEST_MINIMAL_L2FWD
 struct packet_batch {
     unsigned count;
-    struct rte_mbuf *pkts[NSHADER_MAX_COMPBATCH_SIZE];
+    struct rte_mbuf *pkts[NBA_MAX_COMPBATCH_SIZE];
 };
 #endif
 
@@ -166,7 +166,7 @@ static void comp_packetbatch_init(struct rte_mempool *mp, void *arg, void *obj, 
 
 static void comp_dbstate_init(struct rte_mempool *mp, void *arg, void *obj, unsigned idx)
 {
-    memset(obj, 0, sizeof(struct datablock_tracker) * NSHADER_MAX_DATABLOCKS);
+    memset(obj, 0, sizeof(struct datablock_tracker) * NBA_MAX_DATABLOCKS);
 }
 
 static void comp_task_init(struct rte_mempool *mp, void *arg, void *obj, unsigned idx)
@@ -285,12 +285,12 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
     }
     for (p = 0; p < count; p++) {
         /* Set annotations and strip the temporary headroom. */
-        anno_set(&batch->annos[p], NSHADER_ANNO_IFACE_IN,
+        anno_set(&batch->annos[p], NBA_ANNO_IFACE_IN,
                  batch->packets[p]->port);
-        anno_set(&batch->annos[p], NSHADER_ANNO_TIMESTAMP, t);
-        anno_set(&batch->annos[p], NSHADER_ANNO_BATCH_ID, recv_batch_cnt);
+        anno_set(&batch->annos[p], NBA_ANNO_TIMESTAMP, t);
+        anno_set(&batch->annos[p], NBA_ANNO_BATCH_ID, recv_batch_cnt);
     }
-    anno_set(&batch->banno, NSHADER_BANNO_LB_DECISION, -1);
+    anno_set(&batch->banno, NBA_BANNO_LB_DECISION, -1);
     recv_batch_cnt ++;
 
     /* Run the element graph's schedulable elements.
@@ -550,14 +550,14 @@ static void io_terminate_cb(struct ev_loop *loop, struct ev_async *watcher, int 
  */
 void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
 {
-    PacketBatch out_batches[NSHADER_MAX_PORTS];
+    PacketBatch out_batches[NBA_MAX_PORTS];
     uint64_t t = rte_rdtsc();
     ctx->comp_ctx->inspector->batch_process_time = 0.01 * (t - batch->recv_timestamp) 
                                                    + 0.99 * ctx->comp_ctx->inspector->batch_process_time;
     unsigned p;
 
     {
-        int64_t banno = anno_get(&batch->banno, NSHADER_BANNO_LB_DECISION);
+        int64_t banno = anno_get(&batch->banno, NBA_BANNO_LB_DECISION);
         double prev_pkt_time = 0;
         double true_time = batch->compute_time;
         if(banno == -1)
@@ -580,9 +580,9 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
     //   NOTE: current implementation: no extra queueing,
     //   just transmit as requested
     for (p = 0; p < batch->count; p++) {
-        if (batch->excluded[p] == false && anno_isset(&batch->annos[p], NSHADER_ANNO_IFACE_OUT)) {
+        if (batch->excluded[p] == false && anno_isset(&batch->annos[p], NBA_ANNO_IFACE_OUT)) {
             struct ether_hdr *ethh = rte_pktmbuf_mtod(batch->packets[p], struct ether_hdr *);
-            uint64_t o = anno_get(&batch->annos[p], NSHADER_ANNO_IFACE_OUT);
+            uint64_t o = anno_get(&batch->annos[p], NBA_ANNO_IFACE_OUT);
 
             /* Update source/dest MAC addresses. */
             ether_addr_copy(&ethh->s_addr, &ethh->d_addr);
@@ -618,7 +618,7 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
             ctx->global_tx_cnt += count;
             ctx->port_stats[o].num_tx_drop_pkts += 0;
         } else {
-#if NSHADER_OQ
+#if NBA_OQ
             /* To implement output-queuing, we need to drop when the TX NIC
              * is congested.  This would not happen in high line rates such
              * as 10 GbE because processing speed becomes the bottleneck,
@@ -671,8 +671,8 @@ int io_loop(void *arg)
 
     // the way numa index numbered for each cpu core is checked in main(). (see 'is_numa_idx_grouped' in main())
     const unsigned num_nodes = numa_num_configured_nodes();
-    struct rte_mbuf *pkts[NSHADER_MAX_IOBATCH_SIZE * NSHADER_MAX_QUEUES_PER_PORT];
-    struct rte_mbuf *drop_pkts[NSHADER_MAX_IOBATCH_SIZE];
+    struct rte_mbuf *pkts[NBA_MAX_IOBATCH_SIZE * NBA_MAX_QUEUES_PER_PORT];
+    struct rte_mbuf *drop_pkts[NBA_MAX_IOBATCH_SIZE];
     struct timespec sleep_ts;
     unsigned i, j;
     char temp[1024];
@@ -723,8 +723,8 @@ int io_loop(void *arg)
 
     snprintf(temp, RTE_MEMPOOL_NAMESIZE,
         "comp.dbstate.%u:%u@%u", ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
-    size_t dbstate_pool_size = NSHADER_MAX_COPROC_PPDEPTH;
-    size_t dbstate_item_size = sizeof(struct datablock_tracker) * NSHADER_MAX_DATABLOCKS;
+    size_t dbstate_pool_size = NBA_MAX_COPROC_PPDEPTH;
+    size_t dbstate_item_size = sizeof(struct datablock_tracker) * NBA_MAX_DATABLOCKS;
     ctx->comp_ctx->dbstate_pool = rte_mempool_create(temp, dbstate_pool_size + 1,
                                                      dbstate_item_size, CACHE_LINE_SIZE,
                                                      0, nullptr, nullptr,
@@ -795,7 +795,7 @@ int io_loop(void *arg)
     ev_timer_again(ctx->loop, ctx->stat_timer);
 
     uint64_t cur_tsc, prev_tsc = 0;
-#ifdef NSHADER_SLEEPY_IO
+#ifdef NBA_SLEEPY_IO
     struct rx_state *states = (struct rx_state *) rte_malloc_socket("rxstates",
             sizeof(*states) * ctx->num_hw_rx_queues,
             64, ctx->loc.node_id);
@@ -813,9 +813,9 @@ int io_loop(void *arg)
     //uint32_t magic = 0x4ED182DB;
     uint32_t magic = 0x7ED996DB;
 
-#ifdef NSHADER_RANDOM_PORT_ACCESS
-    int random_mapping[NSHADER_MAX_PORTS];
-    for (i=0; i < NSHADER_MAX_PORTS; i++)
+#ifdef NBA_RANDOM_PORT_ACCESS
+    int random_mapping[NBA_MAX_PORTS];
+    for (i=0; i < NBA_MAX_PORTS; i++)
         random_mapping[i] = i;
 #endif
 
@@ -844,7 +844,7 @@ int io_loop(void *arg)
     while (likely(!ctx->loop_broken)) {
         unsigned total_recv_cnt = 0;
         for (i = 0; i < ctx->num_hw_rx_queues; i++) {
-#ifdef NSHADER_RANDOM_PORT_ACCESS/*{{{*/
+#ifdef NBA_RANDOM_PORT_ACCESS/*{{{*/
             /* Shuffle the RX queue list. */
             int swap_idx = random32() % ctx->num_hw_rx_queues;
             int temp = random_mapping[i];
@@ -906,7 +906,7 @@ int io_loop(void *arg)
                     break;
                 }
             } else {/*}}}*/
-#ifdef NSHADER_SLEEPY_IO/*{{{*/
+#ifdef NBA_SLEEPY_IO/*{{{*/
                 struct rx_state *state = &states[i];
                 if ((state->rx_quick_sleep --) > 0) {
                     pthread_yield();
@@ -948,7 +948,7 @@ int io_loop(void *arg)
                 //recv_cnt = local_recv_cnt;
                 recv_cnt = rte_eth_rx_burst((uint8_t) port_idx, rxq,
                                              &pkts[total_recv_cnt], ctx->num_iobatch_size);
-#endif        /* endif NSHADER_SLEEPY_IO */
+#endif        /* endif NBA_SLEEPY_IO */
             } /* endif IO_EMUL */
 
 #if !defined(TEST_RXONLY) && !defined(TEST_MINIMAL_L2FWD)
@@ -1009,7 +1009,7 @@ int io_loop(void *arg)
             prev_tsc = cur_tsc;
 
         } // end of rxq scanning
-        assert(total_recv_cnt <= NSHADER_MAX_IOBATCH_SIZE * NSHADER_MAX_COMP_PPDEPTH);
+        assert(total_recv_cnt <= NBA_MAX_IOBATCH_SIZE * NBA_MAX_COMP_PPDEPTH);
 
         if (ctx->mode == IO_EMUL) {/*{{{*/
             while (!rte_ring_empty(ctx->drop_queue)) {

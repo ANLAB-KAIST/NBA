@@ -1,12 +1,12 @@
-#ifndef __NSHADER_MEMPOOL_HH__
-#define __NSHADER_MEMPOOL_HH__
+#ifndef __NBA_MEMPOOL_HH__
+#define __NBA_MEMPOOL_HH__
 
 #include <stdint.h>
 #include <assert.h>
 
 #define __ALIGN(x,a) (((x)+(a)-1)&~((a)-1))
 
-namespace nshader
+namespace nba
 {
 
 class MemoryPool

@@ -5,8 +5,8 @@
  *      Author: leeopop
  */
 
-#ifndef __NSHADER_COLLISION_CHECKER_H__
-#define __NSHADER_COLLISION_CHECKER_H__
+#ifndef __NBA_COLLISION_CHECKER_H__
+#define __NBA_COLLISION_CHECKER_H__
 
 #include <stdint.h>
 
@@ -21,4 +21,4 @@ int check_collision(const char* program_name, uint32_t flags);
 }
 #endif
 
-#endif /* __NSHADER_COLLISION_CHECKER_H__ */
+#endif /* __NBA_COLLISION_CHECKER_H__ */

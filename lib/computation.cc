@@ -1,5 +1,5 @@
 /**
- * nShader's Computation Thread.
+ * NBA's Computation Thread.
  *
  * Author: Joongi Kim <joongi@an.kaist.ac.kr>
  */
@@ -39,12 +39,12 @@ extern "C"{
 #include <stdexcept>
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 static thread_local uint64_t recv_batch_cnt = 0;
 RTE_DECLARE_PER_LCORE(unsigned, _lcore_id);
 
-namespace nshader {
+namespace nba {
 
 comp_thread_context::comp_thread_context() {
     terminate_watcher = nullptr;
@@ -72,7 +72,7 @@ comp_thread_context::comp_thread_context() {
     io_ctx = nullptr;
     named_offload_devices = nullptr;
     offload_devices = nullptr;
-    for (unsigned i = 0; i < NSHADER_MAX_COPROCESSORS; i++) {
+    for (unsigned i = 0; i < NBA_MAX_COPROCESSORS; i++) {
         offload_input_queues[i] = nullptr;
     }
 
@@ -251,7 +251,7 @@ void comp_thread_context::initialize_graph_per_thread() {
 
 void comp_thread_context::io_tx_new(void* data, size_t len, int out_port)
 {
-    if (len > NSHADER_MAX_PACKET_SIZE) {
+    if (len > NBA_MAX_PACKET_SIZE) {
         RTE_LOG(WARNING, COMP, "io_tx_new(): Too large packet!\n");
         return;
     }

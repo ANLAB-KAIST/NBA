@@ -1,5 +1,5 @@
 /**
- * nShader's EMMA architecture main program.
+ * NBA's EMMA architecture main program.
  *
  * Author: Joongi Kim <joongi@an.kaist.ac.kr>
  */
@@ -74,7 +74,7 @@
 
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 static unsigned num_nodes, num_coprocessors, num_pcores, num_lcores, num_ports;
 static unsigned num_coproc_threads, num_comp_threads, num_io_threads;
@@ -129,9 +129,9 @@ int main(int argc, char **argv)
     main_thread_id = threading::self();
 
     struct {
-        struct port_info rx_ports[NSHADER_MAX_PORTS];
+        struct port_info rx_ports[NBA_MAX_PORTS];
         unsigned num_rx_ports;
-    } node_ports[NSHADER_MAX_NODES];
+    } node_ports[NBA_MAX_NODES];
 
     //assert(PAPI_library_init(PAPI_VER_CURRENT) == PAPI_VER_CURRENT);
     //assert(PAPI_thread_init(pthread_self) == PAPI_OK);
@@ -197,7 +197,7 @@ int main(int argc, char **argv)
                 if (optarg)
                     num_emulated_ifaces = (unsigned) atol(optarg);
                 assert(num_emulated_ifaces > 0);
-                assert(num_emulated_ifaces <= NSHADER_MAX_PORTS);
+                assert(num_emulated_ifaces <= NBA_MAX_PORTS);
             }
             else if (!strcmp("emulated-pktsize", long_opts[optidx].name)) {
                 emulated_packet_size = (unsigned) atol(optarg);
@@ -312,8 +312,8 @@ int main(int argc, char **argv)
     if (!load_config(system_config)) {
         rte_exit(EXIT_FAILURE, "Loading global configuration has failed.\n");
     }
-    if (num_ports > NSHADER_MAX_PORTS)
-        num_ports = NSHADER_MAX_PORTS;
+    if (num_ports > NBA_MAX_PORTS)
+        num_ports = NBA_MAX_PORTS;
 
     num_rxq_per_port = system_params["NUM_RXQ_PER_PORT"];
     num_txq_per_port = num_lcores;
@@ -382,16 +382,16 @@ int main(int argc, char **argv)
     const uint32_t num_mbufs = num_rx_desc + num_tx_desc
                                + (num_lcores * num_mp_cache)
                                + system_params["IO_BATCH_SIZE"];
-    const uint16_t mbuf_size = (RTE_PKTMBUF_HEADROOM + NSHADER_MAX_PACKET_SIZE);
+    const uint16_t mbuf_size = (RTE_PKTMBUF_HEADROOM + NBA_MAX_PACKET_SIZE);
 
     /* Initialize per-node information. */
     for (unsigned node_idx = 0; node_idx < num_nodes; node_idx ++) {
         memset(&node_ports[node_idx], 0, sizeof(node_ports[0]));
     }
 
-    struct rte_mempool* rx_mempools[NSHADER_MAX_PORTS][NSHADER_MAX_QUEUES_PER_PORT] = {{0,}};  // for debugging
-    struct rte_mempool* newpkt_mempools[NSHADER_MAX_PORTS][NSHADER_MAX_QUEUES_PER_PORT] = {{0,}};
-    struct rte_mempool* req_mempools[NSHADER_MAX_PORTS][NSHADER_MAX_QUEUES_PER_PORT] = {{0,}};
+    struct rte_mempool* rx_mempools[NBA_MAX_PORTS][NBA_MAX_QUEUES_PER_PORT] = {{0,}};  // for debugging
+    struct rte_mempool* newpkt_mempools[NBA_MAX_PORTS][NBA_MAX_QUEUES_PER_PORT] = {{0,}};
+    struct rte_mempool* req_mempools[NBA_MAX_PORTS][NBA_MAX_QUEUES_PER_PORT] = {{0,}};
     /* Initialize NIC devices (rxq, txq). */
     for (port_idx = 0; port_idx < num_ports; port_idx++) {
         char dev_addr_buf[64], dev_filename[PATH_MAX], temp_buf[64];
@@ -592,7 +592,7 @@ int main(int argc, char **argv)
     coprocessor_threads = new struct spawned_thread[num_coprocessors];
     {
         /* per-node data structures */
-        unsigned per_node_counts[NSHADER_MAX_NODES] = {0,};
+        unsigned per_node_counts[NBA_MAX_NODES] = {0,};
 
         /* per-thread initialization */
         for (i = 0; i < num_coprocessors; i++) {
@@ -663,7 +663,7 @@ int main(int argc, char **argv)
 
             threading::bind_cpu(ctx->loc.core_id); /* To ensure the thread is spawned in the node. */
             pthread_yield();
-            assert(0 == pthread_create(&coprocessor_threads[i].tid, NULL, nshader::coproc_loop, ctx));
+            assert(0 == pthread_create(&coprocessor_threads[i].tid, NULL, nba::coproc_loop, ctx));
 
             /* Initialize one-by-one. */
             ctx->thread_init_done_barrier->wait();
@@ -681,9 +681,9 @@ int main(int argc, char **argv)
     vector<comp_thread_context *> comp_thread_ctxs = vector<comp_thread_context*>();
     {
         /* per-node data structures */
-        NodeLocalStorage *nls[NSHADER_MAX_NODES];
-        unsigned per_node_counts[NSHADER_MAX_NODES];
-        for (unsigned j = 0; j < NSHADER_MAX_NODES; j++) {
+        NodeLocalStorage *nls[NBA_MAX_NODES];
+        unsigned per_node_counts[NBA_MAX_NODES];
+        for (unsigned j = 0; j < NBA_MAX_NODES; j++) {
             nls[j] = NULL;
             per_node_counts[j] = 0;
         }
@@ -763,13 +763,13 @@ int main(int argc, char **argv)
                     ctx->task_completion_watcher = qwatchers[conf.taskoutq_idx];
                     ctx->coproc_ctx = coproc_ctx;
                     RTE_LOG(DEBUG, MAIN, "Registering %lu datablocks...\n", num_datablocks);
-                    memset(ctx->datablock_registry, 0, sizeof(DataBlock*) * NSHADER_MAX_DATABLOCKS);
+                    memset(ctx->datablock_registry, 0, sizeof(DataBlock*) * NBA_MAX_DATABLOCKS);
                     for (unsigned dbid = 0; dbid < num_datablocks; dbid++) {
                         ctx->datablock_registry[dbid] = (datablock_ctors[dbid])();
                         ctx->datablock_registry[dbid]->set_id(dbid);
                         RTE_LOG(DEBUG, MAIN, "  [%u] %s\n", dbid, ctx->datablock_registry[dbid]->name());
                     }
-                    new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NSHADER_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
+                    new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NBA_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
                     for (unsigned k = 0, k_max = system_params["COPROC_CTX_PER_COMPTHREAD"]; k < k_max; k++) {
                         ComputeContext *cctx = nullptr;
                         cctx = device->get_available_context();
@@ -779,7 +779,7 @@ int main(int argc, char **argv)
                     }
                 }
             } else {
-                new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NSHADER_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
+                new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NBA_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
                 assert(ctx->cctx_list.empty());
                 ctx->task_completion_queue = NULL;
                 ctx->task_completion_watcher = NULL;
@@ -804,7 +804,7 @@ int main(int argc, char **argv)
     }
 
     /* Initialize elements for each NUMA node. */
-    bool node_initialized[NSHADER_MAX_NODES];
+    bool node_initialized[NBA_MAX_NODES];
     for (unsigned node_id = 0; node_id < num_nodes; ++node_id) {
         node_initialized[node_id] = false;
     }
@@ -903,7 +903,7 @@ int main(int argc, char **argv)
                                                                 CACHE_LINE_SIZE, node_id);
             new (init_conds[node_id]) CondVar();
         }
-        unsigned per_node_counts[NSHADER_MAX_NODES] = {0,};
+        unsigned per_node_counts[NBA_MAX_NODES] = {0,};
 
         /* per-thread initialization */
         srand(time(0));
@@ -954,7 +954,7 @@ int main(int argc, char **argv)
              */
             snprintf(ring_name, RTE_RING_NAMESIZE, "dropq.%u:%u@%u",
                      ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
-            ctx->drop_queue = rte_ring_create(ring_name, 8 * NSHADER_MAX_COMPBATCH_SIZE,
+            ctx->drop_queue = rte_ring_create(ring_name, 8 * NBA_MAX_COMPBATCH_SIZE,
                                               node_id, RING_F_SC_DEQ);
             assert(NULL != ctx->drop_queue);
 
@@ -962,10 +962,10 @@ int main(int argc, char **argv)
             for (k = 0; k < num_ports; k++) {
                 snprintf(ring_name, RTE_RING_NAMESIZE, "txq%u.%u:%u@%u",
                          k, ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
-                ctx->tx_queues[k] = rte_ring_create(ring_name, 8 * NSHADER_MAX_COMPBATCH_SIZE,
+                ctx->tx_queues[k] = rte_ring_create(ring_name, 8 * NBA_MAX_COMPBATCH_SIZE,
                                     node_id, RING_F_SC_DEQ);
                 assert(NULL != ctx->tx_queues[k]);
-                assert(0 == rte_ring_set_water_mark(ctx->tx_queues[k], (8 * NSHADER_MAX_COMPBATCH_SIZE) - 16));
+                assert(0 == rte_ring_set_water_mark(ctx->tx_queues[k], (8 * NBA_MAX_COMPBATCH_SIZE) - 16));
             }
 
             snprintf(ring_name, RTE_RING_NAMESIZE, "reqring.%u:%u@%u",
@@ -985,14 +985,14 @@ int main(int argc, char **argv)
             }
             if (emulate_io) {
                 uint32_t mb_size = ALIGN(sizeof(struct rte_mbuf), CACHE_LINE_SIZE)
-                                   + (RTE_PKTMBUF_HEADROOM + NSHADER_MAX_PACKET_SIZE);
+                                   + (RTE_PKTMBUF_HEADROOM + NBA_MAX_PACKET_SIZE);
                 snprintf(mempool_name, RTE_MEMPOOL_NAMESIZE,
                          "emul_pktbuf_%u:%u", ctx->loc.node_id, ctx->loc.core_id);
                 ctx->emul_rx_packet_pool = rte_mempool_create(mempool_name,
-                #ifdef NSHADER_NO_HUGE
-                        8 * ctx->num_iobatch_size * conf.attached_rxqs.size() * NSHADER_MAX_COPROC_PPDEPTH + 1,
+                #ifdef NBA_NO_HUGE
+                        8 * ctx->num_iobatch_size * conf.attached_rxqs.size() * NBA_MAX_COPROC_PPDEPTH + 1,
                 #else
-                        ctx->num_iobatch_size * conf.attached_rxqs.size() * NSHADER_MAX_COPROC_PPDEPTH + 1,
+                        ctx->num_iobatch_size * conf.attached_rxqs.size() * NBA_MAX_COPROC_PPDEPTH + 1,
                 #endif
                         mb_size, CACHE_LINE_SIZE, sizeof(rte_pktmbuf_pool_private),
                         rte_pktmbuf_pool_init, NULL, rte_pktmbuf_init, NULL,
@@ -1052,7 +1052,7 @@ int main(int argc, char **argv)
 
     /* Since we set CALL_MASTER, this function blocks until the master
      * finishes. (master = io_loop[0:0@0]) */
-    rte_eal_mp_remote_launch(nshader::thread_wrapper, &col, CALL_MASTER);
+    rte_eal_mp_remote_launch(nba::thread_wrapper, &col, CALL_MASTER);
 
     /* Wait until the spawned threads are finished. */
     _exit_cond.lock();

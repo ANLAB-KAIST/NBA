@@ -7,7 +7,7 @@
 
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 int L2ForwardCreate::initialize()
 {
@@ -26,7 +26,7 @@ int L2ForwardCreate::process(int input_port, struct rte_mbuf *pkt, struct annota
     struct ether_hdr *ethh = rte_pktmbuf_mtod(pkt, struct ether_hdr *);
     if (likely(is_unicast_ether_addr(&ethh->d_addr))) {
 
-        unsigned iface_in = anno_get(anno, NSHADER_ANNO_IFACE_IN);
+        unsigned iface_in = anno_get(anno, NBA_ANNO_IFACE_IN);
         struct ether_hdr* header = rte_pktmbuf_mtod(pkt, struct ether_hdr*);
         struct ether_addr temp;
         header->s_addr = this->ctx->io_ctx->tx_ports[iface_in].addr;

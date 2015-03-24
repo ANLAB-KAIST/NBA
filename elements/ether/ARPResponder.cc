@@ -3,7 +3,7 @@
 #include "sstream"
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 int ARPResponder::initialize()
 {

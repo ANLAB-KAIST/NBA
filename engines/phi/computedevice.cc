@@ -2,7 +2,7 @@
 #include "../../lib/log.hh"
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 PhiComputeDevice::PhiComputeDevice(
         unsigned node_id, unsigned device_id, size_t num_contexts

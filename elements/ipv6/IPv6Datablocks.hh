@@ -1,11 +1,11 @@
-#ifndef __NSHADER_IPV6_DATABLOCKS_HH__
-#define __NSHADER_IPV6_DATABLOCKS_HH__
+#ifndef __NBA_IPV6_DATABLOCKS_HH__
+#define __NBA_IPV6_DATABLOCKS_HH__
 
 #include "../../lib/packetbatch.hh"
 #include "../../lib/datablock.hh"
 #include "util_hash_table.hh"
 
-namespace nshader {
+namespace nba {
 
 extern int dbid_ipv6_dest_addrs;
 extern int dbid_ipv6_lookup_results;

@@ -1,5 +1,5 @@
-#ifndef __NSHADER_TYPES_HH__
-#define __NSHADER_TYPES_HH__
+#ifndef __NBA_TYPES_HH__
+#define __NBA_TYPES_HH__
 
 #include "common.hh"
 #include "objtypes.hh"
@@ -26,7 +26,7 @@
 #include <rte_ring.h>
 
 
-namespace nshader {
+namespace nba {
 
 /* forward declarations */
 class CondVar;
@@ -59,7 +59,7 @@ struct port_info {
 
 struct new_packet
 {
-    char buf[NSHADER_MAX_PACKET_SIZE];
+    char buf[NBA_MAX_PACKET_SIZE];
     size_t len;
     int out_port;
 };
@@ -88,7 +88,7 @@ struct io_thread_context {
     int emul_packet_size;
     int emul_ip_version;
     int mode;
-    struct hwrxq rx_hwrings[NSHADER_MAX_PORTS * NSHADER_MAX_QUEUES_PER_PORT];
+    struct hwrxq rx_hwrings[NBA_MAX_PORTS * NBA_MAX_QUEUES_PER_PORT];
     struct ev_timer *stat_timer;
     struct io_port_stat *port_stats;
     struct io_thread_context *node_master_ctx;
@@ -97,15 +97,15 @@ struct io_thread_context {
 
     struct rte_ring* rx_queue;
     struct ev_async *rx_watcher;
-    struct port_info tx_ports[NSHADER_MAX_PORTS];
+    struct port_info tx_ports[NBA_MAX_PORTS];
     comp_thread_context *comp_ctx;
 
     char _reserved2[64]; // to prevent false-sharing
 
     struct rte_ring *drop_queue;
-    struct rte_ring *tx_queues[NSHADER_MAX_PORTS];
+    struct rte_ring *tx_queues[NBA_MAX_PORTS];
 
-    struct rte_mempool* rx_pools[NSHADER_MAX_PORTS];
+    struct rte_mempool* rx_pools[NBA_MAX_PORTS];
     struct rte_mempool* emul_rx_packet_pool = nullptr;
     struct rte_mempool* new_packet_pool = nullptr;
     struct rte_mempool* new_packet_request_pool = nullptr;
@@ -170,7 +170,7 @@ public:
     SystemInspector *inspector;
     FixedRing<ComputeContext *, nullptr> cctx_list;
     PacketBatch *input_batch;
-    DataBlock *datablock_registry[NSHADER_MAX_DATABLOCKS];
+    DataBlock *datablock_registry[NBA_MAX_DATABLOCKS];
 
     bool stop_task_batching;
     struct rte_ring *rx_queue;
@@ -182,7 +182,7 @@ public:
     struct io_thread_context *io_ctx;
     std::unordered_map<std::string, ComputeDevice *> *named_offload_devices;
     std::vector<ComputeDevice*> *offload_devices;
-    struct rte_ring *offload_input_queues[NSHADER_MAX_COPROCESSORS]; /* ptr to per-device task input queue */
+    struct rte_ring *offload_input_queues[NBA_MAX_COPROCESSORS]; /* ptr to per-device task input queue */
 
     char _reserved3[64]; /* prevent false-sharing */
 

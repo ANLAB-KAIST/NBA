@@ -11,7 +11,7 @@ def rte_ring_count(val):
     return (prod_tail - cons_tail) & prod_mask
 
 class FixedRingPrinter:
-    type_regex = re.compile(r'^(nshader::)?FixedRing<.*>$')
+    type_regex = re.compile(r'^(nba::)?FixedRing<.*>$')
 
     def __init__(self, val):
         self.val = val

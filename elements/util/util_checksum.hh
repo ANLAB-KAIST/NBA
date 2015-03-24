@@ -1,10 +1,10 @@
-#ifndef __NSHADER_UTIL_CHECKSUM_HH__
-#define __NSHADER_UTIL_CHECKSUM_HH__
+#ifndef __NBA_UTIL_CHECKSUM_HH__
+#define __NBA_UTIL_CHECKSUM_HH__
 
 //#include <netinet/ip.h>
 #include "../../lib/types.hh"
 
-namespace nshader {
+namespace nba {
 
 static inline uint16_t ip_fast_csum(const void *iph, unsigned int ihl)
 {

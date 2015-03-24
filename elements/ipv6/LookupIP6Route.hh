@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_IPv6_LOOKUPIPV6ROUTE_HH__
-#define __NSHADER_ELEMENT_IPv6_LOOKUPIPV6ROUTE_HH__
+#ifndef __NBA_ELEMENT_IPv6_LOOKUPIPV6ROUTE_HH__
+#define __NBA_ELEMENT_IPv6_LOOKUPIPV6ROUTE_HH__
 
 
 #include <rte_config.h>
@@ -38,7 +38,7 @@
 
 using namespace std;
 
-namespace nshader {
+namespace nba {
 
 class LookupIP6Route : public OffloadableElement {
 public:

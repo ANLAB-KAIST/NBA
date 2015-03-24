@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_PKTSIZECLASSIFIER_HH__
-#define __NSHADER_ELEMENT_PKTSIZECLASSIFIER_HH__
+#ifndef __NBA_ELEMENT_PKTSIZECLASSIFIER_HH__
+#define __NBA_ELEMENT_PKTSIZECLASSIFIER_HH__
 
 
 #include <rte_mbuf.h>
@@ -9,7 +9,7 @@
 #include <vector>
 #include <string>
 
-namespace nshader {
+namespace nba {
 
 class PacketSizeClassifier : public Element {
 public:

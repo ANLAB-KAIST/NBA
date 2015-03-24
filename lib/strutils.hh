@@ -1,10 +1,10 @@
-#ifndef __NSHADER_STRUTILS_HH__
-#define __NSHADER_STRUTILS_HH__
+#ifndef __NBA_STRUTILS_HH__
+#define __NBA_STRUTILS_HH__
 
 #include <cstring>
 #include <string>
 
-namespace nshader {
+namespace nba {
 
 /**
  * This function assumes that parent_path, current_path have enough buffer space.

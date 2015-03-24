@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_IPv6_DECIP6HLIM_HH__
-#define __NSHADER_ELEMENT_IPv6_DECIP6HLIM_HH__
+#ifndef __NBA_ELEMENT_IPv6_DECIP6HLIM_HH__
+#define __NBA_ELEMENT_IPv6_DECIP6HLIM_HH__
 
 
 #include <rte_config.h>
@@ -14,7 +14,7 @@
 
 #include <netinet/ip6.h>
 
-namespace nshader {
+namespace nba {
 
 class DecIP6HLIM : public Element {
 public:

@@ -1,5 +1,5 @@
-#ifndef __NSHADER_ELEMENT_IPSEC_IPSECAUTHHMACSHA1_HH__
-#define __NSHADER_ELEMENT_IPSEC_IPSECAUTHHMACSHA1_HH__
+#ifndef __NBA_ELEMENT_IPSEC_IPSECAUTHHMACSHA1_HH__
+#define __NBA_ELEMENT_IPSEC_IPSECAUTHHMACSHA1_HH__
 
 
 #include <rte_config.h>
@@ -25,7 +25,7 @@
 
 #include "IPsecDatablocks.hh"
 
-namespace nshader {
+namespace nba {
 
 class IPsecAuthHMACSHA1 : public OffloadableElement {
 public:

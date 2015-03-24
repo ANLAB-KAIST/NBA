@@ -65,10 +65,10 @@ if __name__ == '__main__':
         print('{0:<4d} {1:4d} {2:4d} {3:4d} {4:6.2f}'.format(
                 io_batch_size, comp_batch_size, coproc_ppdepth, pktsize, cpu_ratio), end='  ')
 
-        env.envvars['NSHADER_IO_BATCH_SIZE'] = str(io_batch_size)
-        env.envvars['NSHADER_COMP_BATCH_SIZE'] = str(comp_batch_size)
-        env.envvars['NSHADER_COPROC_PPDEPTH'] = str(coproc_ppdepth)
-        env.envvars['NSHADER_LOADBALANCER_CPU_RATIO'] = cpu_ratio
+        env.envvars['NBA_IO_BATCH_SIZE'] = str(io_batch_size)
+        env.envvars['NBA_COMP_BATCH_SIZE'] = str(comp_batch_size)
+        env.envvars['NBA_COPROC_PPDEPTH'] = str(coproc_ppdepth)
+        env.envvars['NBA_LOADBALANCER_CPU_RATIO'] = cpu_ratio
 
         if 'ipv6' in args.element_config_to_use:
             # All random ipv6 pkts

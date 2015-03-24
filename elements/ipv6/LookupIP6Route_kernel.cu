@@ -154,7 +154,7 @@ __global__ void ipv6_route_lookup_cuda(
         //   cache.
         // NOTE: This was the point of bug for "random" CUDA errors.
         //   (maybe due to out-of-bound access to shared memory?)
-        // UPDATE: On new nShader with CUDA 5.5, this code does neither seem to
+        // UPDATE: On new NBA with CUDA 5.5, this code does neither seem to
         //         generate any errors nor bring performance benefits.
 
         uint64_t ip0 = daddr.ip0;
@@ -174,7 +174,7 @@ __global__ void ipv6_route_lookup_cuda(
 
 }
 
-void *nshader::ipv6_route_lookup_get_cuda_kernel() {
+void *nba::ipv6_route_lookup_get_cuda_kernel() {
     return reinterpret_cast<void *> (ipv6_route_lookup_cuda);
 }
 

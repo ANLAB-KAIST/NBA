@@ -18,7 +18,7 @@ extern "C"
 #include <vector>
 #include "bitmap.hpp"
 
-namespace nshader
+namespace nba
 {
 
 class GraphAnalysis

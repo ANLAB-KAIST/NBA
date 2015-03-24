@@ -5,7 +5,7 @@
 #include "../../lib/types.hh"
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 /* Array which stores per-tunnel AES key for each tunnel.
  * It is copied to each node's node local storage during per-node initialization
@@ -130,8 +130,8 @@ int IPsecAES::process(int input_port, struct rte_mbuf *pkt, struct annotation_se
     int err = 0;
     struct aes_sa_entry *sa_entry = NULL;
 
-    if (likely(anno_isset(anno, NSHADER_ANNO_IPSEC_FLOW_ID))) {
-        sa_entry = &h_key_array[anno_get(anno, NSHADER_ANNO_IPSEC_FLOW_ID)];
+    if (likely(anno_isset(anno, NBA_ANNO_IPSEC_FLOW_ID))) {
+        sa_entry = &h_key_array[anno_get(anno, NBA_ANNO_IPSEC_FLOW_ID)];
         unsigned mode = 0;
 #ifdef USE_OPENSSL_EVP
         int cipher_body_len = 0;

@@ -5,8 +5,8 @@
  *      Author: seonggu
  */
 
-#ifndef __NSHADER_UTIL_IPSEC_ESP_HH__
-#define __NSHADER_UTIL_IPSEC_ESP_HH__
+#ifndef __NBA_UTIL_IPSEC_ESP_HH__
+#define __NBA_UTIL_IPSEC_ESP_HH__
 
 enum {
 	// TODO: Shouldn't it be 16(= AES_BLOCK_SIZE)? why it was set to 8?
@@ -22,4 +22,4 @@ struct esphdr {
 	uint8_t esp_iv[ESP_IV_LENGTH];
 };
 
-#endif /* __NSHADER_UTIL_IPSEC_ESP_HH_ */
+#endif /* __NBA_UTIL_IPSEC_ESP_HH_ */

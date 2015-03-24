@@ -3,7 +3,7 @@
 #include "../../lib/common.hh"
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
 struct cuda_event_context {
     ComputeContext *computectx;

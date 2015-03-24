@@ -1,8 +1,8 @@
-#ifndef __NSHADER_THREAD_HH__
-#define __NSHADER_THREAD_HH__
+#ifndef __NBA_THREAD_HH__
+#define __NBA_THREAD_HH__
 
 /**
- * nShader's Portable Thread Primitives.
+ * NBA's Portable Thread Primitives.
  *
  * Authors: Keon Jang <keonjang@an.kaist.ac.kr>,
  *      Joongi Kim <joongi@an.kaist.ac.kr>
@@ -30,7 +30,7 @@
 #include <rte_branch_prediction.h>
 
 
-namespace nshader
+namespace nba
 {
     typedef pthread_t thread_id_t;
 

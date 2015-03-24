@@ -17,7 +17,7 @@ using std::unordered_set;
 using std::stack;
 using std::vector;
 using L::Bitmap;
-namespace nshader
+namespace nba
 {
 
 GraphMetaData::GraphMetaData()

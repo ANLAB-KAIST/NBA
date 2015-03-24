@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(epilog='NOTE: 1. You must check pspgen-servers when you get ConnectionRefusedError!\n'
                                             '         They should be running in the pspgen directory\n'
-                                            '         (e.g., ~/Packet-IO-Engine/samples/packet_generator$ ~/nshader/scripts/pspgen-server.py)\n'
+                                            '         (e.g., ~/Packet-IO-Engine/samples/packet_generator$ ~/nba/scripts/pspgen-server.py)\n'
                                             '         at the packet generator servers.\n'
                                             '      2. Packet size argument is only valid in emulation mode.\n\n'
                                             'Example: sudo ./scriptname rss.py ipv4-router.click\n ',
@@ -48,9 +48,9 @@ if __name__ == '__main__':
 
         print('{0:<4d} {1:4d} {2:4d} {3:4d}'.format(io_batch_size, comp_batch_size, coproc_ppdepth, pktsize), end='  ')
 
-        env.envvars['NSHADER_IO_BATCH_SIZE'] = str(io_batch_size)
-        env.envvars['NSHADER_COMP_BATCH_SIZE'] = str(comp_batch_size)
-        env.envvars['NSHADER_COPROC_PPDEPTH'] = str(coproc_ppdepth)
+        env.envvars['NBA_IO_BATCH_SIZE'] = str(io_batch_size)
+        env.envvars['NBA_COMP_BATCH_SIZE'] = str(comp_batch_size)
+        env.envvars['NBA_COPROC_PPDEPTH'] = str(coproc_ppdepth)
 
         if 'ipv6' in args.element_config_to_use:
             # All random ipv6 pkts

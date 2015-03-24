@@ -1,5 +1,5 @@
 /**
- * nShader's Portable Thread Primitives.
+ * NBA's Portable Thread Primitives.
  *
  * Authors: Keon Jang <keonjang@an.kaist.ac.kr>,
  *      Joongi Kim <joongi@an.kaist.ac.kr>
@@ -21,9 +21,9 @@
 
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
-int nshader::thread_wrapper(void *arg) {
+int nba::thread_wrapper(void *arg) {
     unsigned core_id = rte_lcore_id();
     const struct thread_collection *const col = (struct thread_collection *) arg;
     unsigned thread_idx = 0;
@@ -45,7 +45,7 @@ int nshader::thread_wrapper(void *arg) {
     return io_loop(col->io_threads[found].io_ctx);
 }
 
-unsigned long nshader::get_cpu_idle(int cpu)
+unsigned long nba::get_cpu_idle(int cpu)
 {
     unsigned int user = 0, nice = 0, sys = 0;
     unsigned long idle = 0;
@@ -65,7 +65,7 @@ unsigned long nshader::get_cpu_idle(int cpu)
     return idle;
 }
 
-int nshader::get_thread_time(double *utime, double *stime)
+int nba::get_thread_time(double *utime, double *stime)
 {
     struct rusage ru;
     if (getrusage(RUSAGE_THREAD, &ru) != 0)

@@ -1,7 +1,7 @@
 #include "IPv4Datablocks.hh"
 #include <rte_malloc.h>
 
-namespace nshader {
+namespace nba {
 
 int dbid_ipv4_dest_addrs;
 int dbid_ipv4_lookup_results;

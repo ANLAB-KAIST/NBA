@@ -1,10 +1,10 @@
-#ifndef __NSHADER_IPV4_DATABLOCKS_HH__
-#define __NSHADER_IPV4_DATABLOCKS_HH__
+#ifndef __NBA_IPV4_DATABLOCKS_HH__
+#define __NBA_IPV4_DATABLOCKS_HH__
 
 #include "../../lib/packetbatch.hh"
 #include "../../lib/datablock.hh"
 
-namespace nshader {
+namespace nba {
 
 extern int dbid_ipv4_dest_addrs;
 extern int dbid_ipv4_lookup_results;

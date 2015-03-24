@@ -29,8 +29,8 @@ USE_CUDA = bool(int(os.getenv('USE_CUDA', 1)))
 USE_PHI  = bool(int(os.getenv('USE_PHI', 0)))
 USE_NVPROF = bool(int(os.getenv('USE_NVPROF', 0)))
 USE_OPENSSL_EVP = bool(int(os.getenv('USE_OPENSSL_EVP', 1)))
-NO_HUGEPAGES = bool(int(os.getenv('NSHADER_NO_HUGE', 0)))
-PMD      = os.getenv('NSHADER_PMD', 'ixgbe')
+NO_HUGEPAGES = bool(int(os.getenv('NBA_NO_HUGE', 0)))
+PMD      = os.getenv('NBA_PMD', 'ixgbe')
 logger.debug(fmt('Compiling using {PMD} poll-mode driver...'))
 
 # List of source and header files
@@ -94,13 +94,13 @@ if USE_CUDA:        CFLAGS += ' -DUSE_CUDA'
 if USE_PHI:         CFLAGS += ' -DUSE_PHI'
 if USE_OPENSSL_EVP: CFLAGS += ' -DUSE_OPENSSL_EVP'
 if USE_NVPROF:      CFLAGS += ' -DUSE_NVPROF'
-if NO_HUGEPAGES:    CFLAGS += ' -DNSHADER_NO_HUGE'
+if NO_HUGEPAGES:    CFLAGS += ' -DNBA_NO_HUGE'
 
 # User-defined variables
-v = os.getenv('NSHADER_SLEEPY_IO', 0)
-if v: CFLAGS += ' -DNSHADER_SLEEPY_IO'
-v = os.getenv('NSHADER_RANDOM_PORT_ACCESS', 0)
-if v: CFLAGS += ' -DNSHADER_RANDOM_PORT_ACCESS'
+v = os.getenv('NBA_SLEEPY_IO', 0)
+if v: CFLAGS += ' -DNBA_SLEEPY_IO'
+v = os.getenv('NBA_RANDOM_PORT_ACCESS', 0)
+if v: CFLAGS += ' -DNBA_RANDOM_PORT_ACCESS'
 
 # NVIDIA CUDA configurations
 if USE_CUDA:
@@ -133,7 +133,7 @@ if USE_PHI:
     LIBS      += ' -L/opt/intel/opencl/lib64 -lOpenCL'
 
 # OpenSSL configurations
-SSL_PATH = os.getenv('NSHADER_OPENSSL_PATH') or '/usr'
+SSL_PATH = os.getenv('NBA_OPENSSL_PATH') or '/usr'
 CFLAGS        += ' -I{SSL_PATH}/include'
 LIBS          += ' -L{SSL_PATH}/lib -lcrypto'
 
@@ -153,9 +153,9 @@ LIBS          += ' -L{CLICKPARSER_PATH}/build -lclickparser'
 LIBS          += ' -lev'
 
 # DPDK configurations
-DPDK_PATH = os.getenv('NSHADER_DPDK_PATH')
+DPDK_PATH = os.getenv('NBA_DPDK_PATH')
 if DPDK_PATH is None:
-    print('You must set NSHADER_DPDK_PATH environment variable.')
+    print('You must set NBA_DPDK_PATH environment variable.')
     sys.exit(1)
 librte_pmds    = {
     'ixgbe': ['rte_pmd_ixgbe'],
@@ -215,12 +215,12 @@ for srcfile in SOURCE_FILES:
             shell: '{NVCC} {NVCFLAGS} -c {input[0]} -o {output}'
 
 rule lexyacc:
-    input: 'lib/configparser/nshader.l', 'lib/configparser/nshader.ypp'
-    output: 'lib/configparser/nshader.tab.cpp', 'lib/configparser/nshader.tab.hpp', \
+    input: 'lib/configparser/nba.l', 'lib/configparser/nba.ypp'
+    output: 'lib/configparser/nba.tab.cpp', 'lib/configparser/nba.tab.hpp', \
             'lib/configparser/nslex.cc', 'lib/configparser/nslex.hh'
     shell: '''
-        bison -d lib/configparser/nshader.ypp -b lib/configparser/nshader
-        flex -o lib/configparser/nslex.cc --header-file=lib/configparser/nslex.hh -Cr lib/configparser/nshader.l
+        bison -d lib/configparser/nba.ypp -b lib/configparser/nba
+        flex -o lib/configparser/nslex.cc --header-file=lib/configparser/nslex.hh -Cr lib/configparser/nba.l
     '''
 
 rule elemmap:
@@ -230,15 +230,15 @@ rule elemmap:
         elements = ((compilelib.detect_element_def(fname), fname) for fname in ELEMENT_HEADER_FILES)
         elements = list(filter(lambda t: t[0] is not None, elements))
         with open('lib/element_map.hh', 'w') as fout:
-            print('#ifndef __NSHADER_ELEMMAP_HH__', file=fout)
-            print('#define __NSHADER_ELEMMAP_HH__', file=fout)
+            print('#ifndef __NBA_ELEMMAP_HH__', file=fout)
+            print('#define __NBA_ELEMMAP_HH__', file=fout)
             print('/* DO NOT EDIT! This file is auto-generated. Run "snakemake elemmap" to update manually. */', file=fout)
             print('#include <unordered_map>', file=fout)
             print('#include <functional>', file=fout)
             print('#include "element.hh"', file=fout)
             for eleminfo in elements:
                 print('#include "{hdrpath}"'.format(hdrpath=joinpath('..', eleminfo[1])), file=fout)
-            print('namespace nshader {', file=fout)
+            print('namespace nba {', file=fout)
             print('static std::unordered_map<std::string, struct element_info> element_registry = {', file=fout)
             for idx, eleminfo in enumerate(elements):
                 print('\t{{"{name}", {{ {idx}, [](void) -> Element* {{ return new {name}(); }} }} }},'

@@ -12,9 +12,9 @@
 #include <cstring>
 
 using namespace std;
-using namespace nshader;
+using namespace nba;
 
-namespace nshader {
+namespace nba {
 
 /*
  * NOTE: you may use STL vectors or other containers here,
@@ -24,11 +24,11 @@ namespace nshader {
  *       some implementations won't be registered.
  */
 size_t num_datablocks = 0;
-const char* datablock_names[NSHADER_MAX_DATABLOCKS];
-datablock_constructor datablock_ctors[NSHADER_MAX_DATABLOCKS];
+const char* datablock_names[NBA_MAX_DATABLOCKS];
+datablock_constructor datablock_ctors[NBA_MAX_DATABLOCKS];
 
 void declare_datablock_impl(const char *name, datablock_constructor ctor, int &your_id) {
-    if (num_datablocks == NSHADER_MAX_DATABLOCKS)
+    if (num_datablocks == NBA_MAX_DATABLOCKS)
         rte_panic("Too many datablock implementations!\n");
     for (unsigned i = 0; i < num_datablocks; i++) {
         if (strcmp(datablock_names[i], name) == 0) {

@@ -1,5 +1,5 @@
-#ifndef __NSHADER_DATABLOCK_HH__
-#define __NSHADER_DATABLOCK_HH__
+#ifndef __NBA_DATABLOCK_HH__
+#define __NBA_DATABLOCK_HH__
 
 #include <vector>
 #include <string>
@@ -8,7 +8,7 @@
 #include "config.hh"
 #include "computecontext.hh"
 
-namespace nshader {
+namespace nba {
 
 /* Forward declarations. */
 class OffloadableElement;
@@ -16,8 +16,8 @@ class OffloadableElement;
 typedef DataBlock* (*datablock_constructor)(void);
 
 extern size_t num_datablocks;
-extern const char* datablock_names[NSHADER_MAX_DATABLOCKS];
-extern datablock_constructor datablock_ctors[NSHADER_MAX_DATABLOCKS];
+extern const char* datablock_names[NBA_MAX_DATABLOCKS];
+extern datablock_constructor datablock_ctors[NBA_MAX_DATABLOCKS];
 
 void declare_datablock_impl(const char *name, datablock_constructor ctor, int &your_id);
 #define __combine_direct(x,y) x ## y
@@ -71,22 +71,22 @@ struct write_roi_info {
     int align;
 };
 
-#ifdef NSHADER_NO_HUGE
+#ifdef NBA_NO_HUGE
 /* WARNING: you should use minimum packet sizes for IPsec. */
 struct item_size_info {
     union {
         uint16_t size;
-        uint16_t sizes[NSHADER_MAX_COMPBATCH_SIZE * 12];
+        uint16_t sizes[NBA_MAX_COMPBATCH_SIZE * 12];
     };
-    uint16_t offsets[NSHADER_MAX_COMPBATCH_SIZE * 12];
+    uint16_t offsets[NBA_MAX_COMPBATCH_SIZE * 12];
 };
 #else
 struct item_size_info {
     union {
         uint16_t size;
-        uint16_t sizes[NSHADER_MAX_COMPBATCH_SIZE * 96];
+        uint16_t sizes[NBA_MAX_COMPBATCH_SIZE * 96];
     };
-    uint16_t offsets[NSHADER_MAX_COMPBATCH_SIZE * 96];
+    uint16_t offsets[NBA_MAX_COMPBATCH_SIZE * 96];
 };
 #endif
 
@@ -113,20 +113,20 @@ struct datablock_tracker {
 struct datablock_kernel_arg {
     uint32_t total_item_count_in;
     uint32_t total_item_count_out;
-    void *buffer_bases_in[NSHADER_MAX_COPROC_PPDEPTH];
-    void *buffer_bases_out[NSHADER_MAX_COPROC_PPDEPTH];
-    uint32_t item_count_in[NSHADER_MAX_COPROC_PPDEPTH];
-    uint32_t item_count_out[NSHADER_MAX_COPROC_PPDEPTH];
+    void *buffer_bases_in[NBA_MAX_COPROC_PPDEPTH];
+    void *buffer_bases_out[NBA_MAX_COPROC_PPDEPTH];
+    uint32_t item_count_in[NBA_MAX_COPROC_PPDEPTH];
+    uint32_t item_count_out[NBA_MAX_COPROC_PPDEPTH];
     union {
         uint16_t item_size_in;
-        uint16_t *item_sizes_in[NSHADER_MAX_COPROC_PPDEPTH];
+        uint16_t *item_sizes_in[NBA_MAX_COPROC_PPDEPTH];
     };
     union {
         uint16_t item_size_out;
-        uint16_t *item_sizes_out[NSHADER_MAX_COPROC_PPDEPTH];
+        uint16_t *item_sizes_out[NBA_MAX_COPROC_PPDEPTH];
     };
-    uint16_t *item_offsets_in[NSHADER_MAX_COPROC_PPDEPTH];
-    uint16_t *item_offsets_out[NSHADER_MAX_COPROC_PPDEPTH];
+    uint16_t *item_offsets_in[NBA_MAX_COPROC_PPDEPTH];
+    uint16_t *item_offsets_out[NBA_MAX_COPROC_PPDEPTH];
 }; // __attribute__((aligned(8)));
 
 
@@ -181,7 +181,7 @@ class MergedDataBlock : DataBlock
 public:
     MergedDataBlock(void)
     {
-        memset(src_datablocks, 0, sizeof(DataBlock *) * NSHADER_MAX_DATABLOCKS);
+        memset(src_datablocks, 0, sizeof(DataBlock *) * NBA_MAX_DATABLOCKS);
         // TODO: allocate(?) dbid
     }
 
@@ -199,7 +199,7 @@ private:
     int dbid;
     struct read_roi_info *read_roi;
     struct write_roi_info *write_roi;
-    DataBlock *src_datablocks[NSHADER_MAX_DATABLOCKS];
+    DataBlock *src_datablocks[NBA_MAX_DATABLOCKS];
 };
 
 }
