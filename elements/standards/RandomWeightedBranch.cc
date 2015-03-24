@@ -6,7 +6,7 @@
 #include <vector>
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 static inline bool approx_equal(float a, float b)
 {

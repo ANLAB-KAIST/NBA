@@ -4,12 +4,12 @@
 #include "types.hh"
 #include "thread.hh"
 #include "annotation.hh"
-extern "C" {
+
 #include <rte_memory.h>
 #include <rte_atomic.h>
-}
 
-namespace nba {
+
+namespace nshader {
 
 struct io_port_stat {
     uint64_t num_recv_pkts;
@@ -35,7 +35,7 @@ struct io_port_stat_atomic {
 
 struct io_thread_stat {
     unsigned num_ports;
-    struct io_port_stat port_stats[NBA_MAX_PORTS];
+    struct io_port_stat port_stats[NSHADER_MAX_PORTS];
 } __rte_cache_aligned;
 
 struct io_node_stat {
@@ -44,7 +44,7 @@ struct io_node_stat {
     struct io_thread_stat last_total;
     unsigned num_threads;
     unsigned num_ports;
-    struct io_port_stat_atomic port_stats[NBA_MAX_PORTS];
+    struct io_port_stat_atomic port_stats[NSHADER_MAX_PORTS];
 } __rte_cache_aligned;
 
 void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch);

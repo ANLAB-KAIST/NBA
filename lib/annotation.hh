@@ -1,28 +1,28 @@
-#ifndef __NBA_ANNOTATION_HH__
-#define __NBA_ANNOTATION_HH__
+#ifndef __NSHADER_ANNOTATION_HH__
+#define __NSHADER_ANNOTATION_HH__
 
 #include <cstdint>
 
-namespace nba {
+namespace nshader {
 
 /* Predefined per-packet annotations */
-#define NBA_ANNO_IFACE_IN   (0)
-#define NBA_ANNO_IFACE_OUT  (1)
-#define NBA_ANNO_TIMESTAMP  (2)
-#define NBA_ANNO_BATCH_ID   (3)
-#define NBA_ANNO_IPSEC_FLOW_ID (4)
-#define NBA_ANNO_IPSEC_IV1  (5)
-#define NBA_ANNO_IPSEC_IV2  (6)
+#define NSHADER_ANNO_IFACE_IN   (0)
+#define NSHADER_ANNO_IFACE_OUT  (1)
+#define NSHADER_ANNO_TIMESTAMP  (2)
+#define NSHADER_ANNO_BATCH_ID   (3)
+#define NSHADER_ANNO_IPSEC_FLOW_ID (4)
+#define NSHADER_ANNO_IPSEC_IV1  (5)
+#define NSHADER_ANNO_IPSEC_IV2  (6)
 
 /* Predefined per-batch annotations */
-#define NBA_BANNO_LB_DECISION (0)
+#define NSHADER_BANNO_LB_DECISION (0)
 
 struct annotation_set {
     uint64_t bitmask;
-    int64_t values[NBA_MAX_ANNOTATION_SET_SIZE];
+    int64_t values[NSHADER_MAX_ANNOTATION_SET_SIZE];
 };
 
-#define anno_isset(anno_item, anno_id)  ((anno_item)->bitmask & (1 << anno_id))
+#define anno_isset(anno_item, anno_id)  (anno_item != nullptr && (anno_item)->bitmask & (1 << anno_id))
 
 static inline void anno_set(struct annotation_set *anno_item,
                             unsigned anno_id,

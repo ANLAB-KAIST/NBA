@@ -6,7 +6,7 @@
 #include "../../lib/types.hh"
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 int LookupIP6Route::initialize()
 {
@@ -90,24 +90,8 @@ int LookupIP6Route::process(int input_port, struct rte_mbuf *pkt, struct annotat
         return DROP;
 
     rr_port = (rr_port + 1) % num_tx_ports;
-    anno_set(anno, NBA_ANNO_IFACE_OUT, rr_port);
+    anno_set(anno, NSHADER_ANNO_IFACE_OUT, rr_port);
     return 0;
-}
-
-void LookupIP6Route::preproc(int input_port, void *custom_input, struct rte_mbuf *pkt, struct annotation_set *anno)
-{
-    // Dest IPv6 addr, whose format is in6_addr struct, is converted to uint128_t.
-    struct ether_hdr *ethh = rte_pktmbuf_mtod(pkt, struct ether_hdr *);
-    struct ip6_hdr *ip6h   = (struct ip6_hdr *)(ethh + 1);
-    uint128_t *dest_addr   = reinterpret_cast<uint128_t*> (&ip6h->ip6_dst);
-    memcpy(custom_input, dest_addr, sizeof(uint128_t));
-}
-
-void LookupIP6Route::prepare_input(ComputeContext *cctx,
-                                   struct resource_param *res,
-                                   struct annotation_set **anno_ptr_array)
-{
-    return;
 }
 
 int LookupIP6Route::postproc(int input_port, void *custom_output,
@@ -118,7 +102,7 @@ int LookupIP6Route::postproc(int input_port, void *custom_output,
         /* Could not find destination. Use the second output for "error" packets. */
         return DROP;
     rr_port = (rr_port + 1) % num_tx_ports;
-    anno_set(anno, NBA_ANNO_IFACE_OUT, rr_port);
+    anno_set(anno, NSHADER_ANNO_IFACE_OUT, rr_port);
     return 0;
 }
 
@@ -136,18 +120,16 @@ size_t LookupIP6Route::get_desired_workgroup_size(const char *device_name) const
 }
 
 #ifdef USE_CUDA
-void LookupIP6Route::cuda_compute_handler(ComputeContext *cctx, struct resource_param *res, struct annotation_set **anno_ptr_array)
+void LookupIP6Route::cuda_compute_handler(ComputeContext *cctx, struct resource_param *res)
 {
-    struct kernel_arg args[2];
-    args[0].ptr = (void *) &d_tables;
-    args[0].size = sizeof(void *);
-    args[0].align = alignof(void *);
-    args[1].ptr = (void *) &d_table_sizes;
-    args[1].size = sizeof(void *);
-    args[1].align = alignof(void *);
+    struct kernel_arg arg;
+    arg = {(void *) &d_tables, sizeof(void *), alignof(void *)};
+    cctx->push_kernel_arg(arg);
+    arg = {(void *) &d_table_sizes, sizeof(void *), alignof(void *)};
+    cctx->push_kernel_arg(arg);
     kernel_t kern;
     kern.ptr = ipv6_route_lookup_get_cuda_kernel();
-    cctx->enqueue_kernel_launch(kern, res, args, 2);
+    cctx->enqueue_kernel_launch(kern, res);
 }
 
 void LookupIP6Route::cuda_init_handler(ComputeDevice *device)

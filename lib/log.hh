@@ -1,10 +1,10 @@
-#ifndef __NBA_LOG_HH__
-#define __NBA_LOG_HH__
+#ifndef __NSHADER_LOG_HH__
+#define __NSHADER_LOG_HH__
 
-extern "C" {
+
 #include <rte_config.h>
 #include <rte_log.h>
-}
+
 
 /* User-defined log types */
 #define RTE_LOGTYPE_MAIN    RTE_LOGTYPE_USER1
@@ -14,6 +14,6 @@ extern "C" {
 #define RTE_LOGTYPE_ELEM    RTE_LOGTYPE_USER5
 #define RTE_LOGTYPE_LB      RTE_LOGTYPE_USER6
 
-#endif // __NBA_LOG_HH__
+#endif // __NSHADER_LOG_HH__
 
 // vim: ts=8 sts=4 sw=4 et

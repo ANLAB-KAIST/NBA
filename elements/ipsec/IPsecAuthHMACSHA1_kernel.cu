@@ -1,25 +1,16 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <assert.h>
 #include "../../engines/cuda/utils.hh"
 
 #include "IPsecAuthHMACSHA1_kernel.hh"
 
-#ifdef __DEVICE_EMULATION__
-#define debugprint printf
-#define EMUSYNC __syncthreads()
-#else
-__device__ void NOOPfunction(const char *format) {
-}
-__device__ void NOOPfunction(const char *format, unsigned int onearg) {
-}
-__device__ void NOOPfunction(const char *format, unsigned int onearg,
-        unsigned int twoargs) {
-}
-__device__ void NOOPfunction(const char *format, char *onearg) {
-}
-#define EMUSYNC do {} while (0)
-#define debugprint NOOPfunction
-#endif
+/* Compatibility definitions. */
+#include "../../engines/cuda/compat.hh"
+
+/* The index is given by the order in get_used_datablocks(). */
+static const __device__ int dbid_enc_payloads = 0;
+static const __device__ int dbid_flow_ids = 1;
 
 #define SHA1_THREADS_PER_BLK 32
 
@@ -42,27 +33,26 @@ typedef struct hash_digest {
 
 #define HMAC
 
-__inline__ __device__ void getBlock(char* buf, int offset, int len,
-        uint32_t* dest) {
+__inline__ __device__ void getBlock(char* buf, int offset, int len, uint32_t* dest)
+{
     uint32_t *tmp;
-
     unsigned int tempbuf[16];
 
     tmp = (uint32_t*) (buf + offset);
-    debugprint("%d %d\n", offset, len);
+    //printf("%d %d\n", offset, len);
     if (offset + 64 <= len) {
-        debugprint("--0--\n");
+        //printf("--0--\n");
 #pragma unroll 16
         for (int i = 0; i < 16; i++) {
             dest[i] = swap(tmp[i]);
         }
     } else if (len > offset && (len - offset) < 56) { //case 1 enough space in last block for padding
-        debugprint("--1--\n");
+        //prtinf("--1--\n");
         int i;
         for (i = 0; i < (len - offset) / 4; i++) {
 
-            //debugprint("%d %d\n",offset,i);
-            //debugprint("%p %p\n", buf, dest);
+            //printf("%d %d\n",offset,i);
+            //printf("%p %p\n", buf, dest);
 
             //tempbuf[i] = buf[i];
             tempbuf[i] = swap(tmp[i]);
@@ -101,7 +91,7 @@ __inline__ __device__ void getBlock(char* buf, int offset, int len,
 #endif
 
     } else if (len > offset && (len - offset) >= 56) { //case 2 not enough space in last block (containing message) for padding
-        debugprint("--2--\n");
+        //printf("--2--\n");
         int i;
         for (i = 0; i < (len - offset) / 4; i++) {
             tempbuf[i] = swap(tmp[i]);
@@ -135,7 +125,7 @@ __inline__ __device__ void getBlock(char* buf, int offset, int len,
         }
 
     } else if (offset == len) { //message end is aligned in 64 bytes
-        debugprint("--3--\n");
+        //printf("--3--\n");
         dest[0] = swap(0x00000080);
 #pragma unroll 13
         for (int i = 1; i < 14; i++)
@@ -148,7 +138,7 @@ __inline__ __device__ void getBlock(char* buf, int offset, int len,
 #endif
 
     } else if (offset > len) { //the last block in case 2
-        debugprint("--4--\n");
+        //printf("--4--\n");
 #pragma unroll 14
         for (int i = 0; i < 14; i++)
             dest[i] = 0x00000000;
@@ -160,7 +150,7 @@ __inline__ __device__ void getBlock(char* buf, int offset, int len,
 #endif
 
     } else {
-        debugprint("Not supposed to happen\n");
+        printf("Not supposed to happen\n");
     }
 }
 
@@ -178,9 +168,9 @@ __device__ void computeSHA1Block(char* in, uint32_t* w, int offset, int len,
     getBlock(in, offset, len, w);
 
     //for (int i = 0; i < 16 ; i++) {
-    //  debugprint("%0X\n", w[i]);
+    //  printf("%0X\n", w[i]);
     //}
-    //debugprint("\n");
+    //printf("\n");
 
     k = 0x5A827999;
     //0 of 0-20
@@ -1124,7 +1114,7 @@ __device__ void computeSHA1Block(char* in, uint32_t* w, int offset, int len,
  h.h5 = 0xC3D2E1F0;
 
  int num_iter = (len[index]+63+9)/64;
- debugprint("num_iter %d\n", num_iter);
+ printf("num_iter %d\n", num_iter);
  for(int i = 0; i < num_iter; i++)
  computeSHA1Block(buf + offsets[index], w, i*64 , len[index], h);
 
@@ -1146,7 +1136,7 @@ __device__ void computeSHA1Block(char* in, uint32_t* w, int offset, int len,
  some how *pad = *pad++ ^ *key++
  was optimized and does not work correctly in GPU oTL.
  */
-__device__ void xorpads(uint32_t *pad, uint32_t* key) {
+__device__ void xorpads(uint32_t *pad, const uint32_t* key) {
 #pragma unroll 16
     for (int i = 0; i < 16; i++)
         *(pad + i) = *(pad + i) ^ *(key + i);
@@ -1168,7 +1158,7 @@ uint32_t ipad[16] =
 // length: length of the data to be authenticated by hsha1.
 // key: hmac key.
 __device__ void HMAC_SHA1(uint32_t *in, uint32_t *out, uint32_t length,
-        char *key) {
+        const char *key) {
     uint32_t w_register[16];
 
     uint32_t *w = w_register; //w_shared + 16*threadIdx.x;
@@ -1226,7 +1216,7 @@ __global__ void computeHMAC_SHA1(char* buf, char* keys, uint32_t *offsets,
                                  uint32_t *lengths, uint32_t *outputs, int N) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     if (index < N) {
-        debugprint("index%d threadid%d\n", index, threadIdx.x);
+        printf("index%d threadid%d\n", index, threadIdx.x);
         uint32_t offset = offsets[index];
         uint32_t length = lengths[index];
         uint32_t *out = (uint32_t*) (buf + outputs[index]);
@@ -1238,7 +1228,7 @@ __global__ void computeHMAC_SHA1_2(char* buf, char* keys, uint32_t *offsets,
                                    uint16_t *lengths, int N) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     if (index < N) {
-        debugprint("index%d threadid%d\n", index, threadIdx.x);
+        printf("index%d threadid%d\n", index, threadIdx.x);
         uint32_t offset = offsets[index];
         uint32_t length = lengths[index];
         uint32_t *out = (uint32_t*) (buf + offset + length);
@@ -1248,33 +1238,42 @@ __global__ void computeHMAC_SHA1_2(char* buf, char* keys, uint32_t *offsets,
 #endif
 
 __global__ void computeHMAC_SHA1_3(
-        uint8_t *input_buf, uint8_t *output, 
-        size_t *input_size_arr, size_t *output_size_arr,
-        int N, uint8_t *checkbits_d,
-        int                     *key_idxs,
-        struct hmac_sa_entry    *hmac_key_array,
-        int32_t                 *offsets)
+        struct datablock_kernel_arg *datablocks,
+        uint32_t count, uint16_t *batch_ids, uint16_t *item_ids,
+        uint8_t *checkbits_d,
+        struct hmac_sa_entry *hmac_key_array)
 {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index < N) {
-        int32_t offset = offsets[index];
-        char *hmac_key = (char *) hmac_key_array[key_idxs[index]].hmac_key; 
-        uint16_t length = (uint16_t) input_size_arr[index];
-        if (offset != -1) {
-            // printf("TID:%4d \t Offset %10u, Length %10u\n", index, offset, length);
-            HMAC_SHA1((uint32_t*) (input_buf + offset), (uint32_t*) (output + index * SHA_DIGEST_LENGTH), length, (char*)hmac_key);
-            // output_size_arr[index] = SHA_DIGEST_LENGTH; // as output_roi is CUSTOMDATA, output_size_arr is not used.
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count && count != 0) {
+        const uint16_t batch_idx = batch_ids[idx];
+        const uint16_t item_idx  = item_ids[idx];
+        assert(item_idx < 64);
+        const struct datablock_kernel_arg *db_enc_payloads = &datablocks[dbid_enc_payloads];
+        const struct datablock_kernel_arg *db_flow_ids     = &datablocks[dbid_flow_ids];
+
+        const uint8_t *enc_payload_base = (uint8_t *) db_enc_payloads->buffer_bases_in[batch_idx];
+        const uintptr_t offset = (uintptr_t) db_enc_payloads->item_offsets_in[batch_idx][item_idx];
+        const uintptr_t length = (uintptr_t) db_enc_payloads->item_sizes_in[batch_idx][item_idx];
+        if (enc_payload_base != NULL && offset != 0 && length != 0) {
+            const uint64_t flow_id = ((uint64_t *) db_flow_ids->buffer_bases_in[batch_idx])[item_idx];
+            if (flow_id != 65536 && flow_id < 1024) {
+                //assert(flow_id < 1024);
+                const char *hmac_key = (char *) hmac_key_array[flow_id].hmac_key;
+                HMAC_SHA1((uint32_t *) (enc_payload_base + offset),
+                          (uint32_t *) (enc_payload_base + offset + length),
+                          length, hmac_key);
+            }
         }
     }
 
     __syncthreads();
     if (threadIdx.x == 0 && checkbits_d != NULL)
-        *(checkbits_d + blockIdx.x) = 1;
+        checkbits_d[blockIdx.x] = 1;
 }
 
 }
 
-void *nba::ipsec_hsha1_encryption_get_cuda_kernel() {
+void *nshader::ipsec_hsha1_encryption_get_cuda_kernel() {
     return reinterpret_cast<void *> (computeHMAC_SHA1_3);
 }
 

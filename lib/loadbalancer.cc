@@ -1,6 +1,6 @@
 #include "loadbalancer.hh"
 
-using namespace nba;
+using namespace nshader;
 
 /* nothing here */
 

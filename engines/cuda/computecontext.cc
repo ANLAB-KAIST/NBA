@@ -3,7 +3,7 @@
 #include "../../lib/common.hh"
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 struct cuda_event_context {
     ComputeContext *computectx;
@@ -14,11 +14,12 @@ struct cuda_event_context {
 CUDAComputeContext::CUDAComputeContext(unsigned ctx_id, ComputeDevice *mother_device)
  : ComputeContext(ctx_id, mother_device), checkbits_d(NULL), checkbits_h(NULL),
    _cuda_mempool_in(), _cuda_mempool_out(),
-   _cpu_mempool_in(cudaHostAllocPortable), _cpu_mempool_out(cudaHostAllocPortable)
+   _cpu_mempool_in(cudaHostAllocPortable), _cpu_mempool_out(cudaHostAllocPortable),
+   num_kernel_args(0)
    /* NOTE: Write-combined memory degrades performance to half... */
 {
     type_name = "cuda";
-    size_t mem_size = 8 * 1024 * 1024; // TODO: read from config
+    size_t mem_size = 32 * 1024 * 1024; // TODO: read from config
     cutilSafeCall(cudaStreamCreateWithFlags(&_stream, cudaStreamNonBlocking));
     _cuda_mempool_in.init(mem_size);
     _cuda_mempool_out.init(mem_size);
@@ -85,28 +86,6 @@ size_t CUDAComputeContext::get_total_input_buffer_size()
     return _cpu_mempool_in.get_alloc_size();
 }
 
-void CUDAComputeContext::set_io_buffers(void *in_h, memory_t in_d, size_t in_sz,
-                    void *out_h, memory_t out_d, size_t out_sz)
-{
-    this->in_h = in_h;
-    this->in_d = in_d;
-    this->out_h = out_h;
-    this->out_d = out_d;
-    this->in_sz = in_sz;
-    this->out_sz = out_sz;
-}
-
-void CUDAComputeContext::set_io_buffer_elemsizes(size_t *in_h, memory_t in_d, size_t in_sz,
-                         size_t *out_h, memory_t out_d, size_t out_sz)
-{
-    this->in_elemsizes_h   = in_h;
-    this->in_elemsizes_d   = in_d;
-    this->out_elemsizes_h  = out_h;
-    this->out_elemsizes_d  = out_d;
-    this->in_elemsizes_sz  = in_sz;
-    this->out_elemsizes_sz = out_sz;
-}
-
 int CUDAComputeContext::enqueue_memwrite_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size)
 {
     cutilSafeCall(cudaMemcpyAsync(dev_buf.ptr, host_buf, size, cudaMemcpyHostToDevice, _stream));
@@ -119,10 +98,20 @@ int CUDAComputeContext::enqueue_memread_op(void *host_buf, memory_t dev_buf, siz
     return 0;
 }
 
-int CUDAComputeContext::enqueue_kernel_launch(kernel_t kernel, struct resource_param *res,
-                          struct kernel_arg *args, size_t num_args)
+void CUDAComputeContext::clear_kernel_args()
 {
-    assert(checkbits_d != NULL);
+    num_kernel_args = 0;
+}
+
+void CUDAComputeContext::push_kernel_arg(struct kernel_arg &arg)
+{
+    assert(num_kernel_args < CUDA_MAX_KERNEL_ARGS);
+    kernel_args[num_kernel_args ++] = arg;  /* Copied to the array. */
+}
+
+int CUDAComputeContext::enqueue_kernel_launch(kernel_t kernel, struct resource_param *res)
+{
+    assert(checkbits_d != nullptr);
     // TODO: considerations for cudaFuncSetCacheConfig() and
     //       cudaSetDoubleFor*()?
     //cudaFuncAttributes attr;
@@ -134,28 +123,12 @@ int CUDAComputeContext::enqueue_kernel_launch(kernel_t kernel, struct resource_p
                   1024, _stream));
                   //attr.sharedSizeBytes, _stream));
     size_t offset = 0;
-    offset = ALIGN(offset, alignof(void*));
-    cutilSafeCall(cudaSetupArgument(&in_d, sizeof(void*), offset));
-    offset += sizeof(void*);
-    offset = ALIGN(offset, alignof(void*));
-    cutilSafeCall(cudaSetupArgument(&out_d, sizeof(void*), offset));
-    offset += sizeof(void*);
-    offset = ALIGN(offset, alignof(void*));
-    cutilSafeCall(cudaSetupArgument(&in_elemsizes_d, sizeof(void*), offset));
-    offset += sizeof(void*);
-    offset = ALIGN(offset, alignof(void*));
-    cutilSafeCall(cudaSetupArgument(&out_elemsizes_d, sizeof(void*), offset));
-    offset += sizeof(void*);
-    offset = ALIGN(offset, alignof(uint32_t));
-    cutilSafeCall(cudaSetupArgument(&res->num_workitems, sizeof(uint32_t), offset));
-    offset += sizeof(uint32_t);
-    offset = ALIGN(offset, alignof(uint8_t*));
-    cutilSafeCall(cudaSetupArgument(&checkbits_d, sizeof(uint8_t*), offset));
-    offset += sizeof(uint8_t*);
-    for (unsigned i = 0; i < num_args; i++) {
-        offset = ALIGN(offset, args[i].align);
-        cutilSafeCall(cudaSetupArgument(args[i].ptr, args[i].size, offset));
-        offset += args[i].size;
+    for (unsigned i = 0; i < num_kernel_args; i++) {
+        offset = ALIGN(offset, kernel_args[i].align);
+        cutilSafeCall(cudaSetupArgument(kernel_args[i].ptr,
+                                        kernel_args[i].size,
+                                        offset));
+        offset += kernel_args[i].size;
     }
     state = ComputeContext::RUNNING;
     cutilSafeCall(cudaLaunch(kernel.ptr));

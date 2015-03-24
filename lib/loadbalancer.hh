@@ -5,7 +5,7 @@
 #include "packetbatch.hh"
 #include "computedevice.hh"
 
-namespace nba {
+namespace nshader {
 
 /**
  * The System Inspector Interface.
@@ -21,7 +21,7 @@ public:
             drop_pkt_count(0), batch_process_time(0), tx_pkt_thruput(0),
             true_process_time_cpu(0)
     {
-        for (unsigned i = 0; i < NBA_MAX_COPROCESSOR_TYPES; i++) {
+        for (unsigned i = 0; i < NSHADER_MAX_COPROCESSOR_TYPES; i++) {
             dev_sent_batch_count[i] = 0;
             dev_finished_batch_count[i] = 0;
             dev_finished_task_count[i] = 0;
@@ -35,10 +35,10 @@ public:
     /* We do not use wrapper methods to write/read these values, since
      * there is no race condition as all fields are accessed
      * exclusively by a single computation thread. */
-    uint64_t dev_sent_batch_count[NBA_MAX_COPROCESSOR_TYPES];
-    uint64_t dev_finished_batch_count[NBA_MAX_COPROCESSOR_TYPES];
-    uint64_t dev_finished_task_count[NBA_MAX_COPROCESSOR_TYPES];
-    float avg_task_completion_sec[NBA_MAX_COPROCESSOR_TYPES];
+    uint64_t dev_sent_batch_count[NSHADER_MAX_COPROCESSOR_TYPES];
+    uint64_t dev_finished_batch_count[NSHADER_MAX_COPROCESSOR_TYPES];
+    uint64_t dev_finished_task_count[NSHADER_MAX_COPROCESSOR_TYPES];
+    float avg_task_completion_sec[NSHADER_MAX_COPROCESSOR_TYPES];
     uint64_t rx_batch_count;
     uint64_t rx_pkt_count;
     uint64_t tx_batch_count;
@@ -48,7 +48,7 @@ public:
 
     double tx_pkt_thruput;
 
-    double true_process_time_gpu[NBA_MAX_COPROCESSOR_TYPES];
+    double true_process_time_gpu[NSHADER_MAX_COPROCESSOR_TYPES];
     double true_process_time_cpu;
 #define CPU_HISTORY_SIZE (128)
 #define GPU_HISTORY_SIZE (2048)

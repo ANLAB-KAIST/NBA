@@ -1,5 +1,5 @@
 /**
- * NBA's Computation Thread.
+ * nShader's Computation Thread.
  *
  * Author: Joongi Kim <joongi@an.kaist.ac.kr>
  */
@@ -15,7 +15,8 @@
 #include "computation.hh"
 #include "annotation.hh"
 #include "computecontext.hh"
-extern "C" {
+#include "graphanalysis.hh"
+
 #include <unistd.h>
 #include <numa.h>
 #include <sys/prctl.h>
@@ -29,75 +30,21 @@ extern "C" {
 #include <rte_cycles.h>
 #include <rte_prefetch.h>
 #include <rte_per_lcore.h>
+extern "C"{
 #include <ev.h>
 #include <click_parser.h>
 }
+
 #include <exception>
 #include <stdexcept>
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 static thread_local uint64_t recv_batch_cnt = 0;
 RTE_DECLARE_PER_LCORE(unsigned, _lcore_id);
 
-namespace nba {
-
-static void comp_terminate_cb(struct ev_loop *loop, struct ev_async *watcher, int revents)
-{
-    ev_break(loop, EVBREAK_ALL);
-}
-
-static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_async *watcher, int revents)
-{
-    comp_thread_context *ctx = (comp_thread_context *) ev_userdata(loop);
-    OffloadTask *tasks[ctx->task_completion_queue_size];
-    unsigned nr_tasks = rte_ring_sc_dequeue_burst(ctx->task_completion_queue,
-                                                  (void **) tasks,
-                                                  ctx->task_completion_queue_size);
-    print_ratelimit("avg.# tasks completed", nr_tasks, 10000);
-    for (unsigned t = 0; t < nr_tasks; t++) {
-        /* We already finished postprocessing.
-         * Retrieve the task and results. */
-        OffloadTask *task = tasks[t];
-
-        /* Return the context. */
-        task->cctx->state = ComputeContext::READY;
-        ctx->cctx_list.push_back(task->cctx);
-
-        Element *last_elem = task->offloaded_elements[0]; // TODO: get last one if multiple elements
-
-        /* Run next element graph. */
-        for (size_t b = 0; b < task->num_batches; b ++) {
-            ctx->elem_graph->enqueue_postproc_batch(task->batches[b], last_elem,
-                                                    task->input_ports[b]);
-        }
-
-        /* Free the task object. */
-        // TODO: generalize device index
-        ctx->inspector->dev_finished_batch_count[0] += task->num_batches;
-        rte_mempool_put(ctx->task_pool, (void *) task);
-    }
-
-    /* Let the computation thread to receive packets again. */
-    ctx->resume_rx();
-    if (ev_async_pending(ctx->rx_watcher))
-        ev_invoke(ctx->loop, ctx->rx_watcher, EV_ASYNC);
-    else {}
-        //kill(ctx->io_ctx->thread_id, SIGUSR1);
-}
-
-static void comp_packetbatch_init(struct rte_mempool *mp, void *arg, void *obj, unsigned idx)
-{
-    PacketBatch *b = (PacketBatch*) obj;
-    new (b) PacketBatch();
-}
-
-static void comp_task_init(struct rte_mempool *mp, void *arg, void *obj, unsigned idx)
-{
-    OffloadTask *t = (OffloadTask *) obj;
-    new (t) OffloadTask();
-}
+namespace nshader {
 
 comp_thread_context::comp_thread_context() {
     terminate_watcher = nullptr;
@@ -125,7 +72,7 @@ comp_thread_context::comp_thread_context() {
     io_ctx = nullptr;
     named_offload_devices = nullptr;
     offload_devices = nullptr;
-    for (unsigned i = 0; i < NBA_MAX_COPROCESSORS; i++) {
+    for (unsigned i = 0; i < NSHADER_MAX_COPROCESSORS; i++) {
         offload_input_queues[i] = nullptr;
     }
 
@@ -159,15 +106,62 @@ static void *click_module_handler(int global_idx, const char* name, int argc, ch
     if (element_registry.find(elem_name) == element_registry.end()) {
         rte_panic("click_module_handler(): element with name \"%s\" does not exist.\n", name);
     }
-    Element *el = element_registry[elem_name].instantiate();
+    Element *module = element_registry[elem_name].instantiate();
 
     vector<string> args;
     for (int i = 0; i < argc; i++)
         args.push_back(string(argv[i]));
-    el->configure(ctx, args);
+    module->configure(ctx, args);
 
-    ctx->elem_graph->add_element(el);
-    return el;
+    ctx->elem_graph->add_element(module);
+#if 0
+    std::vector<int> my_datablocks;
+    module->get_datablocks(my_datablocks);
+
+    for(auto block_id : my_datablocks)
+    {
+    	struct read_roi_info read_roi;
+    	struct write_roi_info write_roi;
+    	memset(&read_roi, 0, sizeof(read_roi));
+    	memset(&write_roi, 0, sizeof(write_roi));
+
+    	ctx->datablock_registry[block_id]->get_read_roi(&read_roi);
+    	ctx->datablock_registry[block_id]->get_write_roi(&write_roi);
+
+    	L::Bitmap read_bitmap(2048);
+    	L::Bitmap write_bitmap(2048);
+
+    	if(read_roi.type == READ_PARTIAL_PACKET)
+    		read_bitmap.setRange(true, read_roi.offset, read_roi.offset+read_roi.length);
+    	else if(read_roi.type == READ_NONE)
+    	{
+
+    	}
+    	else
+    	{
+    		read_bitmap.setRange(true, 0, 2048);
+    	}
+
+    	if(write_roi.type == WRITE_PARTIAL_PACKET)
+    		write_bitmap.setRange(true, write_roi.offset, write_roi.offset+write_roi.length);
+    	else if(write_roi.type == WRITE_NONE || write_roi.type == WRITE_FIXED_SEGMENTS)
+    	{
+
+    	}
+    	else
+    	{
+    		write_bitmap.setRange(true, 0, 2048);
+    	}
+
+    	//printf("%s's read roi: ", ctx->datablock_registry[block_id]->name());
+    	//read_bitmap.print();
+    	//printf("%s's write roi: ", ctx->datablock_registry[block_id]->name());
+    	//write_bitmap.print();
+
+    	module->addROI(block_id, read_bitmap, write_bitmap);
+    }
+#endif
+    return module;
 }
 
 static void click_module_linker(void *from, int from_output, void *to, int to_input, void *priv)
@@ -176,6 +170,8 @@ static void click_module_linker(void *from, int from_output, void *to, int to_in
     Element *from_module = (Element *) from;
     Element *to_module   = (Element *) to;
     ctx->elem_graph->link_element(to_module, to_input, from_module, from_output);
+
+    from_module->link(to_module);
 
     if ((from_module->get_type() & ELEMTYPE_OFFLOADABLE) != 0 &&
         (to_module->get_type() & ELEMTYPE_OFFLOADABLE) != 0) {
@@ -190,9 +186,20 @@ void comp_thread_context::build_element_graph(const char* config_file) {
 
     FILE* input = fopen(config_file, "r");
     ParseInfo *pi = click_parse_configuration(input, click_module_handler, click_module_linker, this);
-
+    int num_modules = click_num_module(pi);
     /* Schedulable elements will be automatically detected during addition.
      * (They corresponds to multiple "root" elements.) */
+    GraphAnalysis::analyze(pi);
+    for(int k=0; k<num_modules; k++)
+    {
+    	Element* elem = (Element*)click_get_module(pi, k);
+
+    	if(elem->getLinearGroup() >= 0)
+    	{
+    		RTE_LOG(INFO, COMP, "Element [%s] is in group %d\n",
+    				elem->class_name(), elem->getLinearGroup());
+    	}
+    }
 
     click_destroy_configuration(pi);
     fclose(input);
@@ -244,7 +251,7 @@ void comp_thread_context::initialize_graph_per_thread() {
 
 void comp_thread_context::io_tx_new(void* data, size_t len, int out_port)
 {
-    if (len > NBA_MAX_PACKET_SIZE) {
+    if (len > NSHADER_MAX_PACKET_SIZE) {
         RTE_LOG(WARNING, COMP, "io_tx_new(): Too large packet!\n");
         return;
     }

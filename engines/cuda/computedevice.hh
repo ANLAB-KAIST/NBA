@@ -12,7 +12,7 @@
 #include "utils.hh"
 #include "computecontext.hh"
 
-namespace nba
+namespace nshader
 {
 
 class CUDAComputeDevice: public ComputeDevice

@@ -1,7 +1,7 @@
-#ifndef __NBA_IPLOOKUP_KERNEL_HH__
-#define __NBA_IPLOOKUP_KERNEL_HH__
+#ifndef __NSHADER_IPLOOKUP_KERNEL_HH__
+#define __NSHADER_IPLOOKUP_KERNEL_HH__
 
-namespace nba {
+namespace nshader {
 
 extern void *ipv4_route_lookup_get_cuda_kernel();
 

@@ -3,7 +3,7 @@
 #include "../../lib/common.hh"
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 DummyComputeContext::DummyComputeContext(unsigned ctx_id, ComputeDevice *mother_device)
  : ComputeContext(ctx_id, mother_device)
@@ -63,28 +63,6 @@ size_t DummyComputeContext::get_total_input_buffer_size()
     return _cpu_mempool_in.get_alloc_size();
 }
 
-void DummyComputeContext::set_io_buffers(void *in_h, memory_t in_d, size_t in_sz,
-                                         void *out_h, memory_t out_d, size_t out_sz)
-{
-    this->in_h = in_h;
-    this->in_d = in_d;
-    this->out_h = out_h;
-    this->out_d = out_d;
-    this->in_sz = in_sz;
-    this->out_sz = out_sz;
-}
-
-void DummyComputeContext::set_io_buffer_elemsizes(size_t *in_h, memory_t in_d, size_t in_sz,
-                                                  size_t *out_h, memory_t out_d, size_t out_sz)
-{
-    this->in_elemsizes_h   = in_h;
-    this->in_elemsizes_d   = in_d;
-    this->out_elemsizes_h  = out_h;
-    this->out_elemsizes_d  = out_d;
-    this->in_elemsizes_sz  = in_sz;
-    this->out_elemsizes_sz = out_sz;
-}
-
 int DummyComputeContext::enqueue_memwrite_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size)
 {
     return 0;
@@ -95,8 +73,7 @@ int DummyComputeContext::enqueue_memread_op(void *host_buf, memory_t dev_buf, si
     return 0;
 }
 
-int DummyComputeContext::enqueue_kernel_launch(kernel_t kernel, struct resource_param *res,
-                          struct kernel_arg *args, size_t num_args)
+int DummyComputeContext::enqueue_kernel_launch(kernel_t kernel, struct resource_param *res)
 {
     return 0;
 }

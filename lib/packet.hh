@@ -1,5 +1,5 @@
-#ifndef __NBA_PACKET_HH__
-#define __NBA_PACKET_HH__
+#ifndef __NSHADER_PACKET_HH__
+#define __NSHADER_PACKET_HH__
 
 #include "element.hh"
 #include <rte_eal.h>
@@ -7,7 +7,7 @@
 #include <rte_mbuf.h>
 #include <rte_mempool.h>
 
-namespace nba {
+namespace nshader {
 
 extern thread_local struct rte_mempool *packet_pool;
 

@@ -1,12 +1,12 @@
-#ifndef __NBA_ELEMENT_IP_IPLOOKUP_HH__
-#define __NBA_ELEMENT_IP_IPLOOKUP_HH__
+#ifndef __NSHADER_ELEMENT_IP_IPLOOKUP_HH__
+#define __NSHADER_ELEMENT_IP_IPLOOKUP_HH__
 
-extern "C" {
+
 #include <rte_config.h>
 #include <rte_memory.h>
 #include <rte_mbuf.h>
 #include <rte_ether.h>
-}
+
 #include "../../lib/element.hh"
 #include "../../lib/annotation.hh"
 #include "../../lib/computedevice.hh"
@@ -28,12 +28,14 @@ extern "C" {
 
 #include <errno.h>
 
+#include "IPv4Datablocks.hh"
+
 #define TBL24_SIZE  ((1 << 24) + 1)
 #define TBLLONG_SIZE    ((1 << 24) + 1)
 
 using namespace std;
 
-namespace nba {
+namespace nshader {
 
 class IPlookup : public OffloadableElement {
 protected:
@@ -51,7 +53,7 @@ protected:
         fp = fopen(filename, "r");
         if (fp == NULL) {
             getcwd(buf, 256);
-            printf("NBA: IpCPULookup element: error during opening file \'%s\' from \'%s\'.: %s\n", filename, buf, strerror(errno));
+            printf("nShader: IpCPULookup element: error during opening file \'%s\' from \'%s\'.: %s\n", filename, buf, strerror(errno));
         }
         assert(fp != NULL);
 
@@ -111,7 +113,7 @@ public:
     IPlookup(): OffloadableElement()
     {
         #ifdef USE_CUDA
-        auto ch = [this](ComputeContext *ctx, struct resource_param *res, struct annotation_set **anno_ptr_array) { this->cuda_compute_handler(ctx, res, anno_ptr_array); };
+        auto ch = [this](ComputeContext *ctx, struct resource_param *res) { this->cuda_compute_handler(ctx, res); };
         offload_compute_handlers.insert({{"cuda", ch},});
         auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
         offload_init_handlers.insert({{"cuda", ih},});
@@ -150,19 +152,11 @@ public:
         #endif
     }
 
-    void get_input_roi(struct input_roi_info *roi) const
+    size_t get_used_datablocks(int *datablock_ids)
     {
-        roi->type = PARTIAL_PACKET;
-        roi->offset = 14 + 16;  /* offset of destination address */
-        roi->length = 4;
-        roi->align = 0;
-    }
-
-    void get_output_roi(struct output_roi_info *roi) const
-    {
-        roi->type = CUSTOM_OUTPUT;
-        roi->offset = 0;
-        roi->length = sizeof(uint16_t);
+        datablock_ids[0] = dbid_ipv4_dest_addrs;
+        datablock_ids[1] = dbid_ipv4_lookup_results;
+        return 2;
     }
 
     /* CPU-only method */
@@ -170,12 +164,11 @@ public:
 
     /* Offloaded methods */
     size_t get_desired_workgroup_size(const char *device_name) const;
+    int get_offload_item_counter_dbid() const { return dbid_ipv4_dest_addrs; }
     #ifdef USE_CUDA
     void cuda_init_handler(ComputeDevice *device);
-    void cuda_compute_handler(ComputeContext *ctx, struct resource_param *res, struct annotation_set **anno_ptr_array);
+    void cuda_compute_handler(ComputeContext *ctx, struct resource_param *res);
     #endif
-    void preproc(int input_port, void *custom_input, struct rte_mbuf *pkt, struct annotation_set *anno);
-    void prepare_input(ComputeContext *ctx, struct resource_param *res, struct annotation_set **anno_ptr_array);
     int postproc(int input_port, void *custom_output, struct rte_mbuf *pkt, struct annotation_set *anno);
 
 protected:

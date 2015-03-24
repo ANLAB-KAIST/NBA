@@ -1,10 +1,14 @@
 #! /usr/bin/env python3
 # -*- mode: python -*-
-import os, sys, re, sysconfig, glob
+import os, sys, re, sysconfig, glob, logging
 from snakemake.utils import format as fmt
+from snakemake.logging import logger
 from distutils.version import LooseVersion
 sys.path.insert(0, '.')
 import compilelib
+from pprint import pprint
+
+logger.set_level(logging.DEBUG)
 
 def joinpath(*args):
     return os.path.normpath(os.path.join(*args))
@@ -12,9 +16,9 @@ def joinpath(*args):
 def version():
     modern_version = LooseVersion('4.7.0')
     for line in shell('g++ --version', iterable=True):
-        m = re.search('\d\.\d\.\d', line)
+        m = re.search(b'\d\.\d\.\d', line)
         if m:
-            VERSION = LooseVersion(m.group(0))
+            VERSION = LooseVersion(m.group(0).decode('ascii'))
             break
     if VERSION >= modern_version:
         return '-std=gnu++11'
@@ -24,28 +28,48 @@ def version():
 USE_CUDA = bool(int(os.getenv('USE_CUDA', 1)))
 USE_PHI  = bool(int(os.getenv('USE_PHI', 0)))
 USE_NVPROF = bool(int(os.getenv('USE_NVPROF', 0)))
-USE_OPENSSL_EVP = bool(int(os.getenv('USE_OPENSSL_EVP', 1)))  # allow use of AES-NI
+USE_OPENSSL_EVP = bool(int(os.getenv('USE_OPENSSL_EVP', 1)))
+NO_HUGEPAGES = bool(int(os.getenv('NSHADER_NO_HUGE', 0)))
+PMD      = os.getenv('NSHADER_PMD', 'ixgbe')
+logger.debug(fmt('Compiling using {PMD} poll-mode driver...'))
 
-# List of source/object/header files
-SOURCE_DIRS = compilelib.expand_subdirs([
-    'lib',
-    'elements',
-])
-SOURCE_DIRS += compilelib.expand_subdirs(['engines/dummy'])
+# List of source and header files
+SOURCE_DIRS = ['lib', 'elements']
+SOURCE_DIRS += ['engines/dummy']
 if USE_CUDA:
-    SOURCE_DIRS += compilelib.expand_subdirs(['engines/cuda'])
+    SOURCE_DIRS += ['engines/cuda']
 if USE_PHI:
-    SOURCE_DIRS += compilelib.expand_subdirs(['engines/phi'])
-TEMPORARY_BLACKLIST = set([
-])
-OBJ_DIR      = 'build'
-SOURCE_FILES = set(s for s in compilelib.find_all(SOURCE_DIRS, r'^.+\.(c|cc|cpp)$') if s not in TEMPORARY_BLACKLIST)
+    SOURCE_DIRS += ['engines/phi']
+BLACKLIST = {  # temporarily excluded for data-copy-optimization refactoring
+    'elements/ipsec/IPsecHMACSHA1AES.cc',
+    'elements/ipsec/IPsecHMACSHA1AES.hh',
+    'elements/ipsec/IPsecHMACSHA1AES_kernel.cu',
+    'elements/ipsec/IPsecHMACSHA1AES_kernel.hh',
+    'elements/ipsec/IPsecHMACSHA1AES_kernel_core.hh',
+    'elements/ipsec/IPsecAES_CBC.cc',
+    'elements/ipsec/IPsecAES_CBC.hh',
+    'elements/ipsec/IPsecAES_CBC_kernel.cu',
+    'elements/ipsec/IPsecAES_CBC_kernel.hh',
+    'elements/ipsec/IPsecAES_CBC_kernel_core.hh',
+    'elements/kargus/KargusIDS_Content.cc',
+    'elements/kargus/KargusIDS_Content.hh',
+    'elements/kargus/KargusIDS_Content_kernel.cu',
+    'elements/kargus/KargusIDS_Content_kernel.hh',
+    'elements/kargus/KargusIDS_PCRE.cc',
+    'elements/kargus/KargusIDS_PCRE.hh',
+    'elements/kargus/KargusIDS_PCRE_kernel.cu',
+    'elements/kargus/KargusIDS_PCRE_kernel.hh',
+}
+SOURCE_FILES = [s for s in compilelib.find_all(SOURCE_DIRS, r'^.+\.(c|cc|cpp)$') if s not in BLACKLIST]
 if USE_CUDA:
-    SOURCE_FILES |= set(s for s in compilelib.find_all(SOURCE_DIRS, r'^.+\.cu$') if s not in TEMPORARY_BLACKLIST)
-SOURCE_FILES.add('main.cc')
-OBJ_FILES    = set(joinpath(OBJ_DIR, o) for o in map(lambda s: re.sub(r'^(.+)\.(c|cc|cpp|cu)$', r'\1.o', s), SOURCE_FILES))
-HEADER_FILES = compilelib.find_all(SOURCE_DIRS, r'^.+\.(h|hh|hpp)$')
-ELEMENT_HEADER_FILES = compilelib.find_all(['elements'], r'^.+\.(h|hh|hpp)$')
+    SOURCE_FILES += [s for s in compilelib.find_all(SOURCE_DIRS, r'^.+\.cu$') if s not in BLACKLIST]
+SOURCE_FILES.append('main.cc')
+HEADER_FILES         = [s for s in compilelib.find_all(SOURCE_DIRS, r'^.+\.(h|hh|hpp)$') if s not in BLACKLIST]
+ELEMENT_HEADER_FILES = [s for s in compilelib.find_all(['elements'], r'^.+\.(h|hh|hpp)$') if s not in BLACKLIST]
+
+# List of object files
+OBJ_DIR   = 'build'
+OBJ_FILES = [joinpath(OBJ_DIR, o) for o in map(lambda s: re.sub(r'^(.+)\.(c|cc|cpp|cu)$', r'\1.o', s), SOURCE_FILES)]
 
 # Common configurations
 CXXSTD = version()
@@ -63,19 +87,20 @@ SUPPRESSED_CC_WARNINGS = (
 )
 CFLAGS         = '-O2 -g -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS))
 if os.getenv('DEBUG', 0):
-    CFLAGS     = '-O0 -g3 -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -DDEBUG'
+    CFLAGS     = '-Og -g3 -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -DDEBUG'
 #LIBS           = '-ltcmalloc_minimal -lnuma -lpthread -lpcre -lrt'
 LIBS           = '-lnuma -lpthread -lpcre -lrt'
 if USE_CUDA:        CFLAGS += ' -DUSE_CUDA'
 if USE_PHI:         CFLAGS += ' -DUSE_PHI'
 if USE_OPENSSL_EVP: CFLAGS += ' -DUSE_OPENSSL_EVP'
 if USE_NVPROF:      CFLAGS += ' -DUSE_NVPROF'
+if NO_HUGEPAGES:    CFLAGS += ' -DNSHADER_NO_HUGE'
 
 # User-defined variables
-v = os.getenv('NBA_SLEEPY_IO', 0)
-if v: CFLAGS += ' -DNBA_SLEEPY_IO'
-v = os.getenv('NBA_RANDOM_PORT_ACCESS', 0)
-if v: CFLAGS += ' -DNBA_RANDOM_PORT_ACCESS'
+v = os.getenv('NSHADER_SLEEPY_IO', 0)
+if v: CFLAGS += ' -DNSHADER_SLEEPY_IO'
+v = os.getenv('NSHADER_RANDOM_PORT_ACCESS', 0)
+if v: CFLAGS += ' -DNSHADER_RANDOM_PORT_ACCESS'
 
 # NVIDIA CUDA configurations
 if USE_CUDA:
@@ -84,7 +109,7 @@ if USE_CUDA:
     CFLAGS       += ' -I/usr/local/cuda/include'
     LIBS         += ' -L/usr/local/cuda/lib64 -lcudart' #' -lnvidia-ml'
     if os.getenv('DEBUG', 0):
-        NVCFLAGS  = '-O0 -g --use_fast_math -I/usr/local/cuda/include --device-debug --ptxas-options=-v'
+        NVCFLAGS  = '-O0 --device-debug -g -G --use_fast_math -I/usr/local/cuda/include --ptxas-options=-v'
     if CUDA_ARCH == 'KEPLER':
         NVCFLAGS += ' -DMP_USE_64BIT=1 -gencode arch=compute_30,code=sm_30 -gencode arch=compute_35,code=sm_35'
         CFLAGS   += ' -DMP_USE_64BIT=1'
@@ -108,9 +133,9 @@ if USE_PHI:
     LIBS      += ' -L/opt/intel/opencl/lib64 -lOpenCL'
 
 # OpenSSL configurations
-SSL_PATH = os.getenv('NBA_OPENSSL_PATH') or '/usr'
-CFLAGS        += ' -I{0}/include'.format(SSL_PATH)
-LIBS          += ' -L{0}/lib -lcrypto'.format(SSL_PATH)
+SSL_PATH = os.getenv('NSHADER_OPENSSL_PATH') or '/usr'
+CFLAGS        += ' -I{SSL_PATH}/include'
+LIBS          += ' -L{SSL_PATH}/lib -lcrypto'
 
 # Python configurations (assuming we use the same version of Python for Snakemake and configuration scripts)
 CFLAGS        += ' -I{0} -fwrapv'.format(sysconfig.get_path('include'))
@@ -121,21 +146,25 @@ LIBS          += ' -L{0} -lpython{1}m {2} {3}'.format(sysconfig.get_path('stdlib
 
 # click-parser configurations
 CLICKPARSER_PATH = '$HOME/click-parser'
-CFLAGS        += ' -I{0}/include'.format(CLICKPARSER_PATH)
-LIBS          += ' -L{0}/build -lclickparser'.format(CLICKPARSER_PATH)
+CFLAGS        += ' -I{CLICKPARSER_PATH}/include'
+LIBS          += ' -L{CLICKPARSER_PATH}/build -lclickparser'
 
 # libev configurations
 LIBS          += ' -lev'
 
 # DPDK configurations
-DPDK_PATH  = os.getenv('NBA_DPDK_PATH')
-RTE_TARGET = os.getenv('RTE_TARGET', 'x86_64-native-linuxapp-gcc')
+DPDK_PATH = os.getenv('NSHADER_DPDK_PATH')
 if DPDK_PATH is None:
-    print('You must set NBA_DPDK_PATH environment variable.')
+    print('You must set NSHADER_DPDK_PATH environment variable.')
     sys.exit(1)
-librte_names   = ['ethdev', 'rte_eal', 'rte_cmdline', 'rte_malloc', 'rte_mbuf', 'rte_mempool', 'rte_ring', 'rte_pmd_ixgbe']
-CFLAGS        += ' -I{DPDK_PATH}/{RTE_TARGET}/include'
-LIBS          += ' -L{DPDK_PATH}/{RTE_TARGET}/lib' \
+librte_pmds    = {
+    'ixgbe': ['rte_pmd_ixgbe'],
+    'mlx4': ['rte_pmd_mlx4', 'rte_timer'],
+}
+librte_names   = ['ethdev', 'rte_eal', 'rte_cmdline', 'rte_malloc', 'rte_mbuf', 'rte_mempool', 'rte_ring']
+librte_names.extend(librte_pmds[PMD])
+CFLAGS        += ' -I{DPDK_PATH}/build/include'
+LIBS          += ' -L{DPDK_PATH}/build/lib' \
                  + ' -Wl,--whole-archive' \
                  + ' -Wl,--start-group ' \
                  + ' '.join('-l' + libname for libname in librte_names) \
@@ -145,14 +174,19 @@ LIBS          += ' -L{DPDK_PATH}/{RTE_TARGET}/lib' \
 # Other dependencies
 LIBS += ' -ldl'
 
+# Expand variables
 CFLAGS = fmt(CFLAGS)
-LIBS   = fmt(LIBS)
+LIBS = fmt(LIBS)
+
+logger.set_level(logging.INFO)
+
+# ---------------------------------------------------------------------------------------------
 
 # Build rules
 rule main:
     input: OBJ_FILES
     output: 'bin/main'
-    shell: '{CXX} -o {output} {input} {LIBS}'
+    shell: '{CXX} -o {output} -Wl,--whole-archive {input} -Wl,--no-whole-archive {LIBS}'
 
 rule clean:
     shell: 'rm -rf build bin/main lib/*_map.hh'
@@ -181,12 +215,12 @@ for srcfile in SOURCE_FILES:
             shell: '{NVCC} {NVCFLAGS} -c {input[0]} -o {output}'
 
 rule lexyacc:
-    input: 'lib/configparser/nba.l', 'lib/configparser/nba.ypp'
-    output: 'lib/configparser/nba.tab.cpp', 'lib/configparser/nba.tab.hpp', \
+    input: 'lib/configparser/nshader.l', 'lib/configparser/nshader.ypp'
+    output: 'lib/configparser/nshader.tab.cpp', 'lib/configparser/nshader.tab.hpp', \
             'lib/configparser/nslex.cc', 'lib/configparser/nslex.hh'
     shell: '''
-        bison -d lib/configparser/nba.ypp -b lib/configparser/nba
-        flex -o lib/configparser/nslex.cc --header-file=lib/configparser/nslex.hh -Cr lib/configparser/nba.l
+        bison -d lib/configparser/nshader.ypp -b lib/configparser/nshader
+        flex -o lib/configparser/nslex.cc --header-file=lib/configparser/nslex.hh -Cr lib/configparser/nshader.l
     '''
 
 rule elemmap:
@@ -196,15 +230,15 @@ rule elemmap:
         elements = ((compilelib.detect_element_def(fname), fname) for fname in ELEMENT_HEADER_FILES)
         elements = list(filter(lambda t: t[0] is not None, elements))
         with open('lib/element_map.hh', 'w') as fout:
-            print('#ifndef __NBA_ELEMMAP_HH__', file=fout)
-            print('#define __NBA_ELEMMAP_HH__', file=fout)
+            print('#ifndef __NSHADER_ELEMMAP_HH__', file=fout)
+            print('#define __NSHADER_ELEMMAP_HH__', file=fout)
             print('/* DO NOT EDIT! This file is auto-generated. Run "snakemake elemmap" to update manually. */', file=fout)
             print('#include <unordered_map>', file=fout)
             print('#include <functional>', file=fout)
             print('#include "element.hh"', file=fout)
             for eleminfo in elements:
                 print('#include "{hdrpath}"'.format(hdrpath=joinpath('..', eleminfo[1])), file=fout)
-            print('namespace nba {', file=fout)
+            print('namespace nshader {', file=fout)
             print('static std::unordered_map<std::string, struct element_info> element_registry = {', file=fout)
             for idx, eleminfo in enumerate(elements):
                 print('\t{{"{name}", {{ {idx}, [](void) -> Element* {{ return new {name}(); }} }} }},'

@@ -1,14 +1,13 @@
-#ifndef __NBA_UTIL_HASH_TABLE_HH__
-#define __NBA_UTIL_HASH_TABLE_HH__
+#ifndef __NSHADER_UTIL_HASH_TABLE_HH__
+#define __NSHADER_UTIL_HASH_TABLE_HH__
 
 #include <stdint.h>
 #include <unistd.h>
 
-#define IPV6_DEFAULT_TABLE_SIZE 65536
-
-#define IPV6_MARKER 0x0002
-#define IPV6_EMPTY 0x0000
-#define IPV6_PREFIX 0x0001
+#define IPV6_DEFAULT_HASHTABLE_SIZE 65536
+#define IPV6_HASHTABLE_MARKER 0x0002
+#define IPV6_HASHTABLE_EMPTY  0x0000
+#define IPV6_HASHTABLE_PREFIX 0x0001
 
 // A 128-bit unsigned integer.
 
@@ -46,9 +45,9 @@ struct Item {
 class HashTable128
 {
 public:
-    HashTable128(int tablesize = IPV6_DEFAULT_TABLE_SIZE);
+    HashTable128(int tablesize = IPV6_DEFAULT_HASHTABLE_SIZE);
     ~HashTable128();
-    int insert(uint128_t key, uint16_t val, uint16_t state = IPV6_PREFIX);
+    int insert(uint128_t key, uint16_t val, uint16_t state = IPV6_HASHTABLE_PREFIX);
     uint32_t find(uint128_t key);
     void clone_from(HashTable128 &table);
 
@@ -65,21 +64,21 @@ public:
         Iterator(Item* Table, int TableSize ,int index = 0)
             : m_Table(Table), m_TableSize(TableSize), m_CurrentIndex(index)
         {
-            while(!( m_Table[m_CurrentIndex].state & IPV6_PREFIX) && m_CurrentIndex < m_TableSize)
+            while(!( m_Table[m_CurrentIndex].state & IPV6_HASHTABLE_PREFIX) && m_CurrentIndex < m_TableSize)
                 m_CurrentIndex++;
         }
         Iterator& operator++ ()
         {
-            if(m_Table[m_CurrentIndex].state & IPV6_PREFIX)
+            if(m_Table[m_CurrentIndex].state & IPV6_HASHTABLE_PREFIX)
                 m_CurrentIndex++;
 
             while(m_CurrentIndex < m_TableSize){
-                if (m_Table[m_CurrentIndex].state == IPV6_PREFIX)
+                if (m_Table[m_CurrentIndex].state == IPV6_HASHTABLE_PREFIX)
                     break;
                 m_CurrentIndex++;
             }
             while(m_CurrentIndex >= m_TableSize &&  m_CurrentIndex < 2 * m_TableSize) {
-                if ( !(m_Table[m_CurrentIndex].state & IPV6_MARKER) )
+                if ( !(m_Table[m_CurrentIndex].state & IPV6_HASHTABLE_MARKER) )
                     break;
                 m_CurrentIndex++;
             }

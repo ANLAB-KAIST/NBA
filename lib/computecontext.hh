@@ -1,5 +1,5 @@
-#ifndef __NBA_COMPUTECONTEXT_HH__
-#define __NBA_COMPUTECONTEXT_HH__
+#ifndef __NSHADER_COMPUTECONTEXT_HH__
+#define __NSHADER_COMPUTECONTEXT_HH__
 
 #include "common.hh"
 #include "types.hh"
@@ -7,7 +7,7 @@
 
 using namespace std;
 
-namespace nba {
+namespace nshader {
 
 struct resource_param {
     uint32_t num_workitems;
@@ -56,16 +56,14 @@ public:
     virtual void *get_host_input_buffer_base() = 0;
     virtual memory_t get_device_input_buffer_base() = 0;
     virtual size_t get_total_input_buffer_size() = 0;
-    virtual void set_io_buffers(void *in_h, memory_t in_d, size_t in_sz,
-                                void *out_h, memory_t out_d, size_t out_sz) = 0;
-    virtual void set_io_buffer_elemsizes(size_t *in_h, memory_t in_d, size_t in_sz,
-                                         size_t *out_h, memory_t out_d, size_t out_sz) = 0;
+
+    virtual void clear_kernel_args() = 0;
+    virtual void push_kernel_arg(struct kernel_arg &arg) = 0;
 
     /* All functions must be implemented as non-blocking. */
     virtual int enqueue_memwrite_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size) = 0;
     virtual int enqueue_memread_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size) = 0;
-    virtual int enqueue_kernel_launch(kernel_t kernel, struct resource_param *res,
-                                      struct kernel_arg *args, size_t num_args) = 0;
+    virtual int enqueue_kernel_launch(kernel_t kernel, struct resource_param *res) = 0;
     virtual int enqueue_event_callback(void (*func_ptr)(ComputeContext *ctx, void *user_arg), void *user_arg) = 0;
 
     virtual uint8_t *get_device_checkbits() = 0;
@@ -83,32 +81,11 @@ public:
     volatile unsigned state __cache_aligned;
     OffloadTask *currently_running_task;
 
-    void *host_ptr_storage[PTR_STORAGE_SIZE];
-    memory_t dev_mem_storage[PTR_STORAGE_SIZE];
-
 protected:
     const ComputeDevice *mother_device;
     const unsigned node_id;
     const unsigned device_id;
     const unsigned ctx_id;
-
-public:
-    void *in_h;
-    memory_t in_d;
-    void *out_h;
-    memory_t out_d;
-    size_t in_sz, out_sz;
-
-    size_t *in_elemsizes_h;
-    memory_t in_elemsizes_d;
-    size_t in_elemsizes_sz;
-    size_t *out_elemsizes_h;
-    memory_t out_elemsizes_d;
-    size_t out_elemsizes_sz;
-    size_t *aligned_elemsizes_h;
-    
-    size_t total_num_pkts;
-    size_t total_size_pkts;
 };
 
 }

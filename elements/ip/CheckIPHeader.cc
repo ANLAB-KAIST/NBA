@@ -4,7 +4,7 @@
 #include "../util/util_checksum.hh"
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 int CheckIPHeader::initialize()
 {

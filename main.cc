@@ -1,5 +1,5 @@
 /**
- * NBA's EMMA architecture main program.
+ * nShader's EMMA architecture main program.
  *
  * Author: Joongi Kim <joongi@an.kaist.ac.kr>
  */
@@ -43,7 +43,7 @@
 #include <unordered_set>
 #include <map>
 #include <thread>
-extern "C" {
+
 //#include <papi.h>
 #include <unistd.h>
 #include <limits.h>
@@ -71,17 +71,10 @@ extern "C" {
 #include <rte_ether.h>
 #include <rte_ethdev.h>
 #include <rte_ring.h>
-}
 
-/* According to dpdk-dev mailing list,
- * NUM_MBUF for the whole system should be greater than:
- *   (hw-rx-ring-size * nb-rx-queue) + (hw-tx-ring-size * nb-tx-queue)
- *   + (nb-lcores * mbuf-pool-cache-size)
- */
-#define NUM_MBUF    (8192)
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 static unsigned num_nodes, num_coprocessors, num_pcores, num_lcores, num_ports;
 static unsigned num_coproc_threads, num_comp_threads, num_io_threads;
@@ -93,50 +86,11 @@ static CondVar _exit_cond;
 static bool _terminated = false;
 static thread_id_t main_thread_id;
 
-struct mbuf_ctor_arg {
-	uint16_t seg_buf_offset; /**< offset of data in data segment of mbuf. */
-	uint16_t seg_buf_size;   /**< size of data segment in mbuf. */
-};
-
-struct mbuf_pool_ctor_arg {
-	uint16_t seg_buf_size; /**< size of data segment in mbuf. */
-};
-
 static void handle_signal(int signum);
 
 static void invalid_cb(struct ev_loop *loop, struct ev_async *w, int revents)
 {
     rte_panic("BUG: Callback was not set!!\n");
-}
-
-static void pktmbuf_pool_ctor(struct rte_mempool *mp, void *opaque_arg)
-{
-    struct mbuf_pool_ctor_arg       *mbp_ctor_arg;
-    struct rte_pktmbuf_pool_private *mbp_priv;
-
-    mbp_ctor_arg = (struct mbuf_pool_ctor_arg *) opaque_arg;
-    mbp_priv = (struct rte_pktmbuf_pool_private *) rte_mempool_get_priv(mp);
-    mbp_priv->mbuf_data_room_size = mbp_ctor_arg->seg_buf_size;
-}
-
-static void pktmbuf_obj_ctor(struct rte_mempool *mp, void *opaque_arg, void *raw_mbuf, unsigned idx)
-{
-    struct mbuf_ctor_arg *mb_ctor_arg;
-    struct rte_mbuf      *mb;
-
-    mb_ctor_arg = (struct mbuf_ctor_arg *) opaque_arg;
-    mb = (struct rte_mbuf *) raw_mbuf;
-
-    mb->packet_type  = 0;
-    mb->pool         = mp;
-    mb->buf_addr     = (void *) ((char *)mb + mb_ctor_arg->seg_buf_offset);
-    mb->buf_physaddr = (uint64_t) (rte_mempool_virt2phy(mp, mb) +
-                                   mb_ctor_arg->seg_buf_offset);
-    mb->buf_len          = mb_ctor_arg->seg_buf_size;
-    mb->ol_flags         = 0;
-    mb->data_off         = RTE_PKTMBUF_HEADROOM;
-    mb->nb_segs          = 1;
-    mb->hash.rss         = 0;
 }
 
 int main(int argc, char **argv)
@@ -175,9 +129,9 @@ int main(int argc, char **argv)
     main_thread_id = threading::self();
 
     struct {
-        struct port_info rx_ports[NBA_MAX_PORTS];
+        struct port_info rx_ports[NSHADER_MAX_PORTS];
         unsigned num_rx_ports;
-    } node_ports[NBA_MAX_NODES];
+    } node_ports[NSHADER_MAX_NODES];
 
     //assert(PAPI_library_init(PAPI_VER_CURRENT) == PAPI_VER_CURRENT);
     //assert(PAPI_thread_init(pthread_self) == PAPI_OK);
@@ -243,7 +197,7 @@ int main(int argc, char **argv)
                 if (optarg)
                     num_emulated_ifaces = (unsigned) atol(optarg);
                 assert(num_emulated_ifaces > 0);
-                assert(num_emulated_ifaces <= NBA_MAX_PORTS);
+                assert(num_emulated_ifaces <= NSHADER_MAX_PORTS);
             }
             else if (!strcmp("emulated-pktsize", long_opts[optidx].name)) {
                 emulated_packet_size = (unsigned) atol(optarg);
@@ -327,15 +281,15 @@ int main(int argc, char **argv)
 
     num_lcores = sysconf(_SC_NPROCESSORS_ONLN);
     num_nodes = numa_num_configured_nodes();
-    bool numa_disabled = num_nodes == 1;
-    if(numa_disabled)
+    bool is_numa_disabled = (num_nodes == 1);
+    if (is_numa_disabled)
     	printf("NUMA is disabled.\n");
     else
     	printf("%d NUMA nodes are enabled.\n", num_nodes);
     num_pcores = check_ht_enabled() ? num_lcores / 2 : num_lcores;
 
     /* We have two types of configurations: system and Click.
-     *
+     * 
      * The system configuration includes:
      *  - variable parameters such as maximum queue lengths, maximum
      *    batch sizes, etc.
@@ -358,8 +312,8 @@ int main(int argc, char **argv)
     if (!load_config(system_config)) {
         rte_exit(EXIT_FAILURE, "Loading global configuration has failed.\n");
     }
-    if (num_ports > NBA_MAX_PORTS)
-        num_ports = NBA_MAX_PORTS;
+    if (num_ports > NSHADER_MAX_PORTS)
+        num_ports = NSHADER_MAX_PORTS;
 
     num_rxq_per_port = system_params["NUM_RXQ_PER_PORT"];
     num_txq_per_port = num_lcores;
@@ -390,7 +344,7 @@ int main(int argc, char **argv)
     port_conf.rxmode.hw_vlan_extend = false;
     port_conf.rxmode.jumbo_frame    = false;
     port_conf.rxmode.hw_strip_crc   = true;
-    port_conf.txmode.mq_mode    = ETH_DCB_NONE;
+    port_conf.txmode.mq_mode    = ETH_MQ_TX_NONE;
     port_conf.fdir_conf.mode    = RTE_FDIR_MODE_NONE;
     port_conf.fdir_conf.pballoc = RTE_FDIR_PBALLOC_64K;
     port_conf.fdir_conf.status  = RTE_FDIR_NO_REPORT_STATUS;
@@ -419,21 +373,25 @@ int main(int argc, char **argv)
     tx_conf.txq_flags      = ETH_TXQ_FLAGS_NOMULTSEGS | ETH_TXQ_FLAGS_NOOFFLOADS;
     const unsigned num_tx_desc = system_params["IO_TXDESC_PER_HWTXQ"];
 
-    struct rte_eth_fc_conf fc_conf;
-    memset(&fc_conf, 0, sizeof(fc_conf));
-    fc_conf.autoneg = 0;
-    fc_conf.send_xon = 0;
-    fc_conf.pause_time = 0xffff;
-    fc_conf.mode = RTE_FC_NONE;
+    /* According to dpdk-dev mailing list,
+     * num_mbufs for the whole system should be greater than:
+     *   (hw-rx-ring-size * nb-rx-queue) + (hw-tx-ring-size * nb-tx-queue)
+     *   + (nb-lcores * mbuf-pool-cache-size)
+     */
+    const uint32_t num_mp_cache = 250;
+    const uint32_t num_mbufs = num_rx_desc + num_tx_desc
+                               + (num_lcores * num_mp_cache)
+                               + system_params["IO_BATCH_SIZE"];
+    const uint16_t mbuf_size = (RTE_PKTMBUF_HEADROOM + NSHADER_MAX_PACKET_SIZE);
 
     /* Initialize per-node information. */
     for (unsigned node_idx = 0; node_idx < num_nodes; node_idx ++) {
         memset(&node_ports[node_idx], 0, sizeof(node_ports[0]));
     }
 
-    struct rte_mempool* rx_mempools[NBA_MAX_PORTS][NBA_MAX_QUEUES_PER_PORT] = {{0,}};  // for debugging
-    struct rte_mempool* newpkt_mempools[NBA_MAX_PORTS][NBA_MAX_QUEUES_PER_PORT] = {{0,}};
-    struct rte_mempool* req_mempools[NBA_MAX_PORTS][NBA_MAX_QUEUES_PER_PORT] = {{0,}};
+    struct rte_mempool* rx_mempools[NSHADER_MAX_PORTS][NSHADER_MAX_QUEUES_PER_PORT] = {{0,}};  // for debugging
+    struct rte_mempool* newpkt_mempools[NSHADER_MAX_PORTS][NSHADER_MAX_QUEUES_PER_PORT] = {{0,}};
+    struct rte_mempool* req_mempools[NSHADER_MAX_PORTS][NSHADER_MAX_QUEUES_PER_PORT] = {{0,}};
     /* Initialize NIC devices (rxq, txq). */
     for (port_idx = 0; port_idx < num_ports; port_idx++) {
         char dev_addr_buf[64], dev_filename[PATH_MAX], temp_buf[64];
@@ -454,18 +412,12 @@ int main(int argc, char **argv)
                 rte_exit(EXIT_FAILURE, "port (%u, %s) does not support request number of txq (%u).\n",
                          port_idx, dev_info.driver_name, num_txq_per_port);
 
-            rte_eth_link_get(port_idx, &link_info);
-            RTE_LOG(INFO, MAIN, "port %u -- link running at %s %s, %s\n", port_idx,
-                    (link_info.link_speed == ETH_LINK_SPEED_10000) ? "10G" : "lower than 10G",
-                    (link_info.link_duplex == ETH_LINK_FULL_DUPLEX) ? "full-duplex" : "half-duplex",
-                    (link_info.link_status == 1) ? "UP" : "DOWN");
-
             assert(0 == rte_eth_dev_configure(port_idx, num_rxq_per_port, num_txq_per_port, &port_conf));
             rte_eth_macaddr_get(port_idx, &macaddr);
 
             /* Initialize memory pool, rxq, txq rings. */
             unsigned node_idx = dev_info.pci_dev->numa_node;
-            if(numa_disabled)
+            if (is_numa_disabled)
             	node_idx = 0;
             unsigned port_per_node = node_ports[node_idx].num_rx_ports;
             node_ports[node_idx].rx_ports[port_per_node].port_idx = port_idx;
@@ -478,28 +430,17 @@ int main(int argc, char **argv)
                              ret, port_idx, ring_idx);
             }
             for (ring_idx = 0; ring_idx < num_rxq_per_port; ring_idx++) {
-                struct mbuf_pool_ctor_arg mbp_ctor_arg;
-                struct mbuf_ctor_arg mb_ctor_arg;
+                struct rte_mempool *mp = nullptr;
                 char mempool_name[RTE_MEMPOOL_NAMESIZE];
                 snprintf(mempool_name, RTE_MEMPOOL_NAMESIZE,
                          "pktbuf_n%u_d%u_r%u", node_idx, port_idx, ring_idx);
-                struct rte_mempool *mp;
 
-                mbp_ctor_arg.seg_buf_size = (RTE_PKTMBUF_HEADROOM + NBA_MAX_PACKET_SIZE);
-                mb_ctor_arg.seg_buf_offset = ALIGN(sizeof(struct rte_mbuf), CACHE_LINE_SIZE);
-                mb_ctor_arg.seg_buf_size = mbp_ctor_arg.seg_buf_size;
-                uint32_t mb_size = mb_ctor_arg.seg_buf_offset + mb_ctor_arg.seg_buf_size;
-                const unsigned num_mp_cache = 250;
-                const unsigned num_mbufs = num_rx_desc + num_tx_desc
-                                           + (num_lcores * num_mp_cache)
-                                           + system_params["IO_BATCH_SIZE"];
-
-                mp = rte_mempool_create(mempool_name, num_mbufs, mb_size, num_mp_cache,
+                mp = rte_mempool_create(mempool_name, num_mbufs, mbuf_size, num_mp_cache,
                                         sizeof(struct rte_pktmbuf_pool_private),
-                                        pktmbuf_pool_ctor, &mbp_ctor_arg,
-                                        pktmbuf_obj_ctor, &mb_ctor_arg,
+                                        rte_pktmbuf_pool_init, (void *)(uintptr_t) mbuf_size,
+                                        rte_pktmbuf_init, nullptr,
                                         node_idx, 0);
-                if (mp == NULL)
+                if (mp == nullptr)
                     rte_exit(EXIT_FAILURE, "cannot allocate memory pool for rxq %u:%u@%u.\n",
                                    port_idx, ring_idx, node_idx);
                 ret = rte_eth_rx_queue_setup(port_idx, ring_idx, num_rx_desc,
@@ -511,10 +452,10 @@ int main(int argc, char **argv)
 
                 snprintf(mempool_name, RTE_MEMPOOL_NAMESIZE,
                          "newbuf_n%u_d%u_r%u", node_idx, port_idx, ring_idx);
-                mp = rte_mempool_create(mempool_name, num_mbufs, mb_size, num_mp_cache,
+                mp = rte_mempool_create(mempool_name, num_mbufs, mbuf_size, num_mp_cache,
                                         sizeof(struct rte_pktmbuf_pool_private),
-                                        pktmbuf_pool_ctor, &mbp_ctor_arg,
-                                        pktmbuf_obj_ctor, &mb_ctor_arg,
+                                        rte_pktmbuf_pool_init, (void *)(uintptr_t) mbuf_size,
+                                        rte_pktmbuf_init, nullptr,
                                         node_idx, 0);
                 if (mp == NULL)
                     rte_exit(EXIT_FAILURE, "cannot allocate new pool for rxq %u:%u@%u.\n",
@@ -523,10 +464,10 @@ int main(int argc, char **argv)
 
                 snprintf(mempool_name, RTE_MEMPOOL_NAMESIZE,
                          "reqbuf_n%u_d%u_r%u", node_idx, port_idx, ring_idx);
-                mp = rte_mempool_create(mempool_name, NUM_MBUF, mb_size, 30,
+                mp = rte_mempool_create(mempool_name, num_mbufs, mbuf_size, 30,
                                         sizeof(struct new_packet),
-                                        0, NULL,
-                                        0, NULL,
+                                        0, nullptr,
+                                        0, nullptr,
                                         node_idx, 0);
                 if (mp == NULL)
                     rte_exit(EXIT_FAILURE, "cannot allocate new pool for rxq %u:%u@%u.\n",
@@ -536,8 +477,13 @@ int main(int argc, char **argv)
 
             /* Start RX/TX processing in the NIC! */
             assert(0 == rte_eth_dev_start(port_idx));
-            //rte_eth_dev_flow_ctrl_set(port_idx, &fc_conf);
             rte_eth_promiscuous_enable(port_idx);
+            rte_eth_link_get(port_idx, &link_info);
+            RTE_LOG(INFO, MAIN, "port %u -- link running at %s %s, %s\n", port_idx,
+                    (link_info.link_speed == ETH_LINK_SPEED_10000) ? "10G" : "lower than 10G",
+                    (link_info.link_duplex == ETH_LINK_FULL_DUPLEX) ? "full-duplex" : "half-duplex",
+                    (link_info.link_status == 1) ? "UP" : "DOWN");
+
 
         } // endif emulate_io
 
@@ -552,6 +498,7 @@ int main(int argc, char **argv)
         queues = new struct rte_ring*[queue_confs.size()];
         qwatchers = new struct ev_async*[queue_confs.size()];
         queue_privs = new void*[queue_confs.size()];
+        memset(queue_privs, 0, sizeof(void*) * queue_confs.size());
 
         unsigned qidx = 0;
         for (struct queue_conf &conf : queue_confs) {
@@ -573,7 +520,7 @@ int main(int argc, char **argv)
             snprintf(ring_name, RTE_RING_NAMESIZE,
                      "queue%u@%u/%u", qidx, conf.node_id, conf.template_);
             queues[qidx]  = rte_ring_create(ring_name, queue_length, conf.node_id,
-                                            (conf.mp_enq ? 0 : RING_F_SP_ENQ) | (conf.mc_deq ? 0 : RING_F_SC_DEQ));
+                                            0); //(conf.mp_enq ? 0 : RING_F_SP_ENQ) | (conf.mc_deq ? 0 : RING_F_SC_DEQ));
             assert(queues[qidx] != NULL);
             assert(0 == rte_ring_set_water_mark(queues[qidx], queue_length - 16));
             qwatchers[qidx] = (struct ev_async *) rte_malloc_socket("ev_async", sizeof(struct ev_async),
@@ -596,7 +543,7 @@ int main(int argc, char **argv)
 
     /* Some sanity checks... */
     if (emulate_io) {
-        long expected_inflight_batches = NUM_MBUF / num_io_threads / system_params["COMP_PPDEPTH"];
+        long expected_inflight_batches = num_mbufs / num_io_threads / system_params["COMP_PPDEPTH"];
         RTE_LOG(DEBUG, MAIN, "coproc_ppdepth = %ld, max.# in-flight batches per IO thread = %ld\n",
                              system_params["COPROC_PPDEPTH"], expected_inflight_batches);
         //if (system_params["COPROC_PPDEPTH"] > expected_inflight_batches) {
@@ -645,13 +592,13 @@ int main(int argc, char **argv)
     coprocessor_threads = new struct spawned_thread[num_coprocessors];
     {
         /* per-node data structures */
-        unsigned per_node_counts[NBA_MAX_NODES] = {0,};
+        unsigned per_node_counts[NSHADER_MAX_NODES] = {0,};
 
         /* per-thread initialization */
         for (i = 0; i < num_coprocessors; i++) {
             struct coproc_thread_conf &conf = coproc_thread_confs[i];
             unsigned node_id = numa_node_of_cpu(conf.core_id);
-            if(numa_disabled)
+            if (is_numa_disabled)
             	node_id = 0;
             struct coproc_thread_context *ctx = (struct coproc_thread_context *) rte_malloc_socket(
                     "coproc_thread_conf", sizeof(*ctx), 64, node_id);
@@ -716,7 +663,7 @@ int main(int argc, char **argv)
 
             threading::bind_cpu(ctx->loc.core_id); /* To ensure the thread is spawned in the node. */
             pthread_yield();
-            assert(0 == pthread_create(&coprocessor_threads[i].tid, NULL, nba::coproc_loop, ctx));
+            assert(0 == pthread_create(&coprocessor_threads[i].tid, NULL, nshader::coproc_loop, ctx));
 
             /* Initialize one-by-one. */
             ctx->thread_init_done_barrier->wait();
@@ -734,9 +681,9 @@ int main(int argc, char **argv)
     vector<comp_thread_context *> comp_thread_ctxs = vector<comp_thread_context*>();
     {
         /* per-node data structures */
-        NodeLocalStorage *nls[NBA_MAX_NODES];
-        unsigned per_node_counts[NBA_MAX_NODES];
-        for (unsigned j = 0; j < NBA_MAX_NODES; j++) {
+        NodeLocalStorage *nls[NSHADER_MAX_NODES];
+        unsigned per_node_counts[NSHADER_MAX_NODES];
+        for (unsigned j = 0; j < NSHADER_MAX_NODES; j++) {
             nls[j] = NULL;
             per_node_counts[j] = 0;
         }
@@ -796,31 +743,43 @@ int main(int argc, char **argv)
             new (ctx->offload_devices) vector<ComputeDevice *>();
             if (num_coproc_threads > 0) {
                 struct coproc_thread_context *coproc_ctx = (coproc_thread_context *) queue_privs[conf.taskinq_idx];
-                assert(coproc_ctx != NULL);
-                ComputeDevice *device = coproc_ctx->device;
-                device->input_watcher = qwatchers[conf.taskinq_idx];
-                assert(coproc_ctx->task_input_watcher == device->input_watcher);
-                #ifdef USE_CUDA
-                ctx->named_offload_devices->insert(pair<string, ComputeDevice *>("cuda", device));
-                #endif
-                #ifdef USE_PHI
-                ctx->named_offload_devices->insert(pair<string, ComputeDevice *>("phi", device));
-                #endif
-                ctx->offload_devices->push_back(device);
-                ctx->offload_input_queues[0] = queues[conf.taskinq_idx];
-                ctx->task_completion_queue = queues[conf.taskoutq_idx];
-                ctx->task_completion_watcher = qwatchers[conf.taskoutq_idx];
-                ctx->coproc_ctx = coproc_ctx;
-                new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NBA_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
-                for (unsigned k = 0, k_max = system_params["COPROC_CTX_PER_COMPTHREAD"]; k < k_max; k++) {
-                    ComputeContext *cctx = nullptr;
-                    cctx = device->get_available_context();
-                    assert(cctx != nullptr);
-                    assert(cctx->state == ComputeContext::READY);
-                    ctx->cctx_list.push_back(cctx);
+                if (coproc_ctx == nullptr) {
+                    ctx->coproc_ctx = nullptr;
+                    ctx->task_completion_queue = nullptr;
+                    ctx->task_completion_watcher = nullptr;
+                } else {
+                    ComputeDevice *device = coproc_ctx->device;
+                    device->input_watcher = qwatchers[conf.taskinq_idx];
+                    assert(coproc_ctx->task_input_watcher == device->input_watcher);
+                    #ifdef USE_CUDA
+                    ctx->named_offload_devices->insert(pair<string, ComputeDevice *>("cuda", device));
+                    #endif
+                    #ifdef USE_PHI
+                    ctx->named_offload_devices->insert(pair<string, ComputeDevice *>("phi", device));
+                    #endif
+                    ctx->offload_devices->push_back(device);
+                    ctx->offload_input_queues[0] = queues[conf.taskinq_idx];
+                    ctx->task_completion_queue = queues[conf.taskoutq_idx];
+                    ctx->task_completion_watcher = qwatchers[conf.taskoutq_idx];
+                    ctx->coproc_ctx = coproc_ctx;
+                    RTE_LOG(DEBUG, MAIN, "Registering %lu datablocks...\n", num_datablocks);
+                    memset(ctx->datablock_registry, 0, sizeof(DataBlock*) * NSHADER_MAX_DATABLOCKS);
+                    for (unsigned dbid = 0; dbid < num_datablocks; dbid++) {
+                        ctx->datablock_registry[dbid] = (datablock_ctors[dbid])();
+                        ctx->datablock_registry[dbid]->set_id(dbid);
+                        RTE_LOG(DEBUG, MAIN, "  [%u] %s\n", dbid, ctx->datablock_registry[dbid]->name());
+                    }
+                    new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NSHADER_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
+                    for (unsigned k = 0, k_max = system_params["COPROC_CTX_PER_COMPTHREAD"]; k < k_max; k++) {
+                        ComputeContext *cctx = nullptr;
+                        cctx = device->get_available_context();
+                        assert(cctx != nullptr);
+                        assert(cctx->state == ComputeContext::READY);
+                        ctx->cctx_list.push_back(cctx);
+                    }
                 }
             } else {
-                new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NBA_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
+                new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NSHADER_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
                 assert(ctx->cctx_list.empty());
                 ctx->task_completion_queue = NULL;
                 ctx->task_completion_watcher = NULL;
@@ -837,7 +796,7 @@ int main(int argc, char **argv)
         }
     }
 
-    /* Initialze elements for this system. (once per elements) */
+    /* Initialze elements for this system. (once per elements) */   
     {
         comp_thread_context* ctx = (comp_thread_context *) *(comp_thread_ctxs.begin());
         threading::bind_cpu(ctx->loc.core_id);
@@ -845,7 +804,7 @@ int main(int argc, char **argv)
     }
 
     /* Initialize elements for each NUMA node. */
-    bool node_initialized[NBA_MAX_NODES];
+    bool node_initialized[NSHADER_MAX_NODES];
     for (unsigned node_id = 0; node_id < num_nodes; ++node_id) {
         node_initialized[node_id] = false;
     }
@@ -944,7 +903,7 @@ int main(int argc, char **argv)
                                                                 CACHE_LINE_SIZE, node_id);
             new (init_conds[node_id]) CondVar();
         }
-        unsigned per_node_counts[NBA_MAX_NODES] = {0,};
+        unsigned per_node_counts[NSHADER_MAX_NODES] = {0,};
 
         /* per-thread initialization */
         srand(time(0));
@@ -995,7 +954,7 @@ int main(int argc, char **argv)
              */
             snprintf(ring_name, RTE_RING_NAMESIZE, "dropq.%u:%u@%u",
                      ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
-            ctx->drop_queue = rte_ring_create(ring_name, 8 * NBA_MAX_COMPBATCH_SIZE,
+            ctx->drop_queue = rte_ring_create(ring_name, 8 * NSHADER_MAX_COMPBATCH_SIZE,
                                               node_id, RING_F_SC_DEQ);
             assert(NULL != ctx->drop_queue);
 
@@ -1003,15 +962,15 @@ int main(int argc, char **argv)
             for (k = 0; k < num_ports; k++) {
                 snprintf(ring_name, RTE_RING_NAMESIZE, "txq%u.%u:%u@%u",
                          k, ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
-                ctx->tx_queues[k] = rte_ring_create(ring_name, 8 * NBA_MAX_COMPBATCH_SIZE,
+                ctx->tx_queues[k] = rte_ring_create(ring_name, 8 * NSHADER_MAX_COMPBATCH_SIZE,
                                     node_id, RING_F_SC_DEQ);
                 assert(NULL != ctx->tx_queues[k]);
-                assert(0 == rte_ring_set_water_mark(ctx->tx_queues[k], (8 * NBA_MAX_COMPBATCH_SIZE) - 16));
+                assert(0 == rte_ring_set_water_mark(ctx->tx_queues[k], (8 * NSHADER_MAX_COMPBATCH_SIZE) - 16));
             }
 
             snprintf(ring_name, RTE_RING_NAMESIZE, "reqring.%u:%u@%u",
                      ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
-            ctx->new_packet_request_ring = rte_ring_create(ring_name, NUM_MBUF, node_id, RING_F_SC_DEQ);
+            ctx->new_packet_request_ring = rte_ring_create(ring_name, rte_align32pow2(num_mbufs), node_id, RING_F_SC_DEQ);
             assert(NULL != ctx->new_packet_request_ring);
 
             ctx->num_hw_rx_queues = conf.attached_rxqs.size();
@@ -1026,11 +985,15 @@ int main(int argc, char **argv)
             }
             if (emulate_io) {
                 uint32_t mb_size = ALIGN(sizeof(struct rte_mbuf), CACHE_LINE_SIZE)
-                                   + (RTE_PKTMBUF_HEADROOM + NBA_MAX_PACKET_SIZE);
+                                   + (RTE_PKTMBUF_HEADROOM + NSHADER_MAX_PACKET_SIZE);
                 snprintf(mempool_name, RTE_MEMPOOL_NAMESIZE,
                          "emul_pktbuf_%u:%u", ctx->loc.node_id, ctx->loc.core_id);
                 ctx->emul_rx_packet_pool = rte_mempool_create(mempool_name,
-                        ctx->num_iobatch_size * conf.attached_rxqs.size() * system_params["COPROC_PPDEPTH"],
+                #ifdef NSHADER_NO_HUGE
+                        8 * ctx->num_iobatch_size * conf.attached_rxqs.size() * NSHADER_MAX_COPROC_PPDEPTH + 1,
+                #else
+                        ctx->num_iobatch_size * conf.attached_rxqs.size() * NSHADER_MAX_COPROC_PPDEPTH + 1,
+                #endif
                         mb_size, CACHE_LINE_SIZE, sizeof(rte_pktmbuf_pool_private),
                         rte_pktmbuf_pool_init, NULL, rte_pktmbuf_init, NULL,
                         ctx->loc.node_id, 0);
@@ -1089,7 +1052,7 @@ int main(int argc, char **argv)
 
     /* Since we set CALL_MASTER, this function blocks until the master
      * finishes. (master = io_loop[0:0@0]) */
-    rte_eal_mp_remote_launch(nba::thread_wrapper, &col, CALL_MASTER);
+    rte_eal_mp_remote_launch(nshader::thread_wrapper, &col, CALL_MASTER);
 
     /* Wait until the spawned threads are finished. */
     _exit_cond.lock();

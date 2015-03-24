@@ -44,7 +44,7 @@ int HashTable128::insert(uint128_t key, uint16_t val, uint16_t state)
     int ret = 0;
 
     //if hash key collision exist
-    if (m_Table[index].state != IPV6_EMPTY) {
+    if (m_Table[index].state != IPV6_HASHTABLE_EMPTY) {
         while (m_Table[index].key != key) {
             if (m_Table[index].next == 0) {
                 assert(m_NextChain < m_TableSize * 2 - 1);
@@ -69,7 +69,7 @@ uint32_t HashTable128::find(uint128_t key)
     uint32_t index = HASH(key, m_TableSize);
     uint16_t buf[2] = {0,0};
     uint32_t *ret = (uint32_t*)&buf;
-    if (m_Table[index].state != IPV6_EMPTY) {
+    if (m_Table[index].state != IPV6_HASHTABLE_EMPTY) {
         if (m_Table[index].key == key){
             buf[0] = m_Table[index].val;
             buf[1] = m_Table[index].state;

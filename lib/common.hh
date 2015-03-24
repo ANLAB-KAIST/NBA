@@ -1,5 +1,5 @@
-#ifndef __NBA_COMMON_HH__
-#define __NBA_COMMON_HH__
+#ifndef __NSHADER_COMMON_HH__
+#define __NSHADER_COMMON_HH__
 
 #define GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 
@@ -9,7 +9,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <ctime>
-extern "C" {
+
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -17,7 +17,7 @@ extern "C" {
 #include <sys/time.h>
 #include <sys/times.h>
 #include <sys/resource.h>
-}
+
 
 /* Tests on timing precision:
  *

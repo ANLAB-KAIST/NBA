@@ -1,5 +1,5 @@
-#ifndef __NBA_ELEMENT_IPSEC_IPSECAUTHHMACSHA1_KERNEL_HH__
-#define __NBA_ELEMENT_IPSEC_IPSECAUTHHMACSHA1_KERNEL_HH__
+#ifndef __NSHADER_ELEMENT_IPSEC_IPSECAUTHHMACSHA1_KERNEL_HH__
+#define __NSHADER_ELEMENT_IPSEC_IPSECAUTHHMACSHA1_KERNEL_HH__
 
 #include <cuda.h>
 #include <openssl/sha.h>
@@ -7,8 +7,8 @@
 
 #define HMAC_KEY_SIZE	 64
 
-//----- not used in NBA currently. copied from the old NBA.
-namespace nba {
+//----- not used in NBA currently. copied from the old nShader.
+namespace nshader {
 
 enum {
 	CUDA_THREADS_PER_HSHA1_BLK = 32,
@@ -19,4 +19,4 @@ enum {
 extern void *ipsec_hsha1_encryption_get_cuda_kernel();
 
 }
-#endif /* __NBA_ELEMENT_IPSEC_IPSECAUTHHMACSHA1_KERNEL_HH__ */
+#endif /* __NSHADER_ELEMENT_IPSEC_IPSECAUTHHMACSHA1_KERNEL_HH__ */

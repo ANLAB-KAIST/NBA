@@ -2,7 +2,7 @@
 #include "../../lib/types.hh"
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 int CheckIP6Header::initialize()
 {
@@ -26,8 +26,8 @@ int CheckIP6Header::process(int input_port, struct rte_mbuf *pkt, struct annotat
         return DROP;
     }
 
-    //if ((iph->ip6_vfc & 0xf0) >> 4 != 6)  // get the first 4 bits.
-    //    return DROP;
+    if ((iph->ip6_vfc & 0xf0) >> 4 != 6)  // get the first 4 bits.
+        return SLOWPATH;
 
     // TODO: Discard illegal source addresses.
 

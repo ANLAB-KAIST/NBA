@@ -1,5 +1,5 @@
-#ifndef __NBA_ELEMGRAPH_HH__
-#define __NBA_ELEMGRAPH_HH__
+#ifndef __NSHADER_ELEMGRAPH_HH__
+#define __NSHADER_ELEMGRAPH_HH__
 
 #include "element.hh"
 #include "types.hh"
@@ -8,7 +8,7 @@
 
 #include "computation.hh"
 
-namespace nba {
+namespace nshader {
 
 #define ROOT_ELEMENT (nullptr)
 
@@ -47,6 +47,13 @@ public:
      */
     void enqueue_postproc_batch(PacketBatch *batch, Element *offloaded_elem,
                                 int input_port);
+
+    /**
+     * Check if the given datablock (represented as a global ID) is reused
+     * after the given offloaded element in a same (linear?) path.
+     */
+    bool check_datablock_reuse(Element *offloaded_elem, int datablock_id);
+    bool check_next_offloadable(Element *offloaded_elem);
 
     /**
      * Add a new element instance to the graph.
@@ -97,7 +104,7 @@ protected:
     comp_thread_context *ctx;
 
     FixedRing<PacketBatch *, nullptr> queue;
-    FixedRing<OffloadTask *, nullptr> ready_tasks[NBA_MAX_COPROCESSOR_TYPES];
+    FixedRing<OffloadTask *, nullptr> ready_tasks[NSHADER_MAX_COPROCESSOR_TYPES];
     FixedRing<PacketBatch *, nullptr> delayed_batches;
 
 private:

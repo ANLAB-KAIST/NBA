@@ -1,5 +1,6 @@
 #include "common.hh"
 #include "log.hh"
+#include "datablock.hh"
 #include "offloadtask.hh"
 #include "computedevice.hh"
 #include "computecontext.hh"
@@ -8,43 +9,34 @@
 #include "../engines/cuda/computecontext.hh"
 #endif
 #include "elementgraph.hh"
-extern "C" {
+
 #include <rte_common.h>
 #include <rte_memcpy.h>
 #include <rte_ether.h>
 #include <rte_prefetch.h>
-}
-
+#include <tuple>
 #include <netinet/ip.h>
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
-static thread_local char dummy_buffer[NBA_MAX_PACKET_SIZE] = {0,};
+#define COALESC_COPY
+#undef  DEBUG_HOSTSIDE
+
+static thread_local char dummy_buffer[NSHADER_MAX_PACKET_SIZE] = {0,};
 
 OffloadTask::OffloadTask()
 {
-    aligned_elemsizes_h = nullptr;
-    aligned_elemsizes_d.ptr = nullptr;
-    input_elemsizes_h = nullptr;
-    input_elemsizes_d.ptr = nullptr;
-    input_buffer_size = 0;
-    input_buffer_h = nullptr;
-    input_buffer_d.ptr = nullptr;
-    output_elemsizes_h = nullptr;
-    output_elemsizes_d.ptr = nullptr;
-    output_buffer_size = 0;
-    output_buffer_h = nullptr;
-    output_buffer_d.ptr = nullptr;
-    device = nullptr;
+    datablocks.clear();
+    batches.clear();
+    input_ports.clear();
     elemgraph = nullptr;
     src_loop = nullptr;
+    comp_ctx = nullptr;
     coproc_ctx = nullptr;
     completion_watcher = nullptr;
     completion_queue   = nullptr;
-    assert(offloaded_elements.size() == 0);
     cctx = nullptr;
-    num_batches = 0;
     offload_cost = 0;
     offload_start = 0;
 }
@@ -53,266 +45,366 @@ OffloadTask::~OffloadTask()
 {
 }
 
-/**
- * First, calculate the required input/output buffer sizes.
- */
-size_t OffloadTask::calculate_buffer_sizes()
+void OffloadTask::prepare_read_buffer()
 {
-    assert(cctx != NULL);
-    OffloadableElement *el = offloaded_elements[0];
-    el->get_input_roi(&input_roi);
-    el->get_output_roi(&output_roi);
-    total_num_pkts = 0;
-    for (unsigned i = 0; i < num_batches; i++) {
-        total_num_pkts += batches[i]->count;
-    }
-    print_ratelimit("avg.# pkts sent to GPU", total_num_pkts, 100);
-    assert(total_num_pkts > 0);
-
-    cctx->alloc_input_buffer(sizeof(size_t) * total_num_pkts, (void **) &aligned_elemsizes_h, &aligned_elemsizes_d);
-    input_buffer_size = 0;
-
-    size_t accum_idx = 0;
-    size_t num_valid_pkts = 0;
-    switch (input_roi.type) {
-    case PARTIAL_PACKET:
-    case CUSTOM_INPUT: {
-        /* Copy a portion of packets or user-define fixed-size values.
-         * We use a fixed-size range (offset, length) here.
-         * The buffer is NOT aligned unless the element explicitly
-         * specifies the alignment. */
-        if (input_roi.align != 0) {
-            unsigned aligned_len = RTE_ALIGN_CEIL(input_roi.length, input_roi.align);
-            aligned_elemsizes_h[0] = aligned_len;
-            input_buffer_size      = aligned_len * total_num_pkts;
-            //RTE_LOG(DEBUG, COPROC, "aligned_len: %'u bytes, %lu pkts\n", aligned_len, total_num_pkts);
+    for (int dbid : datablocks) {
+        DataBlock *db = comp_ctx->datablock_registry[dbid];
+        struct read_roi_info rri;
+        db->get_read_roi(&rri);
+        if (rri.type == READ_NONE) {
+            for (PacketBatch *batch : batches) {
+                struct datablock_tracker *t = &batch->datablock_states[dbid];
+                t->in_size = 0;
+                t->in_count = 0;
+                t->host_in_ptr    = nullptr;
+                t->dev_in_ptr.ptr = nullptr;
+            }
         } else {
-            aligned_elemsizes_h[0] = input_roi.length;
-            input_buffer_size      = input_roi.length * total_num_pkts;
-            //RTE_LOG(DEBUG, COPROC, "roi_len: %'d bytes, %lu pkts\n", input_roi.length, total_num_pkts);
-        }
-        for (unsigned i = 0; i < num_batches; i++) {
-            PacketBatch *batch = batches[i];
-            for (unsigned p = 0; p < batch->count; p++) {
-                if (!batch->excluded[p]) num_valid_pkts ++;
+            for (PacketBatch *batch : batches) {
+                struct datablock_tracker *t = &batch->datablock_states[dbid];
+                tie(t->in_size, t->in_count) = db->calc_read_buffer_size(batch);
+                t->host_in_ptr    = nullptr;
+                t->dev_in_ptr.ptr = nullptr;
+                if (t->in_size > 0 && t->in_count > 0) {
+                    cctx->alloc_input_buffer(t->in_size, (void **) &t->host_in_ptr, &t->dev_in_ptr);
+                    assert(t->host_in_ptr != nullptr);
+                    db->preprocess(batch, t->host_in_ptr);
+                } else
+                    printf("EMPTY BATCH @ prepare_read_buffer()\n");
             }
         }
-        break; }
-    case WHOLE_PACKET: {
-        /* Copy the whole content of packets.
-         * We align the buffer by the cache line size (64 B),
-         * or the alignment explicitly set by the element. */
-        cctx->alloc_input_buffer(sizeof(size_t) * total_num_pkts, (void **) &input_elemsizes_h, &input_elemsizes_d);
-        assert(NULL != input_elemsizes_h);
-        size_t align = (input_roi.align == 0) ? 64 : input_roi.align;
-        for (unsigned i = 0; i < num_batches; i++) {
-            PacketBatch *batch = batches[i];
-            for (unsigned p = 0; p < batch->count; p++) {
-                unsigned cur_idx = accum_idx + p;
-                if (batch->excluded[p]) {
-                    input_elemsizes_h[cur_idx]   = 0;
-                    aligned_elemsizes_h[cur_idx] = 0;
+    }
+}
+
+void OffloadTask::prepare_write_buffer()
+{
+    for (int dbid : datablocks) {
+        DataBlock *db = comp_ctx->datablock_registry[dbid];
+        struct write_roi_info wri;
+        struct read_roi_info rri;
+        db->get_write_roi(&wri);
+        db->get_read_roi(&rri);
+        if (wri.type == WRITE_NONE) {
+            for (PacketBatch *batch : batches) {
+                struct datablock_tracker *t = &batch->datablock_states[dbid];
+                t->out_size = 0;
+                t->out_count = 0;
+                t->host_out_ptr    = nullptr;
+                t->dev_out_ptr.ptr = nullptr;
+            }
+        } else {
+            for (PacketBatch *batch : batches) {
+                struct datablock_tracker *t = &batch->datablock_states[dbid];
+                t->host_out_ptr    = nullptr;
+                t->dev_out_ptr.ptr = nullptr;
+                if (rri.type == READ_WHOLE_PACKET && wri.type == WRITE_WHOLE_PACKET) {
+                    /* Reuse read_roi currently. Do NOT update size & count here! */
+                    t->out_size  = t->in_size;
+                    t->out_count = t->in_count;
+                    t->host_out_ptr = t->host_in_ptr;
+                    t->dev_out_ptr  = t->dev_in_ptr;
                 } else {
-                    unsigned exact_len   = rte_pktmbuf_data_len(batch->packets[p]) - input_roi.offset + input_roi.length;
-                    unsigned aligned_len = RTE_ALIGN_CEIL(exact_len, align);
-                    input_elemsizes_h[cur_idx]   = exact_len;
-                    aligned_elemsizes_h[cur_idx] = aligned_len;
-                    input_buffer_size += aligned_len;
-                    num_valid_pkts ++;
+                    tie(t->out_size, t->out_count) = db->calc_write_buffer_size(batch);
+                    if (t->out_size > 0 && t->out_count > 0) {
+                        cctx->alloc_output_buffer(t->out_size, (void **) &t->host_out_ptr, &t->dev_out_ptr);
+                        assert(t->host_out_ptr != nullptr);
+                    } else
+                        printf("EMPTY BATCH @ prepare_write_buffer()\n");
                 }
             }
-            accum_idx += batch->count;
         }
-        break; }
-    default:
-        rte_panic("Unsupported input_roi.\n");
-        break;
     }
-    cctx->total_size_pkts = input_buffer_size;
-
-    output_buffer_size = 0;
-    cctx->alloc_output_buffer(sizeof(size_t) * total_num_pkts, (void **) &output_elemsizes_h, &output_elemsizes_d);
-    assert(NULL != output_elemsizes_h);
-    switch (output_roi.type) {
-    case SAME_AS_INPUT:
-        rte_memcpy(output_elemsizes_h, aligned_elemsizes_h, sizeof(size_t) * total_num_pkts);
-        output_buffer_size = input_buffer_size;
-        break;
-    case CUSTOM_OUTPUT:
-        output_elemsizes_h[0] = output_roi.length;
-        output_buffer_size    = output_roi.length * total_num_pkts;
-        break;
-    default:
-        rte_panic("Unsupported output_roi.\n");
-        break;
-    }
-    return num_valid_pkts;
 }
 
-/**
- * Allocate host-side buffers and copy necessary data.
- */
-void OffloadTask::prepare_host_buffer()
+bool OffloadTask::copy_h2d()
 {
-    assert(input_buffer_size != 0);
-    assert(output_buffer_size != 0);
-    cctx->total_num_pkts = total_num_pkts;
+    bool has_h2d_copies = false;
 
-    cctx->alloc_input_buffer(input_buffer_size, &input_buffer_h, &input_buffer_d);
-    assert(NULL != input_buffer_h);
-    assert(NULL != input_buffer_d.ptr);
-    cctx->alloc_output_buffer(output_buffer_size, &output_buffer_h, &output_buffer_d);
-    assert(NULL != output_buffer_h);
-    assert(NULL != output_buffer_d.ptr);
+    /* Copy the datablock information for the first kernel argument. */
+    size_t dbarray_size = ALIGN(sizeof(struct datablock_kernel_arg) * NSHADER_MAX_DATABLOCKS, CACHE_LINE_SIZE);
+    cctx->alloc_input_buffer(dbarray_size, (void **) &dbarray_h, &dbarray_d);
+    assert(dbarray_h != nullptr);
+    size_t itemszarray_size = 0;
 
-    OffloadableElement *el = offloaded_elements[0];
+    for (int dbid : datablocks) {
+        int b = 0;
+        int dbid_d = dbid_h2d[dbid];
+        dbarray_h[dbid_d].total_item_count_in  = 0;
+        dbarray_h[dbid_d].total_item_count_out = 0;
 
-    /* For PARTIAL_PACKET and CUSTOM_INPUT, input_elemsize is fixed.
-     * We use only the first value in the aligned_elemsizes_h array.
-     * Note that aligned_elemsizes_h is always set correctly even though
-     * the element has not specified explicit alignment. */
-    size_t accum_idx = 0;
-    size_t input_buffer_offset = 0;
-    switch (input_roi.type) {
-    case PARTIAL_PACKET:
-    case WHOLE_PACKET: {
-        /* Copy the speicified region of packet to the input buffer. */
-        #define PREFETCH_MAX (4)
-        for (unsigned i = 0; i < num_batches; i++) {
-            PacketBatch *batch = batches[i];
-            #if PREFETCH_MAX
-            for (signed p = 0; p < RTE_MIN(PREFETCH_MAX, ((signed)batch->count)); p++)
-                if (batch->packets[p] != nullptr)
-                    rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p], void*));
-            #endif
-            for (unsigned p = 0; p < batch->count; p++) {
-                unsigned cur_idx = accum_idx + p;
-                size_t aligned_elemsz = bitselect<size_t>(input_roi.type == PARTIAL_PACKET,
-                                                          aligned_elemsizes_h[0],
-                                                          aligned_elemsizes_h[cur_idx]);
-                if (batch->excluded[p]) {
-                    anno_ptr_array[cur_idx] = nullptr;
-                    continue;
-                }
-                #if PREFETCH_MAX
-                if ((signed)p < (signed)batch->count - PREFETCH_MAX && batch->excluded[p + PREFETCH_MAX] == false)
-                    rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p + PREFETCH_MAX], void*));
+        DataBlock *db = comp_ctx->datablock_registry[dbid];
+        struct read_roi_info rri;
+        struct write_roi_info wri;
+        db->get_read_roi(&rri);
+        db->get_write_roi(&wri);
+
+        for (PacketBatch *batch : batches) {
+            struct datablock_tracker *t = &batch->datablock_states[dbid];
+
+            if (rri.type == READ_WHOLE_PACKET) {
+                /* We need to copy the size array because each item may
+                 * have different lengths. */
+                uint16_t *item_sizes_h;
+                memory_t item_sizes_d;
+                cctx->alloc_input_buffer(t->in_count * sizeof(uint16_t), (void **) &item_sizes_h, &item_sizes_d);
+                assert(item_sizes_h != nullptr);
+                itemszarray_size += ALIGN(t->in_count * sizeof(uint16_t), CACHE_LINE_SIZE);
+                rte_memcpy(item_sizes_h, &t->aligned_item_sizes.sizes[0], sizeof(uint16_t) * t->in_count);
+                #ifdef DEBUG_HOSTSIDE
+                dbarray_h[dbid_d].item_sizes_in[b]  = (uint16_t *) item_sizes_h;
+                dbarray_h[dbid_d].item_sizes_out[b] = (uint16_t *) item_sizes_h;
+                #else
+                dbarray_h[dbid_d].item_sizes_in[b]  = (uint16_t *) item_sizes_d.ptr;
+                dbarray_h[dbid_d].item_sizes_out[b] = (uint16_t *) item_sizes_d.ptr;
                 #endif
-                rte_memcpy((char*) input_buffer_h + input_buffer_offset,
-                           rte_pktmbuf_mtod(batch->packets[p], char*) + input_roi.offset,
-                           aligned_elemsz);
-                anno_ptr_array[cur_idx] = &batch->annos[p];
-                input_buffer_offset    += aligned_elemsz;
+
+                uint16_t *item_offsets_h;
+                memory_t item_offsets_d;
+                cctx->alloc_input_buffer(t->in_count * sizeof(uint16_t), (void **) &item_offsets_h, &item_offsets_d);
+                assert(item_sizes_h != nullptr);
+                itemszarray_size += ALIGN(t->in_count * sizeof(uint16_t), CACHE_LINE_SIZE);
+                rte_memcpy(item_offsets_h, &t->aligned_item_sizes.offsets[0], sizeof(uint16_t) * t->in_count);
+                #ifdef DEBUG_HOSTSIDE
+                dbarray_h[dbid_d].item_offsets_in[b]  = (uint16_t *) item_offsets_h;
+                dbarray_h[dbid_d].item_offsets_out[b] = (uint16_t *) item_offsets_h;
+                #else
+                dbarray_h[dbid_d].item_offsets_in[b]  = (uint16_t *) item_offsets_d.ptr;
+                dbarray_h[dbid_d].item_offsets_out[b] = (uint16_t *) item_offsets_d.ptr;
+                #endif
+
+            } else {
+                /* Same for all batches.
+                 * We assume the module developer knows the fixed length
+                 * when writing device kernel codes. */
+                dbarray_h[dbid_d].item_size_in  = rri.length;
+                dbarray_h[dbid_d].item_size_out = wri.length;
+                dbarray_h[dbid_d].item_offsets_in[b]  = nullptr;
+                dbarray_h[dbid_d].item_offsets_out[b] = nullptr;
             }
-            accum_idx += batch->count;
+            #ifdef DEBUG_HOSTSIDE
+            dbarray_h[dbid_d].buffer_bases_in[b]   = t->host_in_ptr;
+            #else
+            dbarray_h[dbid_d].buffer_bases_in[b]   = t->dev_in_ptr.ptr;   // FIXME: generalize to CL?
+            #endif
+            dbarray_h[dbid_d].item_count_in[b]     = t->in_count;
+            dbarray_h[dbid_d].total_item_count_in += t->in_count;
+            #ifdef DEBUG_HOSTSIDE
+            dbarray_h[dbid_d].buffer_bases_out[b]   = t->host_out_ptr;
+            #else
+            dbarray_h[dbid_d].buffer_bases_out[b]   = t->dev_out_ptr.ptr; // FIXME: generalize to CL?
+            #endif
+            dbarray_h[dbid_d].item_count_out[b]     = t->out_count;
+            dbarray_h[dbid_d].total_item_count_out += t->out_count;
+            b++;
         }
-        #undef PREFETCH_MAX
-        break; }
-    case CUSTOM_INPUT: {
-        /* Call OffloadableElement::preproc() on each packet. */
-        for (unsigned i = 0; i < num_batches; i++) {
-            PacketBatch *batch = batches[i];
-            for (unsigned p = 0; p < batch->count; p++) {
-                unsigned cur_idx = accum_idx + p;
-                if (batch->excluded[p]) {
-                    anno_ptr_array[cur_idx] = nullptr;
-                    continue;
-                }
-                unsigned aligned_elemsz = aligned_elemsizes_h[0];
-                el->preproc(input_ports[i],
-                            ((char*) input_buffer_h) + input_buffer_offset,
-                            batch->packets[p], &batch->annos[p]);
-                anno_ptr_array[cur_idx] = &batch->annos[p];
-                input_buffer_offset += aligned_elemsz;
-            }
-            accum_idx += batch->count;
-        }
-        break; }
-    default:
-        rte_panic("Unsupported input_roi.\n");
-        break;
     }
+    // FIXME: hacking by knowing internal behaviour of cuda_mempool...
+    cctx->enqueue_memwrite_op(dbarray_h, dbarray_d, 0, dbarray_size + itemszarray_size);
+    has_h2d_copies = true;
 
-    /* Calculate resource parameters as default setting. */
-    res.num_workitems = cctx->total_num_pkts;
-    res.num_threads_per_workgroup = el->get_desired_workgroup_size(cctx->type_name.c_str());
-    res.num_workgroups = (cctx->total_num_pkts + res.num_threads_per_workgroup - 1)
-                         / res.num_threads_per_workgroup;
-
-    /* Set pointers to various buffers. */
-    cctx->set_io_buffers(input_buffer_h, input_buffer_d, input_buffer_size,
-                         output_buffer_h, output_buffer_d, output_buffer_size);
-    cctx->set_io_buffer_elemsizes(aligned_elemsizes_h, input_elemsizes_d,
-                                  sizeof(size_t) * cctx->total_num_pkts,
-                                  output_elemsizes_h, output_elemsizes_d,
-                                  sizeof(size_t) * cctx->total_num_pkts);
-
-    /* Run element-specific buffer preparation handler. */
-    el->prepare_input(cctx, &res, anno_ptr_array);
-}
-
-void OffloadTask::copy_buffers_h2d()
-{
-    assert(total_num_pkts != 0);
-    assert(cctx->total_num_pkts != 0);
-    assert(input_buffer_size != 0);
-    assert(output_buffer_size != 0);
-
-    cctx->clear_checkbits();
-
-    /* Host-to-device copy of input buffer */
-    cctx->enqueue_memwrite_op(cctx->get_host_input_buffer_base(),
-                              cctx->get_device_input_buffer_base(),
-                              0, cctx->get_total_input_buffer_size());
-
-    OffloadableElement *el = offloaded_elements[0];
-    handler = el->offload_compute_handlers[cctx->type_name];
-    assert(((bool) handler) == true);
+    /* Coalesced H2D data copy. */
+    void *first_host_in_ptr = nullptr;
+    char printbuf[4096];
+    char *pb = &printbuf[0];
+    int copies = 0;
+    memory_t first_dev_in_ptr;
+    size_t total_size = 0;
+    pb += (intptr_t) sprintf(pb, "Host-to-device copy:\n");
+    for (int dbid : datablocks) {
+        for (PacketBatch *batch : batches) {
+            struct datablock_tracker *t = &batch->datablock_states[dbid];
+            if (t == nullptr || t->host_in_ptr == nullptr || t->in_count == 0 || t->in_size == 0) {
+                #ifdef COALESC_COPY
+                if (first_host_in_ptr != nullptr) {
+                    /* Discontinued copy. */
+                    cctx->enqueue_memwrite_op(first_host_in_ptr, first_dev_in_ptr, 0, total_size);
+                    pb += (intptr_t) sprintf(pb, " [%d] %p - %p\n", copies++, first_host_in_ptr, (char*)first_host_in_ptr + (uintptr_t)total_size);
+                    /* Reset. */
+                    first_host_in_ptr = nullptr;
+                    total_size        = 0;
+                }
+                #endif
+                continue;
+            }
+            //if (t->in_count == 0) assert(t->in_size == 0);
+            //if (t->in_count > 0) assert(t->in_size > 0);
+            if (first_host_in_ptr == nullptr) {
+                first_host_in_ptr = t->host_in_ptr;
+                first_dev_in_ptr  = t->dev_in_ptr;
+            }
+            total_size += t->in_size;
+            #ifndef COALESC_COPY
+            cctx->enqueue_memwrite_op(t->host_in_ptr, t->dev_in_ptr, 0, t->in_size);
+            #endif
+            //printf("%p - %p\n", t->host_in_ptr, (void *)((char*) t->host_in_ptr + t->in_size));
+            has_h2d_copies = true;
+        }
+    }
+    #ifdef COALESC_COPY
+    if (first_host_in_ptr != nullptr) {
+        /* Finished copy. */
+        cctx->enqueue_memwrite_op(first_host_in_ptr, first_dev_in_ptr, 0, total_size);
+        pb += (intptr_t) sprintf(pb, " [%d] %p - %p\n", copies++, first_host_in_ptr, (char*)first_host_in_ptr + (uintptr_t)total_size);
+    }
+    //printf("%s", printbuf);
+    #endif
+    return has_h2d_copies;
 }
 
 /**
  * Execute the offload handler and copy back the output data
  * (device-to-host).
  */
+
 void OffloadTask::execute()
 {
-    /* Call the compute handler of the element.
-     * Inside the handler, the element may recalculate the resource
-     * parameters. (e.g., IPsec AES use 16B blocks as parallelization
-     * unit instead of packets)
-     * The element also may add additional memwrite/memread operations. */
-    handler(cctx, &res, anno_ptr_array);
+    /* The element sets which dbid becomes the reference point that
+     * provides the number of total "items".
+     * In most cases the unit will be packets, but sometimes (like
+     * IPsecAES) it will be a custom units such as 16 B blocks. */
+
+    uint32_t all_item_count = 0;
+    uint32_t num_batches = batches.size();
+    int dbid = elem->get_offload_item_counter_dbid();
+    DataBlock *db = comp_ctx->datablock_registry[dbid];
+
+    uint16_t *batch_ids_h = nullptr;
+    memory_t batch_ids_d;
+    uint16_t *item_ids_h = nullptr;
+    memory_t item_ids_d;
+
+    for (PacketBatch *batch : batches) {
+        struct datablock_tracker *t = &batch->datablock_states[dbid];
+        all_item_count += t->in_count;
+    }
+
+    if (all_item_count > 0) {
+
+        cctx->alloc_input_buffer(sizeof(uint16_t) * all_item_count, (void **) &batch_ids_h, &batch_ids_d);
+        assert(batch_ids_h != nullptr);
+        cctx->alloc_input_buffer(sizeof(uint16_t) * all_item_count, (void **) &item_ids_h, &item_ids_d);
+        assert(item_ids_h != nullptr);
+        res.num_workitems = all_item_count;
+        res.num_threads_per_workgroup = 256;
+        res.num_workgroups = (all_item_count + res.num_threads_per_workgroup - 1) / res.num_threads_per_workgroup;
+        uint16_t batch_id = 0;
+        unsigned global_idx = 0;
+        for (PacketBatch *batch : batches) {
+            struct datablock_tracker *t = &batch->datablock_states[dbid];
+            for (unsigned item_id = 0; item_id < t->in_count; item_id ++) {
+                batch_ids_h[global_idx] = batch_id;
+                item_ids_h[global_idx]  = item_id;
+                global_idx ++;
+            }
+            batch_id ++;
+        }
+        //cctx->enqueue_memwrite_op(batch_ids_h, batch_ids_d, 0, sizeof(uint16_t) * all_item_count);
+        //cctx->enqueue_memwrite_op(item_ids_h, item_ids_d, 0, sizeof(uint16_t) * all_item_count);
+        cctx->enqueue_memwrite_op(batch_ids_h, batch_ids_d, 0, ALIGN(sizeof(uint16_t) * all_item_count, CACHE_LINE_SIZE) * 2);
+
+        cctx->clear_checkbits();
+        cctx->clear_kernel_args();
+
+        /* Framework-provided kernel arguments:
+         * (1) array of datablock_kernel_arg[] indexed by datablock ID
+         * (2) the number of batches
+         */
+        void *checkbits_d = cctx->get_device_checkbits();
+        struct kernel_arg arg;
+        arg = {(void *) &dbarray_d.ptr, sizeof(void *), alignof(void *)};
+        cctx->push_kernel_arg(arg);
+        arg = {(void *) &all_item_count, sizeof(uint32_t), alignof(uint32_t)};
+        cctx->push_kernel_arg(arg);
+        arg = {(void *) &batch_ids_d.ptr, sizeof(void *), alignof(void *)};
+        cctx->push_kernel_arg(arg);
+        arg = {(void *) &item_ids_d.ptr, sizeof(void *), alignof(void *)};
+        cctx->push_kernel_arg(arg);
+        arg = {(void *) &checkbits_d, sizeof(void *), alignof(void *)};
+        cctx->push_kernel_arg(arg);
+
+        offload_compute_handler &handler = elem->offload_compute_handlers[cctx->type_name];
+        handler(cctx, &res);
+
+    } else {
+
+        /* Skip kernel execution. */
+        res.num_workitems = 0;
+        res.num_threads_per_workgroup = 1;
+        res.num_workgroups = 1;
+        cctx->get_host_checkbits()[0] = 1;
+    }
+}
+
+bool OffloadTask::copy_d2h()
+{
+    /* Coalesced D2H data copy. */
+    bool has_d2h_copies = false;
+    void *first_host_out_ptr = nullptr;
+    char printbuf[4096];
+    char *pb = &printbuf[0];
+    int copies = 0;
+    memory_t first_dev_out_ptr;
+    size_t total_size = 0;
+    pb += (intptr_t) sprintf(pb, "Device-to-host copy:\n");
+    for (int dbid : datablocks) {
+        DataBlock *db = comp_ctx->datablock_registry[dbid];
+        for (PacketBatch *batch : batches) {
+            struct datablock_tracker *t = &batch->datablock_states[dbid];
+            if (t == nullptr || t->host_out_ptr == nullptr || t->out_count == 0 || t->out_size == 0) {
+                #ifdef COALESC_COPY
+                if (first_host_out_ptr != nullptr) {
+                    /* Discontinued copy. */
+                    cctx->enqueue_memread_op(first_host_out_ptr, first_dev_out_ptr, 0, total_size);
+                    pb += (intptr_t) sprintf(pb, " [%d] %p - %p\n", copies++, first_host_out_ptr, (char*)first_host_out_ptr + (uintptr_t)total_size);
+                    /* Reset. */
+                    first_host_out_ptr = nullptr;
+                    total_size         = 0;
+                }
+                #endif
+                continue;
+            }
+            //if (t->out_count == 0) assert(t->out_size == 0);
+            //if (t->out_count > 0) assert(t->out_size > 0);
+            if (first_host_out_ptr == nullptr) {
+                first_host_out_ptr = t->host_out_ptr;
+                first_dev_out_ptr  = t->dev_out_ptr;
+            }
+            total_size += t->out_size;
+            #ifndef COALESC_COPY
+            cctx->enqueue_memread_op(t->host_out_ptr, t->dev_out_ptr, 0, t->out_size);
+            #endif
+            has_d2h_copies = true;
+        }
+    }
+    #ifdef COALESC_COPY
+    if (first_host_out_ptr != nullptr) {
+        /* Finished copy. */
+        cctx->enqueue_memread_op(first_host_out_ptr, first_dev_out_ptr, 0, total_size);
+        pb += (intptr_t) sprintf(pb, " [%d] %p - %p\n", copies++, first_host_out_ptr, (char*)first_host_out_ptr + (uintptr_t)total_size);
+    }
+    //printf("%s", printbuf);
+    #endif
+    return has_d2h_copies;
 }
 
 bool OffloadTask::poll_kernel_finished()
 {
     uint8_t *checkbits = cctx->get_host_checkbits();
-    if (checkbits == nullptr) return true;
+    if (checkbits == nullptr) {
+        return true;
+    }
     for (unsigned i = 0; i < res.num_workgroups; i++) {
-        if (checkbits[i] == 0)
+        if (checkbits[i] == 0) {
             return false;
+        }
     }
     return true;
 }
 
-void OffloadTask::copy_buffers_d2h()
-{
-    /* Copy the output buffer (device-to-host). */
-    cctx->enqueue_memread_op(output_buffer_h, output_buffer_d, 0, output_buffer_size);
-
-    /* Call the completion callback. */
-    //cctx->enqueue_event_callback([](ComputeContext *cctx, void *arg) {
-    //    OffloadTask *task = (OffloadTask *) arg;
-    //    /* Since this callback is called in CUDA-created threads,
-    //     * we use an asynchronous event mechanism here to stabilize. */
-    //    rte_ring_enqueue(task->coproc_ctx->task_done_queue, (void *) task);
-    //    ev_async_send(task->coproc_ctx->loop, task->coproc_ctx->task_done_watcher);
-    //}, this);
-}
-
 bool OffloadTask::poll_d2h_copy_finished()
 {
-    return cctx->query();
+    bool result = cctx->query();
+    return result;
 }
 
 void OffloadTask::notify_completion()
@@ -322,60 +414,45 @@ void OffloadTask::notify_completion()
     ev_async_send(src_loop, completion_watcher);
 }
 
-void OffloadTask::postproc()
+void OffloadTask::postprocess()
 {
-    unsigned accum_idx = 0;
-    int cur_idx;
-    OffloadableElement *el = offloaded_elements[0];
-
-    switch (output_roi.type) {
-    case SAME_AS_INPUT: {
-        /* Update the packets and run postprocessing. */
-        size_t output_buffer_offset = 0;
-        for (unsigned i = 0; i < num_batches; i++) {
-            PacketBatch *batch = batches[i];
-            for (unsigned p = 0; p < batch->count; p++) {
-                if (batch->excluded[p]) continue;
-                cur_idx = accum_idx + p;
-                size_t elemsz = bitselect<size_t>(output_roi.type == SAME_AS_INPUT && input_roi.type == WHOLE_PACKET,
-                                                  output_elemsizes_h[cur_idx],
-                                                  output_elemsizes_h[0]);
-                rte_memcpy(rte_pktmbuf_mtod(batch->packets[p], char*) + output_roi.offset,
-                            (char*) output_buffer_h + output_buffer_offset,
-                            elemsz);
-                batch->results[p] = el->postproc(input_ports[i], NULL,
-                                                batch->packets[p], &batch->annos[p]);
-                batch->excluded[p] = (batch->results[p] == DROP);
-                output_buffer_offset += elemsz;
+    for (int dbid : datablocks) {
+        DataBlock *db = comp_ctx->datablock_registry[dbid];
+        struct write_roi_info wri;
+        db->get_write_roi(&wri);
+        if (wri.type == WRITE_NONE)
+            continue;
+        int b = 0;
+        bool done = false;
+        for (PacketBatch *batch : batches) {
+            // TODO: query the elemgraph analysis result
+            //       to check if elem is the postproc point
+            //       of the current datablock.
+            struct datablock_tracker *t = &batch->datablock_states[dbid];
+            if (t->host_out_ptr != nullptr) {
+                // FIXME: let the element to choose the datablock used for postprocessing,
+                //        or pass multiple datablocks that have outputs.
+                db->postprocess(elem, input_ports[b], batch, t->host_out_ptr);
+                done = true;
             }
-            accum_idx += batch->count;
-            batch->has_results = true;
+            b++;
         }
-        break; }
-    case CUSTOM_OUTPUT: {
-        /* Run postporcessing only. */
-        size_t output_buffer_offset = 0;
-        for (unsigned i = 0; i < num_batches; i++) {
-            PacketBatch *batch = batches[i];
-            assert(accum_idx + batch->count <= el->ctx->num_coproc_ppdepth * NBA_MAX_COMPBATCH_SIZE);
-            for (unsigned p = 0; p < batch->count; p++) {
-                if (batch->excluded[p]) continue;
-                cur_idx = accum_idx + p;
-                unsigned elemsz = output_elemsizes_h[0];
-                batch->results[p] = el->postproc(input_ports[i],
-                                                (char*) output_buffer_h + output_buffer_offset,
-                                                batch->packets[p], &batch->annos[p]);
-                batch->excluded[p] = (batch->results[p] == DROP);
-                output_buffer_offset += elemsz;
-            }
-            accum_idx += batch->count;
-            batch->has_results = true;
-        }
-        break; }
-    default:
-        rte_panic("Unsupported output_roi.\n");
-        break;
     }
+
+    // TODO: query the elemgraph analysis result
+    //       to check if no more offloading appears afterwards.
+    /* Reset all datablock trackers. */
+    for (PacketBatch *batch : batches) {
+        if (batch->datablock_states != nullptr) {
+            struct datablock_tracker *t = batch->datablock_states;
+            t->host_in_ptr = nullptr;
+            t->host_out_ptr = nullptr;
+            rte_mempool_put(comp_ctx->dbstate_pool, (void *) t);
+            batch->datablock_states = nullptr;
+        }
+    }
+    /* Reset the IO buffer completely. */
+    cctx->clear_io_buffers();
 }
 
 // vim: ts=8 sts=4 sw=4 et

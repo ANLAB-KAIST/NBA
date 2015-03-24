@@ -1,5 +1,5 @@
-#ifndef __NBA_COMPUTATION_HH__
-#define __NBA_COMPUTATION_HH__
+#ifndef __NSHADER_COMPUTATION_HH__
+#define __NSHADER_COMPUTATION_HH__
 
 #include "types.hh"
 #include "elementgraph.hh"
@@ -7,7 +7,7 @@
 #include <vector>
 #include <unordered_map>
 
-namespace nba {
+namespace nshader {
 
 }
 #endif

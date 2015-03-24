@@ -64,14 +64,14 @@ if __name__ == '__main__':
         print('Params: io-batch-size comp-batch-size comp-ppdepth')
         print('Outputs: forwarded-pps cpu-util(usr)-io cpu-util(sys)-io cpu-util(usr)-comp cpu-util(sys)-comp')
         sys.stdout.flush()
-        env.envvars['NBA_LOADBALANCER_MODE'] = lb_mode 
+        env.envvars['NSHADER_LOADBALANCER_MODE'] = lb_mode 
         for params in product(iobatchsizes, compbatchsizes, num_ports, num_cores, num_nodes, packetsize): #, coprocppdepths):
 
-            env.envvars['NBA_IO_BATCH_SIZE'] = str(params[0]) 
-            env.envvars['NBA_COMP_BATCH_SIZE'] = str(params[1]) 
-            env.envvars['NBA_SINGLE_PORT_MULTI_CPU_PORT'] = str(params[2])
-            env.envvars['NBA_SINGLE_PORT_MULTI_CPU'] = str(params[3])
-            env.envvars['NBA_SINGLE_PORT_MULTI_CPU_NODE'] = str(params[4])
+            env.envvars['NSHADER_IO_BATCH_SIZE'] = str(params[0]) 
+            env.envvars['NSHADER_COMP_BATCH_SIZE'] = str(params[1]) 
+            env.envvars['NSHADER_SINGLE_PORT_MULTI_CPU_PORT'] = str(params[2])
+            env.envvars['NSHADER_SINGLE_PORT_MULTI_CPU'] = str(params[3])
+            env.envvars['NSHADER_SINGLE_PORT_MULTI_CPU_NODE'] = str(params[4])
             psize = str(params[5])
 
             # Configure what and how to measure things.

@@ -62,7 +62,7 @@ int RoutingTableV6::build()
                 uint128_t temp = mask(*i, len_marker + 1);
                 uint16_t marker_dest = lookup(&temp);
                 if (len_marker < len) {
-                    m_Tables[len_marker]->insert(mask(*i, len_marker +1), marker_dest, IPV6_MARKER);
+                    m_Tables[len_marker]->insert(mask(*i, len_marker +1), marker_dest, IPV6_HASHTABLE_MARKER);
                 }
 
                 if (len < len_marker) {
@@ -122,7 +122,7 @@ void RoutingTableV6::copy_to(RoutingTableV6 *new_table)
     build_lock_.acquire();
 
     if (new_table == NULL) {
-        printf("NBA: RoutingTableV6:copy_to: argument not alloced.\n");
+        printf("nShader: RoutingTableV6:copy_to: argument not alloced.\n");
         exit(EXIT_FAILURE);
     }
     new_table->m_IsBuilt = m_IsBuilt;

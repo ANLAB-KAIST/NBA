@@ -2,7 +2,7 @@
 #include "../../lib/types.hh"
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 int DecIP6HLIM::initialize()
 {

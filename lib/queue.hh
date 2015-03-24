@@ -1,10 +1,111 @@
-#ifndef __NBA_QUEUE_HH__
-#define __NBA_QUEUE_HH__
+#ifndef __NSHADER_QUEUE_HH__
+#define __NSHADER_QUEUE_HH__
 
 #include <vector>
 #include <cassert>
-extern "C" {
+
 #include <rte_malloc.h>
+
+
+
+template<class T, T const default_value, size_t max_size>
+class FixedArray; 
+
+template<class T, T const default_value, size_t max_size>
+class FixedArrayIterator
+{
+public:
+    FixedArrayIterator(const FixedArray<T, default_value, max_size>* p_array, unsigned pos)
+    : _pos(pos), _p_array(p_array)
+    { }
+
+    bool operator!= (const FixedArrayIterator<T, default_value, max_size> &other) const
+    {
+        return _pos != other._pos;
+    }
+
+    T operator*() const;
+
+    const FixedArrayIterator<T, default_value, max_size>& operator++ ()
+    {
+        ++ _pos;
+        return *this;
+    }
+
+private:
+    unsigned _pos;
+    const FixedArray<T, default_value, max_size> *_p_array;
+};
+
+template<class T, T const default_value, size_t max_size>
+class FixedArray
+{
+public:
+    FixedArray() : count(0)
+    {
+        /* Default constructor. You must explicitly call init() to use the instance. */
+    }
+
+    virtual ~FixedArray() { }
+
+    void push_back(T t)
+    {
+        assert(count < max_size);
+        values[count] = t;
+        count ++;
+    }
+
+    void clear()
+    {
+        count = 0;
+    }
+
+    T at(unsigned i) const
+    {
+        if (i >= count)
+            return default_value;
+        return values[i];
+    }
+
+    T get(unsigned i) const
+    {
+        return at(i);
+    }
+
+    T operator[](const unsigned& i) const
+    {
+        return at(i);
+    }
+
+    FixedArrayIterator<T, default_value, max_size> begin() const
+    {
+        return FixedArrayIterator<T, default_value, max_size>(this, 0);
+    }
+
+    FixedArrayIterator<T, default_value, max_size> end() const
+    {
+        return FixedArrayIterator<T, default_value, max_size>(this, size());
+    }
+
+    bool empty() const
+    {
+        return count == 0;
+    }
+
+    size_t size() const
+    {
+        return count;
+    }
+
+private:
+    size_t count;
+    T values[max_size];
+};
+
+template<class T, T const default_value, size_t max_size>
+T FixedArrayIterator<T, default_value, max_size>::operator* () const
+{
+    return _p_array->get(_pos);
 }
 
 template<class T, T const default_value>

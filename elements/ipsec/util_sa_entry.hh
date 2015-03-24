@@ -1,5 +1,5 @@
-#ifndef __NBA_IPSEC_SA_ENTRY_HH__
-#define __NBA_IPSEC_SA_ENTRY_HH__
+#ifndef __NSHADER_IPSEC_SA_ENTRY_HH__
+#define __NSHADER_IPSEC_SA_ENTRY_HH__
 
 #include <openssl/aes.h>
 #include <openssl/evp.h>
@@ -9,12 +9,19 @@ enum {
     HMAC_KEY_SIZE = 64,
 };
 
+struct aes_block_info {
+    int pkt_idx;
+    int block_idx;
+    int pkt_offset;
+    int magic;
+};
+
 struct aes_sa_entry {
     // Below two variables have same value.
     uint8_t aes_key[AES_BLOCK_SIZE];    // Used in CUDA encryption.
     AES_KEY aes_key_t;                  // Prepared for AES library function.
     EVP_CIPHER_CTX evpctx;
-    int entry_idx;                      // Index of current flow: value for varification.
+    int entry_idx;                      // Index of current flow: value for verification.
 };
 
 struct hmac_sa_entry {

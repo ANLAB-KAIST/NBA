@@ -1,11 +1,11 @@
 #! /usr/bin/env python3
-import nba, os
+import nshader, os
 
-for netdev in nba.get_netdevices():
+for netdev in nshader.get_netdevices():
     print(netdev)
-for coproc in nba.get_coprocessors():
+for coproc in nshader.get_coprocessors():
     print(coproc)
-node_cpus = nba.get_cpu_node_mapping()
+node_cpus = nshader.get_cpu_node_mapping()
 for node_id, cpus in enumerate(node_cpus):
     print('Cores in NUMA node {0}: [{1}]'.format(node_id, ', '.join(map(str, cpus))))
 
@@ -18,26 +18,26 @@ for node_id, cpus in enumerate(node_cpus):
 # - thread_connections
 
 system_params = {
-    'IO_BATCH_SIZE': int(os.environ.get('NBA_IO_BATCH_SIZE', 32)),
-    'COMP_BATCH_SIZE': int(os.environ.get('NBA_COMP_BATCH_SIZE', 32)),
-    'COMP_PPDEPTH': int(os.environ.get('NBA_COMP_PPDEPTH', 16)),
-    'COPROC_PPDEPTH': int(os.environ.get('NBA_COPROC_PPDEPTH', 64)),
+    'IO_BATCH_SIZE': int(os.environ.get('NSHADER_IO_BATCH_SIZE', 32)),
+    'COMP_BATCH_SIZE': int(os.environ.get('NSHADER_COMP_BATCH_SIZE', 32)),
+    'COMP_PPDEPTH': int(os.environ.get('NSHADER_COMP_PPDEPTH', 16)),
+    'COPROC_PPDEPTH': int(os.environ.get('NSHADER_COPROC_PPDEPTH', 64)),
 }
 print("IO batch size: {0[IO_BATCH_SIZE]}, computation batch size: {0[COMP_BATCH_SIZE]}".format(system_params))
 print("Computation pipeline depth: {0[COMP_PPDEPTH]}".format(system_params))
 print("Coprocessor pipeline depth: {0[COPROC_PPDEPTH]}".format(system_params))
 print("# logical cores: {0}, # physical cores {1} (hyperthreading {2})".format(
-    nba.num_logical_cores, nba.num_physical_cores,
-    "enabled" if nba.ht_enabled else "disabled"
+    nshader.num_logical_cores, nshader.num_physical_cores,
+    "enabled" if nshader.ht_enabled else "disabled"
 ))
-_ht_diff = nba.num_physical_cores if nba.ht_enabled else 0
+_ht_diff = nshader.num_physical_cores if nshader.ht_enabled else 0
 
 # The following objects are not "real" -- just namedtuple instances.
 # They only store metdata w/o actual side-effects such as creation of threads.
 
-no_cpu = int(os.environ.get('NBA_SINGLE_PORT_MULTI_CPU', 1))
-no_node = int(os.environ.get('NBA_SINGLE_PORT_MULTI_CPU_NODE', 1))
-no_port = int(os.environ.get('NBA_SINGLE_PORT_MULTI_CPU_PORT', 1))
+no_cpu = int(os.environ.get('NSHADER_SINGLE_PORT_MULTI_CPU', 1))
+no_node = int(os.environ.get('NSHADER_SINGLE_PORT_MULTI_CPU_NODE', 1))
+no_port = int(os.environ.get('NSHADER_SINGLE_PORT_MULTI_CPU_PORT', 1))
 print ("using " + str(no_cpu) + " cpus for " + str(no_port) + " port")
 no_port_per_node = 4
 
@@ -47,32 +47,32 @@ for node_id in range(no_node):
         attached_rxq_gen = []
         for p in range(no_port):
             attached_rxq_gen.append((node_id*no_port_per_node + p, i))
-        io_threads.append(nba.IOThread(core_id=node_cpus[node_id][i], attached_rxqs=attached_rxq_gen, mode='normal'))
+        io_threads.append(nshader.IOThread(core_id=node_cpus[node_id][i], attached_rxqs=attached_rxq_gen, mode='normal'))
 
 
 comp_threads = []
 for node_id in range(no_node):
     for i in range(no_cpu):
-        comp_threads.append(nba.CompThread(core_id=node_cpus[node_id][i] + _ht_diff))
+        comp_threads.append(nshader.CompThread(core_id=node_cpus[node_id][i] + _ht_diff))
 
 coproc_threads = []
 for nid in range(no_node):
     # core_id, device_id
-    coproc_threads.append(nba.CoprocThread(core_id=node_cpus[nid][7] + _ht_diff, device_id=nid))
+    coproc_threads.append(nshader.CoprocThread(core_id=node_cpus[nid][7] + _ht_diff, device_id=nid))
 
 comp_input_queues = []
 for nid in range(no_node):
     for i in range(no_cpu):
-        comp_input_queues.append(nba.Queue(node_id=nid, template='swrx'))
+        comp_input_queues.append(nshader.Queue(node_id=nid, template='swrx'))
 
 coproc_input_queues = []
 for nid in range(no_node):
-    coproc_input_queues.append(nba.Queue(node_id=nid, template='taskin'));
+    coproc_input_queues.append(nshader.Queue(node_id=nid, template='taskin'));
 
 coproc_completion_queues = []
 for node_id in range(no_node):
     for i in range(no_cpu):
-        coproc_completion_queues.append(nba.Queue(node_id=node_id, template='taskout'))
+        coproc_completion_queues.append(nshader.Queue(node_id=node_id, template='taskout'))
 
 
 
@@ -94,6 +94,6 @@ for node_id in range(no_node):
 # cpu_ratio is only used in weighted random LBs and ignored in other ones.
 # Sangwook: It would be better to write 'cpu_ratio' only when it is needed, 
 #            but it seems Python wrapper doesn't allow it..
-LB_mode = str(os.environ.get('NBA_LOADBALANCER_MODE', 'CPUOnlyLB'))
-LB_cpu_ratio = float(os.environ.get('NBA_LOADBALANCER_CPU_RATIO', 1.0))
-load_balancer = nba.LoadBalancer(mode=LB_mode, cpu_ratio=LB_cpu_ratio)
+LB_mode = str(os.environ.get('NSHADER_LOADBALANCER_MODE', 'CPUOnlyLB'))
+LB_cpu_ratio = float(os.environ.get('NSHADER_LOADBALANCER_CPU_RATIO', 1.0))
+load_balancer = nshader.LoadBalancer(mode=LB_mode, cpu_ratio=LB_cpu_ratio)

@@ -8,6 +8,7 @@
 
 #include "util_jhash.h"
 #include "util_hash_table.hh"
+#include "../../engines/cuda/compat.hh"
 
 extern "C" {
 
@@ -67,7 +68,7 @@ __device__ uint32_t hashtable_find(uint64_t ip0, uint64_t ip1, const Item* __res
     union { uint32_t u32; uint16_t u16[2]; } ret;
     ret.u32 = 0;
 
-    if (table[index].state != IPV6_EMPTY) {
+    if (table[index].state != IPV6_HASHTABLE_EMPTY) {
         do {
             if (table[index].key.u64[0] == ip0 &&
                 table[index].key.u64[1] == ip1)
@@ -123,60 +124,57 @@ __device__ uint32_t gpu_route_lookup_one(uint64_t ip0, uint64_t ip1,
     return bmp;
 }
 
+static const __device__ int dbid_ipv6_dest_addrs = 0;
+static const __device__ int dbid_ipv6_lookup_results = 1;
+struct __kernel_ipv6
+{
+	uint64_t ip0;
+	uint64_t ip1;
+};
+
 __global__ void ipv6_route_lookup_cuda(
-        uint64_t * __restrict__ dest_addrs_d,
-        uint16_t *lookup_results_d,
-        size_t *input_size_arr,
-        size_t *output_size_arr,
-        int N,
+        struct datablock_kernel_arg *datablocks,
+        uint32_t count, uint16_t *batch_ids, uint16_t *item_ids,
         uint8_t *checkbits_d,
         Item** __restrict__ tables_d,
         size_t* __restrict__ table_sizes_d)
-        //uint8_t *checkbits_d)
 {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (index >= N)
-        return;
+    if (idx < count) {
+        uint16_t batch_idx = batch_ids[idx];
+        uint16_t item_idx  = item_ids[idx];
+        struct datablock_kernel_arg *db_dest_addrs = &datablocks[dbid_ipv6_dest_addrs];
+        struct datablock_kernel_arg *db_results    = &datablocks[dbid_ipv6_lookup_results];
+        struct __kernel_ipv6 daddr = ((struct __kernel_ipv6*) db_dest_addrs->buffer_bases_in[batch_idx])[item_idx];
+        uint16_t *lookup_result = &((uint16_t *) db_results->buffer_bases_out[batch_idx])[item_idx];
 
-    // NOTE: On FERMI devices, using shared memory to store just 128
-    //   pointers is not necessary since they have on-chip L1
-    //   cache.
-    // NOTE: This was the point of bug for "random" CUDA errors.
-    //   (maybe due to out-of-bound access to shared memory?)
-    // UPDATE: On new NBA with CUDA 5.5, this code does neither seem to
-    //         generate any errors nor bring performance benefits.
-    #if 0
-    __shared__ Item *s_tables[128];
-    for(int i = 0; i * blockDim.x < 128; i++){
-        int index = threadIdx.x + blockDim.x * i;
+        // NOTE: On FERMI devices, using shared memory to store just 128
+        //   pointers is not necessary since they have on-chip L1
+        //   cache.
+        // NOTE: This was the point of bug for "random" CUDA errors.
+        //   (maybe due to out-of-bound access to shared memory?)
+        // UPDATE: On new nShader with CUDA 5.5, this code does neither seem to
+        //         generate any errors nor bring performance benefits.
 
-        if (index < 128)
-            s_tables[index] = tables_d[index];
-    }
-    #endif
-
-    __syncthreads();
-    uint64_t ip0 = dest_addrs_d[index * 2];
-    uint64_t ip1= dest_addrs_d[index * 2 + 1];
-    if (ip0 == 0xffffffffffffffffu && ip1 == 0xffffffffffffffffu) {
-        lookup_results_d[index] = 0;
-    } else {
-        //lookup_results_d[index] = (uint16_t)
-        //      gpu_route_lookup_one(ip0, ip1, s_tables, table_sizes_d);
-        lookup_results_d[index] = (uint16_t)
-                gpu_route_lookup_one(ip0, ip1, tables_d, table_sizes_d);
+        uint64_t ip0 = daddr.ip0;
+        uint64_t ip1 = daddr.ip1;
+        if (ip0 == 0xffffffffffffffffu && ip1 == 0xffffffffffffffffu) {
+            *lookup_result = 0;
+        } else {
+            *lookup_result = (uint16_t) gpu_route_lookup_one(ip0, ip1, tables_d, table_sizes_d);
+        }
     }
 
     __syncthreads();
     if (threadIdx.x == 0 && checkbits_d != NULL) {
-        *(checkbits_d + blockIdx.x) = 1;
+        checkbits_d[blockIdx.x] = 1;
     }
 }
 
 }
 
-void *nba::ipv6_route_lookup_get_cuda_kernel() {
+void *nshader::ipv6_route_lookup_get_cuda_kernel() {
     return reinterpret_cast<void *> (ipv6_route_lookup_cuda);
 }
 

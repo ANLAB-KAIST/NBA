@@ -37,10 +37,10 @@ def expand_subdirs(dirlist):
     Recursively expands subdirectories for first-level subdirectory lists,
     except the root directory indicated as ".".
     '''
-    for idx, dir in enumerate(dirlist[:]):
-        if dir in ('.', '..'):
+    for idx, dir_ in enumerate(dirlist[:]):
+        if dir_ in ('.', '..'):
             continue
-        for root, subdirs, files in os.walk(dir):
+        for root, subdirs, files in os.walk(dir_):
             for subdir in subdirs:
                 dirlist.insert(idx + 1, joinpath(root, subdir))
     return dirlist
@@ -52,11 +52,10 @@ def find_all(dirlist, filepattern):
     '''
     rx = re.compile(filepattern)
     results = []
-    for dir in dirlist:
-        for root, dirs, files in os.walk(dir):
-            for fname in files:
-                if rx.search(fname):
-                    results.append(joinpath(root, fname))
+    for root, dirs, files in chain(*map(lambda d: os.walk(d, topdown=False), dirlist)):
+        for fname in files:
+            if rx.search(fname):
+                results.append(joinpath(root, fname))
     return results
 
 _rx_included_local_header = re.compile(r'"(.+\.(h|hh))"')

@@ -1,5 +1,5 @@
 /**
- * NBA's Coprocessor Handler.
+ * nShader's Coprocessor Handler.
  *
  * Author: Joongi Kim <joongi@an.kaist.ac.kr>
  */
@@ -19,7 +19,7 @@
 #include "../engines/phi/computedevice.hh"
 #endif
 #include "../engines/dummy/computedevice.hh"
-extern "C" {
+
 #include <unistd.h>
 #include <numa.h>
 #include <sys/prctl.h>
@@ -32,14 +32,14 @@ extern "C" {
 #ifdef USE_NVPROF
 #include <nvToolsExt.h>
 #endif
-}
+
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 RTE_DECLARE_PER_LCORE(unsigned, _lcore_id);
 
-namespace nba {
+namespace nshader {
 
 static void coproc_task_input_cb(struct ev_loop *loop, struct ev_async *watcher, int revents)
 {
@@ -49,8 +49,8 @@ static void coproc_task_input_cb(struct ev_loop *loop, struct ev_async *watcher,
     #ifdef USE_NVPROF
     nvtxRangePush("task_input_cb");
     #endif
-    uint64_t l = rte_ring_count(ctx->task_input_queue);
-    print_ratelimit("# coproc overlap chances", l, 100);
+    //uint64_t l = rte_ring_count(ctx->task_input_queue);
+    //print_ratelimit("# coproc overlap chances", l, 100);
     /* To multiplex multiple streams, we process only one task and postpone
      * processing of the remainings.  The later steps have higher priority
      * and libev will call them first and then call earlier steps again. */
@@ -59,7 +59,7 @@ static void coproc_task_input_cb(struct ev_loop *loop, struct ev_async *watcher,
         assert(task->cctx != nullptr);
         task->coproc_ctx = ctx;
         task->offload_start = rte_rdtsc();
-        task->copy_buffers_h2d();
+        task->copy_h2d();
         task->execute();
         /* We separate d2h copy step since CUDA implicitly synchronizes
          * kernel executions. See more details at:
@@ -90,9 +90,10 @@ static void coproc_task_d2h_cb(struct ev_loop *loop, struct ev_async *watcher, i
         ctx->d2h_pending_queue->pop_front();
         assert(task != nullptr);
         if (task->poll_kernel_finished()) {
-            task->copy_buffers_d2h();
+            //task->cctx->sync();
+            task->copy_d2h();
             ctx->task_done_queue->push_back(task);
-            if (ctx->task_done_queue->size() >= NBA_MAX_KERNEL_OVERLAP || !ev_is_pending(ctx->task_input_watcher))
+            if (ctx->task_done_queue->size() >= NSHADER_MAX_KERNEL_OVERLAP || !ev_is_pending(ctx->task_input_watcher))
                 ev_feed_event(loop, ctx->task_done_watcher, EV_ASYNC);
         } else
             ctx->d2h_pending_queue->push_back(task);
@@ -114,8 +115,8 @@ static void coproc_task_done_cb(struct ev_loop *loop, struct ev_async *watcher, 
         OffloadTask *task = ctx->task_done_queue->front();
         ctx->task_done_queue->pop_front();
         if (task->poll_d2h_copy_finished()) {
-        	task->offload_cost += (rte_rdtsc() - task->offload_start);
-        	task->offload_start = 0;
+            task->offload_cost += (rte_rdtsc() - task->offload_start);
+            task->offload_start = 0;
             task->notify_completion();
         } else
             ctx->task_done_queue->push_back(task);

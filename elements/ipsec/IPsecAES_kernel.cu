@@ -11,6 +11,15 @@
 #include <openssl/aes.h>
 #include <openssl/md5.h>
 
+/* Compatibility definitions. */
+#include "../../engines/cuda/compat.hh"
+
+/* The index is given by the order in get_used_datablocks(). */
+static const __device__ int dbid_enc_payloads   = 0;
+static const __device__ int dbid_iv             = 1;
+static const __device__ int dbid_flow_ids       = 2;
+static const __device__ int dbid_aes_block_info = 3;
+
 #ifndef __AES_CORE__ /*same constants are defined in ssl/aes/aes_core.h */
 #define __AES_CORE__
 
@@ -670,43 +679,64 @@ __device__ void AES_encrypt_cu_optimized(const uint8_t *in, uint8_t *out,
     _PUTU32(out + 12, s3);
 }
 
-
-//  input_buf: input packet
-//  out:    output pointer. encrypted results should be copied to here. (TODO: Isn't it inefficient?)
-//  ivs: array stores initialization vector
-//  aes_key: key for AES encryption
-//  pkt_offset: start point of data in input buffer for each packet, to be encrypted by AES.
-//  pkt_index: array of each block's packet index.
-//  block_offset: index of AES block (?)
-//  block_count: total number of AES block.
 __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
-        uint8_t* input_buf, uint8_t *output_buf,
-        size_t *input_size_arr, size_t *output_size_arr,
-        int N, uint8_t *checkbits_d,
-        const uint8_t* __restrict__ ivs,
-        const int32_t* __restrict__ key_indice, const struct aes_sa_entry* __restrict__ key_array,
-        const int32_t* __restrict__ pkt_offset, const uint16_t* __restrict__ pkt_index,
-        const int32_t* __restrict__ block_offset)
+        struct datablock_kernel_arg *datablocks,
+        uint32_t count, uint16_t *batch_ids, uint16_t *item_ids,
+        uint8_t *checkbits_d,
+        struct aes_sa_entry* flow_info
+        )
 {
-    int idx = blockDim.x * blockIdx.x + threadIdx.x;
     __shared__ uint32_t shared_Te0[256];
     __shared__ uint32_t shared_Te1[256];
     __shared__ uint32_t shared_Te2[256];
     __shared__ uint32_t shared_Te3[256];
     __shared__ uint32_t shared_Rcon[10];
 
-    // N is # of AES block. (which is unit of work)
-    if (idx < N) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count && count != 0) {
 
-        //step1
-        int pindex = pkt_index[idx];    // pindex: packet index of current block.
-        uint4 ecounter;
-        uint4 iv;
-        const uint8_t *aes_key;
+    const uint16_t batch_idx = batch_ids[idx];
+    const uint16_t item_idx  = item_ids[idx];
 
-        if (pindex != -1) {
+    const struct datablock_kernel_arg *db_enc_payloads    = &datablocks[dbid_enc_payloads];
+    const struct datablock_kernel_arg *db_iv              = &datablocks[dbid_iv];
+    const struct datablock_kernel_arg *db_flow_ids        = &datablocks[dbid_flow_ids];
+    const struct datablock_kernel_arg *db_aes_block_info  = &datablocks[dbid_aes_block_info];
 
-            //step 2: marginal
+    assert(batch_idx < 32);
+    assert(item_idx < db_aes_block_info->item_count_in[batch_idx]);
+
+    uint64_t flow_id = 65536;
+    const struct aes_block_info cur_block_info = ((struct aes_block_info *)
+                                                   db_aes_block_info->buffer_bases_in[batch_idx])
+                                                  [item_idx];
+    const int pkt_idx         = cur_block_info.pkt_idx;
+    const int block_idx_local = cur_block_info.block_idx;
+    const uintptr_t offset = (uintptr_t) db_enc_payloads->item_offsets_in[batch_idx][pkt_idx];
+    const uintptr_t length = (uintptr_t) db_enc_payloads->item_sizes_in[batch_idx][pkt_idx];
+
+    if (cur_block_info.magic == 85739 && pkt_idx < 64 && offset != 0 && length != 0) {
+        flow_id = ((uint64_t *) db_flow_ids->buffer_bases_in[batch_idx])[pkt_idx];
+        if (flow_id != 65536)
+            assert(flow_id < 1024);
+    }
+
+    /* Step 1. */
+    uint4 iv = {0,0,0,0};
+    uint4 ecounter = {0,0,0,0};
+    uint8_t *aes_key = NULL;
+    uint8_t *enc_payload = NULL;
+
+    if (flow_id != 65536 && flow_id < 1024 && pkt_idx < 64) {
+
+        aes_key = flow_info[flow_id].aes_key;
+        iv = ((uint4 *) db_iv->buffer_bases_in[batch_idx])[pkt_idx];
+
+        if (offset != 0 && length != 0) {
+
+            enc_payload = ((uint8_t *) db_enc_payloads->buffer_bases_in[batch_idx]) + offset;
+
+            /* Step 2. (marginal) */
             for (int i = 0; i * blockDim.x < 256; i++) {
                 int index = threadIdx.x + blockDim.x * i;
                 if (index < 256) {
@@ -723,50 +753,41 @@ __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
                     shared_Rcon[index] = rcon[index];
                 }
             }
-
-            //-- Just for debug.
-            //int entry_idx = key_indice[pindex];
-            //assert(entry_idx == key_array[entry_idx].entry_idx);
-            //assert(key_array[entry_idx].aes_key != NULL);
-
-            iv      = ((uint4*) ivs)[pindex];
-            aes_key = key_array[key_indice[pindex]].aes_key;
-        }
-
-        __syncthreads();
-
-        if (pindex != -1 && pkt_offset[pindex] != -1) {
-
-            //step 3
-            AES_ctr128_inc((unsigned char*) &iv, block_offset[idx]);
-
-            //setp 4: this is a bottleneck!!!!
-            /* encrypt the counter */
-            AES_encrypt_cu_optimized((uint8_t*) &iv, (uint8_t*) &ecounter,
-                    aes_key, shared_Te0, shared_Te1, shared_Te2,
-                    shared_Te3, shared_Rcon);
-
-            //setp 5
-            /* xor the plain text */
-            uint4 *in_blk = (uint4 *) (input_buf + pkt_offset[pindex]
-                                       + block_offset[idx] * AES_BLOCK_SIZE);
-            uint4 *out_blk = (uint4 *) (output_buf + pkt_offset[pindex]
-                                        + block_offset[idx] * AES_BLOCK_SIZE);
-
-            (*out_blk).x = ecounter.x ^ (*in_blk).x;
-            (*out_blk).y = ecounter.y ^ (*in_blk).y;
-            (*out_blk).z = ecounter.z ^ (*in_blk).z;
-            (*out_blk).w = ecounter.w ^ (*in_blk).w;
-
         }
     }
 
     __syncthreads();
+
+    if (flow_id != 65536 && flow_id < 1024 && pkt_idx < 64 && enc_payload != NULL && aes_key != NULL) {
+
+        /* Step 3: Update the IV counters. */
+        AES_ctr128_inc((unsigned char*) &iv, block_idx_local);
+
+        /* Step 4: Encrypt the counter (this is the bottleneck) */
+        AES_encrypt_cu_optimized((uint8_t*) &iv, (uint8_t *) &ecounter,
+                aes_key, shared_Te0, shared_Te1, shared_Te2,
+                shared_Te3, shared_Rcon);
+        //AES_encrypt_cu_optimized((uint8_t*) &iv, (uint8_t *) &ecounter,
+        //        aes_key, Te0_ConstMem, Te1_ConstMem, Te2_ConstMem,
+        //        Te3_ConstMem, rcon);
+
+        /* Step 5: XOR the plain text (in-place). */
+        uint4 *in_blk = (uint4 *) &enc_payload[block_idx_local * AES_BLOCK_SIZE];
+        assert((uint8_t*)in_blk + AES_BLOCK_SIZE <= enc_payload + db_enc_payloads->item_sizes_in[batch_idx][pkt_idx]);
+        (*in_blk).x = ecounter.x ^ (*in_blk).x;
+        (*in_blk).y = ecounter.y ^ (*in_blk).y;
+        (*in_blk).z = ecounter.z ^ (*in_blk).z;
+        (*in_blk).w = ecounter.w ^ (*in_blk).w;
+    }
+
+    } /* endif (idx < total_count) */
+
+    __syncthreads();
     if (threadIdx.x == 0 && checkbits_d != NULL)
-        *(checkbits_d + blockIdx.x) = 1;
+        checkbits_d[blockIdx.x] = 1;
 }
 
-void *nba::ipsec_aes_encryption_get_cuda_kernel() {
+void *nshader::ipsec_aes_encryption_get_cuda_kernel() {
     return reinterpret_cast<void *> (AES_ctr_encrypt_chunk_SharedMem_5);
 }
 

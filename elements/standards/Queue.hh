@@ -1,16 +1,16 @@
-#ifndef __NBA_ELEMENT_QUEUE_HH__
-#define __NBA_ELEMENT_QUEUE_HH__
+#ifndef __NSHADER_ELEMENT_QUEUE_HH__
+#define __NSHADER_ELEMENT_QUEUE_HH__
 
-extern "C" {
+
 #include <rte_errno.h>
-}
+
 #include "../../lib/element.hh"
 #include "../../lib/annotation.hh"
 #include "../../lib/queue.hh"
 #include <vector>
 #include <string>
 
-namespace nba {
+namespace nshader {
 
 class Queue : public SchedulableElement, PerBatchElement {
 public:

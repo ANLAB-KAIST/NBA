@@ -11,7 +11,7 @@
 
 using namespace std;
 
-namespace nba {
+namespace nshader {
 
 static inline bool approx_equal(float a, float b)
 {

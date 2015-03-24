@@ -1,12 +1,12 @@
-#ifndef __NBA_ELEMENT_ETHER_ARPQUERIER_HH__
-#define __NBA_ELEMENT_ETHER_ARPQUERIER_HH__
+#ifndef __NSHADER_ELEMENT_ETHER_ARPQUERIER_HH__
+#define __NSHADER_ELEMENT_ETHER_ARPQUERIER_HH__
 
-extern "C" {
+
 #include <rte_config.h>
 #include <rte_memory.h>
 #include <rte_mbuf.h>
 #include <rte_ether.h>
-}
+
 #include "../../lib/element.hh"
 #include "../../lib/annotation.hh"
 //#include "../../lib/nodelocalstorage.hh"
@@ -19,7 +19,7 @@ extern "C" {
 #include <netinet/in.h>
 #include <netinet/ip.h>
 
-namespace nba {
+namespace nshader {
 
 class ARPQuerier : public SchedulableElement {
 public:

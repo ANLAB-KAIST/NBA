@@ -19,10 +19,10 @@
 
 /* Moved from Click project & modified by Sangwook Ma on 13.09.14. */
 
-#ifndef __NBA_UTIL_ARP_TABLE_HH__
-#define __NBA_UTIL_ARP_TABLE_HH__
+#ifndef __NSHADER_UTIL_ARP_TABLE_HH__
+#define __NSHADER_UTIL_ARP_TABLE_HH__
 
-extern "C" {
+
 #include <rte_config.h>
 #include <rte_rwlock.h>
 #include <rte_cycles.h>
@@ -36,7 +36,7 @@ extern "C" {
 #include <rte_lcore.h>
 
 #include <rte_ether.h>
-}
+
 
 #include <string.h>
 #include <sys/time.h>
@@ -88,7 +88,7 @@ public:
                         a + 0, a + 1, a + 2, a + 3, a + 4, a + 5,
                         &last);
         if(rc != 6 || (int)s.size() != last) {
-            fprintf(stderr, "NBA: EtherAddress::EtherAddress(std::string), wrong input format\n");
+            fprintf(stderr, "nShader: EtherAddress::EtherAddress(std::string), wrong input format\n");
             exit(EXIT_FAILURE);
         }
 

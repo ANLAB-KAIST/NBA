@@ -3,7 +3,7 @@
 #include "config.hh"
 #include "packet.hh"
 #include "packetbatch.hh"
-extern "C" {
+
 #include <rte_config.h>
 #include <rte_common.h>
 #include <rte_memory.h>
@@ -12,7 +12,7 @@ extern "C" {
 #include <rte_prefetch.h>
 #include <rte_branch_prediction.h>
 #include <rte_cycles.h>
-}
+
 #include <string>
 #include <vector>
 #include <cassert>
@@ -20,7 +20,7 @@ extern "C" {
 #include <climits>
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 Element::Element() : next_elems(), next_connected_inputs()
 {
@@ -99,9 +99,8 @@ void Element::update_port_count()
         num_min_outputs = atoi(range_left.c_str());
         num_max_outputs = atoi(range_right.c_str());
     }
-    if (num_max_outputs != -1) {
-        next_elems.reserve(num_max_outputs);
-        next_connected_inputs.reserve(num_max_outputs);
+    if (num_max_outputs > NSHADER_MAX_ELEM_NEXTS) {
+        rte_panic("Element::update_port_count(): Too many possible output ports (max: %d)\n", NSHADER_MAX_ELEM_NEXTS);
     }
 
     delete port_str;
@@ -124,11 +123,9 @@ int Element::configure(comp_thread_context *ctx, vector<string> &args) {
     return 0;
 }
 
-void OffloadableElement::dummy_compute_handler(
-        ComputeContext *ctx,
-        struct resource_param *res,
-        struct annotation_set **anno_ptr_array
-) {
+void OffloadableElement::dummy_compute_handler(ComputeContext *ctx,
+                                               struct resource_param *res)
+{
     return;
 }
 // vim: ts=8 sts=4 sw=4 et

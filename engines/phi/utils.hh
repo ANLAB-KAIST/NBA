@@ -12,7 +12,7 @@
  */
 
 #ifdef __cplusplus
-extern "C" {
+
 #endif
 inline void __phiSafeCall(cl_int ret, const char *file, const int line)
 {
@@ -20,7 +20,7 @@ inline void __phiSafeCall(cl_int ret, const char *file, const int line)
         fprintf(stderr, "%s(%i): Phi OpenCL Runtime Error %d: (TODO: user-friendly str).\n",
             file, line, ret);
         exit(-1);
-    }
+    
 }
 
 #ifdef __cplusplus

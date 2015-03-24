@@ -1,12 +1,12 @@
-#ifndef __NBA_ELEMENT_IPSEC_IPSECAES_HH__
-#define __NBA_ELEMENT_IPSEC_IPSECAES_HH_
+#ifndef __NSHADER_ELEMENT_IPSEC_IPSECAES_HH__
+#define __NSHADER_ELEMENT_IPSEC_IPSECAES_HH_
 
-extern "C" {
+
 #include <rte_config.h>
 #include <rte_memory.h>
 #include <rte_mbuf.h>
 #include <rte_ether.h>
-}
+
 #include "../../lib/element.hh"
 #include "../../lib/annotation.hh"
 #include "../../lib/computedevice.hh"
@@ -26,21 +26,21 @@ extern "C" {
 #include "util_sa_entry.hh"
 #include <unordered_map>
 
-namespace nba {
+#include "IPsecDatablocks.hh"
+
+namespace nshader {
 
 class IPsecAES : public OffloadableElement {
 public:
     IPsecAES(): OffloadableElement()
     {
         #ifdef USE_CUDA
-        auto ch = [this](ComputeContext *ctx, struct resource_param *res, struct annotation_set **anno_ptr_array) { this->cuda_compute_handler(ctx, res, anno_ptr_array); };
+        auto ch = [this](ComputeContext *ctx, struct resource_param *res) { this->cuda_compute_handler(ctx, res); };
         offload_compute_handlers.insert({{"cuda", ch},});
         auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
         offload_init_handlers.insert({{"cuda", ih},});
         #endif
-
         num_tunnels = 0;
-        dummy_index = 0;
     }
 
     ~IPsecAES()
@@ -67,20 +67,7 @@ public:
         #endif
     }
 
-    void get_input_roi(struct input_roi_info *roi) const
-    {
-        roi->type = WHOLE_PACKET;
-        roi->offset = sizeof(struct ether_hdr) + sizeof(struct iphdr) + sizeof(struct esphdr);
-        roi->length = -SHA_DIGEST_LENGTH;  /* Cut the trailing bytes. */
-        roi->align = 0;
-    }
-
-    void get_output_roi(struct output_roi_info *roi) const
-    {
-        roi->type = SAME_AS_INPUT;
-        roi->offset = sizeof(struct ether_hdr) + sizeof(struct iphdr) + sizeof(struct esphdr);
-        roi->length = 0;
-    }
+    int get_offload_item_counter_dbid() const { return dbid_aes_block_info; }
 
     /* CPU-only method */
     int process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno);
@@ -88,19 +75,21 @@ public:
     /* Offloaded methods */
     #ifdef USE_CUDA
     void cuda_init_handler(ComputeDevice *device);
-    void cuda_compute_handler(ComputeContext *ctx, struct resource_param *res, struct annotation_set **anno_ptr_array);
+    void cuda_compute_handler(ComputeContext *ctx, struct resource_param *res);
     #endif
-    void preproc(int input_port, void *custom_input, struct rte_mbuf *pkt, struct annotation_set *anno);
-    void prepare_input(ComputeContext *ctx, struct resource_param *res, struct annotation_set **anno_ptr_array);
     int postproc(int input_port, void *custom_output, struct rte_mbuf *pkt, struct annotation_set *anno);
     size_t get_desired_workgroup_size(const char *device_name) const;
 
-protected:
-    typedef union _convert_8B_to_1B_arr {
-        uint64_t var;
-        uint8_t arr[8];
-    } convert_8B_to_1B_arr;
+    size_t get_used_datablocks(int *datablock_ids)
+    {
+        datablock_ids[0] = dbid_enc_payloads;
+        datablock_ids[1] = dbid_iv;
+        datablock_ids[2] = dbid_flow_ids;
+        datablock_ids[3] = dbid_aes_block_info;
+        return 4;
+    }
 
+protected:
     /* Maximum number of IPsec tunnels */
     int num_tunnels;
 
@@ -108,15 +97,6 @@ protected:
     unordered_map<struct ipaddr_pair, int> *h_sa_table; // tunnel lookup is done in CPU only. No need for GPU ptr.
     struct aes_sa_entry *h_key_array = NULL; // used in CPU.
     memory_t d_key_array_ptr; // points to the device buffer.
-
-    int dummy_index;
-
-private:
-    const int idx_iv = 0;
-    const int idx_key_indice = 1;
-    const int idx_pkt_offset = 2;
-    const int idx_pkt_index = 3;
-    const int idx_block_offset = 4;
 };
 
 EXPORT_ELEMENT(IPsecAES);

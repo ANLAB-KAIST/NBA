@@ -1,3 +1,4 @@
+FromInput()->
 CheckIPHeader() -> branch :: RandomWeightedBranch(60, 40);
 pathA :: L2Forward(method echoback) -> ToOutput();
 pathB :: Discard();

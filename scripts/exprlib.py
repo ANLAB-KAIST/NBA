@@ -148,10 +148,10 @@ class ExperimentEnv:
         self._loop.add_signal_handler(signal.SIGINT, self._signal_coro)
 
         # Configurations.
-        self._nba_env = {
-            'NBA_IO_BATCH_SIZE': 64,
-            'NBA_COMP_BATCH_SIZE': 64,
-            'NBA_COPROC_PPDEPTH': 32,
+        self._nshader_env = {
+            'NSHADER_IO_BATCH_SIZE': 64,
+            'NSHADER_COMP_BATCH_SIZE': 64,
+            'NSHADER_COPROC_PPDEPTH': 32,
         }
         self._running_time = 0
 
@@ -268,14 +268,6 @@ class ExperimentEnv:
             '-c', 'f' * (multiprocessing.cpu_count() // 4),
             '-n', '4',
         ]
-        # Add non-82599 NICs to blacklist
-        for line in execute('lspci | grep Ethernet | grep -v 82599',
-                            shell=True, iterable=True):
-            line = line.decode('utf8')
-            bus_addr = '0000:' + line.split(' ', 1)[0]
-            args.extend([
-                '-b', bus_addr,
-            ])
 
         if extra_args:
             args.extend(extra_args)
@@ -511,12 +503,12 @@ class ExperimentEnv:
 
     @property
     def envvars(self):
-        return self._nba_env
+        return self._nshader_env
 
     def get_merged_env(self):
         # Copy the inherited env-vars and add our specific ones.
         os_env = {k: v for k, v in os.environ.items()}
-        os_env.update({k: str(v) for k, v in self._nba_env.items()})
+        os_env.update({k: str(v) for k, v in self._nshader_env.items()})
         return os_env
 
     @property

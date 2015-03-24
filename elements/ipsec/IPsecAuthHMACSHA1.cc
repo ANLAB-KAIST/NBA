@@ -5,7 +5,7 @@
 #include "../../lib/types.hh"
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 /* Array which stores per-tunnel HMAC key for each tunnel.
  * It is copied to each node's node local storage during per-node initialization
@@ -105,7 +105,7 @@ int IPsecAuthHMACSHA1::configure(comp_thread_context *ctx, std::vector<std::stri
 // +----------+---------------+--------+----+------------+---------+-------+---------------------+
 // ^ethh      ^iph            ^esph    ^encaped_iph
 //                            ^payload_out
-//                        ^encapsulated
+//                            ^encapsulated
 //                            <===== authenticated part (payload_len) =====>
 //
 int IPsecAuthHMACSHA1::process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno)
@@ -125,8 +125,8 @@ int IPsecAuthHMACSHA1::process(int input_port, struct rte_mbuf *pkt, struct anno
     struct hmac_sa_entry *sa_entry;
 
     uint8_t *hmac_key;
-    if (likely(anno_isset(anno, NBA_ANNO_IPSEC_FLOW_ID))) {
-        sa_entry = &h_key_array[anno_get(anno, NBA_ANNO_IPSEC_FLOW_ID)];
+    if (likely(anno_isset(anno, NSHADER_ANNO_IPSEC_FLOW_ID))) {
+        sa_entry = &h_key_array[anno_get(anno, NSHADER_ANNO_IPSEC_FLOW_ID)];
         hmac_key = sa_entry->hmac_key;
 
         rte_memcpy(hmac_buf + 64, payload_out, payload_len);
@@ -140,10 +140,6 @@ int IPsecAuthHMACSHA1::process(int input_port, struct rte_mbuf *pkt, struct anno
         }
         SHA1(hmac_buf, 64 + SHA_DIGEST_LENGTH, payload_out + payload_len);
         // TODO: correctness check..
-
-        /* HACK: preserve latency info from generator. */
-        *(uint16_t*) ((char*) esph)                      = (uint16_t) anno_get(anno, NBA_ANNO_IFACE_OUT);
-        *(uint64_t*) (((char*) esph) + sizeof(uint16_t)) =            anno_get(anno, NBA_ANNO_TIMESTAMP);
     } else {
         return DROP;
     }
@@ -165,92 +161,17 @@ void IPsecAuthHMACSHA1::cuda_init_handler(ComputeDevice *device)
 }
 
 void IPsecAuthHMACSHA1::cuda_compute_handler(ComputeContext *cctx,
-                                             struct resource_param *res,
-                                             struct annotation_set **anno_ptr_array)
+                                             struct resource_param *res)
 {
-    struct kernel_arg args[3];
-    args[0].ptr = (void *) &cctx->dev_mem_storage[idx_hmac_key_indice].ptr;
-    args[0].size = sizeof(void *);
-    args[0].align = alignof(void *);
-    args[1].ptr = (void *) &d_key_array_ptr;
-    args[1].size = sizeof(void *);
-    args[1].align = alignof(void *);
-    args[2].ptr = (void *) &cctx->dev_mem_storage[idx_pkt_offset].ptr;
-    args[2].size = sizeof(void *);
-    args[2].align = alignof(void *);
+    struct kernel_arg arg;
+    arg = {(void *) &d_key_array_ptr, sizeof(void *), alignof(void *)};
+    cctx->push_kernel_arg(arg);
 
     kernel_t kern;
     kern.ptr = ipsec_hsha1_encryption_get_cuda_kernel();
-    cctx->enqueue_kernel_launch(kern, res, args, 3);
+    cctx->enqueue_kernel_launch(kern, res);
 }
 #endif
-
-void IPsecAuthHMACSHA1::preproc(int input_port, void *custom_input, struct rte_mbuf *pkt, struct annotation_set *anno)
-{
-    return;
-}
-
-void IPsecAuthHMACSHA1::prepare_input(ComputeContext *cctx,
-                                      struct resource_param *res,
-                                      struct annotation_set **anno_ptr_array)
-{
-    int *h_hmac_key_indice = nullptr;
-    int32_t *h_pkt_offset = nullptr;
-    memory_t d_hmac_key_indice;
-    memory_t d_pkt_offset;
-
-    // IPsec per-flow handling in GPU computation
-    // Work unit of IPsecAuthHMACSHA1 is packet.
-    size_t input_buffer_offset = 0;
-    size_t *input_buffer_elemsizes = (size_t*) cctx->in_elemsizes_h;
-    unsigned total_num_pkts = cctx->total_num_pkts;
-
-    // initialize host, device buffer
-    cctx->alloc_input_buffer(total_num_pkts * sizeof(int), (void **) &h_hmac_key_indice, &d_hmac_key_indice);
-    cctx->alloc_input_buffer(total_num_pkts * sizeof(int32_t), (void **) &h_pkt_offset, &d_pkt_offset);
-
-    struct annotation_set *pkt_anno_set = nullptr;
-    struct hmac_sa_entry *entry = nullptr;
-
-    // per-packet loop
-    for (unsigned i = 0; i < total_num_pkts; ++i) {
-        if (anno_ptr_array[i] == nullptr) {
-            h_hmac_key_indice[i] = 0;
-            h_pkt_offset[i] = -1;
-            continue;
-        }
-        pkt_anno_set = anno_ptr_array[i];
-        h_pkt_offset[i] = input_buffer_offset;
-        input_buffer_offset += input_buffer_elemsizes[i];
-
-        // Get tunnel index for a pkt and get HMAC key.
-        h_hmac_key_indice[i] = (int) anno_get(pkt_anno_set, NBA_ANNO_IPSEC_FLOW_ID);
-    }
-    cctx->host_ptr_storage[idx_pkt_offset] = h_pkt_offset;
-    cctx->host_ptr_storage[idx_hmac_key_indice] = h_hmac_key_indice;
-    cctx->dev_mem_storage[idx_pkt_offset] = d_pkt_offset;
-    cctx->dev_mem_storage[idx_hmac_key_indice] = d_hmac_key_indice;
-}
-
-int IPsecAuthHMACSHA1::postproc(int input_port, void *custom_output, struct rte_mbuf *pkt, struct annotation_set *anno)
-{
-    struct ether_hdr *ethh = rte_pktmbuf_mtod(pkt, struct ether_hdr *);
-    struct iphdr *iph = (struct iphdr *) (ethh + 1);
-    uint8_t *payload_out = (uint8_t *) (iph + 1);
-    int payload_len = (ntohs(iph->tot_len) - (iph->ihl * 4) - SHA_DIGEST_LENGTH);
-
-    // Copy result of HSHA1 is put into the HMAC-SHA1 signature part of input packet.
-    rte_memcpy(payload_out + payload_len, custom_output, SHA_DIGEST_LENGTH);
-
-    // TODO: optional validation
-
-    /* HACK: preserve latency info from generator. */
-    *(uint16_t*) ((char*) payload_out)                      = (uint16_t) anno_get(anno, NBA_ANNO_IFACE_OUT);
-    *(uint64_t*) (((char*) payload_out) + sizeof(uint16_t)) =            anno_get(anno, NBA_ANNO_TIMESTAMP);
-
-    // Just pass packet to the next element.
-    return 0;
-}
 
 size_t IPsecAuthHMACSHA1::get_desired_workgroup_size(const char *device_name) const
 {
@@ -264,3 +185,10 @@ size_t IPsecAuthHMACSHA1::get_desired_workgroup_size(const char *device_name) co
     #endif
     return 32u;
 }
+
+int IPsecAuthHMACSHA1::postproc(int input_port, void *custom_output, struct rte_mbuf *pkt, struct annotation_set *anno)
+{
+    return 0;
+}
+
+// vim: ts=8 sts=4 sw=4 et

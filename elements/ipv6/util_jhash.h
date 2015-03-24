@@ -67,6 +67,7 @@ static inline u32 jhash(const void *key, u32 length, u32 initval)
         k += 12;
         len -= 12;
     }
+    
 
     c += length;
     switch (len) {

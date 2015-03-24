@@ -1,5 +1,5 @@
-#ifndef __NBA_TYPES_HH__
-#define __NBA_TYPES_HH__
+#ifndef __NSHADER_TYPES_HH__
+#define __NSHADER_TYPES_HH__
 
 #include "common.hh"
 #include "objtypes.hh"
@@ -14,7 +14,7 @@
 #include <vector>
 #include <unordered_map>
 #include <functional>
-extern "C" {
+
 #include <pthread.h>
 #include <unistd.h>
 #include <ev.h>
@@ -24,9 +24,9 @@ extern "C" {
 #include <rte_mbuf.h>
 #include <rte_ether.h>
 #include <rte_ring.h>
-}
 
-namespace nba {
+
+namespace nshader {
 
 /* forward declarations */
 class CondVar;
@@ -34,6 +34,7 @@ class CountedBarrier;
 class Lock;
 class Element;
 class PacketBatch;
+class DataBlock;
 class SystemInspector;
 class ElementGraph;
 class ComputeDevice;
@@ -56,35 +57,9 @@ struct port_info {
     struct ether_addr addr;
 } __attribute__ ((aligned(64)));
 
-/* ROI(region of interest) data structures for offloading */
-enum InputROIType {
-    PARTIAL_PACKET	= 0,	// Packet segment with fixed size.
-    WHOLE_PACKET	= 1,	// Whole packet. (whose size can be dynamic)
-    CUSTOM_INPUT	= 2,	// Uses preproc interface in OffloadableElement class to copy ROI.
-};
-
-enum OutputROIType {
-    FIXED_SEGMENT	= 0,	// Segment with fixed size.
-    SAME_AS_INPUT	= 1,	// Same as input
-    CUSTOM_OUTPUT	= 2,	// Uses postproc interface in OffloadableElement class to copy ROI.
-};
-
-struct input_roi_info {
-    enum InputROIType type;
-    size_t offset;
-    int length;
-    int align;
-};
-
-struct output_roi_info {
-    enum OutputROIType type;
-    size_t offset;
-    int length;
-};
-
 struct new_packet
 {
-    char buf[NBA_MAX_PACKET_SIZE];
+    char buf[NSHADER_MAX_PACKET_SIZE];
     size_t len;
     int out_port;
 };
@@ -113,7 +88,7 @@ struct io_thread_context {
     int emul_packet_size;
     int emul_ip_version;
     int mode;
-    struct hwrxq rx_hwrings[NBA_MAX_PORTS * NBA_MAX_QUEUES_PER_PORT];
+    struct hwrxq rx_hwrings[NSHADER_MAX_PORTS * NSHADER_MAX_QUEUES_PER_PORT];
     struct ev_timer *stat_timer;
     struct io_port_stat *port_stats;
     struct io_thread_context *node_master_ctx;
@@ -122,15 +97,15 @@ struct io_thread_context {
 
     struct rte_ring* rx_queue;
     struct ev_async *rx_watcher;
-    struct port_info tx_ports[NBA_MAX_PORTS];
+    struct port_info tx_ports[NSHADER_MAX_PORTS];
     comp_thread_context *comp_ctx;
 
     char _reserved2[64]; // to prevent false-sharing
 
     struct rte_ring *drop_queue;
-    struct rte_ring *tx_queues[NBA_MAX_PORTS];
+    struct rte_ring *tx_queues[NSHADER_MAX_PORTS];
 
-    struct rte_mempool* rx_pools[NBA_MAX_PORTS];
+    struct rte_mempool* rx_pools[NSHADER_MAX_PORTS];
     struct rte_mempool* emul_rx_packet_pool = nullptr;
     struct rte_mempool* new_packet_pool = nullptr;
     struct rte_mempool* new_packet_request_pool = nullptr;
@@ -188,12 +163,14 @@ public:
     unsigned rx_wakeup_threshold;
 
     struct rte_mempool *batch_pool;
+    struct rte_mempool *dbstate_pool;
     struct rte_mempool *task_pool;
     struct rte_mempool *packet_pool;
     ElementGraph *elem_graph;
     SystemInspector *inspector;
     FixedRing<ComputeContext *, nullptr> cctx_list;
     PacketBatch *input_batch;
+    DataBlock *datablock_registry[NSHADER_MAX_DATABLOCKS];
 
     bool stop_task_batching;
     struct rte_ring *rx_queue;
@@ -205,7 +182,7 @@ public:
     struct io_thread_context *io_ctx;
     std::unordered_map<std::string, ComputeDevice *> *named_offload_devices;
     std::vector<ComputeDevice*> *offload_devices;
-    struct rte_ring *offload_input_queues[NBA_MAX_COPROCESSORS]; /* ptr to per-device task input queue */
+    struct rte_ring *offload_input_queues[NSHADER_MAX_COPROCESSORS]; /* ptr to per-device task input queue */
 
     char _reserved3[64]; /* prevent false-sharing */
 

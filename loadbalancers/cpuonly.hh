@@ -3,7 +3,7 @@
 
 #include "../lib/loadbalancer.hh"
 
-namespace nba {
+namespace nshader {
 
 class CPUOnlyLB : public LoadBalancer
 {

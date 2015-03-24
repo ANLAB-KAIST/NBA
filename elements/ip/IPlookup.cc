@@ -6,7 +6,7 @@
 #include "../../lib/types.hh"
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 static unordered_map<uint32_t, uint16_t> pPrefixTable[33];
 static unsigned int current_TBLlong = 0;
@@ -80,21 +80,8 @@ int IPlookup::process(int input_port, struct rte_mbuf *pkt, struct annotation_se
     //unsigned n = (pkt->pkt.in_port <= (num_tx_ports / 2) - 1) ? 0 : (num_tx_ports / 2);
     //rr_port = (rr_port + 1) % (num_tx_ports / 2) + n;
     rr_port = (rr_port + 1) % (num_tx_ports);
-    anno_set(anno, NBA_ANNO_IFACE_OUT, rr_port);
+    anno_set(anno, NSHADER_ANNO_IFACE_OUT, rr_port);
     return 0;
-}
-
-void IPlookup::preproc(int input_port, void *custom_input,
-                       struct rte_mbuf *pkt, struct annotation_set *anno)
-{
-    return;
-}
-
-void IPlookup::prepare_input(ComputeContext *cctx,
-                             struct resource_param *res,
-                             struct annotation_set **anno_ptr_array)
-{
-    return;
 }
 
 int IPlookup::postproc(int input_port, void *custom_output,
@@ -108,7 +95,7 @@ int IPlookup::postproc(int input_port, void *custom_output,
     //unsigned n = (pkt->pkt.in_port <= (num_tx_ports / 2) - 1) ? 0 : (num_tx_ports / 2);
     //rr_port = (rr_port + 1) % (num_tx_ports / 2) + n;
     rr_port = (rr_port + 1) % (num_tx_ports);
-    anno_set(anno, NBA_ANNO_IFACE_OUT, rr_port);
+    anno_set(anno, NSHADER_ANNO_IFACE_OUT, rr_port);
     return 0;
 }
 
@@ -127,19 +114,23 @@ size_t IPlookup::get_desired_workgroup_size(const char *device_name) const
 
 #ifdef USE_CUDA
 void IPlookup::cuda_compute_handler(ComputeContext *cctx,
-                                    struct resource_param *res,
-                                    struct annotation_set **anno_ptr_array)
+                                    struct resource_param *res)
 {
-    struct kernel_arg args[2];
-    args[0].ptr = (void *) &TBL24_d;
-    args[0].size = sizeof(void *);
-    args[0].align = alignof(void *);
-    args[1].ptr = (void *) &TBLlong_d;
-    args[1].size = sizeof(void *);
-    args[1].align = alignof(void *);
+    //printf("G++ datablock_kernel_arg (%lu)\n", sizeof(struct datablock_kernel_arg));
+    //printf("G++   .total_item_count (%lu)\n", offsetof(struct datablock_kernel_arg, total_item_count));
+    //printf("G++   .buffer_bases (%lu)\n", offsetof(struct datablock_kernel_arg, buffer_bases));
+    //printf("G++   .item_count (%lu)\n", offsetof(struct datablock_kernel_arg, item_count));
+    //printf("G++   .item_size (%lu)\n", offsetof(struct datablock_kernel_arg, item_size));
+    //printf("G++   .item_sizes (%lu)\n", offsetof(struct datablock_kernel_arg, item_sizes));
+
+    struct kernel_arg arg;
+    arg = {(void *) &TBL24_d, sizeof(void *), alignof(void *)};
+    cctx->push_kernel_arg(arg);
+    arg = {(void *) &TBLlong_d, sizeof(void *), alignof(void *)};
+    cctx->push_kernel_arg(arg);
     kernel_t kern;
     kern.ptr = ipv4_route_lookup_get_cuda_kernel();
-    cctx->enqueue_kernel_launch(kern, res, args, 2);
+    cctx->enqueue_kernel_launch(kern, res);
 }
 
 void IPlookup::cuda_init_handler(ComputeDevice *device)

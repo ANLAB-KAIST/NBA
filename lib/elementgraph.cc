@@ -5,7 +5,7 @@
 #include "computedevice.hh"
 #include "computecontext.hh"
 #include "loadbalancer.hh"
-extern "C" {
+
 #include <rte_cycles.h>
 #include <rte_memory.h>
 #include <rte_malloc.h>
@@ -14,14 +14,14 @@ extern "C" {
 #ifdef USE_NVPROF
 #include <nvToolsExt.h>
 #endif
-}
+
 #include <cassert>
 
 
 static const uint64_t BRANCH_TRUNC_LIMIT = (1<<24);
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 ElementGraph::ElementGraph(comp_thread_context *ctx)
     : elements(128, ctx->loc.node_id), sched_elements(16, ctx->loc.node_id),
@@ -31,7 +31,7 @@ ElementGraph::ElementGraph(comp_thread_context *ctx)
     input_elem = nullptr;
     assert(0 == rte_malloc_validate(ctx, NULL));
     /* IMPORTANT: ready_tasks must be larger than task_pool. */
-    for (int i = 0; i < NBA_MAX_COPROCESSOR_TYPES; i++)
+    for (int i = 0; i < NSHADER_MAX_COPROCESSOR_TYPES; i++)
         ready_tasks[i].init(256, ctx->loc.node_id);
 }
 
@@ -42,21 +42,21 @@ void ElementGraph::flush_offloaded_tasks()
     uint64_t len_ready_tasks = ready_tasks[0].size();
     print_ratelimit("# ready tasks", len_ready_tasks, 10000);
 
-    for (int dev_idx = 0; dev_idx < NBA_MAX_COPROCESSOR_TYPES; dev_idx++) {
+    for (int dev_idx = 0; dev_idx < NSHADER_MAX_COPROCESSOR_TYPES; dev_idx++) {
         // TODO: now it's possible to merge multiple tasks to increase batch size!
         while (!ready_tasks[dev_idx].empty()) {
             OffloadTask *task = ready_tasks[dev_idx].front();
             ready_tasks[dev_idx].pop_front();
-            OffloadableElement *elem = task->offloaded_elements[0];
             //task->offload_start = rte_rdtsc();
 
             /* Start offloading! */
             // TODO: create multiple cctx_list and access them via dev_idx for hetero-device systems.
-            if (!ctx->cctx_list.empty()) {
+            //if (!ctx->cctx_list.empty()) {
+            ComputeContext *cctx = ctx->cctx_list.front();
+                //ctx->cctx_list.pop_front();
+            if (cctx->state == ComputeContext::READY) {
 
                 /* Grab a compute context. */
-                ComputeContext *cctx = ctx->cctx_list.front();
-                ctx->cctx_list.pop_front();
                 assert(cctx != nullptr);
                 assert(cctx->state == ComputeContext::READY);
                 #ifdef USE_NVPROF
@@ -66,34 +66,38 @@ void ElementGraph::flush_offloaded_tasks()
                 /* Prepare to offload. */
                 cctx->state = ComputeContext::PREPARING;
                 cctx->currently_running_task = task;
+                // FIXME: dedicate a single cctx to each computation thread
+                //        (COPROC_CTX_PER_COMPTHREAD 설정이 1이면 괜찮지만 아예 1로 고정할 것.)
                 task->cctx = cctx;
-                task->cctx->clear_io_buffers();
-                size_t num_offl_pkts = task->calculate_buffer_sizes();  // reads input/ouput ROI
-                if (likely(num_offl_pkts > 0)) {
-                    task->prepare_host_buffer();     // executes preprocess() and prepare_input() handlers.
-                    // Until this point, no device operations (e.g., CUDA API calls) are executed.
-                    /* Enqueue the offload task. */
-                    assert(0 == rte_ring_enqueue(ctx->offload_input_queues[dev_idx], (void*) task));
 
-                    assert(task->offload_start);
-                    {
-                    	task->offload_cost += (rte_rdtsc()-task->offload_start);
-                    	task->offload_start = 0;
-                    }
-                    ev_async_send(ctx->coproc_ctx->loop, ctx->offload_devices->at(dev_idx)->input_watcher);
-                    if (ctx->inspector) ctx->inspector->dev_sent_batch_count[0] += task->num_batches;
-                } else {
-                    /* All packets in the task is invalid! Just kill the batch.
-                     * This can (rarely) happen when the switch broadcasts L2 multicast packets
-                     * and the system is idle, so that a batch of "invalid" packets is going to
-                     * be offloaded. */
-                    for (unsigned b = 0; b < task->num_batches; b ++)
-                        free_batch(task->batches[b]);
-                    task->~OffloadTask();
-                    rte_mempool_put(ctx->task_pool, (void *) task);
-                    cctx->state = ComputeContext::READY;
-                    ctx->cctx_list.push_back(cctx);
+                int datablock_ids[NSHADER_MAX_DATABLOCKS];
+                size_t num_db_used = task->elem->get_used_datablocks(datablock_ids);
+                for (unsigned k = 0; k < num_db_used; k++) {
+                    int dbid = datablock_ids[k];
+                    task->datablocks.push_back(dbid);
+                    task->dbid_h2d[dbid] = k;
                 }
+
+                //size_t total_num_pkts = 0;
+                for (PacketBatch *batch : task->batches) {
+                    //total_num_pkts = batch->count;
+                    if (batch->datablock_states == nullptr)
+                        assert(0 == rte_mempool_get(ctx->dbstate_pool, (void **) &batch->datablock_states));
+                    //assert(task->offload_start);
+                    //task->offload_cost += (rte_rdtsc() - task->offload_start);
+                    task->offload_start = 0;
+                }
+                //print_ratelimit("avg.# pkts sent to GPU", total_num_pkts, 100);
+                //assert(total_num_pkts > 0);
+
+                task->prepare_read_buffer();
+                task->prepare_write_buffer();
+
+                /* Until this point, no device operations (e.g., CUDA API calls) has been executed. */
+                /* Enqueue the offload task. */
+                assert(0 == rte_ring_enqueue(ctx->offload_input_queues[dev_idx], (void*) task));
+                ev_async_send(ctx->coproc_ctx->loop, ctx->offload_devices->at(dev_idx)->input_watcher);
+                if (ctx->inspector) ctx->inspector->dev_sent_batch_count[0] += task->batches.size();
                 #ifdef USE_NVPROF
                 nvtxRangePop();
                 #endif
@@ -172,7 +176,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
         Element *current_elem = batch->element;
         int input_port = batch->input_port;
         int batch_disposition = CONTINUE_TO_PROCESS;
-        int64_t lb_decision = anno_get(&batch->banno, NBA_BANNO_LB_DECISION);
+        int64_t lb_decision = anno_get(&batch->banno, NSHADER_BANNO_LB_DECISION);
         uint64_t _cpu_start = rte_rdtsc();
 
         /* Check if we can and should offload. */
@@ -205,24 +209,24 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                         }
                         new (task) OffloadTask();
                         task->src_loop = ctx->loop;
+                        task->comp_ctx = ctx;
                         task->completion_queue = ctx->task_completion_queue;
                         task->completion_watcher = ctx->task_completion_watcher;
                         task->elemgraph = this;
                         task->local_dev_idx = dev_idx;
-                        task->device = ctx->offload_devices->at(dev_idx);
-                        assert(task->device != nullptr);
-                        // TODO: extend to multiple elements
-                        task->offloaded_elements.push_back(offloadable);
+                        //task->device = ctx->offload_devices->at(dev_idx);
+                        //assert(task->device != nullptr);
+                        task->elem = offloadable;
+
                         offloadable->tasks[dev_idx] = task;
                     } else
                         task = offloadable->tasks[dev_idx];
                     assert(task != nullptr);
 
                     /* Add the current batch if the task batch is not full. */
-                    if (task->num_batches < ctx->num_coproc_ppdepth) {
-                        task->batches[task->num_batches] = batch;
-                        task->input_ports[task->num_batches] = input_port;
-                        task->num_batches ++;
+                    if (task->batches.size() < ctx->num_coproc_ppdepth) {
+                        task->batches.push_back(batch);
+                        task->input_ports.push_back(input_port);
                         #ifdef USE_NVPROF
                         nvtxMarkA("add_batch");
                         #endif
@@ -243,12 +247,12 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                      *  3. The time elapsed since the first packet is greater than
                      *     10 x avg.task completion time.
                      */
-                    assert(task->num_batches > 0);
+                    assert(task->batches.size() > 0);
                     uint64_t now = _cpu_start;
-                    if (task->num_batches == ctx->num_coproc_ppdepth
+                    if (task->batches.size() == ctx->num_coproc_ppdepth
                         //|| (ctx->load_balancer != nullptr && ctx->load_balancer->is_changed_to_cpu)
-                        || (now - task->batches[0]->recv_timestamp) / (float) rte_get_tsc_hz()
-                            > ctx->inspector->avg_task_completion_sec[dev_idx] * 10
+                        //|| (now - task->batches[0]->recv_timestamp) / (float) rte_get_tsc_hz() 
+                        //    > ctx->inspector->avg_task_completion_sec[dev_idx] * 10
                         )//|| (ctx->io_ctx->mode == IO_EMUL && !ctx->stop_task_batching))
                     {
                         //printf("avg task completion time: %.6f sec\n", ctx->inspector->avg_task_completion_sec[dev_idx]);
@@ -366,8 +370,8 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
             const int *const results = batch->results;
             PacketBatch *out_batches[num_max_outputs];
             // TODO: implement per-batch handling for branches
-#ifndef NBA_DISABLE_BRANCH_PREDICTION
-#ifndef NBA_BRANCH_PREDICTION_ALWAYS
+#ifndef NSHADER_DISABLE_BRANCH_PREDICTION
+#ifndef NSHADER_BRANCH_PREDICTION_ALWAYS
             /* use branch prediction when miss < total / 4. */
             if ((current_elem->branch_total >> 2) > (current_elem->branch_miss))
 #endif
@@ -405,7 +409,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                                     flush_offloaded_tasks();
                                 }
                                 new (out_batches[o]) PacketBatch();
-                                anno_set(&out_batches[o]->banno, NBA_BANNO_LB_DECISION, lb_decision);
+                                anno_set(&out_batches[o]->banno, NSHADER_BANNO_LB_DECISION, lb_decision);
                                 out_batches[o]->recv_timestamp = batch->recv_timestamp;
                             }
                             /* Append the packet to the output batch. */
@@ -484,11 +488,11 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                 }
                 continue;
             }
-#ifndef NBA_BRANCH_PREDICTION_ALWAYS
+#ifndef NSHADER_BRANCH_PREDICTION_ALWAYS
             else
 #endif
 #endif
-#ifndef NBA_BRANCH_PREDICTION_ALWAYS
+#ifndef NSHADER_BRANCH_PREDICTION_ALWAYS
             {
                 while (rte_mempool_get_bulk(ctx->batch_pool, (void **) out_batches, num_outputs) == -ENOENT
                        && !ctx->io_ctx->loop_broken) {
@@ -503,7 +507,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                 /* Initialize copy-batches. */
                 for (int o = 0; o < num_outputs; o++) {
                     new (out_batches[o]) PacketBatch();
-                    anno_set(&out_batches[o]->banno, NBA_BANNO_LB_DECISION, lb_decision);
+                    anno_set(&out_batches[o]->banno, NSHADER_BANNO_LB_DECISION, lb_decision);
                     out_batches[o]->recv_timestamp = batch->recv_timestamp;
                 }
 
@@ -589,6 +593,27 @@ void ElementGraph::enqueue_postproc_batch(PacketBatch *batch, Element *offloaded
     batch->element = offloaded_elem;
     batch->input_port = input_port;
     delayed_batches.push_back(batch);
+}
+
+bool ElementGraph::check_datablock_reuse(Element *offloaded_elem, int datablock_id)
+{
+    //bool is_offloadable = ((offloaded_elem->next_elems[0]->get_type() & ELEMTYPE_OFFLOADABLE) != 0);
+    //int used_dbids[NSHADER_MAX_DATABLOCKS];
+    //if (is_offloadable) {
+    //    OffloadableElement *oelem = dynamic_cast<OffloadableElement*> (offloaded_elem);
+    //    assert(oelem != nullptr);
+    //    size_t n = oelem->get_used_datablocks(used_dbids);
+    //    for (unsigned i = 0; i < n; i++)
+    //        if (used_dbids[i] == datablock_id)
+    //            return true;
+    //}
+    return false;
+}
+
+bool ElementGraph::check_next_offloadable(Element *offloaded_elem)
+{
+    // FIXME: generalize for branched offloaded_elem
+    return ((offloaded_elem->next_elems[0]->get_type() & ELEMTYPE_OFFLOADABLE) != 0);
 }
 
 int ElementGraph::add_element(Element *new_elem)

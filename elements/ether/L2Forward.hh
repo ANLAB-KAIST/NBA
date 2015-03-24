@@ -1,18 +1,18 @@
-#ifndef __NBA_ELEMENT_ETHER_L2FWD_HH__
-#define __NBA_ELEMENT_ETHER_L2FWD_HH_
+#ifndef __NSHADER_ELEMENT_ETHER_L2FWD_HH__
+#define __NSHADER_ELEMENT_ETHER_L2FWD_HH_
 
-extern "C" {
+
 #include <rte_config.h>
 #include <rte_memory.h>
 #include <rte_mbuf.h>
 #include <rte_ether.h>
-}
+
 #include "../../lib/element.hh"
 #include "../../lib/annotation.hh"
 #include <vector>
 #include <string>
 
-namespace nba {
+namespace nshader {
 
 class L2Forward : public Element {
 public:

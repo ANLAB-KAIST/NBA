@@ -1,5 +1,5 @@
-#ifndef __NBA_PHI_COMPUTECTX_HH__
-#define __NBA_PHI_COMPUTECTX_HH__
+#ifndef __NSHADER_PHI_COMPUTECTX_HH__
+#define __NSHADER_PHI_COMPUTECTX_HH__
 
 #include <deque>
 #include <CL/opencl.h>
@@ -9,8 +9,10 @@
 #include "utils.hh"
 #include "mempool.hh"
 
-namespace nba
+namespace nshader
 {
+
+#define PHI_MAX_KERNEL_ARGS     (16)
 
 class PhiComputeContext: public ComputeContext
 {
@@ -28,15 +30,13 @@ public:
     void *get_host_input_buffer_base();
     memory_t get_device_input_buffer_base();
     size_t get_total_input_buffer_size();
-    void set_io_buffers(void *in_h, memory_t in_d, size_t in_sz,
-                        void *out_h, memory_t out_d, size_t out_sz);
-    void set_io_buffer_elemsizes(size_t *in_h, memory_t in_d, size_t in_sz,
-                                 size_t *out_h, memory_t out_d, size_t out_sz);
+
+    void clear_kernel_args() { }
+    void push_kernel_arg(struct kernel_arg &arg) { }
 
     int enqueue_memwrite_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size);
     int enqueue_memread_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size);
-    int enqueue_kernel_launch(kernel_t kernel, struct resource_param *res,
-                  struct kernel_arg *args, size_t num_args);
+    int enqueue_kernel_launch(kernel_t kernel, struct resource_param *res);
     int enqueue_event_callback(void (*func_ptr)(ComputeContext *ctx, void *user_arg), void *user_arg);
 
     void *get_stream()
@@ -96,9 +96,12 @@ private:
     PhiMemoryPool *dev_mempool_out;
     CPUMemoryPool *cpu_mempool_in;
     CPUMemoryPool *cpu_mempool_out;
+
+    size_t num_kernel_args;
+    struct kernel_arg kernel_args[CUDA_MAX_KERNEL_ARGS];
 };
 
 }
-#endif /* __NBA_PHI_COMPUTECTX_HH__ */
+#endif /* __NSHADER_PHI_COMPUTECTX_HH__ */
 
 // vim: ts=8 sts=4 sw=4 et

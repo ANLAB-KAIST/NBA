@@ -13,7 +13,7 @@
  */
 
 #ifdef __cplusplus
-extern "C" {
+
 #endif
 
 inline void __cudaSafeCall(cudaError err, const char *file, const int line)
@@ -22,7 +22,7 @@ inline void __cudaSafeCall(cudaError err, const char *file, const int line)
         fprintf(stderr, "%s(%i): CUDA Runtime Error %d: %s.\n",
             file, line, (int)err, cudaGetErrorString(err));
         exit(-1);
-    }
+    
 }
 
 #ifdef __cplusplus

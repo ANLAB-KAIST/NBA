@@ -18,14 +18,14 @@
 #define debugprint printf
 #define EMUSYNC __syncthreads()
 #else
-__device__ void _NOOPfunction(const char *format) {
+__device__ void _NOOPfunction(char *format) {
 }
-__device__ void _NOOPfunction(const char *format, unsigned int onearg) {
+__device__ void _NOOPfunction(char *format, unsigned int onearg) {
 }
-__device__ void _NOOPfunction(const char *format, unsigned int onearg,
+__device__ void _NOOPfunction(char *format, unsigned int onearg,
         unsigned int twoargs) {
 }
-__device__ void _NOOPfunction(const char *format, char *onearg) {
+__device__ void _NOOPfunction(char *format, char *onearg) {
 }
 #define EMUSYNC do {} while (0)
 #define debugprint _NOOPfunction
@@ -1774,7 +1774,7 @@ __global__ void computeHMAC_SHA1_AES(
  * AES_ecb_128_encryption and AES_decrypt_key_prepare(),
  * AES_cbc_128_encrypt_gpu() is only used in NBA, for now. */
  
-void *nba::ipsec_hmac_sha1_aes_get_cuda_kernel() {
+void *nshader::ipsec_hmac_sha1_aes_get_cuda_kernel() {
 	return reinterpret_cast<void *> (computeHMAC_SHA1_AES);
 }
 

@@ -1,5 +1,5 @@
-#ifndef __NBA_COMPUTEDEVICE_HH__
-#define __NBA_COMPUTEDEVICE_HH__
+#ifndef __NSHADER_COMPUTEDEVICE_HH__
+#define __NSHADER_COMPUTEDEVICE_HH__
 
 #include <cstdint>
 #include <string>
@@ -10,7 +10,7 @@
 
 using namespace std;
 
-namespace nba {
+namespace nshader {
 
 enum HostMemoryFlags {
     HOST_DEFAULT = 0,

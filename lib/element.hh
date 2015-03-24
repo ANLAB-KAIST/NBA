@@ -1,13 +1,14 @@
-#ifndef __NBA_ELEMENT_HH__
-#define __NBA_ELEMENT_HH__
+#ifndef __NSHADER_ELEMENT_HH__
+#define __NSHADER_ELEMENT_HH__
 
 #include "types.hh"
-extern "C" {
+#include "queue.hh"
+#include "graphanalysis.hh"
 #include <rte_config.h>
 #include <rte_memory.h>
 #include <rte_mempool.h>
 #include <rte_mbuf.h>
-}
+
 #include <cassert>
 #include <string>
 #include <vector>
@@ -18,7 +19,7 @@ extern "C" {
 #include "offloadtask.hh"
 #include "nodelocalstorage.hh"
 
-namespace nba {
+namespace nshader {
 
 class Packet;   /* forward declaration */
 class Element;  /* forward declaration */
@@ -42,11 +43,16 @@ struct element_info {
 
 #define EXPORT_ELEMENT(...)
 
-class Element {
+#define NSHADER_MAX_ELEM_NEXTS (16)
+
+class Element : public GraphMetaData{
+
+    friend class ElementGraph;
+
 public:
     uint64_t branch_total = 0;
     uint64_t branch_miss = 0;
-    uint64_t branch_count[16]; //XXX ElementGraph::num_max_outputs = 16
+    uint64_t branch_count[NSHADER_MAX_ELEM_NEXTS];
 
     Element();
     virtual ~Element();
@@ -71,11 +77,13 @@ public:
      */
     virtual int _process_batch(int input_port, PacketBatch *batch);
 
+    virtual void get_datablocks(std::vector<int> &datablock_ids){}; //TODO fill here...
+
     comp_thread_context *ctx;
 
 protected:
-    std::vector<Element*> next_elems;
-    std::vector<int> next_connected_inputs;
+    FixedArray<Element*, nullptr, NSHADER_MAX_ELEM_NEXTS> next_elems;
+    FixedArray<int, -1, NSHADER_MAX_ELEM_NEXTS> next_connected_inputs;
 
     Packet *packet;
 
@@ -84,9 +92,6 @@ protected:
     int node_idx;
 
 private:
-    friend class ElementGraph;
-    friend class Classifier;
-
     /**
      * Parse "x/y" or "x1-x2/y1-y2" variations, where x is positive
      * integers and y is zero or positive integers or '*' (arbitrary
@@ -145,34 +150,34 @@ public:
 };
 
 class OffloadableElement : virtual public Element {
+
     friend class ElementGraph;
+
 public:
+    int reuse_head_ref = 0;
+    int reuse_tail_ref = 0;
+
     OffloadableElement() : Element()
     {
         if (dummy_device) {
-            auto ch = [this] (ComputeContext *ctx, struct resource_param *res,
-                              struct annotation_set **anno_ptr_array) {
-                this->dummy_compute_handler(ctx, res, anno_ptr_array);
+            auto ch = [this] (ComputeContext *ctx, struct resource_param *res) {
+                this->dummy_compute_handler(ctx, res);
             };
             offload_compute_handlers.insert({{"dummy", ch},});
         }
-        for (int i = 0; i < NBA_MAX_COPROCESSOR_TYPES; i++)
+        for (int i = 0; i < NSHADER_MAX_COPROCESSOR_TYPES; i++)
             tasks[i] = nullptr;
     }
     virtual ~OffloadableElement() {}
     int get_type() const { return ELEMTYPE_OFFLOADABLE; }
 
     virtual void get_supported_devices(std::vector<std::string> &device_names) const = 0;
-    virtual void get_input_roi(struct input_roi_info *roi) const = 0;
-    virtual void get_output_roi(struct output_roi_info *roi) const = 0;
-    virtual size_t get_desired_workgroup_size(const char *device_name) const = 0;
+    //virtual size_t get_desired_workgroup_size(const char *device_name) const = 0;
+    virtual int get_offload_item_counter_dbid() const = 0;
+    virtual size_t get_used_datablocks(int *datablock_ids) = 0;
+    //virtual void get_datablocks(std::vector<int> &datablock_ids){get_used_datablocks(datablock_ids);}; //TODO fill here...
 
-    virtual void preproc(int input_port, void *custom_input,  struct rte_mbuf *pkt, struct annotation_set *anno) = 0;
-    virtual void prepare_input(ComputeContext *ctx, struct resource_param *res, struct annotation_set **anno_ptr_array) = 0;
-    virtual int postproc(int input_port, void *custom_output, struct rte_mbuf *pkt, struct annotation_set *anno) = 0;
-
-    void preproc_batch(int input_port, void *custom_input, PacketBatch *batch);
-    int *postproc_batch(int input_port, void *custom_output, PacketBatch *batch);
+    virtual int postproc(int input_port, void *custom_output, struct rte_mbuf *pkt, struct annotation_set *anno) { return 0; }
 
     /** Offload handlers are executed in the coprocessor thread. */
     // TODO: optimize (avoid using unordered_map)?
@@ -180,8 +185,8 @@ public:
     std::unordered_map<std::string, offload_init_handler> offload_init_handlers;
 
 private:
-    OffloadTask *tasks[NBA_MAX_COPROCESSOR_TYPES];
-    void dummy_compute_handler(ComputeContext *ctx, struct resource_param *res, struct annotation_set **anno_ptr_array);
+    OffloadTask *tasks[NSHADER_MAX_COPROCESSOR_TYPES];
+    void dummy_compute_handler(ComputeContext *ctx, struct resource_param *res);
 };
 
 }

@@ -4,7 +4,7 @@
 #include <rte_common.h>
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 struct phi_event_context {
     ComputeContext *computectx;
@@ -90,26 +90,15 @@ size_t PhiComputeContext::get_total_input_buffer_size()
     return cpu_mempool_in->get_alloc_size();
 }
 
-void PhiComputeContext::set_io_buffers(void *in_h, memory_t in_d, size_t in_sz,
-                       void *out_h, memory_t out_d, size_t out_sz)
+void PhiComputeContext::clear_kernel_args()
 {
-    this->in_h = in_h;
-    this->in_d = in_d;
-    this->out_h = out_h;
-    this->out_d = out_d;
-    this->in_sz = in_sz;
-    this->out_sz = out_sz;
+    num_kernel_args = 0;
 }
 
-void PhiComputeContext::set_io_buffer_elemsizes(size_t *in_h, memory_t in_d, size_t in_sz,
-                                                size_t *out_h, memory_t out_d, size_t out_sz)
+void PhiComputeContext::push_kernel_arg(struct kernel_arg &arg)
 {
-    this->in_elemsizes_h   = in_h;
-    this->in_elemsizes_d   = in_d;
-    this->out_elemsizes_h  = out_h;
-    this->out_elemsizes_d  = out_d;
-    this->in_elemsizes_sz  = in_sz;
-    this->out_elemsizes_sz = out_sz;
+    assert(num_kernel_args < PHI_MAX_KERNEL_ARGS);
+    kernel_args[num_kernel_args ++] = arg;  /* Copied to the array. */
 }
 
 int PhiComputeContext::enqueue_memwrite_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size)
@@ -122,17 +111,10 @@ int PhiComputeContext::enqueue_memread_op(void *host_buf, memory_t dev_buf, size
     return (int) clEnqueueReadBuffer(clqueue, dev_buf.clmem, CL_FALSE, offset, size, host_buf, 0, NULL, &clev);
 }
 
-int PhiComputeContext::enqueue_kernel_launch(kernel_t kernel, struct resource_param *res,
-                                             struct kernel_arg *args, size_t num_args)
+int PhiComputeContext::enqueue_kernel_launch(kernel_t kernel, struct resource_param *res)
 {
-    phiSafeCall(clSetKernelArg(kernel.clkernel, 0, sizeof(cl_mem), &in_d.clmem));
-    phiSafeCall(clSetKernelArg(kernel.clkernel, 1, sizeof(cl_mem), &out_d.clmem));
-    phiSafeCall(clSetKernelArg(kernel.clkernel, 2, sizeof(cl_mem), &in_elemsizes_d.clmem));
-    phiSafeCall(clSetKernelArg(kernel.clkernel, 3, sizeof(cl_mem), &out_elemsizes_d.clmem));
-    phiSafeCall(clSetKernelArg(kernel.clkernel, 4, sizeof(cl_uint), &res->num_workitems));
-    phiSafeCall(clSetKernelArg(kernel.clkernel, 5, sizeof(cl_mem), &checkbits_d.clmem));
-    for (unsigned i = 0; i < num_args; i++) {
-        phiSafeCall(clSetKernelArg(kernel.clkernel, 6 + i, args[i].size, args[i].ptr));
+    for (unsigned i = 0; i < num_kernel_args; i++) {
+        phiSafeCall(clSetKernelArg(kernel.clkernel, 6 + i, kernel_args[i].size, kernel_args[i].ptr));
     }
     clear_checkbits(res->num_workgroups);
     state = ComputeContext::RUNNING;

@@ -1,17 +1,17 @@
-#ifndef __NBA_NODELOCALSTORAGE_HH__
-#define __NBA_NODELOCALSTORAGE_HH__
+#ifndef __NSHADER_NODELOCALSTORAGE_HH__
+#define __NSHADER_NODELOCALSTORAGE_HH__
 
 #include "log.hh"
-extern "C" {
+
 #include <rte_memory.h>
 #include <rte_malloc.h>
 #include <rte_rwlock.h>
 #include <rte_spinlock.h>
-}
+
 #include <unordered_map>
 #include <string>
 
-namespace nba {
+namespace nshader {
 
 class NodeLocalStorage {
     /**
@@ -40,7 +40,7 @@ public:
     NodeLocalStorage(unsigned node_id)
     {
         _node_id = node_id;
-        for (int i = 0; i < NBA_MAX_NODELOCALSTORAGE_ENTRIES; i++) {
+        for (int i = 0; i < NSHADER_MAX_NODELOCALSTORAGE_ENTRIES; i++) {
             _pointers[i] = NULL;
             //_rwlocks[i] = NULL;
         }
@@ -56,14 +56,15 @@ public:
     {
         rte_spinlock_lock(&_node_lock);
         size_t kid = _keys.size();
-        assert(kid < NBA_MAX_NODELOCALSTORAGE_ENTRIES);
+        assert(kid < NSHADER_MAX_NODELOCALSTORAGE_ENTRIES);
         _keys.insert(std::pair<std::string, int>(key, kid));
 
         void *ptr = rte_malloc_socket("nls_alloc", size, 64, _node_id);
+        //void *ptr = new char*[size];
         assert(ptr != NULL);
         memset(ptr, 0xcd, size);
         size_t real_size = 0;
-        assert(0 == rte_malloc_validate(ptr, &real_size));
+        //assert(0 == rte_malloc_validate(ptr, &real_size));
         _pointers[kid] = ptr;
         RTE_LOG(DEBUG, ELEM, "NLS[%u]: malloc req size %'lu bytes, real size %'lu bytes\n", _node_id, size, real_size);
 
@@ -104,6 +105,7 @@ public:
         int kid = _keys[key];
         void *ptr = _pointers[kid];
         rte_free(ptr);
+        //delete (char*)ptr;
         //rte_rwlock_t *rwlock = _rwlocks[kid];
         //rte_free(rwlock);
         _pointers[kid] = NULL;
@@ -115,8 +117,8 @@ public:
 
 protected:
     unsigned _node_id;
-    //rte_rwlock_t *_rwlocks[NBA_MAX_NODELOCALSTORAGE_ENTRIES];
-    void *_pointers[NBA_MAX_NODELOCALSTORAGE_ENTRIES];
+    //rte_rwlock_t *_rwlocks[NSHADER_MAX_NODELOCALSTORAGE_ENTRIES];
+    void *_pointers[NSHADER_MAX_NODELOCALSTORAGE_ENTRIES];
     std::unordered_map<std::string, int> _keys;
     rte_spinlock_t _node_lock;
 };

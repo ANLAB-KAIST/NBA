@@ -5,7 +5,7 @@
 #include "../../lib/types.hh"
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 /* Array which stores per-tunnel AES key for each tunnel.
  * It is copied to each node's node local storage during per-node initialization
@@ -133,8 +133,8 @@ int IPsecAES_CBC::process(int input_port, struct rte_mbuf *pkt, struct annotatio
     struct aes_sa_entry *sa_entry = NULL;
     uint8_t *hmac_key = NULL;
 
-    if (likely(anno_isset(anno, NBA_ANNO_IPSEC_FLOW_ID))) {
-        sa_entry = &h_key_array[anno_get(anno, NBA_ANNO_IPSEC_FLOW_ID)];
+    if (likely(anno_isset(anno, NSHADER_ANNO_IPSEC_FLOW_ID))) {
+        sa_entry = &h_key_array[anno_get(anno, NSHADER_ANNO_IPSEC_FLOW_ID)];
 
         // AES processing
         // TODO: support decrpytion.
@@ -216,14 +216,14 @@ void IPsecAES_CBC::prepare_input(ComputeContext *cctx, struct resource_param *re
             // We just skip to set them here.
             continue;
         }
-        uint64_t flow_id = anno_get(anno_ptr_array[i], NBA_ANNO_IPSEC_FLOW_ID);
+        uint64_t flow_id = anno_get(anno_ptr_array[i], NSHADER_ANNO_IPSEC_FLOW_ID);
         h_pkt_offset[i] = input_buffer_offset;
         h_key_indice[i] = (uint32_t) flow_id;
         // We store IVs in annotations since we CANNOT access the original
         // packets but only the annotations here.
         // TODO: could we improve the abstraction?
-        iv_first_half.var = anno_get(anno_ptr_array[i], NBA_ANNO_IPSEC_IV1);
-        iv_second_half.var = anno_get(anno_ptr_array[i], NBA_ANNO_IPSEC_IV2);
+        iv_first_half.var = anno_get(anno_ptr_array[i], NSHADER_ANNO_IPSEC_IV1);
+        iv_second_half.var = anno_get(anno_ptr_array[i], NSHADER_ANNO_IPSEC_IV2);
         for (idx = 0; idx < 8; idx++) {
             h_iv[iv_offset + idx] = iv_first_half.arr[idx];
             h_iv[iv_offset + idx + 8] = iv_second_half.arr[idx];

@@ -6,9 +6,9 @@
 
 using namespace std;
 
-namespace nba {
+namespace nshader {
 
-// WeightedRandom version 1: Just moved from old NBA's dispatcher_wr.hh
+// WeightedRandom version 1: Just moved from old nShader's dispatcher_wr.hh
 class WeightedRandomLB1 : public LoadBalancer
 {
 public:

@@ -1,12 +1,12 @@
-#ifndef __NBA_ELEMENT_IPSEC_IPSECESPENCAP_HH__
-#define __NBA_ELEMENT_IPSEC_IPSECESPENCAP_HH__
+#ifndef __NSHADER_ELEMENT_IPSEC_IPSECESPENCAP_HH__
+#define __NSHADER_ELEMENT_IPSEC_IPSECESPENCAP_HH__
 
-extern "C" {
+
 #include <rte_config.h>
 #include <rte_memory.h>
 #include <rte_mbuf.h>
 #include <rte_ether.h>
-}
+
 #include "../../lib/element.hh"
 #include "../../lib/annotation.hh"
 #include <vector>
@@ -25,13 +25,14 @@ extern "C" {
 #include "../ipv6/util_hash_table.hh"
 #include "util_ipsec_key.hh"
 
-namespace nba {
+namespace nshader {
 
 class IPsecESPencap : public Element {
 public:
 	IPsecESPencap(): Element()
 	{
 		num_tunnels = 0;
+		tunnel_counter = 0;
 	}
 
 	~IPsecESPencap()
@@ -60,7 +61,7 @@ private:
 		uint32_t spi;		/* Security Parameters Index */
 		uint32_t rpl;		/* Replay counter */			// XXX: is this right to use this one?
 		uint32_t gwaddr;	// XXX: not used yet; when this value is used?
-		int entry_idx;
+		uint64_t entry_idx;
 	};
 
 	/* Maximum number of IPsec tunnels */

@@ -1,12 +1,12 @@
-#ifndef __NBA_ELEMENT_IPv6_LOOKUPIPV6ROUTE_HH__
-#define __NBA_ELEMENT_IPv6_LOOKUPIPV6ROUTE_HH__
+#ifndef __NSHADER_ELEMENT_IPv6_LOOKUPIPV6ROUTE_HH__
+#define __NSHADER_ELEMENT_IPv6_LOOKUPIPV6ROUTE_HH__
 
-extern "C" {
+
 #include <rte_config.h>
 #include <rte_memory.h>
 #include <rte_mbuf.h>
 #include <rte_ether.h>
-}
+
 #include "../../lib/element.hh"
 #include "../../lib/annotation.hh"
 #include "../../lib/computedevice.hh"
@@ -34,16 +34,18 @@ extern "C" {
 #include "../../engines/cuda/utils.hh"
 #endif
 
+#include "IPv6Datablocks.hh"
+
 using namespace std;
 
-namespace nba {
+namespace nshader {
 
 class LookupIP6Route : public OffloadableElement {
 public:
     LookupIP6Route(): OffloadableElement()
     {
         #ifdef USE_CUDA
-        auto ch = [this](ComputeContext *ctx, struct resource_param *res, struct annotation_set **anno_ptr_array) { this->cuda_compute_handler(ctx, res, anno_ptr_array); };
+        auto ch = [this](ComputeContext *ctx, struct resource_param *res) { this->cuda_compute_handler(ctx, res); };
         offload_compute_handlers.insert({{"cuda", ch},});
         auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
         offload_init_handlers.insert({{"cuda", ih},});
@@ -81,21 +83,11 @@ public:
         #endif
     }
 
-    void get_input_roi(struct input_roi_info *roi) const
+    size_t get_used_datablocks(int *datablock_ids)
     {
-        // Dest IPv6 addr, whose format is in6_addr struct, is converted to uint128_t in preproc().
-        roi->type = CUSTOM_INPUT;
-        roi->offset = 0;
-        roi->length = sizeof(uint128_t);
-        roi->align = 0;
-    }
-
-    void get_output_roi(struct output_roi_info *roi) const
-    {
-        roi->type = CUSTOM_OUTPUT;
-        roi->offset = 0;
-        roi->length = sizeof(uint16_t);
-//        roi->align = 0;
+        datablock_ids[0] = dbid_ipv6_dest_addrs;
+        datablock_ids[1] = dbid_ipv6_lookup_results;
+        return 2;
     }
 
     /* CPU-only method */
@@ -103,9 +95,10 @@ public:
 
     /* Offloaded methods */
     size_t get_desired_workgroup_size(const char *device_name) const;
+    int get_offload_item_counter_dbid() const { return dbid_ipv6_dest_addrs; }
     #ifdef USE_CUDA
     void cuda_init_handler(ComputeDevice *device);
-    void cuda_compute_handler(ComputeContext *ctx, struct resource_param *res, struct annotation_set **anno_ptr_array);
+    void cuda_compute_handler(ComputeContext *ctx, struct resource_param *res);
     #endif
     void preproc(int input_port, void *custom_input, struct rte_mbuf *pkt, struct annotation_set *anno);
     void prepare_input(ComputeContext *ctx, struct resource_param *res, struct annotation_set **anno_ptr_array);

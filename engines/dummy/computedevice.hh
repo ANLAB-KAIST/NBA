@@ -10,7 +10,7 @@
 #include "../../lib/thread.hh"
 #include "computecontext.hh"
 
-namespace nba
+namespace nshader
 {
 
 class DummyComputeDevice: public ComputeDevice

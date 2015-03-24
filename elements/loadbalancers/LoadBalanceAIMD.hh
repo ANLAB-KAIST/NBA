@@ -1,19 +1,19 @@
-#ifndef __NBA_ELEMENT_LOADBALANCEAIMD_HH__
-#define __NBA_ELEMENT_LOADBALANCEAIMD_HH__
+#ifndef __NSHADER_ELEMENT_LOADBALANCEAIMD_HH__
+#define __NSHADER_ELEMENT_LOADBALANCEAIMD_HH__
 
 #include "../../lib/element.hh"
 #include "../../lib/annotation.hh"
 #include "../../lib/loadbalancer.hh"
 #include "../../lib/queue.hh"
-extern "C" {
+
 #include <rte_errno.h>
 #include <rte_log.h>
-}
+
 #include <vector>
 #include <string>
 #include <random>
 
-namespace nba {
+namespace nshader {
 
 class LoadBalanceAIMD : public SchedulableElement, PerBatchElement {
 public:
@@ -66,7 +66,7 @@ public:
         }
         choice = idx - 1;
         assert(choice != -2);
-        anno_set(&batch->banno, NBA_BANNO_LB_DECISION, choice);
+        anno_set(&batch->banno, NSHADER_BANNO_LB_DECISION, choice);
         return 0;
     }
 

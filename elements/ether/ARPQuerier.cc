@@ -2,7 +2,7 @@
 #include "../../lib/types.hh"
 
 using namespace std;
-using namespace nba;
+using namespace nshader;
 
 ARPTable *ARPQuerier::_table = NULL;
 

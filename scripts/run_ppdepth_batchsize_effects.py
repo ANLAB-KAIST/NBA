@@ -57,12 +57,12 @@ if __name__ == '__main__':
         print('Params: io-batch-size comp-batch-size comp-ppdepth')
         print('Outputs: forwarded-pps cpu-util(usr)-io cpu-util(sys)-io cpu-util(usr)-comp cpu-util(sys)-comp')
         sys.stdout.flush()
-        env.envvars['NBA_LOADBALANCER_MODE'] = lb_mode 
+        env.envvars['NSHADER_LOADBALANCER_MODE'] = lb_mode 
         for params in product(iobatchsizes, compbatchsizes, compppdepths): #, coprocppdepths):
 
-            env.envvars['NBA_IO_BATCH_SIZE'] = str(params[0]) 
-            env.envvars['NBA_COMP_BATCH_SIZE'] = str(params[1]) 
-            env.envvars['NBA_COMP_PPDEPTH'] = str(params[2]) 
+            env.envvars['NSHADER_IO_BATCH_SIZE'] = str(params[0]) 
+            env.envvars['NSHADER_COMP_BATCH_SIZE'] = str(params[1]) 
+            env.envvars['NSHADER_COMP_PPDEPTH'] = str(params[2]) 
 
             # Configure what and how to measure things.
             thruput_fetcher = env.measure_thruput(begin_after=15.0, repeat=False)
