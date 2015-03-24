@@ -16,9 +16,9 @@ def joinpath(*args):
 def version():
     modern_version = LooseVersion('4.7.0')
     for line in shell('g++ --version', iterable=True):
-        m = re.search(b'\d\.\d\.\d', line)
+        m = re.search('\d\.\d\.\d', line)
         if m:
-            VERSION = LooseVersion(m.group(0).decode('ascii'))
+            VERSION = LooseVersion(m.group(0))
             break
     if VERSION >= modern_version:
         return '-std=gnu++11'
@@ -163,8 +163,8 @@ librte_pmds    = {
 }
 librte_names   = ['ethdev', 'rte_eal', 'rte_cmdline', 'rte_malloc', 'rte_mbuf', 'rte_mempool', 'rte_ring']
 librte_names.extend(librte_pmds[PMD])
-CFLAGS        += ' -I{DPDK_PATH}/build/include'
-LIBS          += ' -L{DPDK_PATH}/build/lib' \
+CFLAGS        += ' -I{DPDK_PATH}/include'
+LIBS          += ' -L{DPDK_PATH}/lib' \
                  + ' -Wl,--whole-archive' \
                  + ' -Wl,--start-group ' \
                  + ' '.join('-l' + libname for libname in librte_names) \
