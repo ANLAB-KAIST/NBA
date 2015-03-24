@@ -5,6 +5,7 @@
 *.elf
 build
 bin/main
+.snakemake
 
 # Precompiled Headers
 *.gch

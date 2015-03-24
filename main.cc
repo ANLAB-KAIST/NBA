@@ -19,7 +19,6 @@
 #include "lib/strutils.hh"
 #include "lib/queue.hh"
 #include "lib/nodelocalstorage.hh"
-#include "lib/memory_space.hh"
 #ifdef USE_CUDA
 #include "engines/cuda/utils.hh"
 #include "engines/cuda/computedevice.hh"

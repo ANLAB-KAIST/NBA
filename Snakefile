@@ -129,13 +129,12 @@ LIBS          += ' -lev'
 
 # DPDK configurations
 DPDK_PATH  = os.getenv('NBA_DPDK_PATH')
-RTE_TARGET = os.getenv('RTE_TARGET', 'x86_64-native-linuxapp-gcc')
 if DPDK_PATH is None:
     print('You must set NBA_DPDK_PATH environment variable.')
     sys.exit(1)
 librte_names   = ['ethdev', 'rte_eal', 'rte_cmdline', 'rte_malloc', 'rte_mbuf', 'rte_mempool', 'rte_ring', 'rte_pmd_ixgbe']
-CFLAGS        += ' -I{DPDK_PATH}/{RTE_TARGET}/include'
-LIBS          += ' -L{DPDK_PATH}/{RTE_TARGET}/lib' \
+CFLAGS        += ' -I{DPDK_PATH}/include'
+LIBS          += ' -L{DPDK_PATH}/lib' \
                  + ' -Wl,--whole-archive' \
                  + ' -Wl,--start-group ' \
                  + ' '.join('-l' + libname for libname in librte_names) \
