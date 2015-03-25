@@ -1,5 +1,5 @@
 # NBA (Network Balancing Act)
-A High-performance packet processing framework for heterogeneous processors
+"A High-performance packet processing framework for heterogeneous processors," [EuroSys 2015 paper](http://an.kaist.ac.kr/~sbmoon/paper/intl-conf/2015-eurosys-nba.pdf)
 
 ## Disclaimer
 
