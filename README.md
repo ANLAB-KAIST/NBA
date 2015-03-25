@@ -4,9 +4,8 @@ A High-performance packet processing framework for heterogeneous processors
 ## Disclaimer
 
 * The IDS source code is not available to the public, as it contains a derivation from industry-tranferred code from [Kargus](http://shader.kaist.edu/kargus/).
-  - Though, you could refer other open-source codes, such as [a GPU implementation of the Aho-Corasick algorithm in Snap](https://github.com/wbsun/g4c/blob/master/g4c_ac.h).
-  - In the future, we are going to provide a better, cleaned up implementation without depending on proprietary sources.
-* In the paper, we used Intel DPDK version 1.7 but migrated to 1.8 after submission.
+  - You could refer to other open-source code, such as [a GPU implementation of the Aho-Corasick algorithm in Snap](https://github.com/wbsun/g4c/blob/master/g4c_ac.h).
+* We used Intel DPDK v1.7 for the EuroSys 2015 paper, but have now upgraded to v1.8.
 
 ## How to compile
 
@@ -36,11 +35,10 @@ First you need to install some prerequisites.
   - Then run `snakemake`
 * If all is well, the executable is located in `bin/main`.
 
-## Ongoing work after the EuroSys version
+## Ongoing work
 
 * Full datablock implementation
-  - Base implementation is done!
-  - Performance optimization of it
+  - Base implementation is done but there remains room for performance optimization
 * Decreasing GPU latency
   - Optimization for consequent offloadable modules: merge two separate offload-tasks into one
   - "Adaptive" batching
