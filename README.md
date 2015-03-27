@@ -35,6 +35,30 @@ First you need to install some prerequisites.
   - Then run `snakemake`
 * If all is well, the executable is located in `bin/main`.
 
+### Compile options
+
+Our build script offers a few configurable parameters as environment variables:
+* `NBA_DPDK_PATH`: specifies the path to Intel DPDK (required)
+* `NBA_RANDOM_PORT_ACCESS`: randomizes the RX queue scanning order for each worker thread (default: false)
+* `NBA_OPENSSL_PATH`: specifies the path of OpenSSL library (default: /usr)
+* `USE_CUDA`: activates NVIDIA CUDA support (default: true)
+* `USE_PHI`: activates Intel Xeon Phi support (default: false, not fully implemented yet)
+* `USE_NVPROF`: activates nvprof API calls to track GPU-related timings (default: false)
+* `USE_OPENSSL_EVP`: determines whether to use EVP API for OpenSSL that enables AES-NI support (default: true)
+* `NBA_NO_HUGE`: determines whether to use huge-pages (default: true)
+* `NBA_PMD`: determines what poll-mode driver to use (default: ixgbe)
+
+※ Boolean variables are expressed as 1 or 0.
+
+## How to run
+
+Execute `bin/main` with DPDK EAL arguments and NBA arguments.  
+For example,
+
+```
+$ sudo bin/main -cffff -n4 -- configs/rss.py configs/ipv4-router.click
+```
+
 ## Ongoing work
 
 * Full datablock implementation
