@@ -3,7 +3,7 @@
 
 ## Disclaimer
 
-* The IDS source code is not available to the public, as it contains a derivation from industry-tranferred code from [Kargus](http://shader.kaist.edu/kargus/).
+* The IDS source code is not available to the public, as it contains a derivation from industry-transferred code from [Kargus](http://shader.kaist.edu/kargus/).
   - You could refer to other open-source code, such as [a GPU implementation of the Aho-Corasick algorithm in Snap](https://github.com/wbsun/g4c/blob/master/g4c_ac.h).
 * We used Intel DPDK v1.7 for the EuroSys 2015 paper, but have now upgraded to v1.8.
 
