@@ -41,7 +41,6 @@
 #include <vector>
 #include <unordered_set>
 #include <map>
-#include <thread>
 
 //#include <papi.h>
 #include <unistd.h>
@@ -333,7 +332,7 @@ int main(int argc, char **argv)
     for (unsigned k = 0; k < sizeof(hash_key); k++)
         hash_key[k] = (uint8_t) rand();
     port_conf.rx_adv_conf.rss_conf.rss_key = hash_key;
-    port_conf.rx_adv_conf.rss_conf.rss_hf = ETH_RSS_IPV4_TCP | ETH_RSS_IPV4_UDP | ETH_RSS_IPV6_TCP | ETH_RSS_IPV6_UDP;
+    port_conf.rx_adv_conf.rss_conf.rss_hf = ETH_RSS_IP | ETH_RSS_UDP | ETH_RSS_TCP;
     port_conf.rxmode.max_rx_pkt_len = 0; /* only used if jumbo_frame is enabled */
     port_conf.rxmode.split_hdr_size = 0;
     port_conf.rxmode.header_split   = false;
@@ -347,7 +346,8 @@ int main(int argc, char **argv)
     port_conf.fdir_conf.mode    = RTE_FDIR_MODE_NONE;
     port_conf.fdir_conf.pballoc = RTE_FDIR_PBALLOC_64K;
     port_conf.fdir_conf.status  = RTE_FDIR_NO_REPORT_STATUS;
-    port_conf.fdir_conf.flexbytes_offset = 0;
+    port_conf.fdir_conf.flex_conf.nb_flexmasks = 0;
+    port_conf.fdir_conf.flex_conf.nb_payloads = 0;
     port_conf.fdir_conf.drop_queue       = 0;
 
     /* Per RX-queue configuration */

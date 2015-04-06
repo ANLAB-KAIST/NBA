@@ -83,11 +83,10 @@ SUPPRESSED_CC_WARNINGS = (
     'unused-but-set-variable',
     'unused-result',
     'unused-parameter',
-    'literal-suffix',
 )
-CFLAGS         = '-O2 -g -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS))
+CFLAGS         = '-march=native -O2 -g -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS))
 if os.getenv('DEBUG', 0):
-    CFLAGS     = '-Og -g3 -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -DDEBUG'
+    CFLAGS     = '-march=native -Og -g3 -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -DDEBUG'
 #LIBS           = '-ltcmalloc_minimal -lnuma -lpthread -lpcre -lrt'
 LIBS           = '-lnuma -lpthread -lpcre -lrt'
 if USE_CUDA:        CFLAGS += ' -DUSE_CUDA'
@@ -176,6 +175,7 @@ LIBS += ' -ldl'
 
 # Expand variables
 CFLAGS = fmt(CFLAGS)
+CXXFLAGS = fmt(CFLAGS) + ' -Wno-literal-suffix'
 LIBS = fmt(LIBS)
 
 logger.set_level(logging.INFO)
@@ -206,7 +206,7 @@ for srcfile in SOURCE_FILES:
         rule:
             input: srcfile, includes
             output: outputs
-            shell: '{CXX} {CFLAGS} -c {input[0]} -o {output}'
+            shell: '{CXX} {CXXFLAGS} -c {input[0]} -o {output}'
     elif srcfile.endswith('.cu') and USE_CUDA:
         outputs = re.sub(r'(.+)\.cu$', joinpath(OBJ_DIR, r'\1.o'), srcfile)
         rule:
