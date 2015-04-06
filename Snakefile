@@ -189,7 +189,7 @@ rule main:
     shell: '{CXX} -o {output} -Wl,--whole-archive {input} -Wl,--no-whole-archive {LIBS}'
 
 rule clean:
-    shell: 'rm -rf build bin/main lib/*_map.hh'
+    shell: 'rm -rf build bin/main `find . -path "lib/*_map.hh"`'
 
 for srcfile in SOURCE_FILES:
     # We generate build rules dynamically depending on the actual header
