@@ -103,21 +103,34 @@ if v: CFLAGS += ' -DNBA_RANDOM_PORT_ACCESS'
 
 # NVIDIA CUDA configurations
 if USE_CUDA:
-    CUDA_ARCH     = compilelib.get_cuda_arch()
+    CUDA_ARCHS    = compilelib.get_cuda_arch()
     NVCFLAGS      = '-O2 -g --use_fast_math -I/usr/local/cuda/include'
     CFLAGS       += ' -I/usr/local/cuda/include'
     LIBS         += ' -L/usr/local/cuda/lib64 -lcudart' #' -lnvidia-ml'
+    print(CUDA_ARCHS)
     if os.getenv('DEBUG', 0):
         NVCFLAGS  = '-O0 --device-debug -g -G --use_fast_math -I/usr/local/cuda/include --ptxas-options=-v'
-    if CUDA_ARCH == 'KEPLER':
-        NVCFLAGS += ' -DMP_USE_64BIT=1 -gencode arch=compute_30,code=sm_30 -gencode arch=compute_35,code=sm_35'
-        CFLAGS   += ' -DMP_USE_64BIT=1'
-    elif CUDA_ARCH == 'FERMI':
-        NVCFLAGS += ' -DMP_USE_64BIT=1 -gencode arch=compute_20,code=sm_20 -gencode arch=compute_20,code=sm_21'
-        CFLAGS   += ' -DMP_USE_64BIT=1'
-    else:
-        NVCFLAGS +=  '-DMP_USE_64BIT=0 -gencode arch=compute_10,code=sm_10 -gencode arch=compute_12,code=sm_12 -gencode arch=compute_13,code=sm_13'
+    if len(CUDA_ARCHS) == 0:
+        NVCFLAGS += ' -DMP_USE_64BIT=0' \
+                  + ' -gencode arch=compute_10,code=sm_10' \
+                  + ' -gencode arch=compute_12,code=sm_12' \
+                  + ' -gencode arch=compute_13,code=sm_13'
         CFLAGS   += ' -DMP_USE_64BIT=0'
+    else:
+        NVCFLAGS += ' -DMP_USE_64BIT=1'
+        CFLAGS   += ' -DMP_USE_64BIT=1'
+    if 'MAXWELL' in CUDA_ARCHS:
+        NVCFLAGS += ' -gencode arch=compute_50,code=sm_50' \
+                  + ' -gencode arch=compute_52,code=sm_52' \
+                  + ' -gencode arch=compute_52,code=compute_52'
+    if 'KEPLER' in CUDA_ARCHS:
+        NVCFLAGS += ' -gencode arch=compute_30,code=sm_30' \
+                  + ' -gencode arch=compute_35,code=sm_35' \
+                  + ' -gencode arch=compute_35,code=compute_35'
+    if 'FERMI' in CUDA_ARCHS:
+        NVCFLAGS += ' -gencode arch=compute_20,code=sm_20' \
+                  + ' -gencode arch=compute_20,code=sm_21' \
+                  + ' -gencode arch=compute_20,code=compute_21'
 
 # NVIDIA Profiler configurations
 if USE_NVPROF:

@@ -13,14 +13,17 @@ def get_cuda_arch():
     '''
     Determine currently installed NVIDIA GPU cards by PCI device ID
     and match them with the predefined GPU model lists.
-    It assumes the system has only a single kind of GPUs.
+    It tries to detect all GPUs and include cubins suitable for all GPU
+    architectures detected.
+    If your GPU is not detected correctly, update *_DEVICES
+    files by referring https://pci-ids.ucw.cz/v2.2/pci.ids
+    and make a pull request!
     '''
     pci_list = str(shell('lspci -nn', read=True))
-    supported_archs = (
-        ('KEPLER_DEVICES', 'KEPLER'),
-        ('FERMI_DEVICES', 'FERMI'),
-    )
-    for fname, devtype in supported_archs:
+    supported_archs = ['MAXWELL', 'KEPLER', 'FERMI']
+    devtypes_found = set()
+    for devtype in supported_archs:
+        fname = devtype + '_DEVICES'
         with open(fname, 'r') as f:
             for line in f:
                 line = line.strip()
@@ -28,9 +31,10 @@ def get_cuda_arch():
                 model, pciid = line.split('\t')
                 pciid = pciid.replace('0x', '')
                 if pciid in pci_list:
-                    return devtype
-    else:
-        return 'OLD'
+                    devtypes_found.add(devtype)
+    if len(devtypes_found) == 0:
+        return []
+    return list(sorted(devtypes_found, key=lambda k: supported_archs.index(k)))
 
 def expand_subdirs(dirlist):
     '''

@@ -4,11 +4,21 @@ GeForce GT 640	0x0fc0
 GeForce GT 640	0x0fc1
 GeForce GT 640M	0x0fd2
 GeForce GT 650M	0x0fd1
+GeForce GTX 660	0x11c0
+GeForce GTX 650 Ti Boost	0x11c2
 GeForce GTX 650 Ti	0x11c6
+GeForce GTX 750 Ti	0x11c7
 GeForce GTX 660 Ti	0x1183
 GeForce GTX 670	0x1189
 GeForce GTX 680	0x1180
 GeForce GTX 690	0x1188
+GeForce GTX 760 Ti	0x1182
+GeForce GTX 660 Ti	0x1183
+GeForce GTX 770	0x1184
+GeForce GTX 660 OEM	0x1185
+GeForce GTX 760	0x1187
+GeForce GTX 690	0x1188
+GeForce GTX 670	0x1189
 Quadro K600	0x0ffa
 Quadro K5000	0x11ba
 Quadro K5000M	0x11bc
@@ -21,3 +31,28 @@ Quadro K1000M	0x0ffc
 Quadro 410	0x0fff
 VGX K1	0x0ff2
 VGX K2	0x11bf
+Tesla K8	0x1194
+Tesla K10	0x118f
+Tesla K20	0x101f
+Tesla K20X	0x101e
+Tesla K20X	0x1020
+Tesla K20Xm	0x1021
+Tesla K20c	0x1022
+Tesla K40m	0x1023
+Tesla K40c	0x1024
+Tesla K20s	0x1026
+Tesla K40st	0x1027
+Tesla K20m	0x1028
+Tesla K40s	0x1029
+Tesla K40t	0x102a
+Tesla K80	0x102d
+Tesla K40d	0x102e
+Quadro K6000	0x103a
+Quadro K5200	0x103c
+GeForce GTX 780 Rev. 2	0x1007
+GeForce GTX 780 Ti Rev. 2	0x1008
+GeForce GTX TITAN Z	0x1001
+GeForce GTX Titan LE	0x1003
+GeForce GTX TITAN	0x1005
+GeForce GTX 780 Ti	0x100a
+GeForce GTX TITAN Black	0x100c
