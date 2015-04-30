@@ -29,6 +29,7 @@ First you need to install some prerequisites.
 * Click configuration parser
   - https://github.com/leeopop/click-parser
   - Just checkout it in the home directory and compile in-place.
+* `sysstat` package (or any package that offers `mpstat` command) to run experiment scripts
 * If all set, then set the environment variable as follows:
   - `USE_CUDA=1`
   - `NBA_DPDK_PATH=/home/userid/dpdk/x86_64-native-linuxapp-gcc`
