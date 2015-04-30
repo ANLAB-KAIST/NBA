@@ -2,6 +2,7 @@
 import os, sys
 import re
 import subprocess, signal
+import multiprocessing
 import threading
 import socketserver
 
@@ -63,7 +64,12 @@ class PspgenProxy:
         self._running = True
         self._wfile = output
 
-        cmdargs = [self._bin] + args
+        # Prepend the binary path and DPDK EAL arguments (for pspgen-dpdk).
+        cpumask = 0
+        for c in range(multiprocessing.cpu_count()):
+            cpumask |= (1 << c)
+        cmdargs = [self._bin] + ['-c', '{:x}'.format(cpumask), '-n', '4', '--'] + args
+
         # pspgen forks multiple children to generate packets in parallel.
         # The parent process ignores SIGINT by self._proc.send_signal() and its
         # children do not receive it!
