@@ -33,7 +33,6 @@ private:
     #ifdef DEBUG
     uint32_t magic;
     #endif
-    //PacketBatch *mother;
     struct rte_mbuf *base;
     bool cloned;
 
@@ -46,11 +45,19 @@ public:
     /**
      * Get the pointer to the beginning of Packet object
      * from the "base" IO layer packet objects.
+     * This "nocheck" version is used only for initialization.
      */
     static inline Packet *from_base_nocheck(void *base) {
         if (base == nullptr) return nullptr;
         return reinterpret_cast<Packet *>(((struct rte_mbuf *) base)->buf_addr);
     }
+
+    /**
+     * Get the pointer to the beginning of Packet object
+     * from the "base" IO layer packet objects.
+     * In debugging mode, it performs additinoal integrity check using a
+     * magic number placed in the beginning of Packet struct.
+     */
     static inline Packet *from_base(void *base) {
         if (base == nullptr) return nullptr;
         #ifdef DEBUG
@@ -62,12 +69,11 @@ public:
     /**
      * Initialize the Packet object.
      */
-    Packet(PacketBatch *mother, void *base)
-    :
+    Packet(PacketBatch *mother, void *base) :
     #ifdef DEBUG
     magic(0x392cafcdu),
     #endif
-    /*mother(mother),*/ base((struct rte_mbuf *) base), cloned(false)
+    base((struct rte_mbuf *) base), cloned(false)
     { }
 
     ~Packet() {
