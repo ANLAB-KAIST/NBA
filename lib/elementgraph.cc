@@ -415,7 +415,6 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                             /* Append the packet to the output batch. */
                             int cnt = out_batches[o]->count ++;
                             out_batches[o]->packets[cnt] = batch->packets[p];
-                            out_batches[o]->annos[cnt] = batch->annos[p];
                             out_batches[o]->excluded[cnt] = false;
                             /* Exclude it from the batch. */
                             out_batches[predicted_output]->excluded[p] = true;
@@ -521,7 +520,6 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     if (o >= 0) {
                         int cnt = out_batches[o]->count ++;
                         out_batches[o]->packets[cnt] = batch->packets[p];
-                        out_batches[o]->annos[cnt] = batch->annos[p];
                         out_batches[o]->excluded[cnt] = false;
                     } else if (o == DROP) {
                         if (ctx->inspector) ctx->inspector->drop_pkt_count += batch->count;

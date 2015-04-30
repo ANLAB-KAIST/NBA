@@ -108,14 +108,14 @@ int IPsecAuthHMACSHA1::configure(comp_thread_context *ctx, std::vector<std::stri
 //                            ^encapsulated
 //                            <===== authenticated part (payload_len) =====>
 //
-int IPsecAuthHMACSHA1::process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno)
+int IPsecAuthHMACSHA1::process(int input_port, Packet *pkt)
 {
     // We assume the size of hmac_key is less than 64 bytes.
     // TODO: check if input pkt is encapulated or not.
-    struct ether_hdr *ethh = rte_pktmbuf_mtod(pkt, struct ether_hdr *);
-    struct iphdr *iph = (struct iphdr *) (ethh + 1);
-    struct esphdr *esph = (struct esphdr *) (iph + 1);
-    uint8_t *encaped_iph = (uint8_t *) esph + sizeof(*esph);
+    struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
+    struct iphdr *iph      = (struct iphdr *) (ethh + 1);
+    struct esphdr *esph    = (struct esphdr *) (iph + 1);
+    uint8_t *encaped_iph   = (uint8_t *) esph + sizeof(*esph);
 
     unsigned char *payload_out = (unsigned char*) ((uint8_t*)ethh + sizeof(struct ether_hdr)
                                + sizeof(struct iphdr));
@@ -125,8 +125,8 @@ int IPsecAuthHMACSHA1::process(int input_port, struct rte_mbuf *pkt, struct anno
     struct hmac_sa_entry *sa_entry;
 
     uint8_t *hmac_key;
-    if (likely(anno_isset(anno, NBA_ANNO_IPSEC_FLOW_ID))) {
-        sa_entry = &h_key_array[anno_get(anno, NBA_ANNO_IPSEC_FLOW_ID)];
+    if (likely(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID))) {
+        sa_entry = &h_key_array[anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)];
         hmac_key = sa_entry->hmac_key;
 
         rte_memcpy(hmac_buf + 64, payload_out, payload_len);
@@ -186,7 +186,7 @@ size_t IPsecAuthHMACSHA1::get_desired_workgroup_size(const char *device_name) co
     return 32u;
 }
 
-int IPsecAuthHMACSHA1::postproc(int input_port, void *custom_output, struct rte_mbuf *pkt, struct annotation_set *anno)
+int IPsecAuthHMACSHA1::postproc(int input_port, void *custom_output, Packet *pkt)
 {
     return 0;
 }

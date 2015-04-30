@@ -40,7 +40,7 @@ public:
     int initialize_per_node();  // per-node configuration
     int configure(comp_thread_context *ctx, std::vector<std::string> &args);
 
-    int process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno);
+    int process(int input_port, Packet *pkt);
     int dispatch(uint64_t loop_count, PacketBatch*& out_batch, uint64_t &next_delay);
 
 private:

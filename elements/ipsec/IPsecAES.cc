@@ -115,11 +115,11 @@ int IPsecAES::configure(comp_thread_context *ctx, std::vector<std::string> &args
 // ^ethh      ^iph            ^esph    ^encrypt_ptr
 //                                     <===== to be encrypted with AES ====>
 //
-int IPsecAES::process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno)
+int IPsecAES::process(int input_port, Packet *pkt)
 {
-    struct ether_hdr *ethh = rte_pktmbuf_mtod(pkt, struct ether_hdr *);
-    struct iphdr *iph = (struct iphdr *) (ethh + 1);
-    struct esphdr *esph = (struct esphdr *) (iph + 1);
+    struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
+    struct iphdr *iph      = (struct iphdr *) (ethh + 1);
+    struct esphdr *esph    = (struct esphdr *) (iph + 1);
     uint8_t ecount_buf[AES_BLOCK_SIZE] = { 0 };
 
     // TODO: support decrpytion.
@@ -130,8 +130,8 @@ int IPsecAES::process(int input_port, struct rte_mbuf *pkt, struct annotation_se
     int err = 0;
     struct aes_sa_entry *sa_entry = NULL;
 
-    if (likely(anno_isset(anno, NBA_ANNO_IPSEC_FLOW_ID))) {
-        sa_entry = &h_key_array[anno_get(anno, NBA_ANNO_IPSEC_FLOW_ID)];
+    if (likely(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID))) {
+        sa_entry = &h_key_array[anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)];
         unsigned mode = 0;
 #ifdef USE_OPENSSL_EVP
         int cipher_body_len = 0;
@@ -195,7 +195,7 @@ size_t IPsecAES::get_desired_workgroup_size(const char *device_name) const
     return 256u;
 }
 
-int IPsecAES::postproc(int input_port, void *custom_output, struct rte_mbuf *pkt, struct annotation_set *anno)
+int IPsecAES::postproc(int input_port, void *custom_output, Packet *pkt)
 {
     return 0;
 }

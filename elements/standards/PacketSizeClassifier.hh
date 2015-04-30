@@ -47,9 +47,9 @@ public:
         return 0;
     }
 
-    int process(int input_port, struct rte_mbuf *mb, struct annotation_set *anno)
+    int process(int input_port, Packet *pkt)
     {
-        unsigned pkt_len = rte_pktmbuf_pkt_len(mb);
+        unsigned pkt_len = pkt->length();
         return buckets[pkt_len >> 4];
     }
 

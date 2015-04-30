@@ -16,9 +16,9 @@ int DropBroadcasts::configure(comp_thread_context *ctx, std::vector<std::string>
     return 0;
 }
 
-int DropBroadcasts::process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno)
+int DropBroadcasts::process(int input_port, Packet *pkt)
 {
-    struct ether_hdr *ethh = rte_pktmbuf_mtod(pkt, struct ether_hdr *);
+    struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
     if (likely(is_unicast_ether_addr(&ethh->d_addr))) {
         return 0;
     }

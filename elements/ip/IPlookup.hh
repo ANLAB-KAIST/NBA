@@ -160,7 +160,7 @@ public:
     }
 
     /* CPU-only method */
-    int process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno);
+    int process(int input_port, Packet *pkt);
 
     /* Offloaded methods */
     size_t get_desired_workgroup_size(const char *device_name) const;
@@ -169,7 +169,7 @@ public:
     void cuda_init_handler(ComputeDevice *device);
     void cuda_compute_handler(ComputeContext *ctx, struct resource_param *res);
     #endif
-    int postproc(int input_port, void *custom_output, struct rte_mbuf *pkt, struct annotation_set *anno);
+    int postproc(int input_port, void *custom_output, Packet *pkt);
 
 protected:
     int num_tx_ports;       // Variable to store # of tx port from computation thread.

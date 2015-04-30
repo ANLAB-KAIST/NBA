@@ -65,9 +65,9 @@ int IPlookup::configure(comp_thread_context *ctx, std::vector<std::string> &args
 }
 
 /* The CPU version */
-int IPlookup::process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno)
+int IPlookup::process(int input_port, Packet *pkt)
 {
-    struct ether_hdr *ethh = rte_pktmbuf_mtod(pkt, struct ether_hdr *);
+    struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
     struct iphdr *iph   = (struct iphdr *)(ethh + 1);
     uint32_t dest_addr = ntohl(iph->daddr);
     uint16_t lookup_result = 0xffff;
@@ -80,12 +80,11 @@ int IPlookup::process(int input_port, struct rte_mbuf *pkt, struct annotation_se
     //unsigned n = (pkt->pkt.in_port <= (num_tx_ports / 2) - 1) ? 0 : (num_tx_ports / 2);
     //rr_port = (rr_port + 1) % (num_tx_ports / 2) + n;
     rr_port = (rr_port + 1) % (num_tx_ports);
-    anno_set(anno, NBA_ANNO_IFACE_OUT, rr_port);
+    anno_set(&pkt->anno, NBA_ANNO_IFACE_OUT, rr_port);
     return 0;
 }
 
-int IPlookup::postproc(int input_port, void *custom_output,
-                       struct rte_mbuf *pkt, struct annotation_set *anno)
+int IPlookup::postproc(int input_port, void *custom_output, Packet *pkt)
 {
     uint16_t lookup_result = *((uint16_t *)custom_output);
     if (lookup_result == 0xffff)
@@ -95,7 +94,7 @@ int IPlookup::postproc(int input_port, void *custom_output,
     //unsigned n = (pkt->pkt.in_port <= (num_tx_ports / 2) - 1) ? 0 : (num_tx_ports / 2);
     //rr_port = (rr_port + 1) % (num_tx_ports / 2) + n;
     rr_port = (rr_port + 1) % (num_tx_ports);
-    anno_set(anno, NBA_ANNO_IFACE_OUT, rr_port);
+    anno_set(&pkt->anno, NBA_ANNO_IFACE_OUT, rr_port);
     return 0;
 }
 

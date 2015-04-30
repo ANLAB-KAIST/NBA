@@ -20,9 +20,9 @@ int CheckIPHeader::configure(comp_thread_context *ctx, std::vector<std::string> 
     return 0;
 }
 
-int CheckIPHeader::process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno)
+int CheckIPHeader::process(int input_port, Packet *pkt)
 {
-    struct ether_hdr *ethh = rte_pktmbuf_mtod(pkt, struct ether_hdr *);
+    struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
     struct iphdr *iph = (struct iphdr *)(ethh + 1);
 
     if (ntohs(ethh->ether_type) != ETHER_TYPE_IPv4) {

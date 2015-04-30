@@ -27,12 +27,44 @@ enum Disposition {
     PENDING = -3,
 };
 
-class Packet {
+struct Packet {
+private:
+    /* Additional properties */
+    uint32_t magic;
+    PacketBatch *mother;
+    struct rte_mbuf *base;
+    int result;
+    bool cloned;
+
 public:
-    Packet() : result(DROP), cloned(false) {}
-    virtual ~Packet() {
-        if (cloned && pkt != nullptr) {
-            rte_pktmbuf_free(pkt);
+    struct annotation_set anno;
+
+public:
+    /**
+     * Get the pointer to the beginning of Packet object
+     * from the "base" IO layer packet objects.
+     */
+    static inline Packet *from_base_nocheck(void *base) {
+        if (base == nullptr) return nullptr;
+        return reinterpret_cast<Packet *>(((struct rte_mbuf *) base)->buf_addr);
+    }
+    static inline Packet *from_base(void *base) {
+        if (base == nullptr) return nullptr;
+        void *buf = ((struct rte_mbuf *) base)->buf_addr;
+        assert(*(uint32_t *)(uintptr_t *)buf == 0x392cafcdu);
+        return reinterpret_cast<Packet *>(((struct rte_mbuf *) base)->buf_addr);
+    }
+
+    /**
+     * Initialize the Packet object.
+     */
+    Packet(PacketBatch *mother, void *base)
+    : magic(0x392cafcdu), mother(mother), base((struct rte_mbuf *) base), result(DROP), cloned(false)
+    { }
+
+    ~Packet() {
+        if (cloned && base != nullptr) {
+            rte_pktmbuf_free(base);
         }
     }
 
@@ -40,52 +72,52 @@ public:
         result = DROP;
     }
 
-    inline unsigned char *data() { return rte_pktmbuf_mtod(pkt, unsigned char *); }
-    inline uint32_t length() { return rte_pktmbuf_data_len(pkt); }
-    inline uint32_t headroom() { return rte_pktmbuf_headroom(pkt); }
-    inline uint32_t tailroom() { return rte_pktmbuf_tailroom(pkt); }
+    inline unsigned char *data() { return rte_pktmbuf_mtod(base, unsigned char *); }
+    inline uint32_t length() { return rte_pktmbuf_data_len(base); }
+    inline uint32_t headroom() { return rte_pktmbuf_headroom(base) - sizeof(Packet); }
+    inline uint32_t tailroom() { return rte_pktmbuf_tailroom(base); }
 
     inline unsigned char *buffer() { return data() - headroom(); }
     inline unsigned char *end_buffer() { return data() + (length() + tailroom()); }
     inline uint32_t buffer_length() { return length() + headroom() + tailroom(); }
 
-    inline bool shared() { return rte_mbuf_refcnt_read(pkt) > 1; }
+    inline bool shared() { return rte_mbuf_refcnt_read(base) > 1; }
 
-    inline void pull(uint32_t len) { rte_pktmbuf_adj(pkt, (uint16_t) len); }
-    inline void put(uint32_t len) { rte_pktmbuf_append(pkt, (uint16_t) len); }
-    inline void take(uint32_t len) { rte_pktmbuf_trim(pkt, (uint16_t) len); }
+    inline void pull(uint32_t len) { rte_pktmbuf_adj(base, (uint16_t) len); }
+    inline void put(uint32_t len) { rte_pktmbuf_append(base, (uint16_t) len); }
+    inline void take(uint32_t len) { rte_pktmbuf_trim(base, (uint16_t) len); }
 
     Packet *clone() {
-        Packet *p;
-        int ret = rte_mempool_get(packet_pool, (void **) &p);
-        assert(ret == 0);
-        struct rte_mbuf *new_mbuf = rte_pktmbuf_alloc(mbuf_pool);
-        if (new_mbuf != nullptr) {
-            rte_pktmbuf_attach(new_mbuf, pkt);
-            p->set_mbuf_pool(mbuf_pool);
-            p->set_mbuf(batch, new_mbuf);
-            p->cloned = true;
-            return p;
-        }
+        //Packet *p;
+        //int ret = rte_mempool_get(packet_pool, (void **) &p);
+        //assert(ret == 0);
+        //struct rte_mbuf *new_mbuf = rte_pktmbuf_alloc(mbuf_pool);
+        //if (new_mbuf != nullptr) {
+        //    rte_pktmbuf_attach(new_mbuf, base);
+        //    p->set_mbuf_pool(mbuf_pool);
+        //    p->set_mbuf(batch, new_mbuf);
+        //    p->cloned = true;
+        //    return p;
+        //}
         return nullptr;
     }
 
     Packet *uniqueify() {
-        Packet *p;
-        int ret = rte_mempool_get(packet_pool, (void **) &p);
-        assert(ret == 0);
-        struct rte_mbuf *new_mbuf = rte_pktmbuf_clone(pkt, mbuf_pool);
-        if (new_mbuf != nullptr) {
-            p->set_mbuf_pool(mbuf_pool);
-            p->set_mbuf(batch, new_mbuf);
-            p->cloned = true;
-            return p;
-        }
+        //Packet *p;
+        //int ret = rte_mempool_get(packet_pool, (void **) &p);
+        //assert(ret == 0);
+        //struct rte_mbuf *new_mbuf = rte_pktmbuf_clone(base, mbuf_pool);
+        //if (new_mbuf != nullptr) {
+        //    p->set_mbuf_pool(mbuf_pool);
+        //    p->set_mbuf(batch, new_mbuf);
+        //    p->cloned = true;
+        //    return p;
+        //}
         return nullptr;
     }
 
     Packet *push(uint32_t len) {
-        char *new_start = rte_pktmbuf_prepend(pkt, len);
+        char *new_start = rte_pktmbuf_prepend(base, len);
         if (new_start != nullptr)
             return this;
         return nullptr;
@@ -168,27 +200,9 @@ public:
 private:
     friend class Element;
 
-    /* @brief Set the actual packet's pktmbuf and the batch containing it. */
-    void set_mbuf(PacketBatch *b, struct rte_mbuf *p) {
-        batch = b;
-        pkt = p;
-    }
-
-    /* @brief Set the memory pool for pktmbuf. */
-    void set_mbuf_pool(struct rte_mempool *pool) {
-        mbuf_pool = pool;
-    }
-
     int get_result() {
         return result;
     }
-
-    int result;
-    PacketBatch *batch;
-    struct rte_mbuf *pkt;
-    struct rte_mempool *mbuf_pool;
-    bool cloned;
-
 };
 
 struct rte_mempool *packet_create_mempool(size_t size, int node_id, int core_id);

@@ -68,9 +68,7 @@ public:
     virtual int initialize_per_node();  // per-node configuration. Called before coprocessor threads are initialized.
 
     /** User-define function to process a packet. */
-    virtual int process(int input_port,
-                struct rte_mbuf *pkt,
-                struct annotation_set *anno) = 0;
+    virtual int process(int input_port, Packet *pkt) = 0;
 
     /**
      * A framework-internal base method always called by the element graph.
@@ -116,7 +114,7 @@ public:
     virtual int process_batch(int input_port, PacketBatch *batch) = 0;
 
     /** Unused. Should not be overriden. */
-    int process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno) { assert(0); return -1; }
+    int process(int input_port, Packet *pkt) { assert(0); return -1; }
 };
 
 class SchedulableElement : virtual public Element {
@@ -177,7 +175,7 @@ public:
     virtual size_t get_used_datablocks(int *datablock_ids) = 0;
     //virtual void get_datablocks(std::vector<int> &datablock_ids){get_used_datablocks(datablock_ids);}; //TODO fill here...
 
-    virtual int postproc(int input_port, void *custom_output, struct rte_mbuf *pkt, struct annotation_set *anno) { return 0; }
+    virtual int postproc(int input_port, void *custom_output, Packet *pkt) { return 0; }
 
     /** Offload handlers are executed in the coprocessor thread. */
     // TODO: optimize (avoid using unordered_map)?

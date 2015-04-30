@@ -15,7 +15,7 @@ int Discard::configure(comp_thread_context *ctx, std::vector<std::string> &args)
     return 0;
 }
 
-int Discard::process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno)
+int Discard::process(int input_port, Packet *pkt)
 {
     return DROP;
 }

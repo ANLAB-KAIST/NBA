@@ -280,15 +280,22 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
     batch->recv_timestamp = t;
     batch->batch_id = recv_batch_cnt;
     for (p = 0; p < count; p++) {
-        batch->annos[p].bitmask = 0;
         batch->excluded[p] = false;
     }
     for (p = 0; p < count; p++) {
+        assert(sizeof(Packet) <= rte_pktmbuf_headroom(batch->packets[p]));
+
+        /* Initialize packet classes in headrooms. */
+        Packet *pkt = Packet::from_base_nocheck(batch->packets[p]);
+        new (pkt) Packet(batch, batch->packets[p]);
+        // TODO: prefetch?
+
         /* Set annotations and strip the temporary headroom. */
-        anno_set(&batch->annos[p], NBA_ANNO_IFACE_IN,
+        pkt->anno.bitmask = 0;
+        anno_set(&pkt->anno, NBA_ANNO_IFACE_IN,
                  batch->packets[p]->port);
-        anno_set(&batch->annos[p], NBA_ANNO_TIMESTAMP, t);
-        anno_set(&batch->annos[p], NBA_ANNO_BATCH_ID, recv_batch_cnt);
+        anno_set(&pkt->anno, NBA_ANNO_TIMESTAMP, t);
+        anno_set(&pkt->anno, NBA_ANNO_BATCH_ID, recv_batch_cnt);
     }
     anno_set(&batch->banno, NBA_BANNO_LB_DECISION, -1);
     recv_batch_cnt ++;
@@ -580,9 +587,10 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
     //   NOTE: current implementation: no extra queueing,
     //   just transmit as requested
     for (p = 0; p < batch->count; p++) {
-        if (batch->excluded[p] == false && anno_isset(&batch->annos[p], NBA_ANNO_IFACE_OUT)) {
+        Packet *pkt = Packet::from_base(batch->packets[p]);
+        if (batch->excluded[p] == false && anno_isset(&pkt->anno, NBA_ANNO_IFACE_OUT)) {
             struct ether_hdr *ethh = rte_pktmbuf_mtod(batch->packets[p], struct ether_hdr *);
-            uint64_t o = anno_get(&batch->annos[p], NBA_ANNO_IFACE_OUT);
+            uint64_t o = anno_get(&pkt->anno, NBA_ANNO_IFACE_OUT);
 
             /* Update source/dest MAC addresses. */
             ether_addr_copy(&ethh->s_addr, &ethh->d_addr);

@@ -44,45 +44,45 @@ int L2Forward::configure(comp_thread_context *ctx, std::vector<std::string> &arg
     return 0;
 }
 
-int L2Forward::process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno)
+int L2Forward::process(int input_port, Packet *pkt)
 {
-    struct ether_hdr *ethh = rte_pktmbuf_mtod(pkt, struct ether_hdr *);
+    struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
     if (likely(is_unicast_ether_addr(&ethh->d_addr))) {
         switch(mode) {
           case ECHOBACK_PAIRED:
           {
-            unsigned iface_in = anno_get(anno, NBA_ANNO_IFACE_IN);
+            unsigned iface_in = anno_get(&pkt->anno, NBA_ANNO_IFACE_IN);
             unsigned iface_out = iface_in + ((iface_in % 2) ? -1 : +1);
-            anno_set(anno, NBA_ANNO_IFACE_OUT, iface_out);
+            anno_set(&pkt->anno, NBA_ANNO_IFACE_OUT, iface_out);
             break;
           }
           case ECHOBACK_NUMA_CROSS:
           {
-            unsigned iface_in = anno_get(anno, NBA_ANNO_IFACE_IN);
+            unsigned iface_in = anno_get(&pkt->anno, NBA_ANNO_IFACE_IN);
             unsigned iface_out = (iface_in + ctx->num_tx_ports/ctx->num_nodes) % (ctx->num_tx_ports);
-            anno_set(anno, NBA_ANNO_IFACE_OUT, iface_out);
+            anno_set(&pkt->anno, NBA_ANNO_IFACE_OUT, iface_out);
             break;
           }
           case RR_PER_PACKET:
           {
             next_port = (next_port + 1) % (ctx->num_tx_ports);
-            anno_set(anno, NBA_ANNO_IFACE_OUT, next_port);
+            anno_set(&pkt->anno, NBA_ANNO_IFACE_OUT, next_port);
             break;
           }
           case RR_PER_BATCH:
           {
-            uint64_t batch_id = anno_get(anno, NBA_ANNO_BATCH_ID);
+            uint64_t batch_id = anno_get(&pkt->anno, NBA_ANNO_BATCH_ID);
             if (last_batch_id != batch_id)
                 next_port = (next_port + 1) % (ctx->num_tx_ports);
-            anno_set(anno, NBA_ANNO_IFACE_OUT, next_port);
+            anno_set(&pkt->anno, NBA_ANNO_IFACE_OUT, next_port);
             last_batch_id = batch_id;
             break;
           }
           case TWO_TO_ONE:
           {
-            unsigned iface_in = anno_get(anno, NBA_ANNO_IFACE_IN);
+            unsigned iface_in = anno_get(&pkt->anno, NBA_ANNO_IFACE_IN);
             unsigned iface_out = iface_in - (iface_in % 2);
-            anno_set(anno, NBA_ANNO_IFACE_OUT, iface_out);
+            anno_set(&pkt->anno, NBA_ANNO_IFACE_OUT, iface_out);
             break;
           }
         }

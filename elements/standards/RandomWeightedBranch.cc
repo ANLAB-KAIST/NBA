@@ -39,7 +39,7 @@ int RandomWeightedBranch::configure(comp_thread_context *ctx, std::vector<std::s
     return 0;
 }
 
-int RandomWeightedBranch::process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno)
+int RandomWeightedBranch::process(int input_port, Packet *pkt)
 {
     float x = uniform_dist(random_generator);
     int idx = 0;

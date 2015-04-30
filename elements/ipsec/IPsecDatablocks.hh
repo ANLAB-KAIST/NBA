@@ -1,6 +1,7 @@
 #ifndef __NBA_IPSEC_DATABLOCKS_HH__
 #define __NBA_IPSEC_DATABLOCKS_HH__
 
+#include "../../lib/packet.hh"
 #include "../../lib/packetbatch.hh"
 #include "../../lib/datablock.hh"
 #include <xmmintrin.h>
@@ -87,10 +88,11 @@ public:
         char *buf = (char *) buffer;
         for (unsigned p = 0; p < batch->count; p++) {
             if (batch->excluded[p] == false) {
-                assert(anno_isset(&batch->annos[p], NBA_ANNO_IPSEC_IV1));
-                assert(anno_isset(&batch->annos[p], NBA_ANNO_IPSEC_IV2));
-                __m128i iv = _mm_set_epi64((__m64) anno_get(&batch->annos[p], NBA_ANNO_IPSEC_IV1),
-                                        (__m64) anno_get(&batch->annos[p], NBA_ANNO_IPSEC_IV2));
+                Packet *pkt = Packet::from_base(batch->packets[p]);
+                assert(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_IV1));
+                assert(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_IV2));
+                __m128i iv = _mm_set_epi64((__m64) anno_get(&pkt->anno, NBA_ANNO_IPSEC_IV1),
+                                        (__m64) anno_get(&pkt->anno, NBA_ANNO_IPSEC_IV2));
                 _mm_storeu_si128((__m128i *) (buf + sizeof(__m128i) * p), iv);
             }
         }
@@ -140,8 +142,9 @@ public:
         uint64_t *buf = (uint64_t *) buffer;
         for (unsigned p = 0; p < batch->count; p++) {
             if (batch->excluded[p] == false) {
-                assert(anno_isset(&batch->annos[p], NBA_ANNO_IPSEC_FLOW_ID));
-                buf[p] = anno_get(&batch->annos[p], NBA_ANNO_IPSEC_FLOW_ID);
+                Packet *pkt = Packet::from_base(batch->packets[p]);
+                assert(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID));
+                buf[p] = anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID);
                 assert(buf[p] < 1024);
             } else {
                 // FIXME: Quick-and-dirty.. Just put invalid value in flow id to specify invalid packet.
@@ -197,7 +200,8 @@ public:
         memset(&block_info[0], 0xcc, sizeof(struct aes_block_info) * NBA_MAX_COMPBATCH_SIZE * (NBA_MAX_PACKET_SIZE / AES_BLOCK_SIZE));
 
         for (unsigned p = 0; p < batch->count; ++p) {
-            if (batch->excluded[p] || !anno_isset(&batch->annos[p], NBA_ANNO_IPSEC_FLOW_ID)) {
+            Packet *pkt = Packet::from_base(batch->packets[p]);
+            if (batch->excluded[p] || !anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)) {
                 // h_pkt_index and h_block_offset are per-block.
                 // We just skip to set them here.
                 continue;

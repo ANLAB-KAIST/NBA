@@ -15,10 +15,10 @@ int DecIP6HLIM::configure(comp_thread_context *ctx, std::vector<std::string> &ar
     return 0;
 }
 
-int DecIP6HLIM::process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno)
+int DecIP6HLIM::process(int input_port, Packet *pkt)
 {
-    struct ether_hdr *ethh = rte_pktmbuf_mtod(pkt, struct ether_hdr *);
-    struct ip6_hdr *iph     = (struct ip6_hdr *)(ethh + 1);
+    struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
+    struct ip6_hdr *iph    = (struct ip6_hdr *)(ethh + 1);
     uint32_t checksum;
 
     if (iph->ip6_hlim <= 1) {

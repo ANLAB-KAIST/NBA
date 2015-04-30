@@ -62,10 +62,10 @@ int LookupIP6Route::configure(comp_thread_context *ctx, std::vector<std::string>
 }
 
 /* The CPU version */
-int LookupIP6Route::process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno)
+int LookupIP6Route::process(int input_port, Packet *pkt)
 {
-    struct ether_hdr *ethh = rte_pktmbuf_mtod(pkt, struct ether_hdr *);
-    struct ip6_hdr *ip6h    = (struct ip6_hdr *)(ethh + 1);
+    struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
+    struct ip6_hdr *ip6h   = (struct ip6_hdr *)(ethh + 1);
     //uint128_t *dest_addr;
     uint16_t lookup_result = 0xffff;
 /*
@@ -90,19 +90,18 @@ int LookupIP6Route::process(int input_port, struct rte_mbuf *pkt, struct annotat
         return DROP;
 
     rr_port = (rr_port + 1) % num_tx_ports;
-    anno_set(anno, NBA_ANNO_IFACE_OUT, rr_port);
+    anno_set(&pkt->anno, NBA_ANNO_IFACE_OUT, rr_port);
     return 0;
 }
 
-int LookupIP6Route::postproc(int input_port, void *custom_output,
-                             struct rte_mbuf *pkt, struct annotation_set *anno)
+int LookupIP6Route::postproc(int input_port, void *custom_output, Packet *pkt)
 {
     uint16_t lookup_result = *((uint16_t *)custom_output);
     if (lookup_result == 0xffff)
         /* Could not find destination. Use the second output for "error" packets. */
         return DROP;
     rr_port = (rr_port + 1) % num_tx_ports;
-    anno_set(anno, NBA_ANNO_IFACE_OUT, rr_port);
+    anno_set(&pkt->anno, NBA_ANNO_IFACE_OUT, rr_port);
     return 0;
 }
 

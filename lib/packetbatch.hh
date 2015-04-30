@@ -31,7 +31,6 @@ public:
         memset(&results[0], 0xdd, sizeof(int) * NBA_MAX_COMPBATCH_SIZE);
         memset(&excluded[0], 0xcc, sizeof(bool) * NBA_MAX_COMPBATCH_SIZE);
         memset(&packets[0], 0xbb, sizeof(struct rte_mbuf*) * NBA_MAX_COMPBATCH_SIZE);
-        memset(&annos[0], 0xaa, sizeof(struct annotation_set) * NBA_MAX_COMPBATCH_SIZE);
         #endif
     }
 
@@ -50,11 +49,9 @@ public:
     uint64_t delay_start;
     double compute_time;
 
-    struct annotation_set banno __rte_cache_aligned;
-
+    struct annotation_set banno __rte_cache_aligned;  /** Batch-level annotations. */
     bool excluded[NBA_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
     struct rte_mbuf *packets[NBA_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
-    struct annotation_set annos[NBA_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
     int results[NBA_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
 };
 

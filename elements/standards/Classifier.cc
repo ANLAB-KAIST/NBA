@@ -6,12 +6,12 @@ using namespace nba;
 
 int Classifier::initialize()
 {
-	return 0;
+        return 0;
 }
 
 int Classifier::configure(comp_thread_context *ctx, std::vector<std::string> &args)
 {
-	Element::configure(ctx, args);
+        Element::configure(ctx, args);
 
     // Temporarily store conditions before connecting each other.
     queue<struct MatchCondition *> temp_queue;
@@ -93,12 +93,12 @@ int Classifier::configure(comp_thread_context *ctx, std::vector<std::string> &ar
     }
 */
  
-	return 0;
+        return 0;
 }
 
-int Classifier::process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno)
+int Classifier::process(int input_port, Packet *pkt)
 {
-	char *packet = (char *) rte_pktmbuf_mtod(pkt, struct ether_hdr *);
+    char *packet = (char *) pkt->data();
     int output_port = 0;
 
     vector<struct MatchCondition *>::iterator iter2;
@@ -133,6 +133,8 @@ int Classifier::process(int input_port, struct rte_mbuf *pkt, struct annotation_
         }
         output_port++;
     }
-     	
+
     return DROP;
 }
+
+// vim: ts=8 sts=4 sw=4 et

@@ -43,7 +43,7 @@ public:
         return 0;
     }
 
-    int process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno)
+    int process(int input_port, Packet *pkt)
     {
         assert(0);  // This is a special element that is not executed.
         return 0;

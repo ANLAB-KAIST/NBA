@@ -119,7 +119,7 @@ int IPsecHMACSHA1AES::configure(comp_thread_context *ctx, std::vector<std::strin
 // ^ethh      ^iph            ^esph    ^encrypt_ptr
 //                                     <===== to be encrypted with AES ====>
 //
-int IPsecHMACSHA1AES::process(int input_port, struct rte_mbuf *pkt, struct annotation_set *anno)
+int IPsecHMACSHA1AES::process(int input_port, Packet *pkt)
 {
     struct ether_hdr *ethh = rte_pktmbuf_mtod(pkt, struct ether_hdr *);
     struct iphdr *iph = (struct iphdr *) (ethh + 1);
@@ -143,8 +143,8 @@ int IPsecHMACSHA1AES::process(int input_port, struct rte_mbuf *pkt, struct annot
     struct hmac_aes_sa_entry *sa_entry = NULL;
     uint8_t *hmac_key = NULL;
 
-    if (likely(anno_isset(anno, NBA_ANNO_IPSEC_FLOW_ID))) {
-        sa_entry = &h_key_array[anno_get(anno, NBA_ANNO_IPSEC_FLOW_ID)];
+    if (likely(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID))) {
+        sa_entry = &h_key_array[anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)];
 
         // AES processing
         // TODO: support decrpytion.
@@ -197,7 +197,7 @@ void IPsecHMACSHA1AES::cuda_init_handler(ComputeDevice *device)
 }
 #endif
 
-void IPsecHMACSHA1AES::preproc(int input_port, void *custom_input, struct rte_mbuf *pkt, struct annotation_set *anno)
+void IPsecHMACSHA1AES::preproc(int input_port, void *custom_input, Packet *pkt)
 {
     return;
 }
@@ -287,7 +287,7 @@ void IPsecHMACSHA1AES::cuda_compute_handler(ComputeContext *cctx, struct resourc
 }
 #endif
 
-int IPsecHMACSHA1AES::postproc(int input_port, void *custom_output, struct rte_mbuf *pkt, struct annotation_set *anno)
+int IPsecHMACSHA1AES::postproc(int input_port, void *custom_output, Packet *pkt)
 {
     /* ROI type of IPsecHMACSHA1AES output packet: PACKET */
     // TODO: optional validation

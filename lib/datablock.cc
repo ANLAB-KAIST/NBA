@@ -275,8 +275,8 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
             rte_memcpy(rte_pktmbuf_mtod(batch->packets[p], char*) + write_roi.offset,
                        (char*) host_out_ptr + offset,
                        elemsz);
-            batch->results[p] = elem->postproc(input_port, nullptr,
-                                               batch->packets[p], &batch->annos[p]);
+            Packet *pkt = Packet::from_base(batch->packets[p]);
+            batch->results[p] = elem->postproc(input_port, nullptr, pkt);
             batch->excluded[p] = (batch->results[p] == DROP);
         }
         batch->has_results = true;
@@ -293,9 +293,10 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
             if (batch->excluded[p]) continue;
             unsigned elemsz = t->aligned_item_sizes.size;
             unsigned offset = elemsz * p;
+            Packet *pkt = Packet::from_base(batch->packets[p]);
             batch->results[p] = elem->postproc(input_port,
                                                (char*) host_out_ptr + offset,
-                                               batch->packets[p], &batch->annos[p]);
+                                               pkt);
             batch->excluded[p] = (batch->results[p] == DROP);
         }
         batch->has_results = true;
