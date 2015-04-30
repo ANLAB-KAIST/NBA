@@ -30,11 +30,14 @@ enum Disposition {
 struct Packet {
 private:
     /* Additional properties */
+    #ifdef DEBUG
     uint32_t magic;
-    PacketBatch *mother;
+    #endif
+    //PacketBatch *mother;
     struct rte_mbuf *base;
-    int result;
     bool cloned;
+
+    friend class Element;
 
 public:
     struct annotation_set anno;
@@ -50,8 +53,9 @@ public:
     }
     static inline Packet *from_base(void *base) {
         if (base == nullptr) return nullptr;
-        void *buf = ((struct rte_mbuf *) base)->buf_addr;
-        assert(*(uint32_t *)(uintptr_t *)buf == 0x392cafcdu);
+        #ifdef DEBUG
+        assert(0x392cafcdu == (uintptr_t) ((struct rte_mbuf *) base)->buf_addr);
+        #endif
         return reinterpret_cast<Packet *>(((struct rte_mbuf *) base)->buf_addr);
     }
 
@@ -59,7 +63,11 @@ public:
      * Initialize the Packet object.
      */
     Packet(PacketBatch *mother, void *base)
-    : magic(0x392cafcdu), mother(mother), base((struct rte_mbuf *) base), result(DROP), cloned(false)
+    :
+    #ifdef DEBUG
+    magic(0x392cafcdu),
+    #endif
+    /*mother(mother),*/ base((struct rte_mbuf *) base), cloned(false)
     { }
 
     ~Packet() {
@@ -68,9 +76,7 @@ public:
         }
     }
 
-    inline void kill() {
-        result = DROP;
-    }
+    inline void kill() { /** Deprecated. Use "return DROP" instead. */ }
 
     inline unsigned char *data() { return rte_pktmbuf_mtod(base, unsigned char *); }
     inline uint32_t length() { return rte_pktmbuf_data_len(base); }
@@ -196,13 +202,6 @@ public:
 #endif
 
     // TODO: a lot of annotation-related methods...
-
-private:
-    friend class Element;
-
-    int get_result() {
-        return result;
-    }
 };
 
 struct rte_mempool *packet_create_mempool(size_t size, int node_id, int core_id);
