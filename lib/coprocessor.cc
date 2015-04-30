@@ -33,11 +33,10 @@
 #include <nvToolsExt.h>
 #endif
 
+RTE_DECLARE_PER_LCORE(unsigned, _socket_id);
 
 using namespace std;
 using namespace nba;
-
-RTE_DECLARE_PER_LCORE(unsigned, _lcore_id);
 
 namespace nba {
 
@@ -150,6 +149,7 @@ void *coproc_loop(void *arg)
 
     /* Fool DPDK that we are on their lcore abstraction. */
     RTE_PER_LCORE(_lcore_id) = ctx->loc.core_id;
+    RTE_PER_LCORE(_socket_id) = rte_lcore_to_socket_id(ctx->loc.core_id);
 
     /* Ensure we are on the right core. */
     assert(rte_socket_id() == ctx->loc.node_id);

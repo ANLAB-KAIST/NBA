@@ -241,6 +241,7 @@ nba_get_coprocessors(PyObject *self, PyObject *args)
 
         PyList_Append(plist, pnamedtuple);
     }
+
     cudaDeviceReset(); // ignore errors when GPU doesn't exist
 #endif
 #ifdef USE_PHI
@@ -338,6 +339,17 @@ nba_get_coprocessors(PyObject *self, PyObject *args)
             PyList_Append(plist, pnamedtuple);
         }
     }
+
+    // Sort by NUMA node
+    PyObject *pGlobals = PyDict_New();
+    PyObject *pLocals  = PyDict_New();
+    PyObject *pkey = PyUnicode_FromString("plist");
+    PyDict_SetItem(pGlobals, pkey, plist);
+    PyRun_String("plist.sort(key=lambda t: t.numa_node)", Py_file_input, pGlobals, pLocals);
+    Py_DECREF(pkey);
+    Py_DECREF(pLocals);
+    Py_DECREF(pGlobals);
+
     return plist;
 }
 

@@ -4,7 +4,8 @@ import sys
 
 for netdev in nba.get_netdevices():
     print(netdev)
-for coproc in nba.get_coprocessors():
+coprocessors = nba.get_coprocessors()
+for coproc in coprocessors:
     print(coproc)
 node_cpus = nba.get_cpu_node_mapping()
 for node_id, cpus in enumerate(node_cpus):
@@ -69,8 +70,8 @@ comp_threads = [
 
 coproc_threads = [
     # core_id, device_id
-    nba.CoprocThread(core_id=node_cpus[0][7] + _ht_diff, device_id=0),
-    nba.CoprocThread(core_id=node_cpus[1][7] + _ht_diff, device_id=1),
+    nba.CoprocThread(core_id=node_cpus[0][7] + _ht_diff, device_id=coprocessors[0].device_id),
+    nba.CoprocThread(core_id=node_cpus[1][7] + _ht_diff, device_id=coprocessors[1].device_id),
 ]
 
 comp_input_queues = [
