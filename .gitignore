@@ -37,3 +37,4 @@ lib/*_map.hh
 *.pyo
 __pycache__
 configs/pcre_table
+.settings

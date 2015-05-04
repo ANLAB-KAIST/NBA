@@ -1,9 +1,12 @@
 #! /usr/bin/env python3
 import sys, time, os
 import asyncio
+import tempfile
+from contextlib import ExitStack
 from itertools import product
+from statistics import mean
 from exprlib import execute, ExperimentEnv
-from pspgen import pspgen
+from pspgen import PktGenRunner
 
 class ResultsAndConditions:
     def __init__(self):
@@ -40,96 +43,68 @@ class ResultsAndConditions:
 if __name__ == '__main__':
 
     env = ExperimentEnv(verbose=False)
-    marcel = pspgen('shader-marcel.anlab', 54321)
-    lahti = pspgen('shader-lahti.anlab', 54321)
-    #iobatchsizes = [8, 16, 32, 64, 128, 256]
-    #compbatchsizes = [1, 8, 16, 32, 64, 128]
-    #compppdepths = [1, 8, 16, 32, 64, 128]
-    
-    iobatchsizes = [32]
+    marcel = PktGenRunner('shader-marcel.anlab', 54321)
+    lahti  = PktGenRunner('shader-lahti.anlab', 54321)
+    pktgens = [marcel, lahti]
+
+    iobatchsizes   = [32]
     compbatchsizes = [32]
-    compppdepths = [16]
-    no_port = [4]
-    no_cpu = [8]
-    no_node = [2]
-    packetsize = [60, 64]#, 128, 256, 512, 1024, 1500]
-    branch_lv = ["l2fwd-echo-branch-lv1.click"]#, "l2fwd-echo-branch-lv2.click", "l2fwd-echo-branch-lv3.click"]
-    #branch_lv = ["l2fwd-echo-no-branch-lv1.click", "l2fwd-echo-no-branch-lv2.click", "l2fwd-echo-no-branch-lv3.click"]
-    branch_ratio = [50, 40, 30, 20, 10, 5, 1]
+    compppdepths   = [16]
+    packetsize     = [64]#, 128, 256, 512, 1024, 1500]
+    branch_configs = ["l2fwd-echo-branch-lv1.click"]#, "l2fwd-echo-branch-lv2.click", "l2fwd-echo-branch-lv3.click"]
+    branch_ratio   = [50, 40, 30, 20, 10, 5, 1]
 
-    #coprocppdepths = [16, 32, 64, 128]
-    loadbalancers = ['CPUOnlyLB']
+    print('Params: io-batch-size comp-batch-size comp-ppdepth pkt-size branch-lvl branch-ratio')
+    print('Outputs: fwd-Mpps fwd-Gbps')
 
-    print('NOTE: You should be running packet generators manually!')
+    for params in product(iobatchsizes, compbatchsizes, compppdepths,
+                          packetsize, branch_configs, branch_ratio): #, coprocppdepths):
 
-    max_result = ResultsAndConditions()
-    for lb_mode in loadbalancers:
-        print('======== LoadBalancer mode: {0} ========='.format(lb_mode))
-        print('Params: io-batch-size comp-batch-size comp-ppdepth')
-        print('Outputs: forwarded-pps cpu-util(usr)-io cpu-util(sys)-io cpu-util(usr)-comp cpu-util(sys)-comp')
         sys.stdout.flush()
-        env.envvars['NBA_LOADBALANCER_MODE'] = lb_mode 
-        for params in product(iobatchsizes, compbatchsizes, compppdepths, no_port, no_cpu, no_node, packetsize, branch_lv, branch_ratio): #, coprocppdepths):
+        env.envvars['NBA_IO_BATCH_SIZE'] = str(params[0])
+        env.envvars['NBA_COMP_BATCH_SIZE'] = str(params[1])
+        env.envvars['NBA_COMP_PPDEPTH'] = str(params[2])
+        psize = str(params[3])
+        branch_config = str(params[4])
+        branch_ratio_local = params[5]
 
-            env.envvars['NBA_IO_BATCH_SIZE'] = str(params[0]) 
-            env.envvars['NBA_COMP_BATCH_SIZE'] = str(params[1]) 
-            env.envvars['NBA_COMP_PPDEPTH'] = str(params[2])
-            env.envvars['NBA_SINGLE_PORT_MULTI_CPU_PORT'] = str(params[3])
-            env.envvars['NBA_SINGLE_PORT_MULTI_CPU'] = str(params[4])
-            env.envvars['NBA_SINGLE_PORT_MULTI_CPU_NODE'] = str(params[5])
-            psize = str(params[6])
-            branch_lv_local = str(params[7])
-            branch_ratio_local = params[8]
+        # Configure what and how to measure things.
+        thruput_fetcher = env.measure_thruput(begin_after=15.0, repeat=False)
+        cpu_fetcher     = env.measure_cpu_usage(interval=2, begin_after=17.0, repeat=False)
 
-            # Configure what and how to measure things.
-            thruput_fetcher = env.measure_thruput(begin_after=15.0, repeat=False)
-            cpu_fetcher     = env.measure_cpu_usage(interval=1, begin_after=17.0, repeat=False)
+        for pktgen in pktgens:
+            pktgen.set_args("-i", "all", "-f", "0", "-v", "4", "-p", psize)
 
-            lahti.start("-i", "all", "-f", "0,", "-v", "4", "-p", psize)
-            marcel.start("-i", "all", "-f", "0,", "-v", "4", "-p", psize)
-            
-            high_branch = 100 - branch_ratio_local
-            low_branch = branch_ratio_local
-            
-            #Generate template
-            click_path = os.path.normpath(os.path.join('configs', branch_lv_local))
-            #print (click_path)
-            temp_path = os.path.normpath(os.path.join('configs', "__temp.click"))
-            with open (click_path, "r") as myfile:
-                data=myfile.read()
-                data2 = data.format(str(high_branch),str(low_branch),"echoback");
-                #print (data2);
-                outfile = open (temp_path, "w")
-                outfile.write(data2)
-                myfile.close()
-                outfile.close()
-            # Run.
+        high_branch = 100 - branch_ratio_local
+        low_branch = branch_ratio_local
+
+        # Generate Click config from a template
+        click_path = os.path.normpath(os.path.join('configs', branch_config))
+        temp_file  = tempfile.NamedTemporaryFile('w', prefix='nba.temp.click.', delete=False)
+        with open(click_path, 'r') as infile, temp_file as outfile:
+            data_in  = infile.read()
+            data_out = data_in.format(str(high_branch), str(low_branch), 'echoback');
+            print(data_out, file=outfile)
+
+        # Run.
+        with ExitStack() as stack:
+            _ = [stack.enter_context(pktgen) for pktgen in pktgens]
             loop = asyncio.get_event_loop()
-            loop.run_until_complete(env.execute_main('single-port-multi-cpu.py', "__temp.click", running_time=20.0))
+            loop.run_until_complete(env.execute_main('rss.py', temp_file.name, running_time=20.0))
 
-            # Retrieve the results.
-            print('{0:5} {1:5} {2:5} {3:5} {4:5} {5:5} {6:6} {7:7} {8:8}'.format(params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7], params[8]), end=' ')
+        # Delete the generated config.
+        os.unlink(temp_file.name)
 
-            for thruput in thruput_fetcher:
-                print('totalpkt: {0:10,}'.format(thruput.total_fwd_pps), end=' ')
+        # Retrieve the results.
+        print('{0:5} {1:5} {2:5} {3:5} {4:5} {5:5}'.format(*params), end=' ')
 
-                io_cores = env.get_io_cores(8)
-                comp_cores = env.get_comp_cores(8, 'sibling')
-                for cpu_usages in cpu_fetcher:
-                    cpu_usage = tuple(filter(lambda o: str(o.core) == str(0), cpu_usages))
-                    if cpu_usage:
-                        print('{0:6.2f} {1:6.2f}'.format(cpu_usage[0].usr, cpu_usage[0].sys), end=' ')
-                    cpu_usage = tuple(filter(lambda o: str(o.core) == str(16), cpu_usages))
-                    if cpu_usage:
-                        print('{0:6.2f} {1:6.2f}'.format(cpu_usage[0].usr, cpu_usage[0].sys))
-                        
-            os.remove(temp_path)
+        # Fetch results of throughput measurement and compute average.
+        average_thruput_mpps = mean(t.total_fwd_pps for t in thruput_fetcher)
+        average_thruput_gbps = mean(t.total_fwd_bps for t in thruput_fetcher)
+        print('{0:6.2f}'.format(average_thruput_mpps), end=' ')
+        print('{0:6.2f}'.format(average_thruput_gbps), end=' ')
+        print()
 
-                # Check max result.
-            sys.stdout.flush()
-            marcel.terminate()
-            lahti.terminate()
-            time.sleep(3)
-
-        # Print max result.
-        #max_result.print_result()
+        # Check max result.
+        sys.stdout.flush()
+        time.sleep(3)
