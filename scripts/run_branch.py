@@ -51,8 +51,9 @@ if __name__ == '__main__':
     compbatchsizes = [32]
     compppdepths   = [16]
     packetsize     = [64]#, 128, 256, 512, 1024, 1500]
-    branch_configs = ["l2fwd-echo-branch-lv1.click"]#, "l2fwd-echo-branch-lv2.click", "l2fwd-echo-branch-lv3.click"]
-    branch_ratio   = [50, 40, 30, 20, 10, 5, 1]
+    #branch_configs = ["l2fwd-echo-branch-lv1.click"]#, "l2fwd-echo-branch-lv2.click", "l2fwd-echo-branch-lv3.click"]
+    branch_configs = ["l2fwd-echo-skewed-branch-lv3.click"]
+    branch_ratio   = [99, 95, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 1]
 
     print('Params: io-batch-size comp-batch-size comp-ppdepth pkt-size branch-lvl branch-ratio')
     print('Outputs: fwd-Mpps fwd-Gbps')
@@ -69,8 +70,8 @@ if __name__ == '__main__':
         branch_ratio_local = params[5]
 
         # Configure what and how to measure things.
-        thruput_fetcher = env.measure_thruput(begin_after=15.0, repeat=False)
-        cpu_fetcher     = env.measure_cpu_usage(interval=2, begin_after=17.0, repeat=False)
+        thruput_fetcher = env.measure_thruput(begin_after=25.0, repeat=False)
+        cpu_fetcher     = env.measure_cpu_usage(interval=2, begin_after=26.0, repeat=False)
 
         for pktgen in pktgens:
             pktgen.set_args("-i", "all", "-f", "0", "-v", "4", "-p", psize)
@@ -90,7 +91,7 @@ if __name__ == '__main__':
         with ExitStack() as stack:
             _ = [stack.enter_context(pktgen) for pktgen in pktgens]
             loop = asyncio.get_event_loop()
-            loop.run_until_complete(env.execute_main('rss.py', temp_file.name, running_time=20.0))
+            loop.run_until_complete(env.execute_main('rss.py', temp_file.name, running_time=31.0))
 
         # Delete the generated config.
         os.unlink(temp_file.name)
