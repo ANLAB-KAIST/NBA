@@ -78,8 +78,8 @@ if __name__ == '__main__':
                     pktgen.set_args("-i", "all", "-f", "0", "-v", "4", "-p", str(pktsize))
 
         # Configure what and how to measure things.
-        thruput_records = env.measure_thruput(begin_after=20.0, repeat=True)
-        cpu_records     = env.measure_cpu_usage(interval=1.2, begin_after=20.0, repeat=True)
+        thruput_records = env.measure_thruput(begin_after=25.0, repeat=True)
+        cpu_records     = env.measure_cpu_usage(interval=2, begin_after=26.0, repeat=True)
 
         # Run.
         with ExitStack() as stack:
@@ -95,7 +95,7 @@ if __name__ == '__main__':
                 retcode = loop.run_until_complete(execute_async_simple(main_cmdargs, timeout=args.timeout))
             else:
                 retcode = loop.run_until_complete(env.execute_main(args.sys_config_to_use, args.element_config_to_use,
-                                                                   running_time=30.0, emulate_opts=emulate_opts))
+                                                                   running_time=32.0, emulate_opts=emulate_opts))
             if retcode != 0:
                 print('The main program exited abnormaly, and we ignore the results! (exit code: {0})'.format(retcode))
                 continue

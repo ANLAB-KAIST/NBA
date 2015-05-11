@@ -53,6 +53,7 @@ if __name__ == '__main__':
     packetsize     = [64]#, 128, 256, 512, 1024, 1500]
     #branch_configs = ["l2fwd-echo-branch-lv1.click"]#, "l2fwd-echo-branch-lv2.click", "l2fwd-echo-branch-lv3.click"]
     branch_configs = ["l2fwd-echo-skewed-branch-lv3.click"]
+    #branch_ratio   = [50, 40, 30, 20, 10, 5, 1]
     branch_ratio   = [99, 95, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 1]
 
     print('Params: io-batch-size comp-batch-size comp-ppdepth pkt-size branch-lvl branch-ratio')
