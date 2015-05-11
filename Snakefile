@@ -171,7 +171,8 @@ if DPDK_PATH is None:
     sys.exit(1)
 librte_pmds    = {
     'ixgbe': ['rte_pmd_ixgbe'],
-    'mlx4': ['rte_pmd_mlx4', 'rte_timer'],
+    'mlx4':  ['rte_pmd_mlx4', 'rte_timer'],
+    'null':  ['rte_pmd_null', 'rte_kvargs'],
 }
 librte_names   = ['ethdev', 'rte_eal', 'rte_cmdline', 'rte_malloc', 'rte_mbuf', 'rte_mempool', 'rte_ring']
 librte_names.extend(librte_pmds[PMD])
