@@ -52,7 +52,7 @@ public:
      */
     static inline Packet *from_base_nocheck(void *base) {
         if (base == nullptr) return nullptr;
-        return reinterpret_cast<Packet *>((char *) base + sizeof(Packet));
+        return reinterpret_cast<Packet *>((char *) base + sizeof(struct rte_mbuf));
     }
 
     /**
@@ -64,9 +64,9 @@ public:
     static inline Packet *from_base(void *base) {
         if (base == nullptr) return nullptr;
         #ifdef DEBUG
-        assert(NBA_PACKET_MAGIC == *(uint32_t*) ((char *) base + sizeof(Packet)));
+        assert(NBA_PACKET_MAGIC == *(uint32_t*) ((char *) base + sizeof(struct rte_mbuf)));
         #endif
-        return reinterpret_cast<Packet *>((char *) base + sizeof(Packet));
+        return reinterpret_cast<Packet *>((char *) base + sizeof(struct rte_mbuf));
     }
 
     /**

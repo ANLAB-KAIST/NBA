@@ -282,18 +282,9 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
     for (p = 0; p < count; p++) {
         batch->excluded[p] = false;
     }
-    for (unsigned q = 0; q < RTE_MIN(count, 8u); q ++) {
-        rte_prefetch0(Packet::from_base_nocheck(batch->packets[q]));
-        rte_prefetch0((char *) Packet::from_base_nocheck(batch->packets[q]) + (uintptr_t) CACHE_LINE_SIZE);
-    }
     for (p = 0; p < count; p++) {
         /* Initialize packet metadata objects in pktmbuf's private area. */
         Packet *pkt = Packet::from_base_nocheck(batch->packets[p]);
-        unsigned q = p + 8u;
-        if (q < count) {
-            rte_prefetch0(Packet::from_base_nocheck(batch->packets[q]));
-            rte_prefetch0((char *) Packet::from_base_nocheck(batch->packets[q]) + (uintptr_t) CACHE_LINE_SIZE);
-        }
         new (pkt) Packet(batch, batch->packets[p]);
 
         /* Set annotations and strip the temporary headroom. */
