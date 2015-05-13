@@ -20,25 +20,21 @@ enum BatchDisposition {
     CONTINUE_TO_PROCESS = 0,
 };
 
+class Packet;
+
 class PacketBatch {
 public:
     PacketBatch()
-        : count(0), datablock_states(nullptr), recv_timestamp(0),
+        : count(0), first_packet(nullptr), datablock_states(nullptr), recv_timestamp(0),
           generation(0), batch_id(0), element(nullptr), input_port(0), has_results(false),
           delay_start(0), compute_time(0)
-    {
-        #ifdef DEBUG
-        memset(&results[0], 0xdd, sizeof(int) * NBA_MAX_COMPBATCH_SIZE);
-        memset(&excluded[0], 0xcc, sizeof(bool) * NBA_MAX_COMPBATCH_SIZE);
-        memset(&packets[0], 0xbb, sizeof(struct rte_mbuf*) * NBA_MAX_COMPBATCH_SIZE);
-        #endif
-    }
+    { }
 
     virtual ~PacketBatch()
-    {
-    }
+    { }
 
     unsigned count;
+    Packet *first_packet;
     struct datablock_tracker *datablock_states;
     uint64_t recv_timestamp;
     uint64_t generation;
@@ -48,11 +44,7 @@ public:
     bool has_results;
     uint64_t delay_start;
     double compute_time;
-
     struct annotation_set banno __rte_cache_aligned;  /** Batch-level annotations. */
-    bool excluded[NBA_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
-    struct rte_mbuf *packets[NBA_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
-    int results[NBA_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
 };
 
 }

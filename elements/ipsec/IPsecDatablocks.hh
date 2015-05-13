@@ -86,15 +86,14 @@ public:
     void preproc_batch(PacketBatch *batch, void *buffer)
     {
         char *buf = (char *) buffer;
-        for (unsigned p = 0; p < batch->count; p++) {
-            if (batch->excluded[p] == false) {
-                Packet *pkt = Packet::from_base(batch->packets[p]);
-                assert(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_IV1));
-                assert(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_IV2));
-                __m128i iv = _mm_set_epi64((__m64) anno_get(&pkt->anno, NBA_ANNO_IPSEC_IV1),
-                                        (__m64) anno_get(&pkt->anno, NBA_ANNO_IPSEC_IV2));
-                _mm_storeu_si128((__m128i *) (buf + sizeof(__m128i) * p), iv);
-            }
+        unsigned p = 0;
+        for (Packet *pkt = batch->first_packet; pkt != nullptr; pkt = pkt->next) {
+            assert(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_IV1));
+            assert(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_IV2));
+            __m128i iv = _mm_set_epi64((__m64) anno_get(&pkt->anno, NBA_ANNO_IPSEC_IV1),
+                                    (__m64) anno_get(&pkt->anno, NBA_ANNO_IPSEC_IV2));
+            _mm_storeu_si128((__m128i *) (buf + sizeof(__m128i) * p), iv);
+            p++;
         }
     }
 };
@@ -140,16 +139,12 @@ public:
     void preproc_batch(PacketBatch *batch, void *buffer)
     {
         uint64_t *buf = (uint64_t *) buffer;
-        for (unsigned p = 0; p < batch->count; p++) {
-            if (batch->excluded[p] == false) {
-                Packet *pkt = Packet::from_base(batch->packets[p]);
-                assert(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID));
-                buf[p] = anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID);
-                assert(buf[p] < 1024);
-            } else {
-                // FIXME: Quick-and-dirty.. Just put invalid value in flow id to specify invalid packet.
-                buf[p] = invalid_value;
-            }
+        unsigned p = 0;
+        for (Packet *pkt = batch->first_packet; pkt != nullptr; pkt = pkt->next) {
+            assert(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID));
+            buf[p] = anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID);
+            assert(buf[p] < 1024);
+            p++;
         }
     }
 
@@ -201,9 +196,9 @@ public:
         memset(&block_info[0], 0xcc, sizeof(struct aes_block_info) * NBA_MAX_COMPBATCH_SIZE * (NBA_MAX_PACKET_SIZE / AES_BLOCK_SIZE));
         #endif
 
-        for (unsigned p = 0; p < batch->count; ++p) {
-            Packet *pkt = Packet::from_base(batch->packets[p]);
-            if (batch->excluded[p] || !anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)) {
+        unsigned p = 0;
+        for (Packet *pkt = batch->first_packet; pkt != nullptr; pkt = pkt->next) {
+            if (!anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)) {
                 // h_pkt_index and h_block_offset are per-block.
                 // We just skip to set them here.
                 continue;
@@ -211,7 +206,7 @@ public:
 
             /* Per-block loop for the packet. */
             unsigned strip_hdr_len = sizeof(struct ether_hdr) + sizeof(struct iphdr) + sizeof(struct esphdr);
-            unsigned pkt_len = rte_pktmbuf_data_len(batch->packets[p]);
+            unsigned pkt_len = rte_pktmbuf_data_len(pkt->base);
             unsigned payload_len = ALIGN(pkt_len - strip_hdr_len, AES_BLOCK_SIZE);
             unsigned pkt_local_num_blocks = (payload_len + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE;
             for (unsigned q = 0; q < pkt_local_num_blocks; ++q) {
@@ -230,6 +225,7 @@ public:
         out_count = global_block_cnt;
         if (out_count > 0)
             has_pending_data = true;
+        p++;
     }
 
     void preproc_batch(PacketBatch *batch, void *buffer)

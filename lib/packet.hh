@@ -13,6 +13,7 @@ namespace nba {
 extern thread_local struct rte_mempool *packet_pool;
 
 class PacketBatch;
+class io_thread_context;
 
 /* We have to manage two memory pools:
  * first for the original memory pool that our mbuf is allocated from.
@@ -34,12 +35,12 @@ private:
     #ifdef DEBUG
     uint32_t magic;
     #endif
-    struct rte_mbuf *base;
-    bool cloned;
-
-    friend class Element;
 
 public:
+    Packet *next;
+    struct rte_mbuf *base;
+    int result;
+    bool cloned;
     struct annotation_set anno;
 
 #define NBA_PACKET_MAGIC 0x392cafcdu
@@ -76,7 +77,7 @@ public:
     #ifdef DEBUG
     magic(NBA_PACKET_MAGIC),
     #endif
-    base((struct rte_mbuf *) base), cloned(false)
+    next(nullptr), base((struct rte_mbuf *) base), result(DROP), cloned(false)
     { }
 
     ~Packet() {

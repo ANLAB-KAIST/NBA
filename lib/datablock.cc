@@ -74,20 +74,16 @@ tuple<size_t, size_t> DataBlock::calc_read_buffer_size(PacketBatch *batch)
 
         num_read_items = batch->count;
         size_t align = (read_roi.align == 0) ? CACHE_LINE_SIZE : read_roi.align;
-        for (unsigned p = 0; p < batch->count; p++) {
-            if (batch->excluded[p]) {
-                t->aligned_item_sizes.offsets[p] = 0;
-                //t->exact_item_sizes.sizes[p]   = 0;
-                t->aligned_item_sizes.sizes[p]   = 0;
-            } else {
-                unsigned exact_len   = rte_pktmbuf_data_len(batch->packets[p]) - read_roi.offset
-                                       + read_roi.length + read_roi.size_delta;
-                unsigned aligned_len = RTE_ALIGN_CEIL(exact_len, align);
-                t->aligned_item_sizes.offsets[p] = read_buffer_size;
-                //t->exact_item_sizes.sizes[p]   = exact_len;
-                t->aligned_item_sizes.sizes[p]   = aligned_len;
-                read_buffer_size += aligned_len;
-            }
+        unsigned p = 0;
+        for (Packet *pkt = batch->first_packet; pkt != nullptr; pkt = pkt->next) {
+            unsigned exact_len   = pkt->length() - read_roi.offset
+                                   + read_roi.length + read_roi.size_delta;
+            unsigned aligned_len = RTE_ALIGN_CEIL(exact_len, align);
+            t->aligned_item_sizes.offsets[p] = read_buffer_size;
+            //t->exact_item_sizes.sizes[p]   = exact_len;
+            t->aligned_item_sizes.sizes[p]   = aligned_len;
+            read_buffer_size += aligned_len;
+            p++;
         }
 
         break; }
@@ -182,27 +178,22 @@ void DataBlock::preprocess(PacketBatch *batch, void *host_in_buffer) {
     case READ_PARTIAL_PACKET: {
         #define PREFETCH_MAX (4)
         #if PREFETCH_MAX
-        for (signed p = 0; p < RTE_MIN(PREFETCH_MAX, ((signed)batch->count)); p++)
-            if (batch->packets[p] != nullptr)
-                rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p], void*));
+        //for (signed p = 0; p < RTE_MIN(PREFETCH_MAX, ((signed)batch->count)); p++)
+        //    if (batch->packets[p] != nullptr)
+        //        rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p], void*));
         #endif
-        void *invalid_value = this->get_invalid_value();
-        for (unsigned p = 0; p < batch->count; p++) {
+        unsigned p = 0;
+        for (Packet *pkt = batch->first_packet; pkt != nullptr; pkt = pkt->next) {
             size_t aligned_elemsz = t->aligned_item_sizes.size;
             size_t offset         = t->aligned_item_sizes.size * p;
-            if (batch->excluded[p]) {
-                if (invalid_value != nullptr) {
-                    rte_memcpy((char *) host_in_buffer + offset, invalid_value, aligned_elemsz);
-                }
-            } else {
-                #if PREFETCH_MAX
-                if ((signed)p < (signed)batch->count - PREFETCH_MAX && batch->excluded[p + PREFETCH_MAX] == false)
-                    rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p + PREFETCH_MAX], void*));
-                #endif
-                rte_memcpy((char*) host_in_buffer + offset,
-                           rte_pktmbuf_mtod(batch->packets[p], char*) + read_roi.offset,
-                           aligned_elemsz);
-            }
+            #if PREFETCH_MAX
+            //if ((signed)p < (signed)batch->count - PREFETCH_MAX && batch->excluded[p + PREFETCH_MAX] == false)
+            //    rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p + PREFETCH_MAX], void*));
+            #endif
+            rte_memcpy((char*) host_in_buffer + offset,
+                       pkt->data() + read_roi.offset,
+                       aligned_elemsz);
+            p++;
         }
         #undef PREFETCH_MAX
 
@@ -212,22 +203,22 @@ void DataBlock::preprocess(PacketBatch *batch, void *host_in_buffer) {
         /* Copy the speicified region of packet to the input buffer. */
         #define PREFETCH_MAX (4)
         #if PREFETCH_MAX
-        for (signed p = 0; p < RTE_MIN(PREFETCH_MAX, ((signed)batch->count)); p++)
-            if (batch->packets[p] != nullptr)
-                rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p], void*));
+        //for (signed p = 0; p < RTE_MIN(PREFETCH_MAX, ((signed)batch->count)); p++)
+        //    if (batch->packets[p] != nullptr)
+        //        rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p], void*));
         #endif
-        for (unsigned p = 0; p < batch->count; p++) {
-            if (batch->excluded[p])
-                continue;
+        unsigned p = 0;
+        for (Packet *pkt = batch->first_packet; pkt != nullptr; pkt = pkt->next) {
             size_t aligned_elemsz = t->aligned_item_sizes.sizes[p];
             size_t offset         = t->aligned_item_sizes.offsets[p];
             #if PREFETCH_MAX
-            if ((signed)p < (signed)batch->count - PREFETCH_MAX && batch->excluded[p + PREFETCH_MAX] == false)
-                rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p + PREFETCH_MAX], void*));
+            //if ((signed)p < (signed)batch->count - PREFETCH_MAX && batch->excluded[p + PREFETCH_MAX] == false)
+            //    rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p + PREFETCH_MAX], void*));
             #endif
             rte_memcpy((char*) host_in_buffer + offset,
-                       rte_pktmbuf_mtod(batch->packets[p], char*) + read_roi.offset,
+                       pkt->data() + read_roi.offset,
                        aligned_elemsz);
+            p++;
         }
         #undef PREFETCH_MAX
 
@@ -264,20 +255,19 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
     case WRITE_WHOLE_PACKET: {
 
         /* Update the packets and run postprocessing. */
-        for (unsigned p = 0; p < batch->count; p++) {
-            if (batch->excluded[p]) continue;
+        unsigned p = 0;
+        for (Packet *pkt = batch->first_packet; pkt != nullptr; pkt = pkt->next) {
             size_t elemsz = bitselect<size_t>(write_roi.type == WRITE_PARTIAL_PACKET,
                                               t->aligned_item_sizes.size,
                                               t->aligned_item_sizes.sizes[p]);
             size_t offset = bitselect<size_t>(write_roi.type == WRITE_PARTIAL_PACKET,
                                               t->aligned_item_sizes.size * p,
                                               t->aligned_item_sizes.offsets[p]);
-            rte_memcpy(rte_pktmbuf_mtod(batch->packets[p], char*) + write_roi.offset,
+            rte_memcpy(pkt->data() + write_roi.offset,
                        (char*) host_out_ptr + offset,
                        elemsz);
-            Packet *pkt = Packet::from_base(batch->packets[p]);
-            batch->results[p] = elem->postproc(input_port, nullptr, pkt);
-            batch->excluded[p] = (batch->results[p] == DROP);
+            pkt->result = elem->postproc(input_port, nullptr, pkt);
+            p++;
         }
         batch->has_results = true;
 
@@ -289,15 +279,12 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
     case WRITE_FIXED_SEGMENTS: {
 
         /* Run postporcessing only. */
-        for (unsigned p = 0; p < batch->count; p++) {
-            if (batch->excluded[p]) continue;
+        unsigned p = 0;
+        for (Packet *pkt = batch->first_packet; pkt != nullptr; pkt = pkt->next) {
             unsigned elemsz = t->aligned_item_sizes.size;
             unsigned offset = elemsz * p;
-            Packet *pkt = Packet::from_base(batch->packets[p]);
-            batch->results[p] = elem->postproc(input_port,
-                                               (char*) host_out_ptr + offset,
-                                               pkt);
-            batch->excluded[p] = (batch->results[p] == DROP);
+            pkt->result = elem->postproc(input_port, (char*) host_out_ptr + offset, pkt);
+            p++;
         }
         batch->has_results = true;
 

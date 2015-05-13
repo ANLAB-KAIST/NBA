@@ -36,11 +36,8 @@ Element::~Element()
 int Element::_process_batch(int input_port, PacketBatch *batch)
 {
     //double batch_start = rte_rdtsc();
-    for (unsigned p = 0; p < batch->count; p++) {
-        if (likely(!batch->excluded[p])) {
-            batch->results[p] = this->process(input_port, Packet::from_base(batch->packets[p]));
-        }
-
+    for (Packet *pkt = batch->first_packet; pkt != nullptr; pkt = pkt->next) {
+        pkt->result = this->process(input_port, pkt);
     }
     batch->has_results = true;
     //double batch_end = rte_rdtsc();

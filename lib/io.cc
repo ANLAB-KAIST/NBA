@@ -253,6 +253,7 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
     assert(count <= ctx->comp_ctx->num_combatch_size);
     if (count == 0) return;
     int ret;
+    struct rte_mbuf **mbufs = (struct rte_mbuf **) pkts;
     PacketBatch *batch = NULL;
     do {
         ret = rte_mempool_get(ctx->comp_ctx->batch_pool, (void **) &batch);
@@ -267,7 +268,6 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
     if (unlikely(ctx->loop_broken))
         return;
     new (batch) PacketBatch();
-    memcpy((void **) &batch->packets[0], (void **) pkts, count * sizeof(void*));
     memset(&batch->banno, 0, sizeof(struct annotation_set));
 
     unsigned p;
@@ -279,21 +279,25 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
     batch->count = count;
     batch->recv_timestamp = t;
     batch->batch_id = recv_batch_cnt;
-    for (p = 0; p < count; p++) {
-        batch->excluded[p] = false;
-    }
+    batch->first_packet = Packet::from_base_nocheck(mbufs[0]);
+    Packet *last_packet = batch->first_packet;
     for (p = 0; p < count; p++) {
         /* Initialize packet metadata objects in pktmbuf's private area. */
-        Packet *pkt = Packet::from_base_nocheck(batch->packets[p]);
-        new (pkt) Packet(batch, batch->packets[p]);
+        Packet *pkt = Packet::from_base_nocheck(mbufs[p]);
+        new (pkt) Packet(batch, mbufs[p]);
+        if (p > 0) {
+            last_packet->next = pkt;
+            last_packet = pkt;
+        }
 
         /* Set annotations and strip the temporary headroom. */
         pkt->anno.bitmask = 0;
         anno_set(&pkt->anno, NBA_ANNO_IFACE_IN,
-                 batch->packets[p]->port);
+                 mbufs[p]->port);
         anno_set(&pkt->anno, NBA_ANNO_TIMESTAMP, t);
         anno_set(&pkt->anno, NBA_ANNO_BATCH_ID, recv_batch_cnt);
     }
+	last_packet->next = nullptr;
     anno_set(&batch->banno, NBA_BANNO_LB_DECISION, -1);
     recv_batch_cnt ++;
 
@@ -555,6 +559,7 @@ static void io_terminate_cb(struct ev_loop *loop, struct ev_async *watcher, int 
 void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
 {
     PacketBatch out_batches[NBA_MAX_PORTS];
+    Packet *out_last_packets[NBA_MAX_PORTS] = { nullptr, };
     uint64_t t = rte_rdtsc();
     ctx->comp_ctx->inspector->batch_process_time = 0.01 * (t - batch->recv_timestamp) 
                                                    + 0.99 * ctx->comp_ctx->inspector->batch_process_time;
@@ -577,10 +582,9 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
     // TODO: keep ordering of packets (or batches)
     //   NOTE: current implementation: no extra queueing,
     //   just transmit as requested
-    for (p = 0; p < batch->count; p++) {
-        Packet *pkt = Packet::from_base(batch->packets[p]);
-        if (batch->excluded[p] == false && anno_isset(&pkt->anno, NBA_ANNO_IFACE_OUT)) {
-            struct ether_hdr *ethh = rte_pktmbuf_mtod(batch->packets[p], struct ether_hdr *);
+    for (Packet *pkt = batch->first_packet; pkt != nullptr; pkt = pkt->next) {
+        if (anno_isset(&pkt->anno, NBA_ANNO_IFACE_OUT)) {
+	        struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
             uint64_t o = anno_get(&pkt->anno, NBA_ANNO_IFACE_OUT);
 
             /* Update source/dest MAC addresses. */
@@ -589,30 +593,41 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
 
             /* Append to the corresponding output batch. */
             int cnt = out_batches[o].count ++;
-            out_batches[o].packets[cnt] = batch->packets[p];
-        } else {
-            assert(batch->packets[p] == nullptr);
+            if (cnt == 0) {
+                out_batches[o].first_packet = pkt;
+                out_last_packets[o] = pkt;
+            } else {
+                out_last_packets[o]->next = pkt;
+                out_last_packets[o] = pkt;
+            }
         }
     }
+    /* Nullify the tails. */
+    for (unsigned o = 0; o < NBA_MAX_PORTS; o++)
+        if (out_last_packets[o] != nullptr) out_last_packets[o]->next = nullptr;
 
     unsigned tx_tries = 0;
     for (unsigned o = 0; o < ctx->num_tx_ports; o++) {
         if (out_batches[o].count == 0)
             continue;
-        struct rte_mbuf **pkts = out_batches[o].packets;
+        struct rte_mbuf *mbufs[NBA_MAX_COMPBATCH_SIZE];
         unsigned count = out_batches[o].count;
         uint64_t total_sent_byte = 0;
 
         /* Sum TX packet bytes. */
-        for(unsigned k = 0; k < count; k++) {
-            struct rte_mbuf* cur_pkt = out_batches[o].packets[k];
-            unsigned len = rte_pktmbuf_pkt_len(cur_pkt) + 24;  /* Add Ethernet overheads */
+	    unsigned p = 0;
+        for (Packet *pkt = out_batches[o].first_packet; pkt != nullptr; pkt = pkt->next) {
+            struct rte_mbuf *mbuf = (struct rte_mbuf *) pkt->base;
+	        mbufs[p] = mbuf;
+            unsigned len = rte_pktmbuf_pkt_len(mbuf) + 24;  /* Add Ethernet overheads */
             ctx->port_stats[o].num_sent_bytes += len;
+	        p++;
         }
+	    assert(count == p);
 
         if (ctx->mode == IO_EMUL) {
             /* Emulated TX always succeeds without drops. */
-            rte_mempool_put_bulk(ctx->emul_rx_packet_pool, (void **) pkts, count);
+            rte_mempool_put_bulk(ctx->emul_rx_packet_pool, (void **) mbufs, count);
             ctx->port_stats[o].num_sent_pkts += count;
             ctx->global_tx_cnt += count;
             ctx->port_stats[o].num_tx_drop_pkts += 0;
@@ -624,9 +639,9 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
              * but it will be meaningful when we use low-speed NICs such as
              * 1 GbE cards. */
             unsigned txq = ctx->loc.global_thread_idx;
-            unsigned sent_cnt = rte_eth_tx_burst((uint8_t) o, txq, pkts, count);
+            unsigned sent_cnt = rte_eth_tx_burst((uint8_t) o, txq, mbufs, count);
             for (unsigned k = sent_cnt; k < count; k++)
-                rte_pktmbuf_free(pkts[k]);
+                rte_pktmbuf_free(mbufs[k]);
             ctx->port_stats[o].num_sent_pkts += sent_cnt;
             ctx->port_stats[o].num_tx_drop_pkts += (count - sent_cnt);
             ctx->global_tx_cnt += sent_cnt;
@@ -635,7 +650,7 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
             unsigned total_sent_cnt = 0;
             do {
                 unsigned txq = ctx->loc.global_thread_idx;
-                unsigned sent_cnt = rte_eth_tx_burst((uint8_t) o, txq, &pkts[total_sent_cnt], count);
+                unsigned sent_cnt = rte_eth_tx_burst((uint8_t) o, txq, &mbufs[total_sent_cnt], count);
                 count -= sent_cnt;
                 total_sent_cnt += sent_cnt;
                 tx_tries ++;
