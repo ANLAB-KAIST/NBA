@@ -197,7 +197,9 @@ public:
         unsigned global_pkt_offset = 0;
         assert(!has_pending_data);
 
+        #ifdef DEBUG
         memset(&block_info[0], 0xcc, sizeof(struct aes_block_info) * NBA_MAX_COMPBATCH_SIZE * (NBA_MAX_PACKET_SIZE / AES_BLOCK_SIZE));
+        #endif
 
         for (unsigned p = 0; p < batch->count; ++p) {
             Packet *pkt = Packet::from_base(batch->packets[p]);
