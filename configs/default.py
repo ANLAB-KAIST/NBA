@@ -1,9 +1,20 @@
 #! /usr/bin/env python3
-import nba, os
 
-for netdev in nba.get_netdevices():
+# This configuration is for ANY system.
+
+import nba, os
+import ctypes, ctypes.util
+from pprint import pprint
+
+libnuma = ctypes.CDLL(ctypes.util.find_library('numa'))
+def numa_node_of_cpu(core_id):
+    return libnuma.numa_node_of_cpu(ctypes.c_int(core_id))
+
+netdevices = nba.get_netdevices()
+for netdev in netdevices:
     print(netdev)
-for coproc in nba.get_coprocessors():
+coprocessors = nba.get_coprocessors()
+for coproc in coprocessors:
     print(coproc)
 node_cpus = nba.get_cpu_node_mapping()
 for node_id, cpus in enumerate(node_cpus):
@@ -32,101 +43,42 @@ print("# logical cores: {0}, # physical cores {1} (hyperthreading {2})".format(
 ))
 _ht_diff = nba.num_physical_cores if nba.ht_enabled else 0
 
-# The following objects are not "real" -- just namedtuple instances.
-# They only store metdata w/o actual side-effects such as creation of threads.
+thread_connections = []
 
-io_threads = [
-    # core_id, list of (port_id, rxq_idx), mode
-    nba.IOThread(core_id=node_cpus[0][0], attached_rxqs=[(0, 0)], mode='normal'),
-    nba.IOThread(core_id=node_cpus[0][1], attached_rxqs=[(1, 0)], mode='normal'),
-    nba.IOThread(core_id=node_cpus[0][2], attached_rxqs=[(2, 0)], mode='normal'),
-    nba.IOThread(core_id=node_cpus[0][3], attached_rxqs=[(3, 0)], mode='normal'),
-    nba.IOThread(core_id=node_cpus[1][0], attached_rxqs=[(4, 0)], mode='normal'),
-    nba.IOThread(core_id=node_cpus[1][1], attached_rxqs=[(5, 0)], mode='normal'),
-    nba.IOThread(core_id=node_cpus[1][2], attached_rxqs=[(6, 0)], mode='normal'),
-    nba.IOThread(core_id=node_cpus[1][3], attached_rxqs=[(7, 0)], mode='normal'),
-]
-comp_threads = [
-    # core_id
-    nba.CompThread(core_id=node_cpus[0][0] + _ht_diff),
-    nba.CompThread(core_id=node_cpus[0][1] + _ht_diff),
-    nba.CompThread(core_id=node_cpus[0][2] + _ht_diff),
-    nba.CompThread(core_id=node_cpus[0][3] + _ht_diff),
-    nba.CompThread(core_id=node_cpus[1][0] + _ht_diff),
-    nba.CompThread(core_id=node_cpus[1][1] + _ht_diff),
-    nba.CompThread(core_id=node_cpus[1][2] + _ht_diff),
-    nba.CompThread(core_id=node_cpus[1][3] + _ht_diff),
-]
+coproc_threads = []
+coproc_input_queues = []
+node_local_coprocs = []
+for node_id, node_cores in enumerate(node_cpus):
+    node_local_coprocs.append([coproc for coproc in coprocessors if coproc.numa_node == node_id])
+    for node_local_idx, coproc in enumerate(node_local_coprocs[node_id]):
+        core_id = node_cores[-node_local_idx]
+        coproc_threads.append(nba.CoprocThread(core_id=core_id + _ht_diff, device_id=coproc.device_id))
+        coproc_input_queues.append(nba.Queue(node_id=node_id, template='taskin'))
 
-coproc_threads = [
-    # core_id, device_id
-    nba.CoprocThread(core_id=node_cpus[0][7] + _ht_diff, device_id=0),
-    nba.CoprocThread(core_id=node_cpus[1][7] + _ht_diff, device_id=1),
-]
+io_threads = []
+comp_threads = []
+comp_input_queues = []
+coproc_completion_queues = []
+for node_id, node_cores in enumerate(node_cpus):
+    node_local_netdevices = [netdev for netdev in netdevices if netdev.numa_node == node_id]
+    num_coproc_in_node = len(node_local_coprocs[node_id])
+    for node_local_core_id, core_id in enumerate(node_cores[:-num_coproc_in_node]):
+        rxqs = [(netdev.device_id, node_local_core_id) for netdev in node_local_netdevices]
+        io_threads.append(nba.IOThread(core_id=node_cpus[node_id][node_local_core_id], attached_rxqs=rxqs, mode='normal'))
+        comp_threads.append(nba.CompThread(core_id=node_cpus[node_id][node_local_core_id] + _ht_diff))
+        comp_input_queues.append(nba.Queue(node_id=node_id, template='swrx'))
+        coproc_completion_queues.append(nba.Queue(node_id=node_id, template='taskout'))
+        thread_connections.append((io_threads[-1], comp_threads[-1], comp_input_queues[-1]))
 
-comp_input_queues = [
-    # node_id, template
-    nba.Queue(node_id=0, template='swrx'),
-    nba.Queue(node_id=0, template='swrx'),
-    nba.Queue(node_id=0, template='swrx'),
-    nba.Queue(node_id=0, template='swrx'),
-    nba.Queue(node_id=1, template='swrx'),
-    nba.Queue(node_id=1, template='swrx'),
-    nba.Queue(node_id=1, template='swrx'),
-    nba.Queue(node_id=1, template='swrx'),
-]
+for coproc_thread in coproc_threads:
+    node_id = numa_node_of_cpu(coproc_thread.core_id)
+    node_local_comp_threads = [comp_thread for comp_thread in comp_threads
+                               if numa_node_of_cpu(comp_thread.core_id) == node_id]
+    for comp_thread in node_local_comp_threads:
+        thread_connections.append((comp_thread, coproc_thread, coproc_input_queues[node_id]))
+        thread_connections.append((coproc_thread, comp_thread, coproc_completion_queues[comp_threads.index(comp_thread)]))
 
-coproc_input_queues = [
-    # node_id, template
-    nba.Queue(node_id=0, template='taskin'),
-    nba.Queue(node_id=1, template='taskin'),
-]
-
-coproc_completion_queues = [
-    # node_id, template
-    nba.Queue(node_id=0, template='taskout'),
-    nba.Queue(node_id=0, template='taskout'),
-    nba.Queue(node_id=0, template='taskout'),
-    nba.Queue(node_id=0, template='taskout'),
-    nba.Queue(node_id=1, template='taskout'),
-    nba.Queue(node_id=1, template='taskout'),
-    nba.Queue(node_id=1, template='taskout'),
-    nba.Queue(node_id=1, template='taskout'),
-]
+pprint(io_threads)
+pprint(coproc_threads)
 
 queues = comp_input_queues + coproc_input_queues + coproc_completion_queues
-
-thread_connections = [
-    # from-thread, to-thread, queue-instance
-    (io_threads[0], comp_threads[0], comp_input_queues[0]),
-    (io_threads[1], comp_threads[1], comp_input_queues[1]),
-    (io_threads[2], comp_threads[2], comp_input_queues[2]),
-    (io_threads[3], comp_threads[3], comp_input_queues[3]),
-    (io_threads[4], comp_threads[4], comp_input_queues[4]),
-    (io_threads[5], comp_threads[5], comp_input_queues[5]),
-    (io_threads[6], comp_threads[6], comp_input_queues[6]),
-    (io_threads[7], comp_threads[7], comp_input_queues[7]),
-    (comp_threads[0], coproc_threads[0], coproc_input_queues[0]),
-    (comp_threads[1], coproc_threads[0], coproc_input_queues[0]),
-    (comp_threads[2], coproc_threads[0], coproc_input_queues[0]),
-    (comp_threads[3], coproc_threads[0], coproc_input_queues[0]),
-    (comp_threads[4], coproc_threads[1], coproc_input_queues[1]),
-    (comp_threads[5], coproc_threads[1], coproc_input_queues[1]),
-    (comp_threads[6], coproc_threads[1], coproc_input_queues[1]),
-    (comp_threads[7], coproc_threads[1], coproc_input_queues[1]),
-    (coproc_threads[0], comp_threads[0], coproc_completion_queues[0]),
-    (coproc_threads[0], comp_threads[1], coproc_completion_queues[1]),
-    (coproc_threads[0], comp_threads[2], coproc_completion_queues[2]),
-    (coproc_threads[0], comp_threads[3], coproc_completion_queues[3]),
-    (coproc_threads[1], comp_threads[4], coproc_completion_queues[4]),
-    (coproc_threads[1], comp_threads[5], coproc_completion_queues[5]),
-    (coproc_threads[1], comp_threads[6], coproc_completion_queues[6]),
-    (coproc_threads[1], comp_threads[7], coproc_completion_queues[7]),
-]
-
-# cpu_ratio is only used in weighted random LBs and ignored in other ones.
-# Sangwook: It would be better to write 'cpu_ratio' only when it is needed, 
-#			but it seems Python wrapper doesn't allow it..
-LB_mode = str(os.environ.get('NBA_LOADBALANCER_MODE', 'CPUOnlyLB'))
-LB_cpu_ratio = float(os.environ.get('NBA_LOADBALANCER_CPU_RATIO', 1.0))
-load_balancer = nba.LoadBalancer(mode=LB_mode, cpu_ratio=LB_cpu_ratio)

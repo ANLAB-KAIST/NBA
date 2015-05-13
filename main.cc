@@ -99,13 +99,13 @@ int main(int argc, char **argv)
     int collision_flag = 0;
     if(geteuid() != 0)
     {
-    	printf("NBA is running on USER privilege.\n");
-    	printf("Using tmp directory for checking collisions.\n");
-    	collision_flag |= COLLISION_USE_TEMP;
+        printf("NBA is running on USER privilege.\n");
+        printf("Using tmp directory for checking collisions.\n");
+        collision_flag |= COLLISION_USE_TEMP;
     }
     else
     {
-    	printf("NBA is running on ROOT privilege.\n");
+        printf("NBA is running on ROOT privilege.\n");
     }
     if(0 != check_collision("NBA", collision_flag))
     {
@@ -281,9 +281,9 @@ int main(int argc, char **argv)
     num_nodes = numa_num_configured_nodes();
     bool is_numa_disabled = (num_nodes == 1);
     if (is_numa_disabled)
-    	printf("NUMA is disabled.\n");
+        printf("NUMA is disabled.\n");
     else
-    	printf("%d NUMA nodes are enabled.\n", num_nodes);
+        printf("%d NUMA nodes are enabled.\n", num_nodes);
     num_pcores = check_ht_enabled() ? num_lcores / 2 : num_lcores;
 
     /* We have two types of configurations: system and Click.
@@ -417,7 +417,7 @@ int main(int argc, char **argv)
             /* Initialize memory pool, rxq, txq rings. */
             unsigned node_idx = dev_info.pci_dev->numa_node;
             if (is_numa_disabled)
-            	node_idx = 0;
+                node_idx = 0;
             unsigned port_per_node = node_ports[node_idx].num_rx_ports;
             node_ports[node_idx].rx_ports[port_per_node].port_idx = port_idx;
             ether_addr_copy(&macaddr, &node_ports[node_idx].rx_ports[port_per_node].addr);
@@ -598,15 +598,15 @@ int main(int argc, char **argv)
             struct coproc_thread_conf &conf = coproc_thread_confs[i];
             unsigned node_id = numa_node_of_cpu(conf.core_id);
             if (is_numa_disabled)
-            	node_id = 0;
+                node_id = 0;
             struct coproc_thread_context *ctx = (struct coproc_thread_context *) rte_malloc_socket(
-                    "coproc_thread_conf", sizeof(*ctx), 64, node_id);
+                    "coproc_thread_conf", sizeof(*ctx), CACHE_LINE_SIZE, node_id);
 
             ctx->loc.node_id = node_id;
             ctx->loc.local_thread_idx = per_node_counts[node_id] ++;
             ctx->loc.core_id = conf.core_id;
 
-            ctx->terminate_watcher = (struct ev_async *) rte_malloc_socket(NULL, sizeof(struct ev_async), 64, node_id);
+            ctx->terminate_watcher = (struct ev_async *) rte_malloc_socket(NULL, sizeof(struct ev_async), CACHE_LINE_SIZE, node_id);
             ev_async_init(ctx->terminate_watcher, NULL);
             coprocessor_threads[i].terminate_watcher = ctx->terminate_watcher;
             coprocessor_threads[i].coproc_ctx = ctx;

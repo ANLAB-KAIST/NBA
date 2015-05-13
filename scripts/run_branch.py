@@ -92,7 +92,7 @@ if __name__ == '__main__':
         with ExitStack() as stack:
             _ = [stack.enter_context(pktgen) for pktgen in pktgens]
             loop = asyncio.get_event_loop()
-            loop.run_until_complete(env.execute_main('rss.py', temp_file.name, running_time=31.0))
+            loop.run_until_complete(env.execute_main('default.py', temp_file.name, running_time=31.0))
 
         # Delete the generated config.
         os.unlink(temp_file.name)

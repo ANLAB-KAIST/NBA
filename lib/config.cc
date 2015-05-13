@@ -51,6 +51,7 @@ int emulated_num_fixed_flows __rte_cache_aligned;
 size_t num_emulated_ifaces __rte_cache_aligned;
 
 static PyStructSequence_Field netdevice_fields[] = {
+    {"device_id", "The device ID used by the underlying IO library."},
     {"driver", "Name of user-level driver used for this device."},
     {"busaddr", "PCIe bus address."},
     {"macaddr", "MAC address of device."},
@@ -62,10 +63,10 @@ static PyStructSequence_Field netdevice_fields[] = {
     {NULL, NULL}
 };
 static PyStructSequence_Field coprocdevice_fields[] = {
+    {"device_id", "The device ID used by the device driver."},
     {"driver", "Name of the driver (e.g., cuda)"},
     {"busaddr", "PCIe bus address."},
     {"numa_node", "NUMA node where the device resides in."},
-    {"device_id", "The device ID used by driver."},
     {"name", "Model name of device."},
     {"support_concurrent_tasks", "True if supports concurrent execution of multiple tasks."},
     {"global_memory_size", "Size of device global memory."},
@@ -77,7 +78,7 @@ static PyStructSequence_Desc netdevice_desc = {
     "NetDevice",
     NULL,
     netdevice_fields,
-    8
+    9
 };
 static PyStructSequence_Desc coprocdevice_desc = {
     "CoprocDevice",
@@ -110,12 +111,15 @@ nba_get_netdevices(PyObject *self, PyObject *args)
             PyObject *pnamedtuple = PyStructSequence_New(&netdevice_type);
             assert(pnamedtuple != NULL);
 
+            PyObject *pdevid = PyLong_FromLong(i);
+            PyStructSequence_SetItem(pnamedtuple, 0, pdevid);
+
             PyObject *pname = PyUnicode_FromString("emul_io");
-            PyStructSequence_SetItem(pnamedtuple, 0, pname);
+            PyStructSequence_SetItem(pnamedtuple, 1, pname);
 
             PyOS_snprintf(tempbuf, 64, "xxxx:00:%02x.0", i);
             PyObject *pbusaddr = PyUnicode_FromString(tempbuf);
-            PyStructSequence_SetItem(pnamedtuple, 1, pbusaddr);
+            PyStructSequence_SetItem(pnamedtuple, 2, pbusaddr);
 
             /* The first least significant bit should be 0 (unicast).
              * The second lsb should be 1 (locally administered).
@@ -124,24 +128,24 @@ nba_get_netdevices(PyObject *self, PyObject *args)
              * with the rule. :) */
             PyOS_snprintf(tempbuf, 64, "4e:42:41:00:00:%02X", i + 1);
             PyObject *pmacaddr = PyUnicode_FromString(tempbuf);
-            PyStructSequence_SetItem(pnamedtuple, 2, pmacaddr);
+            PyStructSequence_SetItem(pnamedtuple, 3, pmacaddr);
 
             if (num_emulated_ifaces > 1 && n == num_emulated_ifaces / num_nodes) {
                 cur_node ++;
                 n = 0;
             }
             PyObject *pnum = PyLong_FromLong(cur_node);
-            PyStructSequence_SetItem(pnamedtuple, 3, pnum);
+            PyStructSequence_SetItem(pnamedtuple, 4, pnum);
             n++;
 
             pnum = PyLong_FromLong(1024L);
-            PyStructSequence_SetItem(pnamedtuple, 4, pnum);
-            pnum = PyLong_FromLong(1514L);
             PyStructSequence_SetItem(pnamedtuple, 5, pnum);
-            pnum = PyLong_FromLong(128L);
+            pnum = PyLong_FromLong(1514L);
             PyStructSequence_SetItem(pnamedtuple, 6, pnum);
             pnum = PyLong_FromLong(128L);
             PyStructSequence_SetItem(pnamedtuple, 7, pnum);
+            pnum = PyLong_FromLong(128L);
+            PyStructSequence_SetItem(pnamedtuple, 8, pnum);
 
             PyList_SetItem(plist, i, pnamedtuple);
         }
@@ -160,8 +164,11 @@ nba_get_netdevices(PyObject *self, PyObject *args)
             PyObject *pnamedtuple = PyStructSequence_New(&netdevice_type);
             assert(pnamedtuple != NULL);
 
+            PyObject *pdevid = PyLong_FromLong(i);
+            PyStructSequence_SetItem(pnamedtuple, 0, pdevid);
+
             PyObject *pname = PyUnicode_FromString(dev_info.driver_name);
-            PyStructSequence_SetItem(pnamedtuple, 0, pname);
+            PyStructSequence_SetItem(pnamedtuple, 1, pname);
 
             PyOS_snprintf(tempbuf, 64, "%04x:%02x:%02x.%u",
                           dev_info.pci_dev->addr.domain,
@@ -169,24 +176,24 @@ nba_get_netdevices(PyObject *self, PyObject *args)
                           dev_info.pci_dev->addr.devid,
                           dev_info.pci_dev->addr.function);
             PyObject *pbusaddr = PyUnicode_FromString(tempbuf);
-            PyStructSequence_SetItem(pnamedtuple, 1, pbusaddr);
+            PyStructSequence_SetItem(pnamedtuple, 2, pbusaddr);
 
             PyOS_snprintf(tempbuf, 64, "%02X:%02X:%02X:%02X:%02X:%02X",
                           macaddr.addr_bytes[0], macaddr.addr_bytes[1], macaddr.addr_bytes[2],
                           macaddr.addr_bytes[3], macaddr.addr_bytes[4], macaddr.addr_bytes[5]);
             PyObject *pmacaddr = PyUnicode_FromString(tempbuf);
-            PyStructSequence_SetItem(pnamedtuple, 2, pmacaddr);
+            PyStructSequence_SetItem(pnamedtuple, 3, pmacaddr);
 
             PyObject *pnum = PyLong_FromLong((long) dev_info.pci_dev->numa_node);
-            PyStructSequence_SetItem(pnamedtuple, 3, pnum);
-            pnum = PyLong_FromLong((long) dev_info.min_rx_bufsize);
             PyStructSequence_SetItem(pnamedtuple, 4, pnum);
-            pnum = PyLong_FromLong((long) dev_info.max_rx_pktlen);
+            pnum = PyLong_FromLong((long) dev_info.min_rx_bufsize);
             PyStructSequence_SetItem(pnamedtuple, 5, pnum);
-            pnum = PyLong_FromLong((long) dev_info.max_rx_queues);
+            pnum = PyLong_FromLong((long) dev_info.max_rx_pktlen);
             PyStructSequence_SetItem(pnamedtuple, 6, pnum);
-            pnum = PyLong_FromLong((long) dev_info.max_tx_queues);
+            pnum = PyLong_FromLong((long) dev_info.max_rx_queues);
             PyStructSequence_SetItem(pnamedtuple, 7, pnum);
+            pnum = PyLong_FromLong((long) dev_info.max_tx_queues);
+            PyStructSequence_SetItem(pnamedtuple, 8, pnum);
 
             PyList_SetItem(plist, i, pnamedtuple);
         }
@@ -211,12 +218,15 @@ nba_get_coprocessors(PyObject *self, PyObject *args)
         cudaDeviceProp prop;
         cutilSafeCall(cudaGetDeviceProperties(&prop, i));
 
-        po = PyUnicode_FromString("cuda");
+        po = PyLong_FromLong(i);
         PyStructSequence_SetItem(pnamedtuple, 0, po);
+
+        po = PyUnicode_FromString("cuda");
+        PyStructSequence_SetItem(pnamedtuple, 1, po);
 
         cutilSafeCall(cudaDeviceGetPCIBusId(pciid, 16, i));
         po = PyUnicode_FromString(pciid);
-        PyStructSequence_SetItem(pnamedtuple, 1, po);
+        PyStructSequence_SetItem(pnamedtuple, 2, po);
 
         sprintf(syspath, "/sys/bus/pci/devices/%s/numa_node", pciid);
         FILE *f = fopen(syspath, "r");
@@ -225,9 +235,6 @@ nba_get_coprocessors(PyObject *self, PyObject *args)
         fclose(f);
         int numa_node = atoi(buf);
         po = PyLong_FromLong((long) numa_node);
-        PyStructSequence_SetItem(pnamedtuple, 2, po);
-
-        po = PyLong_FromLong(i);
         PyStructSequence_SetItem(pnamedtuple, 3, po);
 
         po = PyUnicode_FromString(prop.name);
@@ -265,22 +272,22 @@ nba_get_coprocessors(PyObject *self, PyObject *args)
         size_t ret_size;
         PyObject *po;
 
+        po = PyLong_FromLong(i);
+        PyStructSequence_SetItem(pnamedtuple, 0, po);
+
         char platform_name[256];
         cl_platform_id platform_id;
         clGetDeviceInfo(device_ids[i], CL_DEVICE_PLATFORM, sizeof(platform_id), &platform_id, &ret_size);
         clGetPlatformInfo(platform_ids[i], CL_PLATFORM_NAME, 256, platform_name, &ret_size);
         po = PyUnicode_FromString(platform_name);
-        PyStructSequence_SetItem(pnamedtuple, 0, po);
+        PyStructSequence_SetItem(pnamedtuple, 1, po);
 
         // TODO: look-up PCIe bus address using the results of lspci
         po = PyUnicode_FromString("TODO");
-        PyStructSequence_SetItem(pnamedtuple, 1, po);
+        PyStructSequence_SetItem(pnamedtuple, 2, po);
 
         // TODO: find NUMA node information from the PCIe address
         po = PyLong_FromLong(0L);
-        PyStructSequence_SetItem(pnamedtuple, 2, po);
-
-        po = PyLong_FromLong(i);
         PyStructSequence_SetItem(pnamedtuple, 3, po);
 
         char device_name[256];

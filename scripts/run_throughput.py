@@ -15,7 +15,7 @@ if __name__ == '__main__':
                                             '         (e.g., ~/Packet-IO-Engine/samples/packet_generator$ ~/nba/scripts/pspgen-server.py)\n'
                                             '         at the packet generator servers.\n'
                                             '      2. Packet size argument is only valid in emulation mode.\n\n'
-                                            'Example: sudo ./scriptname rss.py ipv4-router.click\n ',
+                                            'Example: sudo ./scriptname default.py ipv4-router.click\n ',
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     # TODO: Restrict program option: packet size argument is only valid in emulation mode.
     parser.add_argument('sys_config_to_use')
