@@ -89,7 +89,7 @@ public:
 
     inline unsigned char *data() { return rte_pktmbuf_mtod(base, unsigned char *); }
     inline uint32_t length() { return rte_pktmbuf_data_len(base); }
-    inline uint32_t headroom() { return rte_pktmbuf_headroom(base) - sizeof(Packet); }
+    inline uint32_t headroom() { return rte_pktmbuf_headroom(base); }
     inline uint32_t tailroom() { return rte_pktmbuf_tailroom(base); }
 
     inline unsigned char *buffer() { return data() - headroom(); }

@@ -287,9 +287,7 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
         rte_prefetch0((char *) Packet::from_base_nocheck(batch->packets[q]) + (uintptr_t) CACHE_LINE_SIZE);
     }
     for (p = 0; p < count; p++) {
-        assert(sizeof(Packet) <= rte_pktmbuf_headroom(batch->packets[p]));
-
-        /* Initialize packet classes in headrooms. */
+        /* Initialize packet metadata objects in pktmbuf's private area. */
         Packet *pkt = Packet::from_base_nocheck(batch->packets[p]);
         unsigned q = p + 8u;
         if (q < count) {
@@ -570,24 +568,18 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
     ctx->comp_ctx->inspector->batch_process_time = 0.01 * (t - batch->recv_timestamp) 
                                                    + 0.99 * ctx->comp_ctx->inspector->batch_process_time;
     unsigned p;
-
     {
         int64_t banno = anno_get(&batch->banno, NBA_BANNO_LB_DECISION);
         double prev_pkt_time = 0;
         double true_time = batch->compute_time;
-        if(banno == -1)
-        {
-                prev_pkt_time = ctx->comp_ctx->inspector->true_process_time_cpu;
-                prev_pkt_time = (((prev_pkt_time * (CPU_HISTORY_SIZE-1)) + true_time) / CPU_HISTORY_SIZE);
-
-                ctx->comp_ctx->inspector->true_process_time_cpu = prev_pkt_time;
-        }
-        else
-        {
-                prev_pkt_time = ctx->comp_ctx->inspector->true_process_time_gpu[banno];
-                prev_pkt_time = (((prev_pkt_time * (GPU_HISTORY_SIZE-1)) + true_time) / GPU_HISTORY_SIZE);
-
-                ctx->comp_ctx->inspector->true_process_time_gpu[banno] = prev_pkt_time;
+        if (banno == -1) {
+            prev_pkt_time = ctx->comp_ctx->inspector->true_process_time_cpu;
+            prev_pkt_time = (((prev_pkt_time * (CPU_HISTORY_SIZE - 1)) + true_time) / CPU_HISTORY_SIZE);
+            ctx->comp_ctx->inspector->true_process_time_cpu = prev_pkt_time;
+        } else {
+            prev_pkt_time = ctx->comp_ctx->inspector->true_process_time_gpu[banno];
+            prev_pkt_time = (((prev_pkt_time * (GPU_HISTORY_SIZE - 1)) + true_time) / GPU_HISTORY_SIZE);
+            ctx->comp_ctx->inspector->true_process_time_gpu[banno] = prev_pkt_time;
         }
     }
 

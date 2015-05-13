@@ -93,29 +93,26 @@ static void invalid_cb(struct ev_loop *loop, struct ev_async *w, int revents)
 
 int main(int argc, char **argv)
 {
-    //prevent multiple processes
+    /* Prevent multiple instances from running concurrently. */
     printf("Trying to acquire a process lock...\n");
     fflush(stdout);
     int collision_flag = 0;
-    if(geteuid() != 0)
-    {
+    if (geteuid() != 0) {
         printf("NBA is running on USER privilege.\n");
-        printf("Using tmp directory for checking collisions.\n");
+        /* Use tmp directory for checking collisions. */
         collision_flag |= COLLISION_USE_TEMP;
-    }
-    else
-    {
+    } else {
         printf("NBA is running on ROOT privilege.\n");
     }
-    if(0 != check_collision("NBA", collision_flag))
-    {
-        printf("Cannot acquire a process lock. Exiting.\n");
+    if (0 != check_collision("NBA", collision_flag)) {
+        printf("Could not acquire the process lock. Exiting.\n");
         fflush(stdout);
         return 1;
     }
     printf("Lock acquired!\n");
     fflush(stdout);
 
+    /* Here we begin. */
     int ret;
     unsigned loglevel = RTE_LOG_INFO;
     unsigned i, j, k;
@@ -307,7 +304,7 @@ int main(int argc, char **argv)
     RTE_LOG(INFO, MAIN, "Loading system configuration from \"%s\"...\n", system_config);
     RTE_LOG(WARNING, MAIN, "If it hangs, try to restart hold_gpu script. (cuda service if installed as upstart)\n");
     if (!load_config(system_config)) {
-        rte_exit(EXIT_FAILURE, "Loading global configuration has failed.\n");
+        rte_exit(EXIT_FAILURE, "Loading system configuration has failed.\n");
     }
     if (num_ports > NBA_MAX_PORTS)
         num_ports = NBA_MAX_PORTS;
