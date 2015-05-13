@@ -282,16 +282,19 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
     for (p = 0; p < count; p++) {
         batch->excluded[p] = false;
     }
-    for (unsigned q = 0; q < RTE_MIN(count, 4u); q ++) {
+    for (unsigned q = 0; q < RTE_MIN(count, 8u); q ++) {
         rte_prefetch0(Packet::from_base_nocheck(batch->packets[q]));
+        rte_prefetch0((char *) Packet::from_base_nocheck(batch->packets[q]) + (uintptr_t) CACHE_LINE_SIZE);
     }
     for (p = 0; p < count; p++) {
         assert(sizeof(Packet) <= rte_pktmbuf_headroom(batch->packets[p]));
 
         /* Initialize packet classes in headrooms. */
         Packet *pkt = Packet::from_base_nocheck(batch->packets[p]);
-        for (unsigned q = RTE_MIN(count, p + 4u); q < RTE_MIN(count, p + 8u); q ++) {
+        unsigned q = p + 8u;
+        if (q < count) {
             rte_prefetch0(Packet::from_base_nocheck(batch->packets[q]));
+            rte_prefetch0((char *) Packet::from_base_nocheck(batch->packets[q]) + (uintptr_t) CACHE_LINE_SIZE);
         }
         new (pkt) Packet(batch, batch->packets[p]);
 
@@ -823,10 +826,8 @@ int io_loop(void *arg)
     for (i = 0; i < ctx->num_tx_ports; i++)
         next_ports[i] = 0;
 #endif
-    //uint32_t magic = 0x4ED182DB;
-    uint32_t magic = 0x7ED996DB;
-
 #ifdef NBA_RANDOM_PORT_ACCESS
+    uint32_t magic = 0x7ED996DB;
     int random_mapping[NBA_MAX_PORTS];
     for (i=0; i < NBA_MAX_PORTS; i++)
         random_mapping[i] = i;
@@ -857,7 +858,7 @@ int io_loop(void *arg)
     while (likely(!ctx->loop_broken)) {
         unsigned total_recv_cnt = 0;
         for (i = 0; i < ctx->num_hw_rx_queues; i++) {
-#ifdef NBA_RANDOM_PORT_ACCESS/*{{{*/
+#ifdef NBA_RANDOM_PORT_ACCESS /*{{{*/
             /* Shuffle the RX queue list. */
             int swap_idx = random32() % ctx->num_hw_rx_queues;
             int temp = random_mapping[i];
@@ -867,7 +868,7 @@ int io_loop(void *arg)
         unsigned _temp;
         for (_temp = 0; _temp < ctx->num_hw_rx_queues; _temp++) {
             i = random_mapping[_temp];
-#endif/*}}}*/
+#endif /*}}}*/
             unsigned port_idx = ctx->rx_hwrings[i].ifindex;
             unsigned rxq      = ctx->rx_hwrings[i].qidx;
             unsigned recv_cnt = 0;
@@ -953,12 +954,6 @@ int io_loop(void *arg)
                 }
                 recv_cnt = state->rx_length;
 #else/*}}}*/
-                //unsigned local_recv_cnt = 0;
-                //while (local_recv_cnt < ctx->num_iobatch_size) {
-                //    local_recv_cnt += rte_eth_rx_burst((uint8_t) port_idx, rxq,
-                //                                       &pkts[total_recv_cnt + local_recv_cnt], ctx->num_iobatch_size - local_recv_cnt);
-                //}
-                //recv_cnt = local_recv_cnt;
                 recv_cnt = rte_eth_rx_burst((uint8_t) port_idx, rxq,
                                              &pkts[total_recv_cnt], ctx->num_iobatch_size);
 #endif        /* endif NBA_SLEEPY_IO */

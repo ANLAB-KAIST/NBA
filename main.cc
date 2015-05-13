@@ -254,12 +254,11 @@ int main(int argc, char **argv)
         }
     }
     RTE_LOG(INFO, MAIN, "Setting log level to %d.\n", loglevel);
-    rte_set_log_level(loglevel);
-
-    /* NOTE: EAL spawns its own worker threads which is not used. */
     rte_set_log_type(RTE_LOGTYPE_PMD, false);
     rte_set_log_type(RTE_LOGTYPE_MALLOC, false);
     rte_set_log_type(RTE_LOGTYPE_MEMPOOL, false);
+    rte_set_log_type(RTE_LOGTYPE_RING, false);
+    rte_set_log_level(loglevel);
 
     if (emulate_io) {
         num_ports = num_emulated_ifaces;
@@ -381,7 +380,7 @@ int main(int argc, char **argv)
     const uint32_t num_mbufs = num_rx_desc + num_tx_desc
                                + (num_lcores * num_mp_cache)
                                + system_params["IO_BATCH_SIZE"];
-    const uint16_t mbuf_size = (RTE_PKTMBUF_HEADROOM + NBA_MAX_PACKET_SIZE);
+    const uint16_t mbuf_size = RTE_MBUF_DEFAULT_BUF_SIZE; // (RTE_PKTMBUF_HEADROOM + NBA_MAX_PACKET_SIZE);
 
     /* Initialize per-node information. */
     for (unsigned node_idx = 0; node_idx < num_nodes; node_idx ++) {
@@ -434,11 +433,8 @@ int main(int argc, char **argv)
                 snprintf(mempool_name, RTE_MEMPOOL_NAMESIZE,
                          "pktbuf_n%u_d%u_r%u", node_idx, port_idx, ring_idx);
 
-                mp = rte_mempool_create(mempool_name, num_mbufs, mbuf_size, num_mp_cache,
-                                        sizeof(struct rte_pktmbuf_pool_private),
-                                        rte_pktmbuf_pool_init, (void *)(uintptr_t) mbuf_size,
-                                        rte_pktmbuf_init, nullptr,
-                                        node_idx, 0);
+                mp = rte_pktmbuf_pool_create(mempool_name, num_mbufs, num_mp_cache, sizeof(Packet),
+                                             mbuf_size, node_idx);
                 if (mp == nullptr)
                     rte_exit(EXIT_FAILURE, "cannot allocate memory pool for rxq %u:%u@%u.\n",
                                    port_idx, ring_idx, node_idx);
@@ -451,11 +447,8 @@ int main(int argc, char **argv)
 
                 snprintf(mempool_name, RTE_MEMPOOL_NAMESIZE,
                          "newbuf_n%u_d%u_r%u", node_idx, port_idx, ring_idx);
-                mp = rte_mempool_create(mempool_name, num_mbufs, mbuf_size, num_mp_cache,
-                                        sizeof(struct rte_pktmbuf_pool_private),
-                                        rte_pktmbuf_pool_init, (void *)(uintptr_t) mbuf_size,
-                                        rte_pktmbuf_init, nullptr,
-                                        node_idx, 0);
+                mp = rte_pktmbuf_pool_create(mempool_name, num_mbufs, num_mp_cache, sizeof(Packet),
+                                             mbuf_size, node_idx);
                 if (mp == NULL)
                     rte_exit(EXIT_FAILURE, "cannot allocate new pool for rxq %u:%u@%u.\n",
                             port_idx, ring_idx, node_idx);
@@ -998,24 +991,6 @@ int main(int argc, char **argv)
                         ctx->loc.node_id, 0);
                 assert(ctx->emul_rx_packet_pool != NULL);
             }
-            //snprintf(mempool_name, RTE_MEMPOOL_NAMESIZE,
-            //         "newbuf_%u:%u", ctx->loc.node_id, ctx->loc.core_id);
-            //ctx->new_packet_pool = rte_mempool_create(mempool_name, ctx->num_iobatch_size * conf.attached_rxqs.size(),
-            //                                          MBUF_SIZE, CACHE_LINE_SIZE,
-            //                                          sizeof(rte_pktmbuf_pool_private),
-            //                                          rte_pktmbuf_pool_init, NULL,
-            //                                          rte_pktmbuf_init, NULL,
-            //                                          ctx->loc.node_id, 0);
-            //assert(ctx->new_packet_pool != NULL);
-            //snprintf(mempool_name, RTE_MEMPOOL_NAMESIZE,
-            //         "reqbuf_%u:%u", ctx->loc.node_id, ctx->loc.core_id);
-            //ctx->new_packet_request_pool = rte_mempool_create(mempool_name, ctx->num_iobatch_size * conf.attached_rxqs.size(),
-            //                                                  MBUF_SIZE, CACHE_LINE_SIZE,
-            //                                                  sizeof(rte_pktmbuf_pool_private),
-            //                                                  rte_pktmbuf_pool_init, NULL,
-            //                                                  rte_pktmbuf_init, NULL,
-            //                                                  ctx->loc.node_id, 0);
-            //assert(ctx->new_packet_request_pool != NULL);
             ctx->rx_queue   = queues[conf.swrxq_idx];
             ctx->rx_watcher = qwatchers[conf.swrxq_idx];
             if (emulate_io) {

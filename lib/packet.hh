@@ -2,6 +2,7 @@
 #define __NBA_PACKET_HH__
 
 #include "element.hh"
+#include <cassert>
 #include <rte_eal.h>
 #include <rte_memory.h>
 #include <rte_mbuf.h>
@@ -41,6 +42,8 @@ private:
 public:
     struct annotation_set anno;
 
+#define NBA_PACKET_MAGIC 0x392cafcdu
+
 public:
     /**
      * Get the pointer to the beginning of Packet object
@@ -49,7 +52,7 @@ public:
      */
     static inline Packet *from_base_nocheck(void *base) {
         if (base == nullptr) return nullptr;
-        return reinterpret_cast<Packet *>(((struct rte_mbuf *) base)->buf_addr);
+        return reinterpret_cast<Packet *>((char *) base + sizeof(Packet));
     }
 
     /**
@@ -61,9 +64,9 @@ public:
     static inline Packet *from_base(void *base) {
         if (base == nullptr) return nullptr;
         #ifdef DEBUG
-        assert(0x392cafcdu == (uintptr_t) ((struct rte_mbuf *) base)->buf_addr);
+        assert(NBA_PACKET_MAGIC == *(uint32_t*) ((char *) base + sizeof(Packet)));
         #endif
-        return reinterpret_cast<Packet *>(((struct rte_mbuf *) base)->buf_addr);
+        return reinterpret_cast<Packet *>((char *) base + sizeof(Packet));
     }
 
     /**
@@ -71,7 +74,7 @@ public:
      */
     Packet(PacketBatch *mother, void *base) :
     #ifdef DEBUG
-    magic(0x392cafcdu),
+    magic(NBA_PACKET_MAGIC),
     #endif
     base((struct rte_mbuf *) base), cloned(false)
     { }
