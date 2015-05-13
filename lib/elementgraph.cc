@@ -125,8 +125,8 @@ void ElementGraph::flush_delayed_batches()
         delayed_batches.pop_front();
         if(batch->delay_start > 0)
         {
-        	batch->compute_time += (rte_rdtsc()-batch->delay_start);
-        	batch->delay_start = 0;
+            batch->compute_time += (rte_rdtsc()-batch->delay_start);
+            batch->delay_start = 0;
         }
 
         /* It must have the associated element where this batch is delayed. */
@@ -232,8 +232,8 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     } else {
                         /* We have no room for batch in the preparing task.
                          * Keep the current batch for later processing. */
-                    	assert(batch->delay_start == 0);
-                    	batch->delay_start = rte_rdtsc();
+                        assert(batch->delay_start == 0);
+                        batch->delay_start = rte_rdtsc();
                         delayed_batches.push_back(batch);
                         continue;
                     }
@@ -323,7 +323,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                             batch->first_packet = pkt->next;
                         else
                             prev_pkt->next = pkt->next;
-	                    batch->count--;
+                        batch->count--;
                         break;
                     case PENDING:
                         // Remove from the batch, but don't free..
@@ -332,7 +332,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                             batch->first_packet = pkt->next;
                         else
                             prev_pkt->next = pkt->next;
-	                    batch->count--;
+                        batch->count--;
                         break;
                     case SLOWPATH:
                         rte_panic("SLOWPATH is not supported yet. (element: %s)\n", current_elem->class_name());
@@ -373,7 +373,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
         } else { /* num_outputs > 1 */
 
             PacketBatch *out_batches[num_max_outputs];
-	        Packet *out_last_packets[num_max_outputs];
+            Packet *out_last_packets[num_max_outputs];
             // TODO: implement per-batch handling for branches
 #ifndef NBA_DISABLE_BRANCH_PREDICTION
 #ifndef NBA_BRANCH_PREDICTION_ALWAYS
@@ -394,14 +394,14 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                 }
 
                 memset(out_batches, 0, num_max_outputs * sizeof(PacketBatch *));
-	            memset(out_last_packets, 0, num_max_outputs * sizeof(Packet *));
+                memset(out_last_packets, 0, num_max_outputs * sizeof(Packet *));
                 out_batches[predicted_output] = batch;
 
                 /* Classify packets into copy-batches. */
                 Packet *prev_pkt = nullptr;
-	            Packet *pkt = nullptr;
+                Packet *pkt = nullptr;
                 for (pkt = batch->first_packet; pkt != nullptr; pkt = pkt->next) {
-	                int o = pkt->result;
+                    int o = pkt->result;
                     assert(o < num_outputs);
 
                     /* Prediction mismatch! */
@@ -422,7 +422,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                             /* Append the packet to the output batch. */
                             int cnt = out_batches[o]->count++;
                             if (out_last_packets[o] == nullptr) {
-	                            out_batches[o]->first_packet = pkt;
+                                out_batches[o]->first_packet = pkt;
                                 out_last_packets[o] = pkt;
                             } else {
                                 out_last_packets[o]->next = pkt;
@@ -433,7 +433,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                                 batch->first_packet = pkt->next;
                             else
                                 prev_pkt->next = pkt->next;
-	                        batch->count--;
+                            batch->count--;
                         } else if (o == DROP) {
                             /* Let the IO loop free the packet. */
                             if (ctx->inspector) ctx->inspector->drop_pkt_count += 1;
@@ -443,7 +443,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                                 batch->first_packet = pkt->next;
                             else
                                 prev_pkt->next = pkt->next;
-	                        batch->count--;
+                            batch->count--;
                         } else if (o == PENDING) {
                             /* The packet is stored in io_thread_ctx::pended_pkt_queue. */
                             /* Exclude it from the batch. */
@@ -451,7 +451,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                                 batch->first_packet = pkt->next;
                             else
                                 prev_pkt->next = pkt->next;
-	                        batch->count--;
+                            batch->count--;
                         } else if (o == SLOWPATH) {
                             assert(0); // Not implemented yet.
                         } else {
@@ -531,13 +531,13 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     anno_set(&out_batches[o]->banno, NBA_BANNO_LB_DECISION, lb_decision);
                     out_batches[o]->recv_timestamp = batch->recv_timestamp;
                 }
-	            memset(out_last_packets, 0, num_max_outputs * sizeof(Packet *));
+                memset(out_last_packets, 0, num_max_outputs * sizeof(Packet *));
 
                 /* Classify packets into copy-batches. */
                 Packet *prev_pkt = nullptr;
-	            Packet *pkt = nullptr;
+                Packet *pkt = nullptr;
                 for (pkt = batch->first_packet; pkt != nullptr; pkt = pkt->next) {
-	                int o = pkt->result;
+                    int o = pkt->result;
                     assert(o < num_outputs);
 
                     if (o >= 0) {
@@ -563,10 +563,10 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     }
                     /* Exclude it from the batch. */
                     if (prev_pkt == nullptr)
-	                    batch->first_packet = pkt->next;
+                        batch->first_packet = pkt->next;
                     else
                         prev_pkt->next = pkt->next;
-	                batch->count--;
+                    batch->count--;
                     prev_pkt = pkt;
                 }
                 /* Nullify the tails. */

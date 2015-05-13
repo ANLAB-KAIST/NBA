@@ -297,7 +297,7 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
         anno_set(&pkt->anno, NBA_ANNO_TIMESTAMP, t);
         anno_set(&pkt->anno, NBA_ANNO_BATCH_ID, recv_batch_cnt);
     }
-	last_packet->next = nullptr;
+    last_packet->next = nullptr;
     anno_set(&batch->banno, NBA_BANNO_LB_DECISION, -1);
     recv_batch_cnt ++;
 
@@ -584,7 +584,7 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
     //   just transmit as requested
     for (Packet *pkt = batch->first_packet; pkt != nullptr; pkt = pkt->next) {
         if (anno_isset(&pkt->anno, NBA_ANNO_IFACE_OUT)) {
-	        struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
+            struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
             uint64_t o = anno_get(&pkt->anno, NBA_ANNO_IFACE_OUT);
 
             /* Update source/dest MAC addresses. */
@@ -615,15 +615,15 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
         uint64_t total_sent_byte = 0;
 
         /* Sum TX packet bytes. */
-	    unsigned p = 0;
+        unsigned p = 0;
         for (Packet *pkt = out_batches[o].first_packet; pkt != nullptr; pkt = pkt->next) {
             struct rte_mbuf *mbuf = (struct rte_mbuf *) pkt->base;
-	        mbufs[p] = mbuf;
+            mbufs[p] = mbuf;
             unsigned len = rte_pktmbuf_pkt_len(mbuf) + 24;  /* Add Ethernet overheads */
             ctx->port_stats[o].num_sent_bytes += len;
-	        p++;
+            p++;
         }
-	    assert(count == p);
+        assert(count == p);
 
         if (ctx->mode == IO_EMUL) {
             /* Emulated TX always succeeds without drops. */
