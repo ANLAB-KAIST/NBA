@@ -164,6 +164,9 @@ LIBS          += ' -L{CLICKPARSER_PATH}/build -lclickparser'
 # libev configurations
 LIBS          += ' -lev'
 
+# PAPI configurations
+LIBS          += ' -lpapi'
+
 # DPDK configurations
 DPDK_PATH = os.getenv('NBA_DPDK_PATH')
 if DPDK_PATH is None:

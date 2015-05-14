@@ -19,6 +19,9 @@
 #include "computecontext.hh"
 /* ===== END_OF_COMP ===== */
 
+#ifdef NBA_CPU_MICROBENCH
+#include <papi.h>
+#endif
 #include <unistd.h>
 #include <pthread.h>
 #include <signal.h>
@@ -368,6 +371,15 @@ static void io_local_stat_timer_cb(struct ev_loop *loop, struct ev_timer *watche
         ctx->tx_pkt_thruput += ctx->port_stats[j].num_sent_pkts;
         memset(&ctx->port_stats[j], 0, sizeof(struct io_port_stat));
     }
+	char buf[2048];
+    char *bufp = &buf[0];
+    for (int e = 0; e < 5; e++) {
+        bufp += sprintf(bufp, "[worker:%02u].%d %'12lld, %'12lld, %'12lld\n", ctx->loc.core_id, e, ctx->papi_ctr_rx[e], ctx->papi_ctr_tx[e], ctx->papi_ctr_comp[e]);
+    }
+	printf("%s", buf);
+    memset(ctx->papi_ctr_rx, 0, sizeof(long long) * 5);
+    memset(ctx->papi_ctr_tx, 0, sizeof(long long) * 5);
+    memset(ctx->papi_ctr_comp, 0, sizeof(long long) * 5);
     /* Inform the master to check updates. */
     rte_atomic16_inc(ctx->node_master_flag);
     ev_async_send(ctx->node_master_ctx->loop, ctx->node_stat_watcher);
@@ -573,6 +585,9 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
             ctx->comp_ctx->inspector->true_process_time_gpu[banno] = prev_pkt_time;
         }
     }
+//#ifdef NBA_CPU_MICROBENCH
+//    PAPI_start(ctx->papi_evset_tx);
+//#endif
 
     // TODO: keep ordering of packets (or batches)
     //   NOTE: current implementation: no extra queueing,
@@ -654,6 +669,14 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
         ctx->global_tx_cnt = 0;
         ctx->last_tx_tick = tick;
     //}
+//#ifdef NBA_CPU_MICROBENCH
+//    {
+//        long long ctr[5];
+//        PAPI_stop(ctx->papi_evset_tx, ctr);
+//        for (int i = 0; i < 5; i++)
+//            ctx->papi_ctr_tx[i] += ctr[i];
+//    }
+//#endif
     print_ratelimit("# tx trials per batch", tx_tries, 10000);
 }
 
@@ -691,6 +714,34 @@ int io_loop(void *arg)
     #ifdef USE_NVPROF
     nvtxNameOsThread(pthread_self(), temp);
     #endif
+
+#ifdef NBA_CPU_MICROBENCH
+    assert(PAPI_register_thread() == PAPI_OK);
+    ctx->papi_evset_rx = PAPI_NULL;
+    ctx->papi_evset_tx = PAPI_NULL;
+    ctx->papi_evset_comp = PAPI_NULL;
+    memset(ctx->papi_ctr_rx, 0, sizeof(long long) * 5);
+    memset(ctx->papi_ctr_tx, 0, sizeof(long long) * 5);
+    memset(ctx->papi_ctr_comp, 0, sizeof(long long) * 5);
+    assert(PAPI_create_eventset(&ctx->papi_evset_rx) == PAPI_OK);
+    assert(PAPI_create_eventset(&ctx->papi_evset_tx) == PAPI_OK);
+    assert(PAPI_create_eventset(&ctx->papi_evset_comp) == PAPI_OK);
+    assert(PAPI_add_event(ctx->papi_evset_rx, PAPI_TOT_CYC) == PAPI_OK);   // total cycles
+    assert(PAPI_add_event(ctx->papi_evset_rx, PAPI_TOT_INS) == PAPI_OK);   // total instructions
+    assert(PAPI_add_event(ctx->papi_evset_rx, PAPI_L2_TCM) == PAPI_OK);   // total load/store instructions
+    assert(PAPI_add_event(ctx->papi_evset_rx, PAPI_BR_CN) == PAPI_OK);    // number of conditional branches
+    assert(PAPI_add_event(ctx->papi_evset_rx, PAPI_BR_MSP) == PAPI_OK);    // number of branch misprediction
+    assert(PAPI_add_event(ctx->papi_evset_tx, PAPI_TOT_CYC) == PAPI_OK);
+    assert(PAPI_add_event(ctx->papi_evset_tx, PAPI_TOT_INS) == PAPI_OK);
+    assert(PAPI_add_event(ctx->papi_evset_tx, PAPI_L2_TCM) == PAPI_OK);
+    assert(PAPI_add_event(ctx->papi_evset_tx, PAPI_BR_CN) == PAPI_OK);
+    assert(PAPI_add_event(ctx->papi_evset_tx, PAPI_BR_MSP) == PAPI_OK);
+    assert(PAPI_add_event(ctx->papi_evset_comp, PAPI_TOT_CYC) == PAPI_OK);
+    assert(PAPI_add_event(ctx->papi_evset_comp, PAPI_TOT_INS) == PAPI_OK);
+    assert(PAPI_add_event(ctx->papi_evset_comp, PAPI_L2_TCM) == PAPI_OK);
+    assert(PAPI_add_event(ctx->papi_evset_comp, PAPI_BR_CN) == PAPI_OK);
+    assert(PAPI_add_event(ctx->papi_evset_comp, PAPI_BR_MSP) == PAPI_OK);
+#endif
 
     /* Read TX-port MAC addresses. */
     for (i = 0; i < ctx->num_tx_ports; i++) {
@@ -840,6 +891,9 @@ int io_loop(void *arg)
     /* The IO thread runs in polling mode. */
     while (likely(!ctx->loop_broken)) {
         unsigned total_recv_cnt = 0;
+        #ifdef NBA_CPU_MICROBENCH
+        PAPI_start(ctx->papi_evset_rx);
+        #endif
         for (i = 0; i < ctx->num_hw_rx_queues; i++) {
 #ifdef NBA_RANDOM_PORT_ACCESS /*{{{*/
             /* Shuffle the RX queue list. */
@@ -903,7 +957,7 @@ int io_loop(void *arg)
                     break;
                 }
             } else {/*}}}*/
-#ifdef NBA_SLEEPY_IO/*{{{*/
+#ifdef NBA_SLEEPY_IO /*{{{*/
                 struct rx_state *state = &states[i];
                 if ((state->rx_quick_sleep --) > 0) {
                     pthread_yield();
@@ -936,7 +990,7 @@ int io_loop(void *arg)
                                                         * state->rx_full_quick_sleep_count);
                 }
                 recv_cnt = state->rx_length;
-#else/*}}}*/
+#else /*}}}*/
                 recv_cnt = rte_eth_rx_burst((uint8_t) port_idx, rxq,
                                              &pkts[total_recv_cnt], ctx->num_iobatch_size);
 #endif        /* endif NBA_SLEEPY_IO */
@@ -1001,6 +1055,14 @@ int io_loop(void *arg)
 
         } // end of rxq scanning
         assert(total_recv_cnt <= NBA_MAX_IOBATCH_SIZE * NBA_MAX_COMP_PPDEPTH);
+        #ifdef NBA_CPU_MICROBENCH
+        {
+            long long ctr[5];
+            PAPI_stop(ctx->papi_evset_rx, ctr);
+            for (int i = 0; i < 5; i++)
+                ctx->papi_ctr_rx[i] += ctr[i];
+        }
+        #endif
 
         if (ctx->mode == IO_EMUL) {/*{{{*/
             while (!rte_ring_empty(ctx->drop_queue)) {
@@ -1025,6 +1087,9 @@ int io_loop(void *arg)
         print_ratelimit("# received pkts from all rxq", total_recv_cnt, 10000);
 
         ctx->comp_ctx->stop_task_batching = (total_recv_cnt == 0); // not used currently...
+        #ifdef NBA_CPU_MICROBENCH
+	    PAPI_start(ctx->papi_evset_comp);
+        #endif
 
         ctx->comp_ctx->elem_graph->flush_offloaded_tasks();
         ctx->comp_ctx->elem_graph->flush_delayed_batches();
@@ -1061,6 +1126,14 @@ int io_loop(void *arg)
                 };
             }
         }
+        #ifdef NBA_CPU_MICROBENCH
+        {
+            long long ctr[5];
+            PAPI_stop(ctx->papi_evset_comp, ctr);
+            for (int i = 0; i < 5; i++)
+                ctx->papi_ctr_comp[i] += ctr[i];
+        }
+        #endif
 
         loop_count ++;
 
