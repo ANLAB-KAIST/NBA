@@ -42,7 +42,9 @@
 #include <unordered_set>
 #include <map>
 
-//#include <papi.h>
+#ifdef NBA_CPU_MICROBENCH
+#include <papi.h>
+#endif
 #include <unistd.h>
 #include <limits.h>
 #include <signal.h>
@@ -128,8 +130,10 @@ int main(int argc, char **argv)
         unsigned num_rx_ports;
     } node_ports[NBA_MAX_NODES];
 
-    //assert(PAPI_library_init(PAPI_VER_CURRENT) == PAPI_VER_CURRENT);
-    //assert(PAPI_thread_init(pthread_self) == PAPI_OK);
+#ifdef NBA_CPU_MICROBENCH
+    assert(PAPI_library_init(PAPI_VER_CURRENT) == PAPI_VER_CURRENT);
+    assert(PAPI_thread_init(pthread_self) == PAPI_OK);
+#endif
     setlocale(LC_NUMERIC, "");
 
     /* Initialize DPDK EAL and move argument pointers. */

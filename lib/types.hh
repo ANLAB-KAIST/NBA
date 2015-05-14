@@ -92,6 +92,14 @@ struct io_thread_context {
     struct ev_timer *stat_timer;
     struct io_port_stat *port_stats;
     struct io_thread_context *node_master_ctx;
+#ifdef NBA_CPU_MICROBENCH
+    int papi_evset_rx;
+    int papi_evset_tx;
+    int papi_evset_comp;
+    long long papi_ctr_rx[5];
+    long long papi_ctr_tx[5];
+    long long papi_ctr_comp[5];
+#endif
 
     char _reserved1[64];
 
