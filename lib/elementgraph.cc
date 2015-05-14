@@ -561,17 +561,11 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     } else {
                         rte_panic("Invalid packet disposition value. (element: %s, value: %d)\n", current_elem->class_name(), o);
                     }
-                    /* Exclude it from the batch. */
-                    if (prev_pkt == nullptr)
-                        batch->first_packet = pkt->next;
-                    else
-                        prev_pkt->next = pkt->next;
-                    batch->count--;
-                    prev_pkt = pkt;
                 }
                 /* Nullify the tails. */
                 for (unsigned o = 0; o < num_max_outputs; o++)
                     if (out_last_packets[o] != nullptr) out_last_packets[o]->next = nullptr;
+                batch->first_packet = nullptr;
 
                 /* Recurse into the element subgraph starting from each
                  * output port using copy-batches. */
