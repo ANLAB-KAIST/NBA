@@ -499,7 +499,7 @@ int main(int argc, char **argv)
             unsigned queue_length = 0;
             switch (conf.template_) {
             case SWRXQ:
-	            queue_length = 32; // FIXME: unsued
+                queue_length = 32; // FIXME: unsued
                 break;
             case TASKINQ:
                 queue_length = system_params["COPROC_INPUTQ_LENGTH"];

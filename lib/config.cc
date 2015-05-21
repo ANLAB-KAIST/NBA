@@ -539,7 +539,7 @@ bool load_config(const char *pyfilename)
 
 #define LOAD_PARAM(name, defval) { \
     long val = pymap_getlong(p_sys_params, #name, defval); \
-	assert(val <= NBA_MAX_ ## name); \
+    assert(val <= NBA_MAX_ ## name); \
     system_params.insert({{#name, val}}); \
 }
     LOAD_PARAM(IO_BATCH_SIZE,       64);
