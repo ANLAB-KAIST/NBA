@@ -161,14 +161,11 @@ public:
     struct core_location loc;
     unsigned num_tx_ports;
     unsigned num_nodes;
-    unsigned num_comp_ppdepth;
     unsigned num_coproc_ppdepth;
     unsigned num_combatch_size;
     unsigned num_batchpool_size;
     unsigned num_taskpool_size;
     unsigned task_completion_queue_size;
-    unsigned rx_queue_size;
-    unsigned rx_wakeup_threshold;
 
     struct rte_mempool *batch_pool;
     struct rte_mempool *dbstate_pool;

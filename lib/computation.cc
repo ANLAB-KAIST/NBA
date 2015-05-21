@@ -59,10 +59,7 @@ comp_thread_context::comp_thread_context() {
     num_combatch_size = 0;
     num_batchpool_size = 0;
     num_taskpool_size = 0;
-    num_comp_ppdepth = 0;
     num_coproc_ppdepth = 0;
-    rx_queue_size = 0;
-    rx_wakeup_threshold = 0;
 
     batch_pool = nullptr;
     task_pool = nullptr;

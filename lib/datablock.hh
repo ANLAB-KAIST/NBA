@@ -76,17 +76,17 @@ struct write_roi_info {
 struct item_size_info {
     union {
         uint16_t size;
-        uint16_t sizes[NBA_MAX_COMPBATCH_SIZE * 12];
+        uint16_t sizes[NBA_MAX_COMP_BATCH_SIZE * 12];
     };
-    uint16_t offsets[NBA_MAX_COMPBATCH_SIZE * 12];
+    uint16_t offsets[NBA_MAX_COMP_BATCH_SIZE * 12];
 };
 #else
 struct item_size_info {
     union {
         uint16_t size;
-        uint16_t sizes[NBA_MAX_COMPBATCH_SIZE * 96];
+        uint16_t sizes[NBA_MAX_COMP_BATCH_SIZE * 96];
     };
-    uint16_t offsets[NBA_MAX_COMPBATCH_SIZE * 96];
+    uint16_t offsets[NBA_MAX_COMP_BATCH_SIZE * 96];
 };
 #endif
 

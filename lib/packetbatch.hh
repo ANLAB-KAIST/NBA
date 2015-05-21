@@ -28,9 +28,9 @@ public:
           delay_start(0), compute_time(0)
     {
         #ifdef DEBUG
-        memset(&results[0], 0xdd, sizeof(int) * NBA_MAX_COMPBATCH_SIZE);
-        memset(&excluded[0], 0xcc, sizeof(bool) * NBA_MAX_COMPBATCH_SIZE);
-        memset(&packets[0], 0xbb, sizeof(struct rte_mbuf*) * NBA_MAX_COMPBATCH_SIZE);
+        memset(&results[0], 0xdd, sizeof(int) * NBA_MAX_COMP_BATCH_SIZE);
+        memset(&excluded[0], 0xcc, sizeof(bool) * NBA_MAX_COMP_BATCH_SIZE);
+        memset(&packets[0], 0xbb, sizeof(struct rte_mbuf*) * NBA_MAX_COMP_BATCH_SIZE);
         #endif
     }
 
@@ -50,9 +50,9 @@ public:
     double compute_time;
 
     struct annotation_set banno __rte_cache_aligned;  /** Batch-level annotations. */
-    bool excluded[NBA_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
-    struct rte_mbuf *packets[NBA_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
-    int results[NBA_MAX_COMPBATCH_SIZE] __rte_cache_aligned;
+    bool excluded[NBA_MAX_COMP_BATCH_SIZE] __rte_cache_aligned;
+    struct rte_mbuf *packets[NBA_MAX_COMP_BATCH_SIZE] __rte_cache_aligned;
+    int results[NBA_MAX_COMP_BATCH_SIZE] __rte_cache_aligned;
 };
 
 }

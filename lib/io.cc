@@ -152,7 +152,7 @@ struct rx_state {
 #ifdef TEST_MINIMAL_L2FWD
 struct packet_batch {
     unsigned count;
-    struct rte_mbuf *pkts[NBA_MAX_COMPBATCH_SIZE];
+    struct rte_mbuf *pkts[NBA_MAX_COMP_BATCH_SIZE];
 };
 #endif
 
@@ -371,6 +371,7 @@ static void io_local_stat_timer_cb(struct ev_loop *loop, struct ev_timer *watche
         ctx->tx_pkt_thruput += ctx->port_stats[j].num_sent_pkts;
         memset(&ctx->port_stats[j], 0, sizeof(struct io_port_stat));
     }
+ #ifdef NBA_CPU_MICROBENCH
 	char buf[2048];
     char *bufp = &buf[0];
     for (int e = 0; e < 5; e++) {
@@ -380,6 +381,7 @@ static void io_local_stat_timer_cb(struct ev_loop *loop, struct ev_timer *watche
     memset(ctx->papi_ctr_rx, 0, sizeof(long long) * 5);
     memset(ctx->papi_ctr_tx, 0, sizeof(long long) * 5);
     memset(ctx->papi_ctr_comp, 0, sizeof(long long) * 5);
+#endif
     /* Inform the master to check updates. */
     rte_atomic16_inc(ctx->node_master_flag);
     ev_async_send(ctx->node_master_ctx->loop, ctx->node_stat_watcher);
@@ -693,8 +695,8 @@ int io_loop(void *arg)
 
     // the way numa index numbered for each cpu core is checked in main(). (see 'is_numa_idx_grouped' in main())
     const unsigned num_nodes = numa_num_configured_nodes();
-    struct rte_mbuf *pkts[NBA_MAX_IOBATCH_SIZE * NBA_MAX_QUEUES_PER_PORT];
-    struct rte_mbuf *drop_pkts[NBA_MAX_IOBATCH_SIZE];
+    struct rte_mbuf *pkts[NBA_MAX_IO_BATCH_SIZE * NBA_MAX_QUEUES_PER_PORT];
+    struct rte_mbuf *drop_pkts[NBA_MAX_IO_BATCH_SIZE];
     struct timespec sleep_ts;
     unsigned i, j;
     char temp[1024];
@@ -764,7 +766,7 @@ int io_loop(void *arg)
     snprintf(temp, RTE_MEMPOOL_NAMESIZE,
          "comp.batch.%u:%u@%u", ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
     ctx->comp_ctx->batch_pool = rte_mempool_create(temp, ctx->comp_ctx->num_batchpool_size + 1,
-                                                   sizeof(PacketBatch), CACHE_LINE_SIZE,
+                                                   sizeof(PacketBatch), 0, //(unsigned) (ctx->comp_ctx->num_batchpool_size / 1.5),
                                                    0, nullptr, nullptr,
                                                    comp_packetbatch_init, nullptr,
                                                    ctx->loc.node_id, 0);
@@ -776,7 +778,7 @@ int io_loop(void *arg)
     size_t dbstate_pool_size = NBA_MAX_COPROC_PPDEPTH;
     size_t dbstate_item_size = sizeof(struct datablock_tracker) * NBA_MAX_DATABLOCKS;
     ctx->comp_ctx->dbstate_pool = rte_mempool_create(temp, dbstate_pool_size + 1,
-                                                     dbstate_item_size, CACHE_LINE_SIZE,
+                                                     dbstate_item_size, 0, //(unsigned) (dbstate_pool_size / 1.5),
                                                      0, nullptr, nullptr,
                                                      comp_dbstate_init, nullptr,
                                                      ctx->loc.node_id, 0);
@@ -788,7 +790,7 @@ int io_loop(void *arg)
     snprintf(temp, RTE_MEMPOOL_NAMESIZE,
          "comp.task.%u:%u@%u", ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
     ctx->comp_ctx->task_pool = rte_mempool_create(temp, ctx->comp_ctx->num_taskpool_size + 1,
-                                                  sizeof(OffloadTask), CACHE_LINE_SIZE,
+                                                  sizeof(OffloadTask), 0, //(unsigned) (ctx->comp_ctx->num_taskpool_size / 1.5),
                                                   0, nullptr, nullptr,
                                                   comp_task_init, nullptr,
                                                   ctx->loc.node_id, 0);
@@ -1054,7 +1056,7 @@ int io_loop(void *arg)
             prev_tsc = cur_tsc;
 
         } // end of rxq scanning
-        assert(total_recv_cnt <= NBA_MAX_IOBATCH_SIZE * NBA_MAX_COMP_PPDEPTH);
+        assert(total_recv_cnt <= NBA_MAX_IO_BATCH_SIZE * ctx->num_hw_rx_queues);
         #ifdef NBA_CPU_MICROBENCH
         {
             long long ctr[5];

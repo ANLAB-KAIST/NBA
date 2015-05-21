@@ -185,7 +185,6 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                 OffloadableElement *offloadable = dynamic_cast<OffloadableElement*>(current_elem);
                 assert(offloadable != nullptr);
                 if (lb_decision != -1) {
-
                     /* Get or initialize the task object.
                      * This step is always executed for every input batch
                      * passing every offloadable element. */
@@ -276,7 +275,6 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
 
                 } else {
                     /* If not offloaded, run the element's CPU-version handler. */
-
                     batch_disposition = current_elem->_process_batch(input_port, batch);
                     double _cpu_end = rte_rdtsc();
                     batch->compute_time += (_cpu_end - _cpu_start);

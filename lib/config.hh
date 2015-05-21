@@ -11,22 +11,32 @@
 #define NBA_MAX_QUEUES_PER_PORT     (128)
 #define NBA_MAX_COPROCESSORS        (2)     // Max number of coprocessor devices
 #define NBA_MAX_COPROCESSOR_TYPES   (1)     // Max number of device types
+
 #define NBA_MAX_PACKET_SIZE         (2048)
 #ifdef NBA_NO_HUGE
   #define NBA_MAX_IOBATCH_SIZE      (4u)
   #define NBA_MAX_COMPBATCH_SIZE    (4u)
 #else
-  #define NBA_MAX_IOBATCH_SIZE      (256u)
-  #define NBA_MAX_COMPBATCH_SIZE    (256u)
+  #define NBA_MAX_IO_BATCH_SIZE      (256u)
+  #define NBA_MAX_COMP_BATCH_SIZE    (256u)
 #endif
-#define NBA_MAX_SW_RXRING_LENGTH    (2048u)
-#define NBA_MAX_COMP_PPDEPTH        (256u)
-#define NBA_MAX_COPROC_PPDEPTH      (32u)
+#define NBA_MAX_COMP_PREPKTQ_LENGTH (256u)
+#define NBA_MAX_IO_DESC_PER_HWRXQ      (1024)
+#define NBA_MAX_IO_DESC_PER_HWTXQ      (1024)
+
+#define NBA_MAX_COPROC_PPDEPTH      (64u)
+#define NBA_MAX_COPROC_INPUTQ_LENGTH       (64)
+#define NBA_MAX_COPROC_COMPLETIONQ_LENGTH  (64)
+#define NBA_MAX_COPROC_CTX_PER_COMPTHREAD   (1)
+
+#define NBA_MAX_TASKPOOL_SIZE       (2048u)
 #define NBA_MAX_BATCHPOOL_SIZE      (2048u)
+
 #define NBA_MAX_ANNOTATION_SET_SIZE         (7)
 #define NBA_MAX_NODELOCALSTORAGE_ENTRIES    (16)
 #define NBA_MAX_KERNEL_OVERLAP      (8)
 #define NBA_MAX_DATABLOCKS          (12)    // If too large (e.g., 64), batch_pool can not be allocated.
+
 #define NBA_OQ                      (true)  // Use output-queuing semantics when possible.
 #define NBA_CPU_MICROBENCH                  // Enable support for PAPI library for microbenchmarks.
 

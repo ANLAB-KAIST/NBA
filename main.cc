@@ -358,7 +358,7 @@ int main(int argc, char **argv)
     rx_conf.rx_thresh.wthresh = 4;
     rx_conf.rx_free_thresh = 32;
     rx_conf.rx_drop_en     = 0; /* when enabled, drop packets if no descriptors are available */
-    const unsigned num_rx_desc = system_params["IO_RXDESC_PER_HWRXQ"];
+    const unsigned num_rx_desc = system_params["IO_DESC_PER_HWRXQ"];
 
     /* Per TX-queue configuration */
     struct rte_eth_txconf tx_conf;
@@ -370,7 +370,7 @@ int main(int argc, char **argv)
     tx_conf.tx_rs_thresh   = 32;
     tx_conf.tx_free_thresh = 0; /* use PMD default value */
     tx_conf.txq_flags      = ETH_TXQ_FLAGS_NOMULTSEGS | ETH_TXQ_FLAGS_NOOFFLOADS;
-    const unsigned num_tx_desc = system_params["IO_TXDESC_PER_HWTXQ"];
+    const unsigned num_tx_desc = system_params["IO_DESC_PER_HWTXQ"];
 
     /* According to dpdk-dev mailing list,
      * num_mbufs for the whole system should be greater than:
@@ -499,7 +499,7 @@ int main(int argc, char **argv)
             unsigned queue_length = 0;
             switch (conf.template_) {
             case SWRXQ:
-                queue_length = system_params["COMP_RXQ_LENGTH"];
+	            queue_length = 32; // FIXME: unsued
                 break;
             case TASKINQ:
                 queue_length = system_params["COPROC_INPUTQ_LENGTH"];
@@ -536,7 +536,7 @@ int main(int argc, char **argv)
 
     /* Some sanity checks... */
     if (emulate_io) {
-        long expected_inflight_batches = num_mbufs / num_io_threads / system_params["COMP_PPDEPTH"];
+        long expected_inflight_batches = num_mbufs / num_io_threads / system_params["COMP_BATCH_SIZE"];
         RTE_LOG(DEBUG, MAIN, "coproc_ppdepth = %ld, max.# in-flight batches per IO thread = %ld\n",
                              system_params["COPROC_PPDEPTH"], expected_inflight_batches);
         //if (system_params["COPROC_PPDEPTH"] > expected_inflight_batches) {
@@ -717,9 +717,6 @@ int main(int argc, char **argv)
             ctx->inspector = NULL;
 
             ctx->num_combatch_size = system_params["COMP_BATCH_SIZE"];
-            ctx->rx_queue_size = system_params["COMP_RXQ_LENGTH"];
-            ctx->rx_wakeup_threshold = system_params["COMP_RXQ_THRES"];
-            ctx->num_comp_ppdepth = system_params["COMP_PPDEPTH"];
             ctx->num_coproc_ppdepth = system_params["COPROC_PPDEPTH"];
             ctx->num_batchpool_size = system_params["BATCHPOOL_SIZE"];
             ctx->num_taskpool_size = system_params["TASKPOOL_SIZE"];
@@ -947,7 +944,7 @@ int main(int argc, char **argv)
              */
             snprintf(ring_name, RTE_RING_NAMESIZE, "dropq.%u:%u@%u",
                      ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
-            ctx->drop_queue = rte_ring_create(ring_name, 8 * NBA_MAX_COMPBATCH_SIZE,
+            ctx->drop_queue = rte_ring_create(ring_name, 8 * NBA_MAX_COMP_BATCH_SIZE,
                                               node_id, RING_F_SC_DEQ);
             assert(NULL != ctx->drop_queue);
 
@@ -955,10 +952,10 @@ int main(int argc, char **argv)
             for (k = 0; k < num_ports; k++) {
                 snprintf(ring_name, RTE_RING_NAMESIZE, "txq%u.%u:%u@%u",
                          k, ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
-                ctx->tx_queues[k] = rte_ring_create(ring_name, 8 * NBA_MAX_COMPBATCH_SIZE,
+                ctx->tx_queues[k] = rte_ring_create(ring_name, 8 * NBA_MAX_COMP_BATCH_SIZE,
                                     node_id, RING_F_SC_DEQ);
                 assert(NULL != ctx->tx_queues[k]);
-                assert(0 == rte_ring_set_water_mark(ctx->tx_queues[k], (8 * NBA_MAX_COMPBATCH_SIZE) - 16));
+                assert(0 == rte_ring_set_water_mark(ctx->tx_queues[k], (8 * NBA_MAX_COMP_BATCH_SIZE) - 16));
             }
 
             snprintf(ring_name, RTE_RING_NAMESIZE, "reqring.%u:%u@%u",

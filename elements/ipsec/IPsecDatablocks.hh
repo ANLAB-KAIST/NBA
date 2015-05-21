@@ -198,7 +198,7 @@ public:
         assert(!has_pending_data);
 
         #ifdef DEBUG
-        memset(&block_info[0], 0xcc, sizeof(struct aes_block_info) * NBA_MAX_COMPBATCH_SIZE * (NBA_MAX_PACKET_SIZE / AES_BLOCK_SIZE));
+        memset(&block_info[0], 0xcc, sizeof(struct aes_block_info) * NBA_MAX_COMP_BATCH_SIZE * (NBA_MAX_PACKET_SIZE / AES_BLOCK_SIZE));
         #endif
 
         for (unsigned p = 0; p < batch->count; ++p) {
@@ -247,7 +247,7 @@ private:
     bool has_pending_data;
 
     size_t global_block_cnt;
-    struct aes_block_info block_info[NBA_MAX_COMPBATCH_SIZE * (NBA_MAX_PACKET_SIZE / AES_BLOCK_SIZE)];
+    struct aes_block_info block_info[NBA_MAX_COMP_BATCH_SIZE * (NBA_MAX_PACKET_SIZE / AES_BLOCK_SIZE)];
 };
 
 }

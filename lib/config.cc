@@ -537,24 +537,25 @@ bool load_config(const char *pyfilename)
     if (p_sys_params == NULL)
         goto exit_load_config;
 
-#define LOAD_PARAM(name, defval) system_params.insert({{name, pymap_getlong(p_sys_params, name, defval)}})
-    LOAD_PARAM("IO_BATCH_SIZE",        64);  // to use vPMD
-    LOAD_PARAM("IO_RXDESC_PER_HWRXQ", 1024); // to use vPMD
-    LOAD_PARAM("IO_TXDESC_PER_HWTXQ", 1024);
+#define LOAD_PARAM(name, defval) { \
+    long val = pymap_getlong(p_sys_params, #name, defval); \
+	assert(val <= NBA_MAX_ ## name); \
+    system_params.insert({{#name, val}}); \
+}
+    LOAD_PARAM(IO_BATCH_SIZE,       64);
+    LOAD_PARAM(IO_DESC_PER_HWRXQ, 1024);
+    LOAD_PARAM(IO_DESC_PER_HWTXQ, 1024);
 
-    LOAD_PARAM("COMP_BATCH_SIZE",     64);
-    LOAD_PARAM("COMP_PPDEPTH",        32);  // unused
-    LOAD_PARAM("COMP_RXQ_LENGTH",    2048); // unused
-    LOAD_PARAM("COMP_RXQ_THRES",     256);  // unused
-    LOAD_PARAM("COMP_PREPKTQ_LENGTH", 32);
+    LOAD_PARAM(COMP_BATCH_SIZE,     64);
+    LOAD_PARAM(COMP_PREPKTQ_LENGTH, 32);
 
-    LOAD_PARAM("COPROC_PPDEPTH",              64);
-    LOAD_PARAM("COPROC_INPUTQ_LENGTH",        64);
-    LOAD_PARAM("COPROC_COMPLETIONQ_LENGTH",   64);
-    LOAD_PARAM("COPROC_CTX_PER_COMPTHREAD",    1);
+    LOAD_PARAM(COPROC_PPDEPTH,              64);
+    LOAD_PARAM(COPROC_INPUTQ_LENGTH,        64);
+    LOAD_PARAM(COPROC_COMPLETIONQ_LENGTH,   64);
+    LOAD_PARAM(COPROC_CTX_PER_COMPTHREAD,    1);
 
-    LOAD_PARAM("TASKPOOL_SIZE",  256);
-    LOAD_PARAM("BATCHPOOL_SIZE", 512);
+    LOAD_PARAM(TASKPOOL_SIZE,  256);
+    LOAD_PARAM(BATCHPOOL_SIZE, 512);
 #undef LOAD_PARAM
 
     /* Retrieve io thread configurations. */
