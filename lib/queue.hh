@@ -9,7 +9,7 @@
 
 
 template<class T, T const default_value, size_t max_size>
-class FixedArray; 
+class FixedArray;
 
 template<class T, T const default_value, size_t max_size>
 class FixedArrayIterator

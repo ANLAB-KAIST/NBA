@@ -287,7 +287,7 @@ int main(int argc, char **argv)
     num_pcores = check_ht_enabled() ? num_lcores / 2 : num_lcores;
 
     /* We have two types of configurations: system and Click.
-     * 
+     *
      * The system configuration includes:
      *  - variable parameters such as maximum queue lengths, maximum
      *    batch sizes, etc.
@@ -786,7 +786,7 @@ int main(int argc, char **argv)
         }
     }
 
-    /* Initialze elements for this system. (once per elements) */   
+    /* Initialze elements for this system. (once per elements) */
     {
         comp_thread_context* ctx = (comp_thread_context *) *(comp_thread_ctxs.begin());
         threading::bind_cpu(ctx->loc.core_id);

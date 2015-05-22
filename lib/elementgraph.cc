@@ -123,10 +123,9 @@ void ElementGraph::flush_delayed_batches()
     while (!delayed_batches.empty() && !ctx->io_ctx->loop_broken) {
         PacketBatch *batch = delayed_batches.front();
         delayed_batches.pop_front();
-        if(batch->delay_start > 0)
-        {
-        	batch->compute_time += (rte_rdtsc()-batch->delay_start);
-        	batch->delay_start = 0;
+        if (batch->delay_start > 0) {
+            batch->compute_time += (rte_rdtsc() - batch->delay_start);
+            batch->delay_start = 0;
         }
 
         /* It must have the associated element where this batch is delayed. */
@@ -232,8 +231,8 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     } else {
                         /* We have no room for batch in the preparing task.
                          * Keep the current batch for later processing. */
-                    	assert(batch->delay_start == 0);
-                    	batch->delay_start = rte_rdtsc();
+                        assert(batch->delay_start == 0);
+                        batch->delay_start = rte_rdtsc();
                         delayed_batches.push_back(batch);
                         continue;
                     }
@@ -250,7 +249,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     uint64_t now = _cpu_start;
                     if (task->batches.size() == ctx->num_coproc_ppdepth
                         //|| (ctx->load_balancer != nullptr && ctx->load_balancer->is_changed_to_cpu)
-                        //|| (now - task->batches[0]->recv_timestamp) / (float) rte_get_tsc_hz() 
+                        //|| (now - task->batches[0]->recv_timestamp) / (float) rte_get_tsc_hz()
                         //    > ctx->inspector->avg_task_completion_sec[dev_idx] * 10
                         )//|| (ctx->io_ctx->mode == IO_EMUL && !ctx->stop_task_batching))
                     {

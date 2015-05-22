@@ -570,7 +570,7 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
 {
     PacketBatch out_batches[NBA_MAX_PORTS];
     uint64_t t = rte_rdtsc();
-    ctx->comp_ctx->inspector->batch_process_time = 0.01 * (t - batch->recv_timestamp) 
+    ctx->comp_ctx->inspector->batch_process_time = 0.01 * (t - batch->recv_timestamp)
                                                    + 0.99 * ctx->comp_ctx->inspector->batch_process_time;
     unsigned p;
     {
@@ -1090,7 +1090,7 @@ int io_loop(void *arg)
 
         ctx->comp_ctx->stop_task_batching = (total_recv_cnt == 0); // not used currently...
         #ifdef NBA_CPU_MICROBENCH
-	    PAPI_start(ctx->papi_evset_comp);
+        PAPI_start(ctx->papi_evset_comp);
         #endif
 
         ctx->comp_ctx->elem_graph->flush_offloaded_tasks();

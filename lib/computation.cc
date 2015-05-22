@@ -117,45 +117,45 @@ static void *click_module_handler(int global_idx, const char* name, int argc, ch
 
     for(auto block_id : my_datablocks)
     {
-    	struct read_roi_info read_roi;
-    	struct write_roi_info write_roi;
-    	memset(&read_roi, 0, sizeof(read_roi));
-    	memset(&write_roi, 0, sizeof(write_roi));
+        struct read_roi_info read_roi;
+        struct write_roi_info write_roi;
+        memset(&read_roi, 0, sizeof(read_roi));
+        memset(&write_roi, 0, sizeof(write_roi));
 
-    	ctx->datablock_registry[block_id]->get_read_roi(&read_roi);
-    	ctx->datablock_registry[block_id]->get_write_roi(&write_roi);
+        ctx->datablock_registry[block_id]->get_read_roi(&read_roi);
+        ctx->datablock_registry[block_id]->get_write_roi(&write_roi);
 
-    	L::Bitmap read_bitmap(2048);
-    	L::Bitmap write_bitmap(2048);
+        L::Bitmap read_bitmap(2048);
+        L::Bitmap write_bitmap(2048);
 
-    	if(read_roi.type == READ_PARTIAL_PACKET)
-    		read_bitmap.setRange(true, read_roi.offset, read_roi.offset+read_roi.length);
-    	else if(read_roi.type == READ_NONE)
-    	{
+        if(read_roi.type == READ_PARTIAL_PACKET)
+                read_bitmap.setRange(true, read_roi.offset, read_roi.offset+read_roi.length);
+        else if(read_roi.type == READ_NONE)
+        {
 
-    	}
-    	else
-    	{
-    		read_bitmap.setRange(true, 0, 2048);
-    	}
+        }
+        else
+        {
+                read_bitmap.setRange(true, 0, 2048);
+        }
 
-    	if(write_roi.type == WRITE_PARTIAL_PACKET)
-    		write_bitmap.setRange(true, write_roi.offset, write_roi.offset+write_roi.length);
-    	else if(write_roi.type == WRITE_NONE || write_roi.type == WRITE_FIXED_SEGMENTS)
-    	{
+        if(write_roi.type == WRITE_PARTIAL_PACKET)
+                write_bitmap.setRange(true, write_roi.offset, write_roi.offset+write_roi.length);
+        else if(write_roi.type == WRITE_NONE || write_roi.type == WRITE_FIXED_SEGMENTS)
+        {
 
-    	}
-    	else
-    	{
-    		write_bitmap.setRange(true, 0, 2048);
-    	}
+        }
+        else
+        {
+                write_bitmap.setRange(true, 0, 2048);
+        }
 
-    	//printf("%s's read roi: ", ctx->datablock_registry[block_id]->name());
-    	//read_bitmap.print();
-    	//printf("%s's write roi: ", ctx->datablock_registry[block_id]->name());
-    	//write_bitmap.print();
+        //printf("%s's read roi: ", ctx->datablock_registry[block_id]->name());
+        //read_bitmap.print();
+        //printf("%s's write roi: ", ctx->datablock_registry[block_id]->name());
+        //write_bitmap.print();
 
-    	module->addROI(block_id, read_bitmap, write_bitmap);
+        module->addROI(block_id, read_bitmap, write_bitmap);
     }
 #endif
     return module;
@@ -184,23 +184,19 @@ void comp_thread_context::build_element_graph(const char* config_file) {
     FILE* input = fopen(config_file, "r");
     ParseInfo *pi = click_parse_configuration(input, click_module_handler, click_module_linker, this);
     int num_modules = click_num_module(pi);
+
     /* Schedulable elements will be automatically detected during addition.
      * (They corresponds to multiple "root" elements.) */
     GraphAnalysis::analyze(pi);
-    for(int k=0; k<num_modules; k++)
-    {
-    	Element* elem = (Element*)click_get_module(pi, k);
-
-    	if(elem->getLinearGroup() >= 0)
-    	{
-    		RTE_LOG(INFO, COMP, "Element [%s] is in group %d\n",
-    				elem->class_name(), elem->getLinearGroup());
-    	}
+    for(int k = 0; k < num_modules; k++) {
+        Element* elem = (Element*) click_get_module(pi, k);
+        if (elem->getLinearGroup() >= 0) {
+                RTE_LOG(INFO, COMP, "Element [%s] is in group %d\n",
+                                    elem->class_name(), elem->getLinearGroup());
+        }
     }
-
     click_destroy_configuration(pi);
     fclose(input);
-
     elemgraph_lock->release();
 }
 

@@ -448,7 +448,7 @@ PyInit_nba(void)
     PyModule_AddObject(mod, "IOThread", ntclass);
     Py_INCREF(ntclass);
     io_thread_type = ntclass;
-    
+
     ntclass = nba_create_namedtuple(nt, "CompThread", "core_id");
     PyModule_AddObject(mod, "CompThread", ntclass);
     Py_INCREF(ntclass);
@@ -566,7 +566,7 @@ bool load_config(const char *pyfilename)
     for (unsigned i = 0, len = PySequence_Size(p_io_threads);
             i < len; i ++) {
         PyObject *p_item = PySequence_GetItem(p_io_threads, i);
-        assert(PyObject_IsInstance(p_item, io_thread_type)); 
+        assert(PyObject_IsInstance(p_item, io_thread_type));
         io_thread_idx_map.insert({{p_item, i}});
         struct io_thread_conf conf;
 
@@ -627,7 +627,7 @@ bool load_config(const char *pyfilename)
     for (unsigned i = 0, len = PySequence_Size(p_comp_threads);
             i < len; i ++) {
         PyObject *p_item = PySequence_GetItem(p_comp_threads, i);
-        assert(PyObject_IsInstance(p_item, comp_thread_type)); 
+        assert(PyObject_IsInstance(p_item, comp_thread_type));
         comp_thread_idx_map.insert({{p_item, i}});
         struct comp_thread_conf conf;
 
@@ -651,7 +651,7 @@ bool load_config(const char *pyfilename)
     for (unsigned i = 0, len = PySequence_Size(p_coproc_threads);
             i < len; i ++) {
         PyObject *p_item = PySequence_GetItem(p_coproc_threads, i);
-        assert(PyObject_IsInstance(p_item, coproc_thread_type)); 
+        assert(PyObject_IsInstance(p_item, coproc_thread_type));
         coproc_thread_idx_map.insert({{p_item, i}});
         struct coproc_thread_conf conf;
 
@@ -679,7 +679,7 @@ bool load_config(const char *pyfilename)
     for (unsigned i = 0, len = PySequence_Size(p_queues);
             i < len; i ++) {
         PyObject *p_item = PySequence_GetItem(p_queues, i);
-        assert(PyObject_IsInstance(p_item, queue_type)); 
+        assert(PyObject_IsInstance(p_item, queue_type));
         queue_idx_map.insert({{(void *) p_item, i}});
 
         struct queue_conf conf;

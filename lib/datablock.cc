@@ -303,7 +303,7 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
 
         break; }
     case WRITE_NONE: {
-        
+
         break; }
     default:
 
