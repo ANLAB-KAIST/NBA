@@ -9,8 +9,8 @@
 #include "../../engines/cuda/compat.hh"
 
 /* The index is given by the order in get_used_datablocks(). */
-static const __device__ int dbid_enc_payloads = 0;
-static const __device__ int dbid_flow_ids = 1;
+#define dbid_enc_payloads_d (0)
+#define dbid_flow_ids_d     (1)
 
 #define SHA1_THREADS_PER_BLK 32
 
@@ -1248,8 +1248,8 @@ __global__ void computeHMAC_SHA1_3(
         const uint16_t batch_idx = batch_ids[idx];
         const uint16_t item_idx  = item_ids[idx];
         assert(item_idx < 64);
-        const struct datablock_kernel_arg *db_enc_payloads = &datablocks[dbid_enc_payloads];
-        const struct datablock_kernel_arg *db_flow_ids     = &datablocks[dbid_flow_ids];
+        const struct datablock_kernel_arg *db_enc_payloads = &datablocks[dbid_enc_payloads_d];
+        const struct datablock_kernel_arg *db_flow_ids     = &datablocks[dbid_flow_ids_d];
 
         const uint8_t *enc_payload_base = (uint8_t *) db_enc_payloads->buffer_bases_in[batch_idx];
         const uintptr_t offset = (uintptr_t) db_enc_payloads->item_offsets_in[batch_idx][item_idx];

@@ -15,10 +15,10 @@
 #include "../../engines/cuda/compat.hh"
 
 /* The index is given by the order in get_used_datablocks(). */
-static const __device__ int dbid_enc_payloads   = 0;
-static const __device__ int dbid_iv             = 1;
-static const __device__ int dbid_flow_ids       = 2;
-static const __device__ int dbid_aes_block_info = 3;
+#define dbid_enc_payloads_d   (0)
+#define dbid_iv_d             (1)
+#define dbid_flow_ids_d       (2)
+#define dbid_aes_block_info_d (3)
 
 #ifndef __AES_CORE__ /*same constants are defined in ssl/aes/aes_core.h */
 #define __AES_CORE__
@@ -698,10 +698,10 @@ __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
     const uint16_t batch_idx = batch_ids[idx];
     const uint16_t item_idx  = item_ids[idx];
 
-    const struct datablock_kernel_arg *db_enc_payloads    = &datablocks[dbid_enc_payloads];
-    const struct datablock_kernel_arg *db_iv              = &datablocks[dbid_iv];
-    const struct datablock_kernel_arg *db_flow_ids        = &datablocks[dbid_flow_ids];
-    const struct datablock_kernel_arg *db_aes_block_info  = &datablocks[dbid_aes_block_info];
+    const struct datablock_kernel_arg *db_enc_payloads    = &datablocks[dbid_enc_payloads_d];
+    const struct datablock_kernel_arg *db_iv              = &datablocks[dbid_iv_d];
+    const struct datablock_kernel_arg *db_flow_ids        = &datablocks[dbid_flow_ids_d];
+    const struct datablock_kernel_arg *db_aes_block_info  = &datablocks[dbid_aes_block_info_d];
 
     assert(batch_idx < 32);
     assert(item_idx < db_aes_block_info->item_count_in[batch_idx]);

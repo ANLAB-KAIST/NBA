@@ -124,8 +124,8 @@ __device__ uint32_t gpu_route_lookup_one(uint64_t ip0, uint64_t ip1,
     return bmp;
 }
 
-static const __device__ int dbid_ipv6_dest_addrs = 0;
-static const __device__ int dbid_ipv6_lookup_results = 1;
+#define dbid_ipv6_dest_addrs_d     (0)
+#define dbid_ipv6_lookup_results_d (1)
 struct __kernel_ipv6
 {
 	uint64_t ip0;
@@ -144,8 +144,8 @@ __global__ void ipv6_route_lookup_cuda(
     if (idx < count) {
         uint16_t batch_idx = batch_ids[idx];
         uint16_t item_idx  = item_ids[idx];
-        struct datablock_kernel_arg *db_dest_addrs = &datablocks[dbid_ipv6_dest_addrs];
-        struct datablock_kernel_arg *db_results    = &datablocks[dbid_ipv6_lookup_results];
+        struct datablock_kernel_arg *db_dest_addrs = &datablocks[dbid_ipv6_dest_addrs_d];
+        struct datablock_kernel_arg *db_results    = &datablocks[dbid_ipv6_lookup_results_d];
         struct __kernel_ipv6 daddr = ((struct __kernel_ipv6*) db_dest_addrs->buffer_bases_in[batch_idx])[item_idx];
         uint16_t *lookup_result = &((uint16_t *) db_results->buffer_bases_out[batch_idx])[item_idx];
 
