@@ -116,22 +116,16 @@ int CUDAComputeContext::enqueue_kernel_launch(kernel_t kernel, struct resource_p
     //       cudaSetDoubleFor*()?
     //cudaFuncAttributes attr;
     //cudaFuncGetAttributes(&attr, kernel.ptr);
-    // TODO: add extra room for dynamically allocated shared memory?
     if (unlikely(res->num_workgroups == 0))
         res->num_workgroups = 1;
-    cutilSafeCall(cudaConfigureCall(res->num_workgroups, res->num_threads_per_workgroup,
-                  1024, _stream));
-                  //attr.sharedSizeBytes, _stream));
-    size_t offset = 0;
+    void *raw_args[num_kernel_args];
     for (unsigned i = 0; i < num_kernel_args; i++) {
-        offset = ALIGN(offset, kernel_args[i].align);
-        cutilSafeCall(cudaSetupArgument(kernel_args[i].ptr,
-                                        kernel_args[i].size,
-                                        offset));
-        offset += kernel_args[i].size;
+        raw_args[i] = kernel_args[i].ptr;
     }
     state = ComputeContext::RUNNING;
-    cutilSafeCall(cudaLaunch(kernel.ptr));
+    cutilSafeCall(cudaLaunchKernel(kernel.ptr, dim3(res->num_workgroups),
+                                   dim3(res->num_threads_per_workgroup),
+                                   (void **) &raw_args[0], 1024, _stream));
     return 0;
 }
 
