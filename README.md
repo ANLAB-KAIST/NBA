@@ -12,7 +12,7 @@
 We recommend to use Ubuntu 14.04 or newer.  
 First you need to install some prerequisites.
 
-* NVIDIA CUDA 6.0 or newer
+* NVIDIA CUDA 7.0 or newer
   - We recommend to download the latest version of `.bin` package from [the NVIDIA website](https://developer.nvidia.com/cuda-downloads) instead of using system packages.
   - A small daemon is required to "pin" GPU's interrupts to specific cores.  
     See details in https://gist.github.com/3404967 .
