@@ -104,12 +104,12 @@ if v: CFLAGS += ' -DNBA_RANDOM_PORT_ACCESS'
 # NVIDIA CUDA configurations
 if USE_CUDA:
     CUDA_ARCHS    = compilelib.get_cuda_arch()
-    NVCFLAGS      = '-O2 -g --use_fast_math -I/usr/local/cuda/include'
+    NVCFLAGS      = '-O2 -g -std=c++11 --use_fast_math -I/usr/local/cuda/include'
     CFLAGS       += ' -I/usr/local/cuda/include'
     LIBS         += ' -L/usr/local/cuda/lib64 -lcudart' #' -lnvidia-ml'
     print(CUDA_ARCHS)
     if os.getenv('DEBUG', 0):
-        NVCFLAGS  = '-O0 --device-debug -g -G --use_fast_math -I/usr/local/cuda/include --ptxas-options=-v'
+        NVCFLAGS  = '-O0 --device-debug -g -G -std=c++11 --use_fast_math -I/usr/local/cuda/include --ptxas-options=-v'
     if len(CUDA_ARCHS) == 0:
         NVCFLAGS += ' -DMP_USE_64BIT=0' \
                   + ' -gencode arch=compute_10,code=sm_10' \

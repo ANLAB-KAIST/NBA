@@ -1,7 +1,13 @@
 #ifndef __NBA_ENGINES_CUDA_COMPAT_HH__
 #define __NBA_ENGINES_CUDA_COMPAT_HH__
 
-#define NBA_MAX_COPROC_PPDEPTH (256u)
+/*
+ * This header is included by .cu sources.
+ * We put only relevant data structures here for use in CUDA codes.
+ * Note that the nvcc should support C++11 (CUDA v6.5 or higher).
+ */
+
+#include "../../lib/config.hh"
 
 struct datablock_kernel_arg {
     uint32_t total_item_count_in;
