@@ -50,7 +50,7 @@ node_local_coprocs = []
 for node_id, node_cores in enumerate(node_cpus):
     node_local_coprocs.append([coproc for coproc in coprocessors if coproc.numa_node == node_id])
     for node_local_idx, coproc in enumerate(node_local_coprocs[node_id]):
-        core_id = node_cores[-node_local_idx]
+        core_id = node_cores[-(node_local_idx + 1)]
         coproc_threads.append(nba.CoprocThread(core_id=core_id + _ht_diff, device_id=coproc.device_id))
         coproc_input_queues.append(nba.Queue(node_id=node_id, template='taskin'))
 
