@@ -66,10 +66,10 @@ void ElementGraph::flush_offloaded_tasks()
                 /* Prepare to offload. */
                 cctx->state = ComputeContext::PREPARING;
                 cctx->currently_running_task = task;
-                // FIXME: dedicate a single cctx to each computation thread
-                //        (COPROC_CTX_PER_COMPTHREAD 설정이 1이면 괜찮지만 아예 1로 고정할 것.)
                 task->cctx = cctx;
 
+                /* In the GPU side, datablocks argument has only used
+                 * datablocks in the beginning of the array (not sparsely). */
                 int datablock_ids[NBA_MAX_DATABLOCKS];
                 size_t num_db_used = task->elem->get_used_datablocks(datablock_ids);
                 for (unsigned k = 0; k < num_db_used; k++) {

@@ -121,16 +121,16 @@ bool OffloadTask::copy_h2d()
     bool has_h2d_copies = false;
 
     /* Copy the datablock information for the first kernel argument. */
-    size_t dbarray_size = ALIGN(sizeof(struct datablock_kernel_arg) * NBA_MAX_DATABLOCKS, CACHE_LINE_SIZE);
+    size_t dbarray_size = ALIGN(sizeof(struct datablock_kernel_arg) * datablocks.size(), CACHE_LINE_SIZE);
     cctx->alloc_input_buffer(dbarray_size, (void **) &dbarray_h, &dbarray_d);
     assert(dbarray_h != nullptr);
     size_t itemszarray_size = 0;
 
     for (int dbid : datablocks) {
-        int b = 0;
         int dbid_d = dbid_h2d[dbid];
         dbarray_h[dbid_d].total_item_count_in  = 0;
         dbarray_h[dbid_d].total_item_count_out = 0;
+        assert(dbid_d < datablocks.size());
 
         DataBlock *db = comp_ctx->datablock_registry[dbid];
         struct read_roi_info rri;
@@ -138,6 +138,7 @@ bool OffloadTask::copy_h2d()
         db->get_read_roi(&rri);
         db->get_write_roi(&wri);
 
+        int b = 0;
         for (PacketBatch *batch : batches) {
             struct datablock_tracker *t = &batch->datablock_states[dbid];
 
@@ -204,13 +205,11 @@ bool OffloadTask::copy_h2d()
 
     /* Coalesced H2D data copy. */
     void *first_host_in_ptr = nullptr;
-    char printbuf[4096];
-    char *pb = &printbuf[0];
     int copies = 0;
     memory_t first_dev_in_ptr;
     size_t total_size = 0;
-    pb += (intptr_t) sprintf(pb, "Host-to-device copy:\n");
     for (int dbid : datablocks) {
+        int b = 0;
         for (PacketBatch *batch : batches) {
             struct datablock_tracker *t = &batch->datablock_states[dbid];
             if (t == nullptr || t->host_in_ptr == nullptr || t->in_count == 0 || t->in_size == 0) {
@@ -218,7 +217,6 @@ bool OffloadTask::copy_h2d()
                 if (first_host_in_ptr != nullptr) {
                     /* Discontinued copy. */
                     cctx->enqueue_memwrite_op(first_host_in_ptr, first_dev_in_ptr, 0, total_size);
-                    pb += (intptr_t) sprintf(pb, " [%d] %p - %p\n", copies++, first_host_in_ptr, (char*)first_host_in_ptr + (uintptr_t)total_size);
                     /* Reset. */
                     first_host_in_ptr = nullptr;
                     total_size        = 0;
@@ -232,21 +230,19 @@ bool OffloadTask::copy_h2d()
                 first_host_in_ptr = t->host_in_ptr;
                 first_dev_in_ptr  = t->dev_in_ptr;
             }
-            total_size += t->in_size;
+            total_size += ALIGN(t->in_size, CACHE_LINE_SIZE);
             #ifndef COALESC_COPY
             cctx->enqueue_memwrite_op(t->host_in_ptr, t->dev_in_ptr, 0, t->in_size);
             #endif
-            //printf("%p - %p\n", t->host_in_ptr, (void *)((char*) t->host_in_ptr + t->in_size));
             has_h2d_copies = true;
+            b++;
         }
     }
     #ifdef COALESC_COPY
     if (first_host_in_ptr != nullptr) {
         /* Finished copy. */
         cctx->enqueue_memwrite_op(first_host_in_ptr, first_dev_in_ptr, 0, total_size);
-        pb += (intptr_t) sprintf(pb, " [%d] %p - %p\n", copies++, first_host_in_ptr, (char*)first_host_in_ptr + (uintptr_t)total_size);
     }
-    //printf("%s", printbuf);
     #endif
     return has_h2d_copies;
 }
@@ -298,8 +294,6 @@ void OffloadTask::execute()
             }
             batch_id ++;
         }
-        //cctx->enqueue_memwrite_op(batch_ids_h, batch_ids_d, 0, sizeof(uint16_t) * all_item_count);
-        //cctx->enqueue_memwrite_op(item_ids_h, item_ids_d, 0, sizeof(uint16_t) * all_item_count);
         cctx->enqueue_memwrite_op(batch_ids_h, batch_ids_d, 0, ALIGN(sizeof(uint16_t) * all_item_count, CACHE_LINE_SIZE) * 2);
 
         cctx->clear_checkbits();
@@ -340,12 +334,9 @@ bool OffloadTask::copy_d2h()
     /* Coalesced D2H data copy. */
     bool has_d2h_copies = false;
     void *first_host_out_ptr = nullptr;
-    char printbuf[4096];
-    char *pb = &printbuf[0];
     int copies = 0;
     memory_t first_dev_out_ptr;
     size_t total_size = 0;
-    pb += (intptr_t) sprintf(pb, "Device-to-host copy:\n");
     for (int dbid : datablocks) {
         DataBlock *db = comp_ctx->datablock_registry[dbid];
         for (PacketBatch *batch : batches) {
@@ -355,7 +346,6 @@ bool OffloadTask::copy_d2h()
                 if (first_host_out_ptr != nullptr) {
                     /* Discontinued copy. */
                     cctx->enqueue_memread_op(first_host_out_ptr, first_dev_out_ptr, 0, total_size);
-                    pb += (intptr_t) sprintf(pb, " [%d] %p - %p\n", copies++, first_host_out_ptr, (char*)first_host_out_ptr + (uintptr_t)total_size);
                     /* Reset. */
                     first_host_out_ptr = nullptr;
                     total_size         = 0;
@@ -369,7 +359,7 @@ bool OffloadTask::copy_d2h()
                 first_host_out_ptr = t->host_out_ptr;
                 first_dev_out_ptr  = t->dev_out_ptr;
             }
-            total_size += t->out_size;
+            total_size += ALIGN(t->out_size, CACHE_LINE_SIZE);
             #ifndef COALESC_COPY
             cctx->enqueue_memread_op(t->host_out_ptr, t->dev_out_ptr, 0, t->out_size);
             #endif
@@ -380,9 +370,7 @@ bool OffloadTask::copy_d2h()
     if (first_host_out_ptr != nullptr) {
         /* Finished copy. */
         cctx->enqueue_memread_op(first_host_out_ptr, first_dev_out_ptr, 0, total_size);
-        pb += (intptr_t) sprintf(pb, " [%d] %p - %p\n", copies++, first_host_out_ptr, (char*)first_host_out_ptr + (uintptr_t)total_size);
     }
-    //printf("%s", printbuf);
     #endif
     return has_d2h_copies;
 }

@@ -151,7 +151,6 @@ tuple<size_t, size_t> DataBlock::calc_write_buffer_size(PacketBatch *batch)
     case WRITE_FIXED_SEGMENTS: {
 
         num_write_items = batch->count;
-        //write_item_sizes.size = write_roi.length;
         write_buffer_size     = write_roi.length * num_write_items;
 
         break; }

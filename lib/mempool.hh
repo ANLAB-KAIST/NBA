@@ -23,8 +23,8 @@ public:
     {
         if (curpos_ + size > max_size_)
             return -1;
-        curpos_ = __ALIGN(curpos_, 64);
-        if (start_offset)
+        /* IMPORTANT: We need to return the position before adding the new size. */
+        if (start_offset != nullptr)
             *start_offset = curpos_;
         curpos_ += size;
         curpos_ = __ALIGN(curpos_, 64);

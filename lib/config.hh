@@ -38,7 +38,7 @@
 #define NBA_MAX_DATABLOCKS          (12)    // If too large (e.g., 64), batch_pool can not be allocated.
 
 #define NBA_OQ                      (true)  // Use output-queuing semantics when possible.
-#define NBA_CPU_MICROBENCH                  // Enable support for PAPI library for microbenchmarks.
+#undef NBA_CPU_MICROBENCH                  // Enable support for PAPI library for microbenchmarks.
 
 namespace nba {
 
