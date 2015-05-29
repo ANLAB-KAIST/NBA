@@ -160,15 +160,15 @@ LIBS          += ' -L{0} -lpython{1}m {2} {3}'.format(sysconfig.get_path('stdlib
 
 # click-parser configurations
 CLICKPARSER_PATH = os.getenv('CLICKPARSER_PATH')
-if CLICKPARSER_PATH is None:
-    CLICKPARSER_PATH = fmt('{THIRD_PARTY_DIR}/click-parser')
-    if not os.path.exists(CLICKPARSER_PATH):
-        print('Downloading click-parser ...')
-        shell(fmt('git clone https://github.com/leeopop/click-parser.git {CLICKPARSER_PATH}'))
-    print('Checking click-parser version ...')
-    shell(fmt('git -C {CLICKPARSER_PATH} pull'))
-    print('Building click-parser ...')
-    shell(fmt('make -C {CLICKPARSER_PATH}'))
+CLICKPARSER_PATH = fmt('{THIRD_PARTY_DIR}/click-parser')
+
+THIRD_PARTY_LIBS = []
+THIRD_PARTY_LIBS.append((CLICKPARSER_PATH, fmt('make -C {CLICKPARSER_PATH} all'), fmt('make -C {CLICKPARSER_PATH} clean'))) 
+
+THIRD_PARTY_DIRS = [x[0] for x in THIRD_PARTY_LIBS]
+
+for (directory, build_cmd, clean_cmd) in THIRD_PARTY_LIBS:
+    shell(fmt('{build_cmd}'))
 
 CFLAGS        += ' -I{CLICKPARSER_PATH}/include'
 LIBS          += ' -L{CLICKPARSER_PATH}/build -lclickparser'
@@ -218,7 +218,7 @@ rule main:
     shell: '{CXX} -o {output} -Wl,--whole-archive {input} -Wl,--no-whole-archive {LIBS}'
 
 rule clean:
-    shell: 'rm -rf build bin/main `find . -path "lib/*_map.hh"`'
+    shell: 'rm -rf build bin/main `find . -path "lib/*_map.hh"`'      
 
 for srcfile in SOURCE_FILES:
     # We generate build rules dynamically depending on the actual header
