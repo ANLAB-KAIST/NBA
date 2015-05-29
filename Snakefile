@@ -7,6 +7,7 @@ from distutils.version import LooseVersion
 sys.path.insert(0, '.')
 import compilelib
 from pprint import pprint
+from snakemake import shell
 
 logger.set_level(logging.DEBUG)
 
@@ -34,6 +35,7 @@ PMD      = os.getenv('NBA_PMD', 'ixgbe')
 logger.debug(fmt('Compiling using {PMD} poll-mode driver...'))
 
 # List of source and header files
+THIRD_PARTY_DIR = '3rdparty'
 SOURCE_DIRS = ['lib', 'elements']
 SOURCE_DIRS += ['engines/dummy']
 if USE_CUDA:
@@ -157,7 +159,15 @@ LIBS          += ' -L{0} -lpython{1}m {2} {3}'.format(sysconfig.get_path('stdlib
                                                       sysconfig.get_config_var('LINKFORSHARED'))
 
 # click-parser configurations
-CLICKPARSER_PATH = '$HOME/click-parser'
+CLICKPARSER_PATH = os.getenv('CLICKPARSER_PATH')
+if CLICKPARSER_PATH is None:
+    CLICKPARSER_PATH = fmt('{THIRD_PARTY_DIR}/click-parser')
+    if not os.path.exists(CLICKPARSER_PATH):
+        print('Downloading click-parser ...')
+        shell(fmt('git clone https://github.com/leeopop/click-parser.git {CLICKPARSER_PATH}'))
+    print('Checking click-parser version ...')
+    shell(fmt('git -C {CLICKPARSER_PATH} pull'))
+
 CFLAGS        += ' -I{CLICKPARSER_PATH}/include'
 LIBS          += ' -L{CLICKPARSER_PATH}/build -lclickparser'
 
