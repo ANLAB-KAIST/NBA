@@ -27,8 +27,8 @@ First you need to install some prerequisites.
   - `pip install snakemake`
   - `apt-get install libpython3-dev`
 * Click configuration parser
-  - https://github.com/leeopop/click-parser
-  - Just checkout it in the home directory and compile in-place.
+  - Just run `git submodule init && git submodule update`
+  - It will be *automatically built* along with NBA when you first build NBA.
 * `sysstat` package (or any package that offers `mpstat` command) to run experiment scripts
 * If all set, then set the environment variable as follows:
   - `USE_CUDA=1`
