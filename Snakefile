@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 # -*- mode: python -*-
 import os, sys, re, sysconfig, glob, logging
+from collections import namedtuple
 from snakemake.utils import format as fmt
 from snakemake.logging import logger
 from distutils.version import LooseVersion
@@ -10,6 +11,8 @@ from pprint import pprint
 from snakemake import shell
 
 logger.set_level(logging.DEBUG)
+
+ExtLib = namedtuple('ExtLib', 'path target build_cmd clean_cmd')
 
 def joinpath(*args):
     return os.path.normpath(os.path.join(*args))
@@ -159,17 +162,7 @@ LIBS          += ' -L{0} -lpython{1}m {2} {3}'.format(sysconfig.get_path('stdlib
                                                       sysconfig.get_config_var('LINKFORSHARED'))
 
 # click-parser configurations
-CLICKPARSER_PATH = os.getenv('CLICKPARSER_PATH')
-CLICKPARSER_PATH = fmt('{THIRD_PARTY_DIR}/click-parser')
-
-THIRD_PARTY_LIBS = []
-THIRD_PARTY_LIBS.append((CLICKPARSER_PATH, fmt('make -C {CLICKPARSER_PATH} all'), fmt('make -C {CLICKPARSER_PATH} clean'))) 
-
-THIRD_PARTY_DIRS = [x[0] for x in THIRD_PARTY_LIBS]
-
-for (directory, build_cmd, clean_cmd) in THIRD_PARTY_LIBS:
-    shell(fmt('{build_cmd}'))
-
+CLICKPARSER_PATH = os.getenv('CLICKPARSER_PATH', fmt('{THIRD_PARTY_DIR}/click-parser'))
 CFLAGS        += ' -I{CLICKPARSER_PATH}/include'
 LIBS          += ' -L{CLICKPARSER_PATH}/build -lclickparser'
 
@@ -207,18 +200,32 @@ CFLAGS = fmt(CFLAGS)
 CXXFLAGS = fmt(CFLAGS) + ' -Wno-literal-suffix'
 LIBS = fmt(LIBS)
 
+# Embedded 3rd party libraries to generate rules to build them
+THIRD_PARTY_LIBS = [
+    ExtLib(CLICKPARSER_PATH, fmt('{CLICKPARSER_PATH}/build/libclickparser.a'),
+           fmt('make -C {CLICKPARSER_PATH} -j 1 all'),
+           fmt('make -C {CLICKPARSER_PATH} clean')),
+]
+
 logger.set_level(logging.INFO)
 
 # ---------------------------------------------------------------------------------------------
 
 # Build rules
 rule main:
-    input: OBJ_FILES
+    input: OBJ_FILES + [lib.target for lib in THIRD_PARTY_LIBS]
     output: 'bin/main'
-    shell: '{CXX} -o {output} -Wl,--whole-archive {input} -Wl,--no-whole-archive {LIBS}'
+    shell: '{CXX} -o {output} -Wl,--whole-archive {OBJ_FILES} -Wl,--no-whole-archive {LIBS}'
 
+for lib in THIRD_PARTY_LIBS:
+    rule:
+        output: lib.target
+        shell: lib.build_cmd
+
+_clean_cmds = '\n'.join(['rm -rf build bin/main `find . -path "lib/*_map.hh"`']
+                        + [lib.clean_cmd for lib in THIRD_PARTY_LIBS])
 rule clean:
-    shell: 'rm -rf build bin/main `find . -path "lib/*_map.hh"`'      
+    shell: _clean_cmds
 
 for srcfile in SOURCE_FILES:
     # We generate build rules dynamically depending on the actual header
@@ -242,15 +249,6 @@ for srcfile in SOURCE_FILES:
             input: srcfile, includes
             output: outputs
             shell: '{NVCC} {NVCFLAGS} -c {input[0]} -o {output}'
-
-rule lexyacc:
-    input: 'lib/configparser/nba.l', 'lib/configparser/nba.ypp'
-    output: 'lib/configparser/nba.tab.cpp', 'lib/configparser/nba.tab.hpp', \
-            'lib/configparser/nslex.cc', 'lib/configparser/nslex.hh'
-    shell: '''
-        bison -d lib/configparser/nba.ypp -b lib/configparser/nba
-        flex -o lib/configparser/nslex.cc --header-file=lib/configparser/nslex.hh -Cr lib/configparser/nba.l
-    '''
 
 rule elemmap:
     input: ELEMENT_HEADER_FILES
