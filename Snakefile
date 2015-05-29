@@ -167,6 +167,8 @@ if CLICKPARSER_PATH is None:
         shell(fmt('git clone https://github.com/leeopop/click-parser.git {CLICKPARSER_PATH}'))
     print('Checking click-parser version ...')
     shell(fmt('git -C {CLICKPARSER_PATH} pull'))
+    print('Building click-parser ...')
+    shell(fmt('make -C {CLICKPARSER_PATH}'))
 
 CFLAGS        += ' -I{CLICKPARSER_PATH}/include'
 LIBS          += ' -L{CLICKPARSER_PATH}/build -lclickparser'
