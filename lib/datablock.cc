@@ -179,14 +179,18 @@ void DataBlock::preprocess(PacketBatch *batch, void *host_in_buffer) {
 
     switch (read_roi.type) {
     case READ_PARTIAL_PACKET: {
-        #define PREFETCH_MAX (4)
-        #if PREFETCH_MAX
-        for (signed p = 0; p < RTE_MIN(PREFETCH_MAX, ((signed)batch->count)); p++)
+        #define PREFETCH_DEPTH (4u)
+        #if PREFETCH_DEPTH
+        for (unsigned p = 0; p < RTE_MIN(PREFETCH_DEPTH, batch->count); p++)
             if (batch->packets[p] != nullptr)
                 rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p], void*));
         #endif
         void *invalid_value = this->get_invalid_value();
         for (unsigned p = 0; p < batch->count; p++) {
+            #if PREFETCH_DEPTH
+            if (p + PREFETCH_DEPTH < batch->count && batch->packets[p + PREFETCH_DEPTH] != nullptr)
+                rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p + PREFETCH_DEPTH], void*));
+            #endif
             size_t aligned_elemsz = t->aligned_item_sizes.size;
             size_t offset         = t->aligned_item_sizes.size * p;
             if (batch->excluded[p]) {
@@ -194,41 +198,37 @@ void DataBlock::preprocess(PacketBatch *batch, void *host_in_buffer) {
                     rte_memcpy((char *) host_in_buffer + offset, invalid_value, aligned_elemsz);
                 }
             } else {
-                #if PREFETCH_MAX
-                if ((signed)p < (signed)batch->count - PREFETCH_MAX && batch->excluded[p + PREFETCH_MAX] == false)
-                    rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p + PREFETCH_MAX], void*));
-                #endif
                 rte_memcpy((char*) host_in_buffer + offset,
                            rte_pktmbuf_mtod(batch->packets[p], char*) + read_roi.offset,
                            aligned_elemsz);
             }
         }
-        #undef PREFETCH_MAX
+        #undef PREFETCH_DEPTH
 
         break; }
     case READ_WHOLE_PACKET: {
 
         /* Copy the speicified region of packet to the input buffer. */
-        #define PREFETCH_MAX (4)
-        #if PREFETCH_MAX
-        for (signed p = 0; p < RTE_MIN(PREFETCH_MAX, ((signed)batch->count)); p++)
+        #define PREFETCH_DEPTH (4u)
+        #if PREFETCH_DEPTH
+        for (unsigned p = 0; p < RTE_MIN(PREFETCH_DEPTH, batch->count); p++)
             if (batch->packets[p] != nullptr)
                 rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p], void*));
         #endif
         for (unsigned p = 0; p < batch->count; p++) {
+            #if PREFETCH_DEPTH
+            if (p + PREFETCH_DEPTH < batch->count && batch->packets[p + PREFETCH_DEPTH] != nullptr)
+                rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p + PREFETCH_DEPTH], void*));
+            #endif
             if (batch->excluded[p])
                 continue;
             size_t aligned_elemsz = t->aligned_item_sizes.sizes[p];
             size_t offset         = t->aligned_item_sizes.offsets[p];
-            #if PREFETCH_MAX
-            if ((signed)p < (signed)batch->count - PREFETCH_MAX && batch->excluded[p + PREFETCH_MAX] == false)
-                rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p + PREFETCH_MAX], void*));
-            #endif
             rte_memcpy((char*) host_in_buffer + offset,
                        rte_pktmbuf_mtod(batch->packets[p], char*) + read_roi.offset,
                        aligned_elemsz);
         }
-        #undef PREFETCH_MAX
+        #undef PREFETCH_DEPTH
 
         break; }
     case READ_USER_PREPROC: {

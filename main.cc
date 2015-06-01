@@ -377,11 +377,9 @@ int main(int argc, char **argv)
      *   (hw-rx-ring-size * nb-rx-queue) + (hw-tx-ring-size * nb-tx-queue)
      *   + (nb-lcores * mbuf-pool-cache-size)
      */
-    const uint32_t num_mp_cache = 250;
-    const uint32_t num_mbufs = num_rx_desc + num_tx_desc
-                               + (num_lcores * num_mp_cache)
-                               + system_params["IO_BATCH_SIZE"];
-    const uint16_t mbuf_size = RTE_MBUF_DEFAULT_BUF_SIZE; // (RTE_PKTMBUF_HEADROOM + NBA_MAX_PACKET_SIZE);
+    const uint32_t num_mp_cache = 512;
+    const uint32_t num_mbufs = (num_lcores * num_mp_cache) + 1;
+    const uint16_t mbuf_size = RTE_PKTMBUF_HEADROOM + NBA_MAX_PACKET_SIZE;
 
     /* Initialize per-node information. */
     for (unsigned node_idx = 0; node_idx < num_nodes; node_idx ++) {

@@ -43,7 +43,16 @@ struct element_info {
 
 #define EXPORT_ELEMENT(...)
 
-#define NBA_MAX_ELEM_NEXTS (16)
+#define NBA_MAX_ELEM_NEXTS (4)
+
+enum PacketDisposition {
+    /**
+     * If the value >= 0, it is interpreted as output port idx.
+     */
+    DROP = NBA_MAX_ELEM_NEXTS,
+    SLOWPATH,
+    PENDING,
+};
 
 class Element : public GraphMetaData{
 

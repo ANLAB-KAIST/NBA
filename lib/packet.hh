@@ -19,15 +19,6 @@ class PacketBatch;
  * second for the memory pool that Packet object itself is allocated from.
  */
 
-enum Disposition {
-    /**
-     * If the value >= 0, it is interpreted as output port idx.
-     */
-    DROP = -1,
-    SLOWPATH = -2,
-    PENDING = -3,
-};
-
 struct Packet {
 private:
     /* Additional properties */
@@ -210,8 +201,7 @@ public:
     inline void set_packet_type_anno(PacketType t);
 #endif
 
-    // TODO: a lot of annotation-related methods...
-};
+} __rte_cache_aligned;
 
 struct rte_mempool *packet_create_mempool(size_t size, int node_id, int core_id);
 

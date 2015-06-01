@@ -40,7 +40,6 @@ int Element::_process_batch(int input_port, PacketBatch *batch)
         if (likely(!batch->excluded[p])) {
             batch->results[p] = this->process(input_port, Packet::from_base(batch->packets[p]));
         }
-
     }
     batch->has_results = true;
     //double batch_end = rte_rdtsc();

@@ -210,7 +210,7 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
         #endif
 
         assert(task->offload_start == 0);
-        task->offload_start = rte_rdtsc();
+        //task->offload_start = rte_rdtsc();
         /* Run postprocessing handlers. */
         task->postprocess();
 
@@ -223,7 +223,7 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
         ctx->inspector->dev_finished_batch_count[task->local_dev_idx] += task->batches.size();
 
         /* Enqueue batches for later processing. */
-        task->offload_cost += (rte_rdtsc() - task->offload_start);
+        //task->offload_cost += (rte_rdtsc() - task->offload_start);
         task->offload_start = 0;
         double task_time = (task->offload_cost);
         for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++) {
@@ -271,7 +271,8 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
         return;
     new (batch) PacketBatch();
     memcpy((void **) &batch->packets[0], (void **) pkts, count * sizeof(void*));
-    memset(&batch->banno, 0, sizeof(struct annotation_set));
+    batch->banno.bitmask = 0;
+    anno_set(&batch->banno, NBA_BANNO_LB_DECISION, -1);
 
     unsigned p;
     /* t is NOT the actual receive timestamp but a
@@ -285,7 +286,22 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
     for (p = 0; p < count; p++) {
         batch->excluded[p] = false;
     }
+    #define PREFETCH_DEPTH (8u)
+    #if PREFETCH_DEPTH
+    for (p = 0; p < RTE_MIN(count, PREFETCH_DEPTH); p++) {
+        rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p], void*));
+        rte_prefetch0(Packet::from_base_nocheck(batch->packets[p]));
+    }
+    #endif
     for (p = 0; p < count; p++) {
+        /* Prefetch the next packet object spaces. */
+        #if PREFETCH_DEPTH
+        if (p + PREFETCH_DEPTH < count) {
+            rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p + PREFETCH_DEPTH], void*));
+            rte_prefetch0(Packet::from_base_nocheck(batch->packets[p + PREFETCH_DEPTH]));
+        }
+        #endif
+
         /* Initialize packet metadata objects in pktmbuf's private area. */
         Packet *pkt = Packet::from_base_nocheck(batch->packets[p]);
         new (pkt) Packet(batch, batch->packets[p]);
@@ -297,8 +313,8 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
         anno_set(&pkt->anno, NBA_ANNO_TIMESTAMP, t);
         anno_set(&pkt->anno, NBA_ANNO_BATCH_ID, recv_batch_cnt);
     }
-    anno_set(&batch->banno, NBA_BANNO_LB_DECISION, -1);
     recv_batch_cnt ++;
+    #undef PREFETCH_DEPTH
 
     /* Run the element graph's schedulable elements.
      * FIXME: allow multiple FromInput elements depending on the flow groups. */
@@ -663,14 +679,13 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
         }
     }
     double &thruput = ctx->comp_ctx->inspector->tx_pkt_thruput;
-    ctx->LB_THRUPUT_WINDOW_SIZE = 16384; // (1 << 16);
-    uint64_t tick = rte_rdtsc_precise();
-    //if (tick - ctx->last_tx_tick > rte_get_tsc_hz() * 0.1) {
-        double thr = (double) ctx->global_tx_cnt * 1e3 / (tick - ctx->last_tx_tick);
-        thruput = (thruput * (ctx->LB_THRUPUT_WINDOW_SIZE - 1) + thr) / ctx->LB_THRUPUT_WINDOW_SIZE;
-        ctx->global_tx_cnt = 0;
-        ctx->last_tx_tick = tick;
-    //}
+    //ctx->LB_THRUPUT_WINDOW_SIZE = 16384; // (1 << 16);
+    ////if (tick - ctx->last_tx_tick > rte_get_tsc_hz() * 0.1) {
+    //    double thr = (double) ctx->global_tx_cnt * 1e3 / (tick - ctx->last_tx_tick);
+    //    thruput = (thruput * (ctx->LB_THRUPUT_WINDOW_SIZE - 1) + thr) / ctx->LB_THRUPUT_WINDOW_SIZE;
+    //    ctx->global_tx_cnt = 0;
+    //    ctx->last_tx_tick = tick;
+    ////}
 //#ifdef NBA_CPU_MICROBENCH
 //    {
 //        long long ctr[5];
@@ -766,7 +781,7 @@ int io_loop(void *arg)
     snprintf(temp, RTE_MEMPOOL_NAMESIZE,
          "comp.batch.%u:%u@%u", ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
     ctx->comp_ctx->batch_pool = rte_mempool_create(temp, ctx->comp_ctx->num_batchpool_size + 1,
-                                                   sizeof(PacketBatch), 0, //(unsigned) (ctx->comp_ctx->num_batchpool_size / 1.5),
+                                                   sizeof(PacketBatch), 64,
                                                    0, nullptr, nullptr,
                                                    comp_packetbatch_init, nullptr,
                                                    ctx->loc.node_id, 0);
@@ -778,7 +793,7 @@ int io_loop(void *arg)
     size_t dbstate_pool_size = NBA_MAX_COPROC_PPDEPTH;
     size_t dbstate_item_size = sizeof(struct datablock_tracker) * NBA_MAX_DATABLOCKS;
     ctx->comp_ctx->dbstate_pool = rte_mempool_create(temp, dbstate_pool_size + 1,
-                                                     dbstate_item_size, 0, //(unsigned) (dbstate_pool_size / 1.5),
+                                                     dbstate_item_size, 32,
                                                      0, nullptr, nullptr,
                                                      comp_dbstate_init, nullptr,
                                                      ctx->loc.node_id, 0);
@@ -790,7 +805,7 @@ int io_loop(void *arg)
     snprintf(temp, RTE_MEMPOOL_NAMESIZE,
          "comp.task.%u:%u@%u", ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
     ctx->comp_ctx->task_pool = rte_mempool_create(temp, ctx->comp_ctx->num_taskpool_size + 1,
-                                                  sizeof(OffloadTask), 0, //(unsigned) (ctx->comp_ctx->num_taskpool_size / 1.5),
+                                                  sizeof(OffloadTask), 32,
                                                   0, nullptr, nullptr,
                                                   comp_task_init, nullptr,
                                                   ctx->loc.node_id, 0);
@@ -846,7 +861,6 @@ int io_loop(void *arg)
     ctx->stat_timer->repeat = 1.;
     ev_timer_again(ctx->loop, ctx->stat_timer);
 
-    uint64_t cur_tsc, prev_tsc = 0;
 #ifdef NBA_SLEEPY_IO
     struct rx_state *states = (struct rx_state *) rte_malloc_socket("rxstates",
             sizeof(*states) * ctx->num_hw_rx_queues,
@@ -888,7 +902,6 @@ int io_loop(void *arg)
 
     // ctx->num_iobatch_size = 1; // FOR TESTING
     uint64_t loop_count = 0;
-    ctx->last_tx_tick = rte_rdtsc();
 
     /* The IO thread runs in polling mode. */
     while (likely(!ctx->loop_broken)) {
@@ -912,7 +925,6 @@ int io_loop(void *arg)
             unsigned rxq      = ctx->rx_hwrings[i].qidx;
             unsigned recv_cnt = 0;
             unsigned sent_cnt = 0, invalid_cnt = 0;
-            cur_tsc = rte_rdtsc();
 
             if (ctx->mode == IO_EMUL) {/*{{{*/
                 ret = rte_mempool_get_bulk(ctx->emul_rx_packet_pool, (void **) &pkts[total_recv_cnt], ctx->num_iobatch_size);
@@ -1052,8 +1064,6 @@ int io_loop(void *arg)
             ctx->port_stats[out_port_idx].num_sent_pkts += sent_cnt;
             ctx->port_stats[out_port_idx].num_sw_drop_pkts += recv_cnt - total_sent_cnt - invalid_cnt;
 #endif/*}}}*/
-
-            prev_tsc = cur_tsc;
 
         } // end of rxq scanning
         assert(total_recv_cnt <= NBA_MAX_IO_BATCH_SIZE * ctx->num_hw_rx_queues);
