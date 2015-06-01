@@ -54,6 +54,11 @@ enum PacketDisposition {
     PENDING,
 };
 
+#define HANDLE_ALL_PORTS case 0: \
+                         case 1: \
+                         case 2: \
+                         case 3
+
 class Element : public GraphMetaData{
 
     friend class ElementGraph;

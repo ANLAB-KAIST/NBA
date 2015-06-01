@@ -315,6 +315,9 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     if (batch->excluded[p]) continue;
                     int o = results[p];
                     switch (o) {
+                    case 0:
+                        // pass
+                        break;
                     case DROP:
                         if (ctx->inspector) ctx->inspector->drop_pkt_count += batch->count;
                         rte_ring_enqueue(ctx->io_ctx->drop_queue, (void *) batch->packets[p]);
@@ -330,11 +333,6 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     case SLOWPATH:
                         rte_panic("SLOWPATH is not supported yet. (element: %s)\n", current_elem->class_name());
                         break;
-                    case 0:
-                        // pass
-                        break;
-                    default:
-                        rte_panic("Invalid packet disposition value. (element: %s, value: %d)\n", current_elem->class_name(), o);
                     }
                 }
             }
@@ -396,7 +394,8 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
 
                     /* Prediction mismatch! */
                     if (unlikely(o != predicted_output)) {
-                        if (o >= 0) {
+                        switch(o) {
+                        HANDLE_ALL_PORTS: {
                             if (!out_batches[o]) {
                                 /* out_batch is not allocated yet... */
                                 while (rte_mempool_get(ctx->batch_pool, (void**)(out_batches + o)) == -ENOENT
@@ -416,22 +415,24 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                             /* Exclude it from the batch. */
                             out_batches[predicted_output]->excluded[p] = true;
                             out_batches[predicted_output]->packets[p]  = nullptr;
-                        } else if (o == DROP) {
+                            break; }
+                        case DROP: {
                             /* Let the IO loop free the packet. */
                             if (ctx->inspector) ctx->inspector->drop_pkt_count += 1;
                             rte_ring_enqueue(ctx->io_ctx->drop_queue, (void *) out_batches[predicted_output]->packets[p]);
                             /* Exclude it from the batch. */
                             out_batches[predicted_output]->excluded[p] = true;
                             out_batches[predicted_output]->packets[p]  = nullptr;
-                        } else if (o == PENDING) {
+                            break; }
+                        case PENDING: {
                             /* The packet is stored in io_thread_ctx::pended_pkt_queue. */
                             /* Exclude it from the batch. */
                             out_batches[predicted_output]->excluded[p] = true;
                             out_batches[predicted_output]->packets[p]  = nullptr;
-                        } else if (o == SLOWPATH) {
+                            break; }
+                        case SLOWPATH:
                             assert(0); // Not implemented yet.
-                        } else {
-                            rte_panic("Invalid packet disposition value. (element: %s, value: %d)\n", current_elem->class_name(), o);
+                            break;
                         }
                         current_elem->branch_miss++;
                     }
