@@ -203,7 +203,7 @@ LIBS = fmt(LIBS)
 # Embedded 3rd party libraries to generate rules to build them
 THIRD_PARTY_LIBS = [
     ExtLib(CLICKPARSER_PATH, fmt('{CLICKPARSER_PATH}/build/libclickparser.a'),
-           fmt('make -C {CLICKPARSER_PATH} -j 1 all'),
+           fmt('make -C {CLICKPARSER_PATH} -j all'),
            fmt('make -C {CLICKPARSER_PATH} clean')),
 ]
 
