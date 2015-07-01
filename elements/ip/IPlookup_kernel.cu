@@ -24,6 +24,12 @@ extern "C" {
 #define dbid_ipv4_dest_addrs_d     (0)
 #define dbid_ipv4_lookup_results_d (1)
 
+__device__ uint32_t ntohl(uint32_t n)
+{
+    return ((n & 0xff000000) >> 24) | ((n & 0x00ff0000) >> 8) | \
+           ((n & 0x0000ff00) << 8)  | ((n & 0x000000ff) << 24);
+}
+
 /* The GPU kernel. */
 __global__ void ipv4_route_lookup_cuda(
         struct datablock_kernel_arg *datablocks,
@@ -45,6 +51,7 @@ __global__ void ipv4_route_lookup_cuda(
         if (daddr == IGNORED_IP) {
             *lookup_result = 0;
         } else {
+            daddr = ntohl(daddr);
             uint16_t temp_dest = TBL24_d[daddr >> 8];
             if (temp_dest & 0x8000u) {
                 int index2 = (((uint32_t)(temp_dest & 0x7fff)) << 8) + (daddr & 0xff);
