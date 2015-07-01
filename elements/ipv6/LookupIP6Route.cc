@@ -8,6 +8,14 @@
 using namespace std;
 using namespace nba;
 
+static uint64_t ntohll(uint64_t val)
+{
+        return ( (((val) >> 56) & 0x00000000000000ff) | (((val) >> 40) & 0x000000000000ff00) | \
+                (((val) >> 24) & 0x0000000000ff0000) | (((val) >>  8) & 0x00000000ff000000) | \
+                (((val) <<  8) & 0x000000ff00000000) | (((val) << 24) & 0x0000ff0000000000) | \
+                (((val) << 40) & 0x00ff000000000000) | (((val) << 56) & 0xff00000000000000) );
+}
+
 int LookupIP6Route::initialize()
 {
     // Called after coproc threads are initialized.
@@ -66,23 +74,17 @@ int LookupIP6Route::process(int input_port, Packet *pkt)
 {
     struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
     struct ip6_hdr *ip6h   = (struct ip6_hdr *)(ethh + 1);
-    //uint128_t *dest_addr;
+    uint128_t dest_addr;
     uint16_t lookup_result = 0xffff;
-/*
-    dest_addr.u32[0] = ip6h->ip6_dst.s6_addr32[0];
-    dest_addr.u32[1] = ip6h->ip6_dst.s6_addr32[1];
-    dest_addr.u32[2] = ip6h->ip6_dst.s6_addr32[2];
-    dest_addr.u32[3] = ip6h->ip6_dst.s6_addr32[3];
-
-    rte_rwlock_read_lock(_rwlock_ptr);
-    lookup_result = _table_ptr->lookup(dest_addr);
-    rte_rwlock_read_unlock(_rwlock_ptr);
-*/
+    memcpy(&dest_addr.u64[1], &ip6h->ip6_dst.s6_addr32[0], sizeof(uint64_t));
+    memcpy(&dest_addr.u64[0], &ip6h->ip6_dst.s6_addr32[2], sizeof(uint64_t));
+    dest_addr.u64[1] = ntohll(dest_addr.u64[1]);
+    dest_addr.u64[0] = ntohll(dest_addr.u64[0]);
 
     // TODO: make an interface to set these locks to be
     // automatically handled by process_batch() method.
     //rte_rwlock_read_lock(_rwlock_ptr);
-    lookup_result = _table_ptr->lookup((reinterpret_cast<uint128_t*>(&ip6h->ip6_dst)));
+    lookup_result = _table_ptr->lookup((reinterpret_cast<uint128_t*>(&dest_addr)));
     //rte_rwlock_read_unlock(_rwlock_ptr);
 
     if (lookup_result == 0xffff)

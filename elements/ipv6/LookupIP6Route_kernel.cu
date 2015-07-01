@@ -126,11 +126,19 @@ __device__ uint32_t gpu_route_lookup_one(uint64_t ip0, uint64_t ip1,
 
 #define dbid_ipv6_dest_addrs_d     (0)
 #define dbid_ipv6_lookup_results_d (1)
-struct __kernel_ipv6
+struct _cu_uint128_t
 {
 	uint64_t ip0;
 	uint64_t ip1;
 };
+
+__device__ uint64_t ntohll(uint64_t val)
+{
+        return ( (((val) >> 56) & 0x00000000000000ff) | (((val) >> 40) & 0x000000000000ff00) | \
+                (((val) >> 24) & 0x0000000000ff0000) | (((val) >>  8) & 0x00000000ff000000) | \
+                (((val) <<  8) & 0x000000ff00000000) | (((val) << 24) & 0x0000ff0000000000) | \
+                (((val) << 40) & 0x00ff000000000000) | (((val) << 56) & 0xff00000000000000) );
+}
 
 __global__ void ipv6_route_lookup_cuda(
         struct datablock_kernel_arg *datablocks,
@@ -146,7 +154,7 @@ __global__ void ipv6_route_lookup_cuda(
         uint16_t item_idx  = item_ids[idx];
         struct datablock_kernel_arg *db_dest_addrs = &datablocks[dbid_ipv6_dest_addrs_d];
         struct datablock_kernel_arg *db_results    = &datablocks[dbid_ipv6_lookup_results_d];
-        struct __kernel_ipv6 daddr = ((struct __kernel_ipv6*) db_dest_addrs->buffer_bases_in[batch_idx])[item_idx];
+        struct _cu_uint128_t daddr = ((struct _cu_uint128_t*) db_dest_addrs->buffer_bases_in[batch_idx])[item_idx];
         uint16_t *lookup_result = &((uint16_t *) db_results->buffer_bases_out[batch_idx])[item_idx];
 
         // NOTE: On FERMI devices, using shared memory to store just 128
@@ -157,8 +165,8 @@ __global__ void ipv6_route_lookup_cuda(
         // UPDATE: On new NBA with CUDA 5.5, this code does neither seem to
         //         generate any errors nor bring performance benefits.
 
-        uint64_t ip0 = daddr.ip0;
-        uint64_t ip1 = daddr.ip1;
+        uint64_t ip0 = ntohll(daddr.ip1);
+        uint64_t ip1 = ntohll(daddr.ip0);
         if (ip0 == 0xffffffffffffffffu && ip1 == 0xffffffffffffffffu) {
             *lookup_result = 0;
         } else {
