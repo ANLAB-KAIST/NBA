@@ -49,7 +49,6 @@ public:
 
 public:
     /* Initialized during execute(). */
-    uint64_t begin_timestamp;
     struct resource_param res;
     uint64_t offload_start;
     double offload_cost;

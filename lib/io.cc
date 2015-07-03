@@ -199,6 +199,7 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
                                                   (void **) tasks,
                                                   ctx->task_completion_queue_size);
     print_ratelimit("# done tasks", nr_tasks, 100);
+    uint64_t now = rdtscp();
 
     for (unsigned t = 0; t < nr_tasks && !io_ctx->loop_broken; t++) {
         /* We already finished postprocessing.
@@ -209,13 +210,11 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
         nvtxRangePush("task");
         #endif
 
-        assert(task->offload_start == 0);
-        //task->offload_start = rte_rdtsc();
         /* Run postprocessing handlers. */
         task->postprocess();
 
         /* Update statistics. */
-        float time_spent = (rte_rdtsc() - task->begin_timestamp) / (float) rte_get_tsc_hz();
+        float time_spent = (now - task->offload_start) / (float) rte_get_tsc_hz();
         uint64_t task_count = ctx->inspector->dev_finished_task_count[task->local_dev_idx];
         ctx->inspector->avg_task_completion_sec[task->local_dev_idx] \
               = (ctx->inspector->avg_task_completion_sec[task->local_dev_idx] * task_count + time_spent) / (task_count + 1);
@@ -223,11 +222,12 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
         ctx->inspector->dev_finished_batch_count[task->local_dev_idx] += task->batches.size();
 
         /* Enqueue batches for later processing. */
-        //task->offload_cost += (rte_rdtsc() - task->offload_start);
-        task->offload_start = 0;
-        double task_time = (task->offload_cost);
+        uint64_t task_cycles = now - task->offload_start;
+        uint64_t total_batch_size = 0;
+        for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++)
+            total_batch_size += task->batches[b]->count;
         for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++) {
-            task->batches[b]->compute_time += task_time / ((ctx->num_coproc_ppdepth));
+            task->batches[b]->compute_time += task_cycles / total_batch_size;
             ctx->elem_graph->enqueue_postproc_batch(task->batches[b], task->elem,
                                                     task->input_ports[b]);
         }
@@ -679,13 +679,6 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
         }
     }
     double &thruput = ctx->comp_ctx->inspector->tx_pkt_thruput;
-    //ctx->LB_THRUPUT_WINDOW_SIZE = 16384; // (1 << 16);
-    ////if (tick - ctx->last_tx_tick > rte_get_tsc_hz() * 0.1) {
-    //    double thr = (double) ctx->global_tx_cnt * 1e3 / (tick - ctx->last_tx_tick);
-    //    thruput = (thruput * (ctx->LB_THRUPUT_WINDOW_SIZE - 1) + thr) / ctx->LB_THRUPUT_WINDOW_SIZE;
-    //    ctx->global_tx_cnt = 0;
-    //    ctx->last_tx_tick = tick;
-    ////}
 //#ifdef NBA_CPU_MICROBENCH
 //    {
 //        long long ctr[5];

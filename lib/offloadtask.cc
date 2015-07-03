@@ -37,7 +37,6 @@ OffloadTask::OffloadTask()
     completion_watcher = nullptr;
     completion_queue   = nullptr;
     cctx = nullptr;
-    offload_cost = 0;
     offload_start = 0;
 }
 
@@ -130,7 +129,7 @@ bool OffloadTask::copy_h2d()
         int dbid_d = dbid_h2d[dbid];
         dbarray_h[dbid_d].total_item_count_in  = 0;
         dbarray_h[dbid_d].total_item_count_out = 0;
-        assert(dbid_d < datablocks.size());
+        assert(dbid_d < (signed) datablocks.size());
 
         DataBlock *db = comp_ctx->datablock_registry[dbid];
         struct read_roi_info rri;

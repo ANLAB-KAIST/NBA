@@ -57,7 +57,6 @@ static void coproc_task_input_cb(struct ev_loop *loop, struct ev_async *watcher,
     if (task != nullptr) {
         assert(task->cctx != nullptr);
         task->coproc_ctx = ctx;
-        task->offload_start = rte_rdtsc();
         task->copy_h2d();
         task->execute();
         /* We separate d2h copy step since CUDA implicitly synchronizes
@@ -114,8 +113,6 @@ static void coproc_task_done_cb(struct ev_loop *loop, struct ev_async *watcher, 
         OffloadTask *task = ctx->task_done_queue->front();
         ctx->task_done_queue->pop_front();
         if (task->poll_d2h_copy_finished()) {
-            task->offload_cost += (rte_rdtsc() - task->offload_start);
-            task->offload_start = 0;
             task->notify_completion();
         } else
             ctx->task_done_queue->push_back(task);

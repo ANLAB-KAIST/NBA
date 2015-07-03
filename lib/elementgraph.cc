@@ -47,13 +47,10 @@ void ElementGraph::flush_offloaded_tasks()
         while (!ready_tasks[dev_idx].empty()) {
             OffloadTask *task = ready_tasks[dev_idx].front();
             ready_tasks[dev_idx].pop_front();
-            //task->offload_start = rte_rdtsc();
 
             /* Start offloading! */
             // TODO: create multiple cctx_list and access them via dev_idx for hetero-device systems.
-            //if (!ctx->cctx_list.empty()) {
             ComputeContext *cctx = ctx->cctx_list.front();
-                //ctx->cctx_list.pop_front();
             if (cctx->state == ComputeContext::READY) {
 
                 /* Grab a compute context. */
@@ -78,17 +75,11 @@ void ElementGraph::flush_offloaded_tasks()
                     task->dbid_h2d[dbid] = k;
                 }
 
-                //size_t total_num_pkts = 0;
                 for (PacketBatch *batch : task->batches) {
-                    //total_num_pkts = batch->count;
                     if (batch->datablock_states == nullptr)
                         assert(0 == rte_mempool_get(ctx->dbstate_pool, (void **) &batch->datablock_states));
-                    //assert(task->offload_start);
-                    //task->offload_cost += (rte_rdtsc() - task->offload_start);
-                    task->offload_start = 0;
                 }
                 //print_ratelimit("avg.# pkts sent to GPU", total_num_pkts, 100);
-                //assert(total_num_pkts > 0);
 
                 task->prepare_read_buffer();
                 task->prepare_write_buffer();
@@ -176,7 +167,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
         int input_port = batch->input_port;
         int batch_disposition = CONTINUE_TO_PROCESS;
         int64_t lb_decision = anno_get(&batch->banno, NBA_BANNO_LB_DECISION);
-        uint64_t _cpu_start = rte_rdtsc();
+        uint64_t now = rdtscp();  // The starting timestamp of the current element.
 
         /* Check if we can and should offload. */
         if (!batch->has_results) {
@@ -246,9 +237,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                      *     10 x avg.task completion time.
                      */
                     assert(task->batches.size() > 0);
-                    uint64_t now = _cpu_start;
                     if (task->batches.size() == ctx->num_coproc_ppdepth
-                        //|| (ctx->load_balancer != nullptr && ctx->load_balancer->is_changed_to_cpu)
                         //|| (now - task->batches[0]->recv_timestamp) / (float) rte_get_tsc_hz()
                         //    > ctx->inspector->avg_task_completion_sec[dev_idx] * 10
                         )//|| (ctx->io_ctx->mode == IO_EMUL && !ctx->stop_task_batching))
@@ -256,15 +245,13 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                         //printf("avg task completion time: %.6f sec\n", ctx->inspector->avg_task_completion_sec[dev_idx]);
 
                         offloadable->tasks[dev_idx] = nullptr;  // Let the element be able to take next pkts/batches.
-                        task->begin_timestamp = now;
-                        task->offload_start = _cpu_start;
-
+                        task->offload_start = rdtscp();
                         ready_tasks[dev_idx].push_back(task);
                         #ifdef USE_NVPROF
                         nvtxRangePop();
                         #endif
-                        flush_offloaded_tasks();
                     }
+                    flush_offloaded_tasks();
 
                     /* At this point, the batch is already consumed to the task
                      * or delayed. */
@@ -275,8 +262,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                 } else {
                     /* If not offloaded, run the element's CPU-version handler. */
                     batch_disposition = current_elem->_process_batch(input_port, batch);
-                    double _cpu_end = rte_rdtsc();
-                    batch->compute_time += (_cpu_end - _cpu_start);
+                    batch->compute_time += (rdtscp() - now);
                 }
             } else {
                 /* If not offloadable, run the element's CPU-version handler. */
