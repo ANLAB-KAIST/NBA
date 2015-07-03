@@ -66,11 +66,8 @@ static inline uint64_t get_thread_cpu_time_unit()
 static inline uint64_t get_usec()
 {
     struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+    clock_gettime(CLOCK_MONOTONIC, &ts);
     return (ts.tv_sec * 1e9L + ts.tv_nsec) / 1e3L;
-    //struct timeval tv;
-    //assert(gettimeofday(&tv, NULL) == 0);
-    //return tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
 static inline void _cpuid(int i, uint32_t regs[4])
@@ -86,6 +83,13 @@ static inline void _cpuid(int i, uint32_t regs[4])
 #endif
 }
 
+static inline void dummy_cpuid()
+{
+    int i;
+    uint32_t regs[4];
+    _cpuid(i, regs);
+}
+
 /* Intel's documentation suggests use cpuid+rdtsc before meaurements and
  * rdtscp after measurements.  In both cases, we need to add CPUID
  * instruction to prevent out-of-order execution.
@@ -93,21 +97,26 @@ static inline void _cpuid(int i, uint32_t regs[4])
  */
 static inline uint64_t rdtsc(void)
 {
-    uint32_t regs[4];
-    unsigned low, high;
-    _cpuid(0, regs);
+    uint32_t low, high;
     asm volatile("rdtsc" : "=a" (low), "=d" (high));
     return ((uint64_t)low) | (((uint64_t)high) << 32);
 }
 
+/* rdtscp is an improved version of rdtsc.
+ * It is almost same to memfence() + rdtsc() integrated into a single
+ * instruction, with slightly less overhead.
+ */
 static inline uint64_t rdtscp(void)
 {
     uint32_t low, high;
     uint32_t aux;
-    uint32_t regs[4];
-    asm volatile ( "rdtscp" : "=a" (low), "=d" (high), "=c" (aux) : : );
-    _cpuid(0, regs);
+    asm volatile ("rdtscp" : "=a" (low), "=d" (high), "=c" (aux));
     return ((uint64_t)low | ((uint64_t)high << 32));
+}
+
+static inline void memfence(void)
+{
+    asm volatile ("lfence" ::: "memory" );
 }
 
 static inline void set_random(uint8_t *buf, unsigned len)
@@ -125,7 +134,10 @@ static inline void set_random(uint8_t *buf, unsigned len)
 #define DPRINT_HEX(format, ... )
 #endif
 
-#define barrier() asm volatile("": : :"memory")
+static inline void mbarrier(void)
+{
+    asm volatile("": : :"memory");
+}
 
 #if 0
 #define print_ratelimit(msg, var, nr_iter) do { \
