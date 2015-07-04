@@ -36,9 +36,9 @@ public:
             lb_mode = const_cast<char*>("CPUOnly");
 
         if (!strcmp(lb_mode, "CPUOnly")) {
-            lb_decision = -1;
-        } else if (!strcmp(lb_mode, "GPUOnly")) {
             lb_decision = 0;
+        } else if (!strcmp(lb_mode, "GPUOnly")) {
+            lb_decision = 1;
         } else {
             rte_panic("Unsupported load balancer mode: %s\n", lb_mode);
         }

@@ -177,7 +177,7 @@ public:
             };
             offload_compute_handlers.insert({{"dummy", ch},});
         }
-        for (int i = 0; i < NBA_MAX_COPROCESSOR_TYPES; i++)
+        for (int i = 0; i < NBA_MAX_PROCESSOR_TYPES; i++)
             tasks[i] = nullptr;
     }
     virtual ~OffloadableElement() {}
@@ -197,7 +197,7 @@ public:
     std::unordered_map<std::string, offload_init_handler> offload_init_handlers;
 
 private:
-    OffloadTask *tasks[NBA_MAX_COPROCESSOR_TYPES];
+    OffloadTask *tasks[NBA_MAX_PROCESSOR_TYPES];
     void dummy_compute_handler(ComputeContext *ctx, struct resource_param *res);
 };
 

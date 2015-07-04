@@ -54,42 +54,42 @@ public:
     {
         /* Generate a random number and find the interval where it belongs to. */
         int64_t x = uniform_dist(random_generator);
-        int _temp = (x > local_cpu_ratio) - 1;
+        int _temp = (x > local_cpu_ratio);
         anno_set(&batch->banno, NBA_BANNO_LB_DECISION, _temp);
         return 0;
     }
 
     int dispatch(uint64_t loop_count, PacketBatch*& out_batch, uint64_t &next_delay)
     {
-    	next_delay = 100000;
-    	int64_t temp_cpu_ratio = rte_atomic64_read(&cpu_ratio);
-    	local_cpu_ratio = temp_cpu_ratio;
+        next_delay = 100000;
+        int64_t temp_cpu_ratio = rte_atomic64_read(&cpu_ratio);
+        local_cpu_ratio = temp_cpu_ratio;
 
-    	if(ctx->loc.core_id == 0)
-    	{
-    		double true_cpu_pkt_time = ctx->inspector->true_process_time_cpu;
-    		double true_gpu_pkt_time = ctx->inspector->true_process_time_gpu[0];
-    		double diff = std::abs(true_cpu_pkt_time - true_gpu_pkt_time) / ((true_cpu_pkt_time + true_gpu_pkt_time) / 2);
+        if(ctx->loc.core_id == 0)
+        {
+            double true_cpu_pkt_time = ctx->inspector->pkt_proc_cycles[0];
+            double true_gpu_pkt_time = ctx->inspector->pkt_proc_cycles[1];
+            double diff = std::abs(true_cpu_pkt_time - true_gpu_pkt_time)
+                          / ((true_cpu_pkt_time + true_gpu_pkt_time) / 2);
 
-    		if(diff > 0.05)
-    		{
-    			if(true_cpu_pkt_time > true_gpu_pkt_time)
-    				temp_cpu_ratio -= _LB_PPC_GLOBAL_MY_CPU_DELTA;
-    			else //if(diff > 0.1)
-    				temp_cpu_ratio += _LB_PPC_GLOBAL_MY_CPU_DELTA;
+            if (diff > 0.05)
+            {
+                if (true_cpu_pkt_time > true_gpu_pkt_time)
+                        temp_cpu_ratio -= _LB_PPC_GLOBAL_MY_CPU_DELTA;
+                else //if(diff > 0.1)
+                        temp_cpu_ratio += _LB_PPC_GLOBAL_MY_CPU_DELTA;
 
-    			if(temp_cpu_ratio > _LB_PPC_GLOBAL_MY_CPU_TIME-_LB_PPC_GLOBAL_MY_CPU_DELTA)
-    				temp_cpu_ratio = _LB_PPC_GLOBAL_MY_CPU_TIME-_LB_PPC_GLOBAL_MY_CPU_DELTA;
-    			if(temp_cpu_ratio < _LB_PPC_GLOBAL_MY_CPU_DELTA)
-    				temp_cpu_ratio = _LB_PPC_GLOBAL_MY_CPU_DELTA;
+                if (temp_cpu_ratio > _LB_PPC_GLOBAL_MY_CPU_TIME-_LB_PPC_GLOBAL_MY_CPU_DELTA)
+                        temp_cpu_ratio = _LB_PPC_GLOBAL_MY_CPU_TIME-_LB_PPC_GLOBAL_MY_CPU_DELTA;
+                if (temp_cpu_ratio < _LB_PPC_GLOBAL_MY_CPU_DELTA)
+                        temp_cpu_ratio = _LB_PPC_GLOBAL_MY_CPU_DELTA;
 
+                printf("CPU_:%f GPU_:%f = Ratio: %ld\n", true_cpu_pkt_time, true_gpu_pkt_time, temp_cpu_ratio);
+                rte_atomic64_set(&cpu_ratio, temp_cpu_ratio);
+            }
+        }
 
-    			printf("CPU_:%f GPU_:%f = Ratio: %ld\n", true_cpu_pkt_time, true_gpu_pkt_time, temp_cpu_ratio);
-    			rte_atomic64_set(&cpu_ratio, temp_cpu_ratio);
-    		}
-    	}
-
-    	out_batch = nullptr;
+        out_batch = nullptr;
         return 0;
     }
 

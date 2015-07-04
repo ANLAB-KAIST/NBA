@@ -272,7 +272,7 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
     new (batch) PacketBatch();
     memcpy((void **) &batch->packets[0], (void **) pkts, count * sizeof(void*));
     batch->banno.bitmask = 0;
-    anno_set(&batch->banno, NBA_BANNO_LB_DECISION, -1);
+    anno_set(&batch->banno, NBA_BANNO_LB_DECISION, 0);
 
     unsigned p;
     /* t is NOT the actual receive timestamp but a
@@ -374,7 +374,6 @@ static void io_local_stat_timer_cb(struct ev_loop *loop, struct ev_timer *watche
 {
     io_thread_context *ctx = (io_thread_context *) ev_userdata(loop);
     /* Atomically update the counters in the master. */
-    ctx->tx_pkt_thruput = 0;
     for (unsigned j = 0; j < ctx->node_stat->num_ports; j++) {
         rte_atomic64_add(&ctx->node_stat->port_stats[j].num_recv_pkts, ctx->port_stats[j].num_recv_pkts);
         rte_atomic64_add(&ctx->node_stat->port_stats[j].num_sent_pkts, ctx->port_stats[j].num_sent_pkts);
@@ -384,7 +383,6 @@ static void io_local_stat_timer_cb(struct ev_loop *loop, struct ev_timer *watche
         rte_atomic64_add(&ctx->node_stat->port_stats[j].num_invalid_pkts, ctx->port_stats[j].num_invalid_pkts);
         rte_atomic64_add(&ctx->node_stat->port_stats[j].num_recv_bytes, ctx->port_stats[j].num_recv_bytes);
         rte_atomic64_add(&ctx->node_stat->port_stats[j].num_sent_bytes, ctx->port_stats[j].num_sent_bytes);
-        ctx->tx_pkt_thruput += ctx->port_stats[j].num_sent_pkts;
         memset(&ctx->port_stats[j], 0, sizeof(struct io_port_stat));
     }
  #ifdef NBA_CPU_MICROBENCH
@@ -585,24 +583,10 @@ static void io_terminate_cb(struct ev_loop *loop, struct ev_async *watcher, int 
 void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
 {
     PacketBatch out_batches[NBA_MAX_PORTS];
-    uint64_t t = rte_rdtsc();
-    ctx->comp_ctx->inspector->batch_process_time = 0.01 * (t - batch->recv_timestamp)
-                                                   + 0.99 * ctx->comp_ctx->inspector->batch_process_time;
-    unsigned p;
-    {
-        int64_t banno = anno_get(&batch->banno, NBA_BANNO_LB_DECISION);
-        double prev_pkt_time = 0;
-        double true_time = batch->compute_time;
-        if (banno == -1) {
-            prev_pkt_time = ctx->comp_ctx->inspector->true_process_time_cpu;
-            prev_pkt_time = (((prev_pkt_time * (CPU_HISTORY_SIZE - 1)) + true_time) / CPU_HISTORY_SIZE);
-            ctx->comp_ctx->inspector->true_process_time_cpu = prev_pkt_time;
-        } else {
-            prev_pkt_time = ctx->comp_ctx->inspector->true_process_time_gpu[banno];
-            prev_pkt_time = (((prev_pkt_time * (GPU_HISTORY_SIZE - 1)) + true_time) / GPU_HISTORY_SIZE);
-            ctx->comp_ctx->inspector->true_process_time_gpu[banno] = prev_pkt_time;
-        }
-    }
+    uint64_t t = rdtscp();
+    int64_t proc_id = anno_get(&batch->banno, NBA_BANNO_LB_DECISION);  // adjust range to be positive
+    ctx->comp_ctx->inspector->update_batch_proc_time(t - batch->recv_timestamp);
+    ctx->comp_ctx->inspector->update_pkt_proc_cycles(batch->compute_time, proc_id);
 //#ifdef NBA_CPU_MICROBENCH
 //    PAPI_start(ctx->papi_evset_tx);
 //#endif
@@ -610,7 +594,7 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
     // TODO: keep ordering of packets (or batches)
     //   NOTE: current implementation: no extra queueing,
     //   just transmit as requested
-    for (p = 0; p < batch->count; p++) {
+    for (unsigned p = 0; p < batch->count; p++) {
         Packet *pkt = Packet::from_base(batch->packets[p]);
         if (batch->excluded[p] == false && anno_isset(&pkt->anno, NBA_ANNO_IFACE_OUT)) {
             struct ether_hdr *ethh = rte_pktmbuf_mtod(batch->packets[p], struct ether_hdr *);
@@ -678,7 +662,6 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
 #endif
         }
     }
-    double &thruput = ctx->comp_ctx->inspector->tx_pkt_thruput;
 //#ifdef NBA_CPU_MICROBENCH
 //    {
 //        long long ctr[5];

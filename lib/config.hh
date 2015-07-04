@@ -10,7 +10,7 @@
 #define NBA_MAX_PORTS               (16)
 #define NBA_MAX_QUEUES_PER_PORT     (128)
 #define NBA_MAX_COPROCESSORS        (2)     // Max number of coprocessor devices
-#define NBA_MAX_COPROCESSOR_TYPES   (1)     // Max number of device types
+#define NBA_MAX_PROCESSOR_TYPES     (2)     // Max number of device types (current: CPU and GPU)
 
 #define NBA_MAX_PACKET_SIZE         (2048)
 #ifdef NBA_NO_HUGE

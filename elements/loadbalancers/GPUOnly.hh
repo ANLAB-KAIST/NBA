@@ -35,7 +35,7 @@ public:
 
     int process_batch(int input_port, PacketBatch *batch)
     {
-        anno_set(&batch->banno, NBA_BANNO_LB_DECISION, 0);
+        anno_set(&batch->banno, NBA_BANNO_LB_DECISION, 1);
         return 0;
     }
 

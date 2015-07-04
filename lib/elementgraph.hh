@@ -104,7 +104,7 @@ protected:
     comp_thread_context *ctx;
 
     FixedRing<PacketBatch *, nullptr> queue;
-    FixedRing<OffloadTask *, nullptr> ready_tasks[NBA_MAX_COPROCESSOR_TYPES];
+    FixedRing<OffloadTask *, nullptr> ready_tasks[NBA_MAX_PROCESSOR_TYPES];
     FixedRing<PacketBatch *, nullptr> delayed_batches;
 
 private:

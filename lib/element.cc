@@ -35,25 +35,19 @@ Element::~Element()
 
 int Element::_process_batch(int input_port, PacketBatch *batch)
 {
-    //double batch_start = rte_rdtsc();
     for (unsigned p = 0; p < batch->count; p++) {
         if (likely(!batch->excluded[p])) {
             batch->results[p] = this->process(input_port, Packet::from_base(batch->packets[p]));
         }
     }
     batch->has_results = true;
-    //double batch_end = rte_rdtsc();
-    //batch->compute_time += (batch_end-batch_start) / batch->count;//ctx->num_combatch_size;
     return 0; // this value will be ignored.
 }
 
 int PerBatchElement::_process_batch(int input_port, PacketBatch *batch)
 {
-    //double batch_start = rte_rdtsc();
     int ret = this->process_batch(input_port, batch);
     batch->has_results = true;
-    //double batch_end = rte_rdtsc();
-    //batch->compute_time += (batch_end-batch_start) / batch->count;//ctx->num_combatch_size;
     return ret;
 }
 

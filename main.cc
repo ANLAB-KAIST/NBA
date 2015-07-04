@@ -729,6 +729,7 @@ int main(int argc, char **argv)
             ctx->offload_devices = (vector<ComputeDevice *> *)
                     rte_malloc_socket(NULL, sizeof(vector<ComputeDevice *>), 64, node_id);
             new (ctx->offload_devices) vector<ComputeDevice *>();
+            ctx->offload_devices->push_back(nullptr);  // the CPU has index 0.
             if (num_coproc_threads > 0) {
                 struct coproc_thread_context *coproc_ctx = (coproc_thread_context *) queue_privs[conf.taskinq_idx];
                 if (coproc_ctx == nullptr) {
@@ -746,7 +747,7 @@ int main(int argc, char **argv)
                     ctx->named_offload_devices->insert(pair<string, ComputeDevice *>("phi", device));
                     #endif
                     ctx->offload_devices->push_back(device);
-                    ctx->offload_input_queues[0] = queues[conf.taskinq_idx];
+                    ctx->offload_input_queues[1] = queues[conf.taskinq_idx];
                     ctx->task_completion_queue = queues[conf.taskoutq_idx];
                     ctx->task_completion_watcher = qwatchers[conf.taskoutq_idx];
                     ctx->coproc_ctx = coproc_ctx;
@@ -757,7 +758,7 @@ int main(int argc, char **argv)
                         ctx->datablock_registry[dbid]->set_id(dbid);
                         RTE_LOG(DEBUG, MAIN, "  [%u] %s\n", dbid, ctx->datablock_registry[dbid]->name());
                     }
-                    new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NBA_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
+                    new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NBA_MAX_PROCESSOR_TYPES, ctx->loc.node_id);
                     for (unsigned k = 0, k_max = system_params["COPROC_CTX_PER_COMPTHREAD"]; k < k_max; k++) {
                         ComputeContext *cctx = nullptr;
                         cctx = device->get_available_context();
@@ -767,7 +768,7 @@ int main(int argc, char **argv)
                     }
                 }
             } else {
-                new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NBA_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
+                new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NBA_MAX_PROCESSOR_TYPES, ctx->loc.node_id);
                 assert(ctx->cctx_list.empty());
                 ctx->task_completion_queue = NULL;
                 ctx->task_completion_watcher = NULL;

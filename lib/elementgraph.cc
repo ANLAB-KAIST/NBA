@@ -31,7 +31,7 @@ ElementGraph::ElementGraph(comp_thread_context *ctx)
     input_elem = nullptr;
     assert(0 == rte_malloc_validate(ctx, NULL));
     /* IMPORTANT: ready_tasks must be larger than task_pool. */
-    for (int i = 0; i < NBA_MAX_COPROCESSOR_TYPES; i++)
+    for (int i = 0; i < NBA_MAX_PROCESSOR_TYPES; i++)
         ready_tasks[i].init(256, ctx->loc.node_id);
 }
 
@@ -39,11 +39,13 @@ void ElementGraph::flush_offloaded_tasks()
 {
     if (unlikely(ctx->io_ctx->loop_broken))
         return;
-    uint64_t len_ready_tasks = ready_tasks[0].size();
-    print_ratelimit("# ready tasks", len_ready_tasks, 10000);
 
-    for (int dev_idx = 0; dev_idx < NBA_MAX_COPROCESSOR_TYPES; dev_idx++) {
+    for (int dev_idx = 1; dev_idx < NBA_MAX_PROCESSOR_TYPES; dev_idx++) {
+
+        uint64_t len_ready_tasks = ready_tasks[dev_idx].size();
+        print_ratelimit("# ready tasks", len_ready_tasks, 10000);
         // TODO: now it's possible to merge multiple tasks to increase batch size!
+
         while (!ready_tasks[dev_idx].empty()) {
             OffloadTask *task = ready_tasks[dev_idx].front();
             ready_tasks[dev_idx].pop_front();
@@ -88,7 +90,7 @@ void ElementGraph::flush_offloaded_tasks()
                 /* Enqueue the offload task. */
                 assert(0 == rte_ring_enqueue(ctx->offload_input_queues[dev_idx], (void*) task));
                 ev_async_send(ctx->coproc_ctx->loop, ctx->offload_devices->at(dev_idx)->input_watcher);
-                if (ctx->inspector) ctx->inspector->dev_sent_batch_count[0] += task->batches.size();
+                if (ctx->inspector) ctx->inspector->dev_sent_batch_count[dev_idx] += task->batches.size();
                 #ifdef USE_NVPROF
                 nvtxRangePop();
                 #endif
@@ -174,7 +176,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
             if (current_elem->get_type() & ELEMTYPE_OFFLOADABLE) {
                 OffloadableElement *offloadable = dynamic_cast<OffloadableElement*>(current_elem);
                 assert(offloadable != nullptr);
-                if (lb_decision != -1) {
+                if (lb_decision > 0) {
                     /* Get or initialize the task object.
                      * This step is always executed for every input batch
                      * passing every offloadable element. */
