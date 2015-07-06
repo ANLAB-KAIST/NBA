@@ -279,7 +279,7 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
      * "start-of-processing" timestamp.
      * However its ordering is same as we do FIFO here.
      */
-    uint64_t t = rte_rdtsc();
+    uint64_t t = rdtscp();
     batch->count = count;
     batch->recv_timestamp = t;
     batch->batch_id = recv_batch_cnt;

@@ -15,9 +15,9 @@
 #include <random>
 #include <unistd.h>
 
-#define _LB_MEASURE_PPC_MY_CPU_TIME (1000)
-#define _LB_MEASURE_PPC_MY_CPU_DELTA (50)
-#define _LB_MEASURE_PPC_REPEAT_PER_RATIO (32)
+#define LB_MEASURE_CPU_RATIO_MULTIPLIER (1000)
+#define LB_MEASURE_CPU_RATIO_DELTA (50)
+#define LB_MEASURE_REPTITON_PER_RATIO (8)
 
 namespace nba {
 
@@ -34,7 +34,7 @@ public:
     int get_type() const { return SchedulableElement::get_type() | PerBatchElement::get_type(); }
 
     int initialize() {
-        uniform_dist = std::uniform_int_distribution<int64_t>(0, _LB_MEASURE_PPC_MY_CPU_TIME);
+        uniform_dist = std::uniform_int_distribution<int64_t>(0, LB_MEASURE_CPU_RATIO_MULTIPLIER);
         random_generator = std::default_random_engine();
 
         /* We have only two ranges for CPU and GPU. */
@@ -68,29 +68,27 @@ public:
         int64_t temp_cpu_ratio = rte_atomic64_read(&cpu_ratio);
         local_cpu_ratio = temp_cpu_ratio;
 
-        if (ctx->io_ctx->loc.local_thread_idx == 0) {
+        //if (ctx->io_ctx->loc.local_thread_idx == 0) {
+        if (ctx->io_ctx->loc.core_id == 0) {
             double cpu_ppc = ctx->inspector->pkt_proc_cycles[0];
             double gpu_ppc = ctx->inspector->pkt_proc_cycles[1];
+            double estimated_ppc = (temp_cpu_ratio * cpu_ppc
+                                    + (LB_MEASURE_CPU_RATIO_MULTIPLIER - temp_cpu_ratio) * gpu_ppc)
+                                   / LB_MEASURE_CPU_RATIO_MULTIPLIER;
 
-            printf("[MEASURE] CPU[%f] GPU[%f] Ratio[%f]\n",
-                   cpu_ppc, gpu_ppc, ((double)temp_cpu_ratio)/_LB_MEASURE_PPC_MY_CPU_TIME);
+            printf("[MEASURE:%d] CPU %12f GPU %12f PPC %12f Ratio %.3f\n", ctx->loc.node_id,
+                   cpu_ppc, gpu_ppc, estimated_ppc, ((double)temp_cpu_ratio) / LB_MEASURE_CPU_RATIO_MULTIPLIER);
 
-            if (print_count++ % _LB_MEASURE_PPC_REPEAT_PER_RATIO == 0)
+            if ((print_count++) % LB_MEASURE_REPTITON_PER_RATIO == 0)
             {
-                printf("OLD_RATIO[%f]\n", ((double)temp_cpu_ratio)/_LB_MEASURE_PPC_MY_CPU_TIME);
-                temp_cpu_ratio += _LB_MEASURE_PPC_MY_CPU_DELTA;
-
-                if(temp_cpu_ratio > _LB_MEASURE_PPC_MY_CPU_TIME-_LB_MEASURE_PPC_MY_CPU_DELTA)
+                temp_cpu_ratio += LB_MEASURE_CPU_RATIO_DELTA;
+                if (temp_cpu_ratio > LB_MEASURE_CPU_RATIO_MULTIPLIER - LB_MEASURE_CPU_RATIO_DELTA)
                 {
-                    temp_cpu_ratio = _LB_MEASURE_PPC_MY_CPU_TIME-_LB_MEASURE_PPC_MY_CPU_DELTA;
+                    temp_cpu_ratio = LB_MEASURE_CPU_RATIO_MULTIPLIER - LB_MEASURE_CPU_RATIO_DELTA;
                     printf("END_OF_TEST\n");
                     raise(SIGINT);
                 }
-                if(temp_cpu_ratio < _LB_MEASURE_PPC_MY_CPU_DELTA)
-                    temp_cpu_ratio = _LB_MEASURE_PPC_MY_CPU_DELTA;
-
                 rte_atomic64_set(&cpu_ratio, temp_cpu_ratio);
-                printf("NEW_RATIO[%f]\n", ((double)temp_cpu_ratio)/_LB_MEASURE_PPC_MY_CPU_TIME);
             }
         }
 

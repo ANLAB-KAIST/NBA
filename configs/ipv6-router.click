@@ -1,7 +1,6 @@
 FromInput() ->
-// LoadBalanceAdaptiveMeasure() ->
-LoadBalanceThruput() ->
 CheckIP6Header() ->
+LoadBalanceAdaptiveMeasure() ->
 LookupIP6Route() ->
 DecIP6HLIM() ->
 DropBroadcasts() ->

@@ -1,9 +1,7 @@
 FromInput() ->
-// LoadBalanceAdaptiveMeasure() ->
-LoadBalanceThruput() ->
 DropBroadcasts() ->
 CheckIPHeader() ->
-GPUOnly() ->
+LoadBalanceAdaptiveMeasure() ->
 IPlookup() ->
 DecIPTTL() ->
 ToOutput();

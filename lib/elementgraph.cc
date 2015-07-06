@@ -117,7 +117,7 @@ void ElementGraph::flush_delayed_batches()
         PacketBatch *batch = delayed_batches.front();
         delayed_batches.pop_front();
         if (batch->delay_start > 0) {
-            batch->compute_time += (rte_rdtsc() - batch->delay_start);
+            batch->compute_time += (rdtscp() - batch->delay_start);
             batch->delay_start = 0;
         }
 
@@ -193,8 +193,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                             if (!ctx->io_ctx->loop_broken)
                                 ev_run(ctx->io_ctx->loop, EVRUN_NOWAIT);
                             /* Keep the current batch for later processing. */
-                            assert(batch->delay_start == 0);
-                            batch->delay_start = rte_rdtsc();
+                            batch->delay_start = rdtscp();
                             delayed_batches.push_back(batch);
                             continue;
                         }
@@ -225,7 +224,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                         /* We have no room for batch in the preparing task.
                          * Keep the current batch for later processing. */
                         assert(batch->delay_start == 0);
-                        batch->delay_start = rte_rdtsc();
+                        batch->delay_start = rdtscp();
                         delayed_batches.push_back(batch);
                         continue;
                     }
@@ -271,6 +270,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                 batch_disposition = current_elem->_process_batch(input_port, batch);
             }
         }
+        lb_decision = anno_get(&batch->banno, NBA_BANNO_LB_DECISION);
 
         /* If the element was per-batch and it said it will keep the batch,
          * we do not have to perform batch-split operations below. */
