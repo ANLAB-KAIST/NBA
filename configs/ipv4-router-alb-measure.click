@@ -1,7 +1,7 @@
 FromInput() ->
 DropBroadcasts() ->
 CheckIPHeader() ->
-LoadBalancePPC() ->
+LoadBalanceAdaptiveMeasure() ->
 IPlookup() ->
 DecIPTTL() ->
 ToOutput();
