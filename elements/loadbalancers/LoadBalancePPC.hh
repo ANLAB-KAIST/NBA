@@ -118,7 +118,7 @@ public:
             if (temp_cpu_ratio > LB_PPC_CPU_RATIO_MULTIPLIER) temp_cpu_ratio = LB_PPC_CPU_RATIO_MULTIPLIER;
             last_estimated_ppc = estimated_ppc;
 
-            printf("[MEASURE:%d] CPU %'8.0f GPU %'8.0f PPC %'8.0f CPU-Ratio %.3f\n",
+            printf("[PPC:%d] CPU %'8.0f GPU %'8.0f PPC %'8.0f CPU-Ratio %.3f\n",
                    ctx->loc.node_id,
                    ppc_cpu, ppc_gpu, estimated_ppc, c);
             rte_atomic64_set(cpu_ratio, temp_cpu_ratio);

@@ -49,9 +49,9 @@ public:
 
     int initialize_per_node()
     {
-        ctx->node_local_storage->alloc("LBPPC.cpu_weight", sizeof(rte_atomic64_t));
+        ctx->node_local_storage->alloc("LBMeasure.cpu_weight", sizeof(rte_atomic64_t));
         rte_atomic64_t *node_cpu_ratio = (rte_atomic64_t *)
-                ctx->node_local_storage->get_alloc("LBPPC.cpu_weight");
+                ctx->node_local_storage->get_alloc("LBMeasure.cpu_weight");
         assert(node_cpu_ratio != nullptr);
         rte_atomic64_set(node_cpu_ratio, 0);
         return 0;
@@ -97,8 +97,7 @@ public:
         int64_t temp_cpu_ratio = rte_atomic64_read(cpu_ratio);
         local_cpu_ratio = temp_cpu_ratio;
 
-        //if (ctx->io_ctx->loc.local_thread_idx == 0) {
-        if (ctx->io_ctx->loc.core_id == 0) {
+        if (ctx->io_ctx->loc.local_thread_idx == 0) {
             const float ppc_cpu = ctx->inspector->pkt_proc_cycles[0];
             const float ppc_gpu = ctx->inspector->pkt_proc_cycles[1];
             const float estimated_ppc = (temp_cpu_ratio * ppc_cpu
