@@ -1,5 +1,5 @@
-#ifndef __NBA_ELEMENT_LOADBALANCEADAPTIVEMEASURE_HH__
-#define __NBA_ELEMENT_LOADBALANCEADAPTIVEMEASURE_HH__
+#ifndef __NBA_ELEMENT_LOADBALANCEPPC_HH__
+#define __NBA_ELEMENT_LOADBALANCEPPC_HH__
 
 #include "../../lib/element.hh"
 #include "../../lib/annotation.hh"
@@ -13,35 +13,34 @@
 #include <vector>
 #include <string>
 #include <random>
-#include <unistd.h>
+#include <cmath>
 
-#define LB_MEASURE_CPU_RATIO_MULTIPLIER (1000)
-#define LB_MEASURE_CPU_RATIO_DELTA (50)
-#define LB_MEASURE_REPTITON_PER_RATIO (16)
+#define LB_PPC_CPU_RATIO_MULTIPLIER (1000)
+#define LB_PPC_CPU_RATIO_DELTA (50)
 
 namespace nba {
 
-class LoadBalanceAdaptiveMeasure : public SchedulableElement, PerBatchElement {
+class LoadBalancePPC : public SchedulableElement, PerBatchElement {
 public:
-    LoadBalanceAdaptiveMeasure() : SchedulableElement(), PerBatchElement()
+    LoadBalancePPC() : SchedulableElement(), PerBatchElement()
     { }
 
-    virtual ~LoadBalanceAdaptiveMeasure()
+    virtual ~LoadBalancePPC()
     { }
 
-    const char *class_name() const { return "LoadBalanceAdaptiveMeasure"; }
+    const char *class_name() const { return "LoadBalancePPC"; }
     const char *port_count() const { return "1/1"; }
     int get_type() const { return SchedulableElement::get_type() | PerBatchElement::get_type(); }
 
     int initialize()
     {
-        /* We have only two ranges for CPU and GPU. */
-        local_cpu_ratio = 0;
-        print_count = 1;
+        local_cpu_ratio = LB_PPC_CPU_RATIO_MULTIPLIER;
+        delta = LB_PPC_CPU_RATIO_DELTA;
+        last_estimated_ppc = 0;
         rep = 0;
         rep_limit = ctx->num_coproc_ppdepth;
         offload = false;
-        cpu_ratio = (rte_atomic64_t *) ctx->node_local_storage->get_alloc("LBMeasure.cpu_weight");
+        cpu_ratio = (rte_atomic64_t *) ctx->node_local_storage->get_alloc("LBPPC.cpu_weight");
         return 0;
     }
 
@@ -60,14 +59,14 @@ public:
     int configure(comp_thread_context *ctx, std::vector<std::string> &args)
     {
         Element::configure(ctx, args);
-        RTE_LOG(INFO, LB, "load balancer mode: Measure\n");
+        RTE_LOG(INFO, LB, "load balancer mode: Adaptive PPC\n");
         return 0;
     }
 
     int process_batch(int input_port, PacketBatch *batch)
     {
         int decision = 0;
-        const float c = (float) local_cpu_ratio / LB_MEASURE_CPU_RATIO_MULTIPLIER;
+        const float c = (float) local_cpu_ratio / LB_PPC_CPU_RATIO_MULTIPLIER;
         rep ++;
         if (offload) {
             decision = 1;
@@ -97,28 +96,32 @@ public:
         int64_t temp_cpu_ratio = rte_atomic64_read(cpu_ratio);
         local_cpu_ratio = temp_cpu_ratio;
 
-        //if (ctx->io_ctx->loc.local_thread_idx == 0) {
-        if (ctx->io_ctx->loc.core_id == 0) {
+        if (ctx->loc.local_thread_idx == 0) {
+            int64_t temp_cpu_ratio = rte_atomic64_read(cpu_ratio);
             const float ppc_cpu = ctx->inspector->pkt_proc_cycles[0];
             const float ppc_gpu = ctx->inspector->pkt_proc_cycles[1];
             const float estimated_ppc = (temp_cpu_ratio * ppc_cpu
-                                           + (LB_MEASURE_CPU_RATIO_MULTIPLIER - temp_cpu_ratio) * ppc_gpu)
-                                          / LB_MEASURE_CPU_RATIO_MULTIPLIER;
-            const float c = (float) temp_cpu_ratio / LB_MEASURE_CPU_RATIO_MULTIPLIER;
-            printf("[MEASURE:%d] CPU %'8.0f GPU %'8.0f PPC %'8.0f CPU-Ratio %.3f (cpu_rep_limit %u)\n",
-                   ctx->loc.node_id,
-                   ppc_cpu, ppc_gpu, estimated_ppc, c,
-                   (unsigned) (c * ctx->num_coproc_ppdepth / (1.0f - c)));
+                                           + (LB_PPC_CPU_RATIO_MULTIPLIER - temp_cpu_ratio) * ppc_gpu)
+                                          / LB_PPC_CPU_RATIO_MULTIPLIER;
+            const float c = (float) temp_cpu_ratio / LB_PPC_CPU_RATIO_MULTIPLIER;
 
-            if ((print_count++) % LB_MEASURE_REPTITON_PER_RATIO == 0) {
-                temp_cpu_ratio += LB_MEASURE_CPU_RATIO_DELTA;
-                if (temp_cpu_ratio > LB_MEASURE_CPU_RATIO_MULTIPLIER - LB_MEASURE_CPU_RATIO_DELTA) {
-                    temp_cpu_ratio = LB_MEASURE_CPU_RATIO_MULTIPLIER - LB_MEASURE_CPU_RATIO_DELTA;
-                    printf("END_OF_TEST\n");
-                    raise(SIGINT);
+            if (last_estimated_ppc != 0) {
+                if (last_estimated_ppc > estimated_ppc) {
+                    // keep direction
+                } else {
+                    // reverse direction
+                    delta = -delta;
                 }
-                rte_atomic64_set(cpu_ratio, temp_cpu_ratio);
+                temp_cpu_ratio += delta;
             }
+            if (temp_cpu_ratio < 0) temp_cpu_ratio = 0;
+            if (temp_cpu_ratio > LB_PPC_CPU_RATIO_MULTIPLIER) temp_cpu_ratio = LB_PPC_CPU_RATIO_MULTIPLIER;
+            last_estimated_ppc = estimated_ppc;
+
+            printf("[MEASURE:%d] CPU %'8.0f GPU %'8.0f PPC %'8.0f CPU-Ratio %.3f\n",
+                   ctx->loc.node_id,
+                   ppc_cpu, ppc_gpu, estimated_ppc, c);
+            rte_atomic64_set(cpu_ratio, temp_cpu_ratio);
         }
 
         out_batch = nullptr;
@@ -127,14 +130,14 @@ public:
 
 private:
     rte_atomic64_t *cpu_ratio;
+    double last_estimated_ppc;
     int64_t local_cpu_ratio;
-    int print_count;
-
+    int64_t delta;
     unsigned rep, rep_limit;
     bool offload;
 };
 
-EXPORT_ELEMENT(LoadBalanceAdaptiveMeasure);
+EXPORT_ELEMENT(LoadBalancePPC);
 
 }
 

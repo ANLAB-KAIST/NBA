@@ -59,7 +59,8 @@ public:
     uint64_t batch_proc_time;
     double pkt_proc_cycles[NBA_MAX_PROCESSOR_TYPES];
 
-    const unsigned PPC_HISTORY_SIZES[2] = {128, 2048};
+    //const unsigned PPC_HISTORY_SIZES[2] = {128, 2048};
+    const unsigned PPC_HISTORY_SIZES[2] = {128, 512};
 };
 
 }

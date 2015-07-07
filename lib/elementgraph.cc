@@ -203,6 +203,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                         task->completion_queue = ctx->task_completion_queue;
                         task->completion_watcher = ctx->task_completion_watcher;
                         task->elemgraph = this;
+                        task->offload_start = rdtscp();
                         task->local_dev_idx = dev_idx;
                         //task->device = ctx->offload_devices->at(dev_idx);
                         //assert(task->device != nullptr);
@@ -244,9 +245,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                         )//|| (ctx->io_ctx->mode == IO_EMUL && !ctx->stop_task_batching))
                     {
                         //printf("avg task completion time: %.6f sec\n", ctx->inspector->avg_task_completion_sec[dev_idx]);
-
                         offloadable->tasks[dev_idx] = nullptr;  // Let the element be able to take next pkts/batches.
-                        task->offload_start = rdtscp();
                         ready_tasks[dev_idx].push_back(task);
                         #ifdef USE_NVPROF
                         nvtxRangePop();
@@ -256,14 +255,12 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
 
                     /* At this point, the batch is already consumed to the task
                      * or delayed. */
-
-                    //if (ctx->load_balancer) ctx->load_balancer->is_changed_to_cpu = false;
                     continue;
 
                 } else {
                     /* If not offloaded, run the element's CPU-version handler. */
                     batch_disposition = current_elem->_process_batch(input_port, batch);
-                    batch->compute_time += (rdtscp() - now);
+                    batch->compute_time += (rdtscp() - now) / batch->count;
                 }
             } else {
                 /* If not offloadable, run the element's CPU-version handler. */
