@@ -24,7 +24,7 @@ if __name__ == '__main__':
     parser.add_argument('--io-batch-sizes', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[64])
     parser.add_argument('--comp-batch-sizes', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[64])
     parser.add_argument('--coproc-ppdepths', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[32])
-    parser.add_argument('--pktgen', type=host_port_pair(54321), metavar='HOST:PORT', nargs='+',
+    parser.add_argument('--pktgen', type=host_port_pair(54321), metavar='HOST:PORT[,HOST:PORT...]',
                         default=[('shader-marcel.anlab', 54321), ('shader-lahti.anlab', 54321)])
     parser.add_argument('--emulate-io', action='store_true', default=False, help='Use IO emulation mode.')
     parser.add_argument('-t', '--transparent', action='store_true', default=False, help='Pass-through the standard output instead of parsing it. No default timeout is applied.')

@@ -3,7 +3,7 @@ import sys, os, pwd
 import re
 import asyncio
 import argparse
-import subprocess, signal
+import subprocess, shlex, signal
 import multiprocessing
 from pprint import pprint
 from collections import defaultdict, namedtuple, OrderedDict
@@ -86,6 +86,15 @@ def read_stdout_into_lines_coro(proc):
         lines.append(line)
     return lines
 
+@asyncio.coroutine
+def connect_read_pipe(file, loop=None):
+    loop = loop if loop is not None else asyncio.get_event_loop()
+    reader = asyncio.StreamReader(loop=loop)
+    def factory():
+        return asyncio.StreamReaderProtocol(reader)
+    transport, _ = yield from loop.connect_read_pipe(factory, file)
+    return reader, transport
+
 def comma_sep_numbers(minval=0, maxval=sys.maxsize, type=int):
     def _comma_sep_argtype(string):
         try:
@@ -100,19 +109,23 @@ def comma_sep_numbers(minval=0, maxval=sys.maxsize, type=int):
 
 def host_port_pair(default_port):
     def _host_port_pair_argtype(string):
-        pieces = string.split(':')
-        cnt = len(pieces)
-        if cnt > 2:
-            raise argparse.ArgumentTypeError('{:r} is not a valid host:port value.'.format(string))
-        elif cnt == 2:
-            try:
-                host, port = pieces[0], int(pieces[1])
-                assert port > 0 and port <= 65535
-            except (ValueError, AssertionError):
-                raise argparse.ArgumentTypeError('{:r} is not a valid port number.'.format(pieces[1]))
-        else:
-            host = pieces[0], default_port
-        return host, port
+        pairs = string.split(',')
+        parsed_pairs = []
+        for pair in pairs:
+            pieces = pair.split(':')
+            cnt = len(pieces)
+            if cnt > 2:
+                raise argparse.ArgumentTypeError('{:r} is not a valid host:port value.'.format(string))
+            elif cnt == 2:
+                try:
+                    host, port = pieces[0], int(pieces[1])
+                    assert port > 0 and port <= 65535
+                except (ValueError, AssertionError):
+                    raise argparse.ArgumentTypeError('{:r} is not a valid port number.'.format(pieces[1]))
+            else:
+                host = pieces[0], default_port
+            parsed_pairs.append((host, port))
+        return parsed_pairs
     return _host_port_pair_argtype
 
 _execute_memo = {}
@@ -141,6 +154,7 @@ class ExperimentEnv:
         self._signal = None
         self._signalled = False
         self._finish_timer = None
+        self._break = False
         self._cpu_timer_fires = 0
         self._cpu_timer = None
         self._start_time = None
@@ -219,7 +233,7 @@ class ExperimentEnv:
             keyfile = '{0}/.ssh/id_rsa'.format(os.environ['HOME'])
         if not sshargs:
             sshargs = []
-        if not any(True for arg in sshargs 
+        if not any(True for arg in sshargs
                    if arg.startswith('StrictHostKeyChecking')):
             sshargs.extend(['-o', 'StrictHostKeyChecking=no'])
         self._remote_servers[category].append(
@@ -304,7 +318,11 @@ class ExperimentEnv:
         return os.path.relpath(root_path, my_abs_path)
 
     @asyncio.coroutine
-    def execute_main(self, config_name, click_name, running_time=30.0, emulate_opts=None, extra_args=None):
+    def execute_main(self, config_name, click_name,
+                     running_time=30.0,
+                     emulate_opts=None,
+                     extra_args=None,
+                     custom_stdout_coro=None):
         '''
         Executes the main program asynchronosuly.
         '''
@@ -315,6 +333,7 @@ class ExperimentEnv:
 
         # Reset/initialize events.
         self._singalled = False
+        self._break = False
         self._thruput_measured = False
         self._cpu_measured = False
         self._running_time = running_time
@@ -330,45 +349,58 @@ class ExperimentEnv:
             print('Executing: bin/main', ' '.join(args))
         self._delayed_calls = []
         self._main_proc = yield from asyncio.create_subprocess_exec('bin/main', *args,
+                                                                    loop=self._loop,
                                                                     stdout=subprocess.PIPE,
+                                                                    start_new_session=True,
                                                                     env=self.get_merged_env())
 
-        if self._main_proc.stderr is not None:
-            self._main_tasks.append(self._main_read_stderr_coro(self._main_proc.stderr))
-        assert(self._main_proc.stdout is not None)
-        self._main_tasks.append(self._main_read_stdout_coro(self._main_proc.stdout))
+        assert self._main_proc.stdout is not None
+        if custom_stdout_coro:
+            self._main_tasks.append(custom_stdout_coro(self._main_proc.stdout))
+        else:
+            self._main_tasks.append(self._main_read_stdout_coro(self._main_proc.stdout))
 
         # Create timers.
         self._start_time = self._loop.time()
-        self._delayed_calls.append(self._loop.call_later(running_time, self._main_finish_cb))
+        if running_time > 0:
+            self._delayed_calls.append(self._loop.call_later(running_time, self._main_finish_cb))
         self._cpu_timer_fires = 0
         if self._cpu_measure_time is not None:
             self._delayed_calls.append(self._loop.call_later(self._cpu_measure_time, self._cpu_timer_cb))
 
         # Run the stdout/stderr reader tasks.
         # (There may be other tasks in _main_tasks.)
-        # Under normal conditions, these tasks will stop when _main_finish_cb() terminates the main process and thus reading stdout returns None.
-        # Under abnormal conditions, asyncio.wait() call will time-out and we go into the reclaimation process below, which may use SIGKILL.
         if self._main_tasks:
-            done, pending = yield from asyncio.wait(self._main_tasks, loop=self._loop, timeout=running_time + 1)
+            done, pending = yield from asyncio.wait(self._main_tasks, loop=self._loop, timeout=running_time + 0.1)
 
-        # Reclaim the child process.
+        # Wait.
+        if running_time > 0:
+            yield from asyncio.sleep(running_time + 1)
+        else:
+            while not self._break:
+                yield from asyncio.sleep(1)
+
+        # Reclaim the child.
         try:
-            exitcode = yield from asyncio.wait_for(self._main_proc.wait(), running_time+1)
+            exitcode = yield from asyncio.wait_for(self._main_proc.wait(), 3)
         except asyncio.TimeoutError:
             # If the termination times out, kill it.
-            # (Rarely some threads may hang up on termination...)
-            # In this case, exitcode will be always -9.
+            # (GPU/ALB configurations often hang...)
             print('The main process hangs during termination. Killing it...', file=sys.stderr)
-            self._main_proc.send_signal(signal.SIGKILL)
-            exitcode = yield from self._main_proc.wait()
+            os.killpg(os.getpgid(self._main_proc.pid), signal.SIGKILL)
+            exitcode = -9
+
         self._main_proc = None
         self._main_tasks.clear()
         self._delayed_calls = None
+        self._break = False
         return exitcode
 
     def _print_timestamp(self, end=''):
         print('@{0:<11.6f} '.format(self._loop.time() - self._start_time), end=end)
+
+    def break_main(self):
+        self._break = True
 
     @asyncio.coroutine
     def _main_read_stderr_coro(self, stderr):
@@ -448,8 +480,11 @@ class ExperimentEnv:
                 self._port_records.clear()
 
     def _main_finish_cb(self):
+        print('Finished')
         if self._main_proc:
-            self._main_proc.send_signal(signal.SIGINT)
+            self._main_proc.stdout.feed_eof()
+            yield from asyncio.sleep(0.2)
+            os.killpg(os.getpgid(self._main_proc.pid), signal.SIGTERM)
         for handle in self._delayed_calls:
             handle.cancel()
 
