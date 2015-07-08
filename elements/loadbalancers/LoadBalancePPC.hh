@@ -39,6 +39,7 @@ public:
         last_estimated_ppc = 0;
         rep = 0;
         rep_limit = ctx->num_coproc_ppdepth;
+        initial_converge = true;
         offload = false;
         cpu_ratio = (rte_atomic64_t *) ctx->node_local_storage->get_alloc("LBPPC.cpu_weight");
         return 0;
@@ -93,35 +94,45 @@ public:
     int dispatch(uint64_t loop_count, PacketBatch*& out_batch, uint64_t &next_delay)
     {
         next_delay = 200000; // 0.2sec
-        int64_t temp_cpu_ratio = rte_atomic64_read(cpu_ratio);
-        local_cpu_ratio = temp_cpu_ratio;
 
         if (ctx->loc.local_thread_idx == 0) {
-            int64_t temp_cpu_ratio = rte_atomic64_read(cpu_ratio);
             const float ppc_cpu = ctx->inspector->pkt_proc_cycles[0];
             const float ppc_gpu = ctx->inspector->pkt_proc_cycles[1];
-            const float estimated_ppc = (temp_cpu_ratio * ppc_cpu
-                                           + (LB_PPC_CPU_RATIO_MULTIPLIER - temp_cpu_ratio) * ppc_gpu)
-                                          / LB_PPC_CPU_RATIO_MULTIPLIER;
-            const float c = (float) temp_cpu_ratio / LB_PPC_CPU_RATIO_MULTIPLIER;
-
-            if (last_estimated_ppc != 0) {
-                if (last_estimated_ppc > estimated_ppc) {
-                    // keep direction
-                } else {
-                    // reverse direction
-                    delta = -delta;
+            if (initial_converge) {
+                if (ppc_cpu != 0 && ppc_gpu != 0) {
+                    int64_t temp_cpu_ratio;
+                    if (ppc_cpu > ppc_gpu) temp_cpu_ratio = 0;
+                    else temp_cpu_ratio = LB_PPC_CPU_RATIO_MULTIPLIER;
+                    printf("[PPC:%d] Initial converge: %ld | CPU %'8.0f GPU %'8.0f\n", ctx->loc.node_id,
+                           temp_cpu_ratio, ppc_cpu, ppc_gpu);
+                    rte_atomic64_set(cpu_ratio, temp_cpu_ratio);
+                    initial_converge = false;
                 }
-                temp_cpu_ratio += delta;
-            }
-            if (temp_cpu_ratio < 0) temp_cpu_ratio = 0;
-            if (temp_cpu_ratio > LB_PPC_CPU_RATIO_MULTIPLIER) temp_cpu_ratio = LB_PPC_CPU_RATIO_MULTIPLIER;
-            last_estimated_ppc = estimated_ppc;
+            } else {
+                int64_t temp_cpu_ratio = rte_atomic64_read(cpu_ratio);
+                const float estimated_ppc = (temp_cpu_ratio * ppc_cpu
+                                               + (LB_PPC_CPU_RATIO_MULTIPLIER - temp_cpu_ratio) * ppc_gpu)
+                                              / LB_PPC_CPU_RATIO_MULTIPLIER;
+                const float c = (float) temp_cpu_ratio / LB_PPC_CPU_RATIO_MULTIPLIER;
 
-            printf("[PPC:%d] CPU %'8.0f GPU %'8.0f PPC %'8.0f CPU-Ratio %.3f\n",
-                   ctx->loc.node_id,
-                   ppc_cpu, ppc_gpu, estimated_ppc, c);
-            rte_atomic64_set(cpu_ratio, temp_cpu_ratio);
+                if (last_estimated_ppc != 0) {
+                    if (last_estimated_ppc > estimated_ppc) {
+                        // keep direction
+                    } else {
+                        // reverse direction
+                        delta = -delta;
+                    }
+                    temp_cpu_ratio += delta;
+                }
+                if (temp_cpu_ratio < 0) temp_cpu_ratio = 0;
+                if (temp_cpu_ratio > LB_PPC_CPU_RATIO_MULTIPLIER) temp_cpu_ratio = LB_PPC_CPU_RATIO_MULTIPLIER;
+                last_estimated_ppc = estimated_ppc;
+
+                printf("[PPC:%d] CPU %'8.0f GPU %'8.0f PPC %'8.0f CPU-Ratio %.3f\n",
+                       ctx->loc.node_id,
+                       ppc_cpu, ppc_gpu, estimated_ppc, c);
+                rte_atomic64_set(cpu_ratio, temp_cpu_ratio);
+            }
         }
 
         out_batch = nullptr;
@@ -130,10 +141,11 @@ public:
 
 private:
     rte_atomic64_t *cpu_ratio;
-    double last_estimated_ppc;
+    float last_estimated_ppc;
     int64_t local_cpu_ratio;
     int64_t delta;
     unsigned rep, rep_limit;
+    bool initial_converge;
     bool offload;
 };
 

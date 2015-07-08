@@ -60,7 +60,7 @@ public:
     double pkt_proc_cycles[NBA_MAX_PROCESSOR_TYPES];
 
     //const unsigned PPC_HISTORY_SIZES[2] = {128, 2048};
-    const unsigned PPC_HISTORY_SIZES[2] = {128, 512};
+    const unsigned PPC_HISTORY_SIZES[2] = {512, 512};
 };
 
 }
