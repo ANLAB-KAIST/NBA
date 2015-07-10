@@ -33,6 +33,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     env = ExperimentEnv(verbose=args.verbose)
+    loop = asyncio.get_event_loop()
     pktgens = []
     if not args.emulate_io:
         for host, port in args.pktgen:
@@ -84,7 +85,6 @@ if __name__ == '__main__':
         # Run.
         with ExitStack() as stack:
             _ = [stack.enter_context(pktgen) for pktgen in pktgens]
-            loop = asyncio.get_event_loop()
             if args.transparent:
                 print('--- running in transparent mode ---')
                 sys.stdout.flush()
@@ -127,3 +127,5 @@ if __name__ == '__main__':
 
         sys.stdout.flush()
         time.sleep(3)
+
+    loop.close()

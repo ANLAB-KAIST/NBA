@@ -159,7 +159,7 @@ class ExperimentEnv:
         self._cpu_timer = None
         self._start_time = None
         self._loop = asyncio.get_event_loop()
-        self._loop.add_signal_handler(signal.SIGINT, self._signal_coro)
+        #self._loop.add_signal_handler(signal.SIGINT, self._signal_coro)
 
         # Configurations.
         self._nba_env = {
@@ -351,44 +351,52 @@ class ExperimentEnv:
         self._main_proc = yield from asyncio.create_subprocess_exec('bin/main', *args,
                                                                     loop=self._loop,
                                                                     stdout=subprocess.PIPE,
+                                                                    stderr=None,
+                                                                    stdin=None,
                                                                     start_new_session=True,
                                                                     env=self.get_merged_env())
 
         assert self._main_proc.stdout is not None
+
+        # Run the readers.
         if custom_stdout_coro:
-            self._main_tasks.append(custom_stdout_coro(self._main_proc.stdout))
+            asyncio.async(custom_stdout_coro(self._main_proc.stdout), loop=self._loop)
         else:
-            self._main_tasks.append(self._main_read_stdout_coro(self._main_proc.stdout))
+            asyncio.async(self._main_read_stdout_coro(self._main_proc.stdout), loop=self._loop)
 
         # Create timers.
         self._start_time = self._loop.time()
-        if running_time > 0:
-            self._delayed_calls.append(self._loop.call_later(running_time, self._main_finish_cb))
         self._cpu_timer_fires = 0
         if self._cpu_measure_time is not None:
             self._delayed_calls.append(self._loop.call_later(self._cpu_measure_time, self._cpu_timer_cb))
 
-        # Run the stdout/stderr reader tasks.
-        # (There may be other tasks in _main_tasks.)
-        if self._main_tasks:
-            done, pending = yield from asyncio.wait(self._main_tasks, loop=self._loop, timeout=running_time + 0.1)
-
         # Wait.
         if running_time > 0:
-            yield from asyncio.sleep(running_time + 1)
+            yield from asyncio.sleep(running_time)
         else:
             while not self._break:
-                yield from asyncio.sleep(1)
+                yield from asyncio.sleep(0.5)
+        yield from asyncio.sleep(0.2)
 
         # Reclaim the child.
+        try:
+            sid = os.getsid(self._main_proc.pid)
+            os.killpg(sid, signal.SIGTERM)
+        except ProcessLookupError:
+            # when the program automatically terminates (e.g., alb_measure)
+            # it might already have terminated.
+            pass
+        for handle in self._delayed_calls:
+            handle.cancel()
         try:
             exitcode = yield from asyncio.wait_for(self._main_proc.wait(), 3)
         except asyncio.TimeoutError:
             # If the termination times out, kill it.
             # (GPU/ALB configurations often hang...)
             print('The main process hangs during termination. Killing it...', file=sys.stderr)
-            os.killpg(os.getpgid(self._main_proc.pid), signal.SIGKILL)
-            exitcode = -9
+            os.killpg(os.getsid(self._main_proc.pid), signal.SIGKILL)
+            exitcode = -signal.SIGKILL
+            # We don't wait it...
 
         self._main_proc = None
         self._main_tasks.clear()
@@ -478,15 +486,6 @@ class ExperimentEnv:
                 self._total_mpps.clear()
                 self._total_gbps.clear()
                 self._port_records.clear()
-
-    def _main_finish_cb(self):
-        print('Finished')
-        if self._main_proc:
-            self._main_proc.stdout.feed_eof()
-            yield from asyncio.sleep(0.2)
-            os.killpg(os.getpgid(self._main_proc.pid), signal.SIGTERM)
-        for handle in self._delayed_calls:
-            handle.cancel()
 
     @asyncio.coroutine
     def _cpu_measure_coro(self):
