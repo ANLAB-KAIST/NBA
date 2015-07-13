@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+
 import sys, os, pwd
 import re
 import asyncio
@@ -7,6 +8,8 @@ import subprocess, shlex, signal
 import multiprocessing
 from pprint import pprint
 from collections import defaultdict, namedtuple, OrderedDict
+from .subproc import execute, execute_memoized
+from .records import BaseReader
 import ctypes, ctypes.util
 
 _libnuma = ctypes.CDLL(ctypes.util.find_library('numa'))
@@ -14,68 +17,11 @@ _libnuma = ctypes.CDLL(ctypes.util.find_library('numa'))
 RemoteServer = namedtuple('RemoteServer', [
     'hostname', 'username', 'keyfile', 'sshargs'
 ])
-PortThruputRecord = namedtuple('PortThruputRecord', [
-    'port', 'in_pps', 'in_bps', 'out_pps', 'out_bps', 'in_errs', 'out_errs',
-])
-ThruputRecord = namedtuple('ThruputRecord', [
-    'timestamp',
-    'avg_in_pps', 'avg_in_bps', 'avg_out_pps', 'avg_out_bps', 'avg_in_errs', 'avg_out_errs',
-    'total_in_pps', 'total_out_pps', 'total_in_errs', 'total_out_errs',
-    'per_port_stat', 'total_fwd_pps', 'total_fwd_bps',
-])
 CPURecord = namedtuple('CPURecord', [
     'timestamp',
     'core', 'usr', 'nice', 'sys', 'iowait', 'irq', 'soft', 'steal', 'guest', 'gnice', 'idle'
 ])
 
-def execute(cmdargs, shell=False, iterable=False, async=False, read=False):
-    '''
-    Executes a shell command or external program using argument list.
-    The output can be read after blocking or returned as iterable for further
-    processing.
-    This implementation is based on Snakemake's shell module.
-    '''
-
-    def _iter_stdout(proc, cmd):
-        for line in proc.stdout:
-            yield line[:-1]  # strip newline at the end
-        retcode = proc.wait()
-        if retcode != 0:
-            raise subprocess.CalledProcessError(retcode, cmd)
-
-    popen_args = {}
-    if shell and 'SHELL' in os.environ:
-        popen_args['executable'] = os.environ['SHELL']
-    close_fds = (sys.platform != 'win32')
-    stdout = subprocess.PIPE if (iterable or async or read) else sys.stdout
-    proc = subprocess.Popen(cmdargs, shell=shell, stdout=stdout,
-                            close_fds=close_fds, **popen_args)
-    ret = None
-
-    if iterable:
-        return _iter_stdout(proc, cmdargs)
-    if read:
-        ret = proc.stdout.read()
-    elif async:
-        return proc
-    retcode = proc.wait()
-    if retcode != 0:
-        raise subprocess.CalledProcessError(retcode, cmdargs)
-    return ret
-
-@asyncio.coroutine
-def execute_async_simple(cmdargs, timeout=None):
-    proc = yield from asyncio.create_subprocess_exec(*cmdargs, stdout=sys.stdout)
-    if timeout:
-        try:
-            retcode = yield from asyncio.wait_for(proc.wait(), timeout + 1)
-        except asyncio.TimeoutError:
-            print('Terminating the main process...', file=sys.stderr)
-            proc.send_signal(signal.SIGINT)
-            retcode = 0
-    else:
-        retcode = yield from proc.wait()
-    return retcode
 
 @asyncio.coroutine
 def read_stdout_into_lines_coro(proc):
@@ -86,60 +32,9 @@ def read_stdout_into_lines_coro(proc):
         lines.append(line)
     return lines
 
-@asyncio.coroutine
-def connect_read_pipe(file, loop=None):
-    loop = loop if loop is not None else asyncio.get_event_loop()
-    reader = asyncio.StreamReader(loop=loop)
-    def factory():
-        return asyncio.StreamReaderProtocol(reader)
-    transport, _ = yield from loop.connect_read_pipe(factory, file)
-    return reader, transport
-
-def comma_sep_numbers(minval=0, maxval=sys.maxsize, type=int):
-    def _comma_sep_argtype(string):
-        try:
-            pieces = list(map(lambda s: type(s.strip()), string.split(',')))
-        except ValueError:
-            raise argparse.ArgumentTypeError('{:r} contains non-numeric values.'.format(string))
-        for p in pieces:
-            if p < minval or p > maxval:
-                raise argparse.ArgumentTypeError('{:r} contains a number out of range.'.format(string))
-        return pieces
-    return _comma_sep_argtype
-
-def host_port_pair(default_port):
-    def _host_port_pair_argtype(string):
-        pairs = string.split(',')
-        parsed_pairs = []
-        for pair in pairs:
-            pieces = pair.split(':')
-            cnt = len(pieces)
-            if cnt > 2:
-                raise argparse.ArgumentTypeError('{:r} is not a valid host:port value.'.format(string))
-            elif cnt == 2:
-                try:
-                    host, port = pieces[0], int(pieces[1])
-                    assert port > 0 and port <= 65535
-                except (ValueError, AssertionError):
-                    raise argparse.ArgumentTypeError('{:r} is not a valid port number.'.format(pieces[1]))
-            else:
-                host = pieces[0], default_port
-            parsed_pairs.append((host, port))
-        return parsed_pairs
-    return _host_port_pair_argtype
-
-_execute_memo = {}
-def _exec_memoized(cmd):
-    if cmd in _execute_memo:
-        return _execute_memo[cmd]
-    else:
-        ret = execute(cmd, shell=True, read=True)
-        _execute_memo[cmd] = ret
-        return ret
 
 class ExperimentEnv:
 
-    rx_total_thruput = re.compile(r'^Total forwarded pkts: (?P<Mpps>\d+\.\d+) Mpps, (?P<Gbps>\d+\.\d+) Gbps in node (?P<node_id>\d+)$')
     rx_port_marker   = re.compile(r'^port\[(?P<node_id>\d+):(?P<port_id>\d+)\]')
 
     def __init__(self, verbose=False):
@@ -158,6 +53,7 @@ class ExperimentEnv:
         self._cpu_timer_fires = 0
         self._cpu_timer = None
         self._start_time = None
+        self._readers = []
         self._loop = asyncio.get_event_loop()
         #self._loop.add_signal_handler(signal.SIGINT, self._signal_coro)
 
@@ -218,7 +114,7 @@ class ExperimentEnv:
 
     @staticmethod
     def is_hyperthreading():
-        siblings = _exec_memoized('cat /sys/devices/system/cpu/'
+        siblings = execute_memoized('cat /sys/devices/system/cpu/'
                                   'cpu0/topology/thread_siblings_list').decode('ascii').split(',')
         return len(siblings) > 1
 
@@ -422,39 +318,12 @@ class ExperimentEnv:
         while True:
             line = yield from stdout.readline()
             if not line: break
-
+            line = line.decode('utf8')
             cur_ts = self._loop.time() - self._start_time
-            if line.startswith(b'Total'):
-                # Parse the line like "Total forwarded pkts: xx.xx Mpps, yy.yy Gbps in node x"
-                line = line.decode('ascii')
-                m = self.rx_total_thruput.search(line)
-                if m is None: continue
-                node_id = int(m.group('node_id'))
-                self._total_mpps[node_id] = float(m.group('Mpps'))
-                self._total_gbps[node_id] = float(m.group('Gbps'))
-            elif line.startswith(b'port'):
-                # Parse the lines like "port[x:x] x x x x .. | forwarded x.xx Mpps, y.yy Gbps"
-                line = line.decode('ascii')
-                m = self.rx_port_marker.search(line)
-                if m is None: continue
-                node_id = int(m.group('node_id'))
-                port_id = int(m.group('port_id'))
-                numbers = line.split(' | ')[0][m.end() + 1:]
-                rx_pps, rx_bps, tx_pps, tx_bps, inv_pps, swdrop_pps, rxdrop_pps, txdrop_pps = \
-                        map(lambda s: int(s.replace(',', '')), numbers.split())
-                if port_id not in self._port_records:
-                    self._port_records[port_id] = PortThruputRecord(port_id, rx_pps, rx_bps, tx_pps, tx_bps,
-                                                              swdrop_pps + rxdrop_pps, txdrop_pps)
-                else:
-                    prev_record = self._port_records[port_id]
-                    self._port_records[port_id] = PortThruputRecord(port_id,
-                                                              prev_record.in_pps + rx_pps,
-                                                              prev_record.in_bps + rx_bps,
-                                                              prev_record.out_pps + tx_pps,
-                                                              prev_record.out_bps + tx_bps,
-                                                              prev_record.in_errs + swdrop_pps + rxdrop_pps,
-                                                              prev_record.out_errs + txdrop_pps)
+            for reader in self._readers:
+                reader.parse_line(cur_ts, line)
 
+    '''
             # If we collected "Total forwarded Mpps" for all nodes, generate the stat.
             if len(self._total_mpps) == ExperimentEnv.get_num_nodes():
                 # condition: continuous or not? && after some time or not?
@@ -486,6 +355,7 @@ class ExperimentEnv:
                 self._total_mpps.clear()
                 self._total_gbps.clear()
                 self._port_records.clear()
+    '''
 
     @asyncio.coroutine
     def _cpu_measure_coro(self):
@@ -553,6 +423,14 @@ class ExperimentEnv:
     def verbose(self, value):
         self._verbose = value
 
+    def register_reader(self, reader):
+        assert isinstance(reader, BaseReader)
+        self._readers.append(reader)
+
+    def reset_readers(self):
+        for reader in self._readers:
+            reader.reset()
+
     def measure_cpu_usage(self, cores='all', interval=1, begin_after=15.0, repeat=False):
         '''
         Let the env instance to measure CPU usage in percent during the loop.
@@ -563,19 +441,6 @@ class ExperimentEnv:
         self._cpu_measure_time = begin_after
         self._cpu_measure_continuous = repeat
         return self._cpu
-
-    def measure_thruput(self, ports='all', begin_after=15.0, repeat=False):
-        '''
-        Let the env instance to measure I/O throghput in pps during the loop.
-        Since we can only depend on the statistics printed by the main program
-        because DPDK does not have any system-common inspection interface like
-        ethtool, the interval is strictly limited to 1 second (the stat update
-        interval of the IO threads).
-        '''
-        # TODO: implement ports option?
-        self._thruput_measure_time = begin_after
-        self._thruput_measure_continuous = repeat
-        return self._thruputs
 
     @staticmethod
     def get_core_topology():
