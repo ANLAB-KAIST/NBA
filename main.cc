@@ -515,7 +515,7 @@ int main(int argc, char **argv)
             assert(queues[qidx] != NULL);
             assert(0 == rte_ring_set_water_mark(queues[qidx], queue_length - 16));
             qwatchers[qidx] = (struct ev_async *) rte_malloc_socket("ev_async", sizeof(struct ev_async),
-                                                                    64, conf.node_id);
+                                                                    CACHE_LINE_SIZE, conf.node_id);
             assert(qwatchers[qidx] != NULL);
             ev_async_init(qwatchers[qidx], invalid_cb);  /* Callbacks are set by individual threads. */
             qidx ++;
@@ -609,15 +609,9 @@ int main(int argc, char **argv)
             ctx->comp_ctx_to_init_offloadable = NULL;
             ctx->task_input_queue_size = system_params["COPROC_INPUTQ_LENGTH"];
             ctx->device_id = conf.device_id;
-            /*
-             * Assume each node has identical number of computation threads.
-             * Just count node 0's computation threads.
-             * (and this should work for the debugging configuration
-             * which has only one computation thread in node 0.)
-             */
             unsigned cnt = 0;
             for (unsigned j = 0; j < comp_thread_confs.size(); j++) {
-                if (numa_node_of_cpu(comp_thread_confs[j].core_id) == 0)
+                if (numa_node_of_cpu(comp_thread_confs[j].core_id) == (signed) ctx->loc.node_id)
                     cnt ++;
             }
             ctx->num_comp_threads_per_node = cnt;
@@ -637,15 +631,15 @@ int main(int argc, char **argv)
             ctx->device = NULL;
             if (dummy_device) {
                 ctx->device = (ComputeDevice *) rte_malloc_socket(NULL, sizeof(DummyComputeDevice),
-                                          64, ctx->loc.node_id);
+                                          CACHE_LINE_SIZE, ctx->loc.node_id);
             } else {
                 #ifdef USE_CUDA
                 ctx->device = (ComputeDevice *) rte_malloc_socket(NULL, sizeof(CUDAComputeDevice),
-                                          64, ctx->loc.node_id);
+                                          CACHE_LINE_SIZE, ctx->loc.node_id);
                 #endif
                 #ifdef USE_PHI
                 ctx->device = (ComputeDevice *) rte_malloc_socket(NULL, sizeof(PhiComputeDevice),
-                                          64, ctx->loc.node_id);
+                                          CACHE_LINE_SIZE, ctx->loc.node_id);
                 #endif
             }
             assert(ctx->device != NULL);
@@ -686,19 +680,19 @@ int main(int argc, char **argv)
             unsigned node_id = numa_node_of_cpu(conf.core_id);
 
             if (nls[node_id] == NULL) {
-                nls[node_id] = (NodeLocalStorage *) rte_malloc_socket(NULL, sizeof(NodeLocalStorage), 64, node_id);
+                nls[node_id] = (NodeLocalStorage *) rte_malloc_socket(NULL, sizeof(NodeLocalStorage), CACHE_LINE_SIZE, node_id);
                 new (nls[node_id]) NodeLocalStorage(node_id);
             }
 
             comp_thread_context *ctx = (comp_thread_context *) rte_malloc_socket(
-                    "comp_thread_conf", sizeof(*ctx), 64, node_id);
+                    "comp_thread_conf", sizeof(*ctx), CACHE_LINE_SIZE, node_id);
             new (ctx) comp_thread_context();
 
             ctx->loc.core_id = conf.core_id;
             ctx->loc.local_thread_idx = per_node_counts[node_id]++;
             ctx->loc.node_id = node_id;
 
-            ctx->terminate_watcher = (struct ev_async *) rte_malloc_socket(NULL, sizeof(struct ev_async), 64, node_id);
+            ctx->terminate_watcher = (struct ev_async *) rte_malloc_socket(NULL, sizeof(struct ev_async), CACHE_LINE_SIZE, node_id);
             ev_async_init(ctx->terminate_watcher, NULL);
             computation_threads[i].terminate_watcher = ctx->terminate_watcher;
             computation_threads[i].comp_ctx = ctx;
@@ -710,7 +704,7 @@ int main(int argc, char **argv)
             ctx->ready_cond = &ready_cond;
             ctx->elemgraph_lock = elemgraph_lock;
             ctx->node_local_storage = nls[node_id];
-            ctx->elem_graph = (ElementGraph *) rte_malloc_socket(NULL, sizeof(ElementGraph), 64, node_id);
+            ctx->elem_graph = (ElementGraph *) rte_malloc_socket(NULL, sizeof(ElementGraph), CACHE_LINE_SIZE, node_id);
             new (ctx->elem_graph) ElementGraph(ctx);
             ctx->inspector = NULL;
 
@@ -724,10 +718,10 @@ int main(int argc, char **argv)
 
             // TODO: extend to multiple devices
             ctx->named_offload_devices = (unordered_map<string, ComputeDevice *> *)
-                    rte_malloc_socket(NULL, sizeof(unordered_map<string, ComputeDevice *>), 64, node_id);
+                    rte_malloc_socket(NULL, sizeof(unordered_map<string, ComputeDevice *>), CACHE_LINE_SIZE, node_id);
             new (ctx->named_offload_devices) unordered_map<string, ComputeDevice *>();
             ctx->offload_devices = (vector<ComputeDevice *> *)
-                    rte_malloc_socket(NULL, sizeof(vector<ComputeDevice *>), 64, node_id);
+                    rte_malloc_socket(NULL, sizeof(vector<ComputeDevice *>), CACHE_LINE_SIZE, node_id);
             new (ctx->offload_devices) vector<ComputeDevice *>();
             ctx->offload_devices->push_back(nullptr);  // the CPU has index 0.
             if (num_coproc_threads > 0) {
