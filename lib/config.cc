@@ -15,6 +15,7 @@
 #include <rte_config.h>
 #include <rte_common.h>
 #include <rte_eal.h>
+#include <rte_lcore.h>
 #include <rte_log.h>
 #include <rte_ether.h>
 #include <rte_ethdev.h>
@@ -363,20 +364,28 @@ nba_get_coprocessors(PyObject *self, PyObject *args)
 static PyObject*
 nba_get_cpu_node_mapping(PyObject *self, PyObject *args)
 {
-    int num_lcores = sysconf(_SC_NPROCESSORS_ONLN);
+    int i;
     int num_nodes = numa_num_configured_nodes();
     PyObject *plist = PyList_New(num_nodes);
     PyObject *psublists[NBA_MAX_NODES];
-    for (int i = 0; i < num_nodes; i++) {
+    for (i = 0; i < num_nodes; i++) {
         psublists[i] = PyList_New(0);
         PyList_SetItem(plist, i, psublists[i]);
     }
-    for (int i = 0; i < num_lcores; i++) {
-        int node_id = numa_node_of_cpu(i);
+    RTE_LCORE_FOREACH(i) {
+        int node_id = rte_lcore_to_socket_id(i);
         PyObject *v = PyLong_FromLong((long) i);
         PyList_Append(psublists[node_id], v);
     }
     return plist;
+}
+
+static PyObject*
+nba_node_of_cpu(PyObject *self, PyObject *args)
+{
+    int i;
+    PyArg_ParseTuple(args, "i", &i);
+    return PyLong_FromLong((long) rte_lcore_to_socket_id(i));
 }
 
 static PyMethodDef NSMethods[] = {
@@ -386,6 +395,8 @@ static PyMethodDef NSMethods[] = {
      "Retreive detailed information of the offloading devices (coprocessors) recognized by the framework."},
     {"get_cpu_node_mapping", nba_get_cpu_node_mapping, METH_VARARGS,
      "Retreive the CPU cores inside each NUMA node configured in the system as a nested list."},
+    {"node_of_cpu", nba_node_of_cpu, METH_VARARGS,
+     "Get the NUMA node ID of the given CPU core ID."},
     {NULL, NULL, 0, NULL}
 };
 
