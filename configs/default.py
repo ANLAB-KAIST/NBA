@@ -1,14 +1,8 @@
 #! /usr/bin/env python3
-
 # This configuration is for ANY system.
 
 import nba, os
-import ctypes, ctypes.util
 from pprint import pprint
-
-libnuma = ctypes.CDLL(ctypes.util.find_library('numa'))
-def numa_node_of_cpu(core_id):
-    return libnuma.numa_node_of_cpu(ctypes.c_int(core_id))
 
 netdevices = nba.get_netdevices()
 for netdev in netdevices:
@@ -17,8 +11,14 @@ coprocessors = nba.get_coprocessors()
 for coproc in coprocessors:
     print(coproc)
 node_cpus = nba.get_cpu_node_mapping()
+cpu_to_node = [0] * sum(len(cpus) for cpus in node_cpus)
 for node_id, cpus in enumerate(node_cpus):
+    for cpu in cpus:
+        cpu_to_node[cpu] = node_id
     print('Cores in NUMA node {0}: [{1}]'.format(node_id, ', '.join(map(str, cpus))))
+
+def numa_node_of_cpu(core_id):
+    return cpu_to_node[core_id]
 
 # The values read by the framework are:
 # - system_params
