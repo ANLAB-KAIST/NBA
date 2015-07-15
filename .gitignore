@@ -33,8 +33,13 @@ bin/main
 
 # Miscelleneous
 lib/*_map.hh
+configs/pcre_table
+.settings
+
+# Python
 *.pyc
 *.pyo
 __pycache__
-configs/pcre_table
-.settings
+
+# Documentations
+docs/_build
