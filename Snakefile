@@ -179,7 +179,7 @@ if DPDK_PATH is None:
     sys.exit(1)
 librte_pmds    = {
     'ixgbe': ['rte_pmd_ixgbe'],
-    'mlx4':  ['rte_pmd_mlx4', 'rte_timer'],
+    'mlx4':  ['rte_pmd_mlx4', 'rte_timer', 'ibverbs'],
     'mlnx_uio':  ['rte_pmd_mlnx_uio', 'rte_hash', 'rte_persistent'],
     'null':  ['rte_pmd_null', 'rte_kvargs'],
 }
