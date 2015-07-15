@@ -1,31 +1,25 @@
 #! /usr/bin/env python3
 import os, sys
 import re
-import subprocess, signal
+import asyncio, subprocess, signal
+from functools import partial
 import multiprocessing
-import threading
-import socketserver
 
 MAX_DELAY_HISTORY = 24
 
-class DelayReader(threading.Thread):
+class DelayReader():
 
     def __init__(self, parent):
-        super(DelayReader, self).__init__()
         self._parent = parent
-        self._rx_latency = re.compile(r"^CPU\s+\d:\s+[0123456789.]+\s+pps,\s+[0123456789.]+\s+Gbps\s+\([0123456789.]+\s+packets per chunk\)\s+(([0123456789.]+)\s+us\s+[0123456789.]+)?\s+xge\d+:\s+\d+\s+pps.*")
+        self._rx_latency = re.compile(r"^CPU\s+\d:\s+[\d.]+\s+pps,\s+[\d.]+\s+Gbps\s+\([\d.]+\s+packets per chunk\)\s+(([\d.]+)\s+us\s+[\d.]+)?\s+xge\d+:\s+\d+\s+pps.*")
         self._delay_history = []
-    
-    def run(self):
-        while True:
-            line = self._parent._proc.stdout.readline()
-            if not line:
-                break
-            self._parent._proc.poll()
-            if self._parent._proc.returncode:
-                break
 
-            line = line.strip()
+    @asyncio.coroutine
+    def read(self):
+        while True:
+            line = yield from self._parent._proc.stdout.readline()
+            if not line: break
+            line = line.decode().strip()
             m = self._rx_latency.search(line)
             if m:
                 delay_str = m.group(2)
@@ -36,33 +30,52 @@ class DelayReader(threading.Thread):
                     self._delay_history.append(delay)
                     avg_delay = sum(self._delay_history) / len(self._delay_history)
                     print('setting delay {0:.6f}'.format(avg_delay))
-                    self._parent.emit_delay(avg_delay)
+                    yield from self._parent.emit_delay(avg_delay)
                 except (ValueError, TypeError):
                     pass
             else:
                 print(line)
-        print('pspgen has terminated.')
+
+
+class PassthruReader():
+
+    def __init__(self, parent):
+        self._parent = parent
+
+    @asyncio.coroutine
+    def read(self):
+        while True:
+            line = yield from self._parent._proc.stdout.readline()
+            if not line: break
+            line = line.decode().strip()
+            print(line)
+
 
 class PspgenProxy:
+
     def __init__(self):
         self._running = False
+        self._loop = None
         self._bin = './pspgen'
-        self._wfile = None
+        self._writer = None
 
     @property
     def is_running(self):
         return self._running
 
+    @asyncio.coroutine
     def emit_delay(self, value):
-        self._wfile.write('{0:.6f}\n'.format(value))
-        self._wfile.flush()
+        self._writer.write('{0:.6f}\n'.format(value))
+        yield from self._writer.drain()
 
-    def start(self, args, output):
+    @asyncio.coroutine
+    def start(self, loop, writer, args, read_latencies=False):
         if self._running:
             print('pspgen is already running.', file=sys.stderr)
             return
         self._running = True
-        self._wfile = output
+        self._loop = loop
+        self._writer = writer
 
         # Prepend the binary path and DPDK EAL arguments (for pspgen-dpdk).
         cpumask = 0
@@ -77,46 +90,59 @@ class PspgenProxy:
         # children by setting preexec_fn to os.setsid and use os.killpg() to
         # ensure SIGINT is delivered to all pspgen subprocesses.
         print('Executing: {0}'.format(' '.join(cmdargs)))
-        self._proc = subprocess.Popen(cmdargs, close_fds=True,
-                                      stdout=subprocess.PIPE,
-                                      stderr=subprocess.STDOUT,
-                                      preexec_fn=os.setsid,
-                                      universal_newlines=True)
-        self._reader = DelayReader(self)
-        self._reader.start()
+        self._proc = yield from asyncio.create_subprocess_exec(*cmdargs, close_fds=True,
+                                                               stdout=subprocess.PIPE,
+                                                               stderr=subprocess.STDOUT,
+                                                               start_new_session=True)
+        if read_latencies:
+            self._reader = DelayReader(self)
+        else:
+            self._reader = PassthruReader(self)
+        asyncio.async(self._reader.read(), loop=self._loop)
 
+    @asyncio.coroutine
     def terminate(self):
         if not self._running:
             print('pspgen is not running!', file=sys.stderr)
             return
         print('Terminating pspgen...')
-        os.killpg(os.getpgid(self._proc.pid), signal.SIGINT)
-        self._proc.communicate()
-        self._reader.join()
+        os.killpg(os.getsid(self._proc.pid), signal.SIGINT)
+        exitcode = yield from self._proc.wait()
         self._running = False
-        self._wfile = None
+        self._writer = None
+        print('pspgen has terminated.')
 
-class PspgenServerHandler(socketserver.StreamRequestHandler):
+pspgen_proxy = None
+server_running = False
 
-    def handle(self):
-        # This is a persistent handler.
-        # Since the server and handlers run in the main thread synchronously,
-        # this program can only serve a single client at a time.
-        while True:
-            line = self.rfile.readline()
-            if not line:
-                break
-            line = line.strip().decode()
-            args = line.split(':')
-            if args[0] == 'start':
-                self.server._pspgen_proxy.start(args[1:], self.wfile)
-            elif args[0] == 'terminate':
-                self.server._pspgen_proxy.terminate()
-            else:
-                print('Unknown command: {0}'.format(args[0]), file=sys.stderr)
+@asyncio.coroutine
+def handle_request(loop, reader, writer):
+    global pspgen_proxy, server_running
+    # This program can only serve a single client at a time.
+    assert not server_running
+    server_running = True
+    while True:
+        line = yield from reader.readline()
+        if not line: break
+        line = line.strip().decode()
+        args = line.split(':')
+        if args[0] == 'start':
+            read_latencies = (args[1] == 'latency')
+            asyncio.async(pspgen_proxy.start(loop, writer, args[2:], read_latencies), loop=loop)
+        elif args[0] == 'terminate':
+            yield from pspgen_proxy.terminate()
+        else:
+            print('Unknown command: {0}'.format(args[0]), file=sys.stderr)
 
 if __name__ == '__main__':
-    socketserver.TCPServer.allow_reuse_address = True
-    server = socketserver.TCPServer(('0.0.0.0', 54321), PspgenServerHandler)
-    server._pspgen_proxy = PspgenProxy()
-    server.serve_forever()
+    loop = asyncio.get_event_loop()
+    pspgen_proxy = PspgenProxy()
+    start_coro = asyncio.start_server(partial(handle_request, loop), '0.0.0.0', 54321, loop=loop)
+    server = loop.run_until_complete(start_coro)
+    print('Running...')
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        print()
+    print('Exit.')
+    loop.close()

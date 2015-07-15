@@ -1,8 +1,7 @@
 #! /usr/bin/env python3
 '''
-Created on 2014. 1. 29.
-
-@author: leeopop
+First created on 2014. 1. 29.
+@author: Keunhong Lee, Joongi Kim
 '''
 
 import sys, time
@@ -23,7 +22,7 @@ class DataReader(threading.Thread):
                 self.history.append(line)
 
 class PktGenRunner(object):
-    def __init__(self, host, port):
+    def __init__(self, host, port, measure_latency=False):
         self.history = []
         self.lock = threading.Lock()
         self.start_args = ()
@@ -31,6 +30,7 @@ class PktGenRunner(object):
         self.port = port
         self.read_file = None
         self.sock = None
+        self.measure_latency = measure_latency
 
     def read_data(self):
         for line in self.read_file:
@@ -48,13 +48,17 @@ class PktGenRunner(object):
     # See http://docs.python.org/3/reference/datamodel.html#with-statement-context-managers
     # for the context manager protocol that uses __enter__(), __exit__() methods.
 
+    # TODO: When Python 3.5 is out, change the followings to __aenter__/__aexit__
+    #       and transform DataReader to a coroutine.
+
     def __enter__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.connect((self.host, self.port))
         self.read_file = self.sock.makefile()
         self.reader = DataReader(self.read_file, self.history, self.lock)
         self.reader.start()
-        msg = ("start:{0}\n".format(":".join(map(str, self.start_args))))
+        opt = "latency" if self.measure_latency else ""
+        msg = ("start:{0}:{1}\n".format(opt, ":".join(map(str, self.start_args))))
         self.sock.sendall(msg.encode())
 
     def __exit__(self, exc_type, exc_value, traceback):
