@@ -9,7 +9,8 @@ Welcome to Network Balancing Act's documentation!
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
+   gsg/index
 
 
 
