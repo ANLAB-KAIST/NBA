@@ -6,13 +6,43 @@
 Network Balancing Act
 =====================
 
-Contents:
+.. _gsg:
 
 .. toctree::
-   :maxdepth: 1
-   :titlesonly:
+   :maxdepth: 2
+   :caption: Getting Started Guide
 
-   gsg/index
+   gsg/sys_reqs
+   gsg/build
+   gsg/running
+
+.. _user-docs:
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Using NBA
+
+   user/system_config
+   user/pipeline_config
+   user/element
+   user/offloadable_element
+
+.. _elem-docs:
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Element Catalog
+
+   elem/index
+
+.. _dev-docs:
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Extending NBA
+
+   dev/load_balancer
+   dev/compute_device
 
 
 
