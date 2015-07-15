@@ -55,13 +55,18 @@ coproc_completion_queues = []
 for node_id, node_cores in enumerate(node_cpus):
     node_local_netdevices = [netdev for netdev in netdevices if netdev.numa_node == node_id]
     num_coproc_in_node = len(node_local_coprocs[node_id])
-    for node_local_core_id, core_id in enumerate(node_cores[:-num_coproc_in_node]):
+    if num_coproc_in_node > 0:
+        io_cores_in_node = node_cores[:-num_coproc_in_node]
+    else:
+        io_cores_in_node = node_cores[:]
+    for node_local_core_id, core_id in enumerate(io_cores_in_node):
         rxqs = [(netdev.device_id, node_local_core_id) for netdev in node_local_netdevices]
         io_threads.append(nba.IOThread(core_id=node_cpus[node_id][node_local_core_id], attached_rxqs=rxqs, mode='normal'))
         comp_threads.append(nba.CompThread(core_id=node_cpus[node_id][node_local_core_id] + _ht_diff))
         comp_input_queues.append(nba.Queue(node_id=node_id, template='swrx'))
-        coproc_completion_queues.append(nba.Queue(node_id=node_id, template='taskout'))
         thread_connections.append((io_threads[-1], comp_threads[-1], comp_input_queues[-1]))
+        if num_coproc_in_node > 0:
+            coproc_completion_queues.append(nba.Queue(node_id=node_id, template='taskout'))
 
 for coproc_thread in coproc_threads:
     node_id = nba.node_of_cpu(coproc_thread.core_id)
