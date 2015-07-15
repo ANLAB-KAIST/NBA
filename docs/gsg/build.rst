@@ -1,8 +1,6 @@
 Building NBA
 ============
 
-We recommend to use Ubuntu 14.04 or newer.
-
 Supported Platforms
 -------------------
 
@@ -75,9 +73,13 @@ Install our 3rd-party libraries, the Click configuration parser:
   ~/nba$ export NBA_DPDK_PATH=/home/userid/dpdk/x86_64-native-linuxapp-gcc
   ~/nba$ snakemake
 
-* If all is well, the executable is located in `bin/main`.
+* If all is well, the executable is located in :code:`bin/main`.
 
-**Optional installation**
+Optional Installations
+----------------------
+
+NVIDIA CUDA
+~~~~~~~~~~~
 
 If you want to use GPU acceleration, install NVIDIA CUDA 7.0 or newer.
 We recommend to download the latest version of :code:`.bin` package from `the NVIDIA website <https://developer.nvidia.com/cuda-downloads>`_ instead of using system packages.
@@ -95,6 +97,9 @@ Make CUDA binaries accessible from your shell:
   $ sudo sh -c 'echo /usr/local/cuda/lib64 > /etc/ld.so.conf.d/cuda.conf'
   $ sudo ldconfig
 
+CPU statistics
+~~~~~~~~~~~~~~
+
 To run experiment scripts, install :code:`sysstat` package (or any package that offers :code:`mpstat` command).
 
 
@@ -104,13 +109,15 @@ Customizing Your Build
 Our build script offers a few configurable parameters as environment variables:
 
 * :code:`NBA_DPDK_PATH`: specifies the path to Intel DPDK (required)
-* :code:`NBA_RANDOM_PORT_ACCESS`: randomizes the RX queue scanning order for each worker thread (default: false)
-* :code:`NBA_OPENSSL_PATH`: specifies the path of OpenSSL library (default: /usr)
-* :code:`USE_CUDA`: activates NVIDIA CUDA support (default: true)
-* :code:`USE_PHI`: activates Intel Xeon Phi support (default: false, not fully implemented yet)
-* :code:`USE_NVPROF`: activates nvprof API calls to track GPU-related timings (default: false)
-* :code:`USE_OPENSSL_EVP`: determines whether to use EVP API for OpenSSL that enables AES-NI support (default: true)
-* :code:`NBA_NO_HUGE`: determines whether to use huge-pages (default: true)
-* :code:`NBA_PMD`: determines what poll-mode driver to use (default: ixgbe)
+* :code:`NBA_RANDOM_PORT_ACCESS`: randomizes the RX queue scanning order for each worker thread (default: :code:`false`)
+* :code:`NBA_OPENSSL_PATH`: specifies the path of OpenSSL library (default: :code:`/usr`)
+* :code:`USE_CUDA`: activates NVIDIA CUDA support (default: 1)
+* :code:`USE_PHI`: activates Intel Xeon Phi support (default: 0, not fully implemented yet)
+* :code:`USE_NVPROF`: activates nvprof API calls to track GPU-related timings (default: 0)
+* :code:`USE_OPENSSL_EVP`: determines whether to use EVP API for OpenSSL that enables AES-NI support (default: 1)
+* :code:`NBA_NO_HUGE`: determines whether to use huge-pages (default: 1)
+* :code:`NBA_PMD`: determines what poll-mode driver to use (default: :code:`ixgbe`)
 
-※ Boolean variables are expressed as 1 or 0.
+.. note::
+
+   1 means true and 0 means false for boolean options.
