@@ -133,6 +133,7 @@ def handle_request(loop, reader, writer):
             yield from pspgen_proxy.terminate()
         else:
             print('Unknown command: {0}'.format(args[0]), file=sys.stderr)
+    server_running = False
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
