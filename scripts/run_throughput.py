@@ -144,8 +144,12 @@ if __name__ == '__main__':
         thruput_records = thruput_reader.get_records()
         avg_thruput_mpps, avg_thruput_gbps = 0.0, 0.0
         for node_id in range(num_nodes):
-            avg_thruput_mpps += mean(t.mpps for t in thruput_records if t.node_id == node_id)
-            avg_thruput_gbps += mean(t.gbps for t in thruput_records if t.node_id == node_id)
+            mpps = [t.mpps for t in thruput_records if t.node_id == node_id]
+            gbps = [t.gbps for t in thruput_records if t.node_id == node_id]
+            if len(mpps) > 0:
+                avg_thruput_mpps += mean(mpps)
+            if len(gbps) > 0:
+                avg_thruput_gbps += mean(gbps)
         print('{0:6.2f}'.format(avg_thruput_mpps), end=' ')
         print('{0:6.2f}'.format(avg_thruput_gbps), end=' ')
         all_thruput_records.extend(thruput_records)
