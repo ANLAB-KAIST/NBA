@@ -99,6 +99,7 @@ if USE_PHI:         CFLAGS += ' -DUSE_PHI'
 if USE_OPENSSL_EVP: CFLAGS += ' -DUSE_OPENSSL_EVP'
 if USE_NVPROF:      CFLAGS += ' -DUSE_NVPROF'
 if NO_HUGEPAGES:    CFLAGS += ' -DNBA_NO_HUGE'
+CFLAGS += ' -DNBA_PMD_{0}'.format(PMD.upper())
 
 # User-defined variables
 v = os.getenv('NBA_SLEEPY_IO', 0)

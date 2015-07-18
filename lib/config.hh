@@ -21,8 +21,13 @@
   #define NBA_MAX_COMP_BATCH_SIZE    (256u)
 #endif
 #define NBA_MAX_COMP_PREPKTQ_LENGTH (256u)
+#if defined(NBA_PMD_MLX4) || defined(NBA_PMD_MLNX_UIO)
+#define NBA_MAX_IO_DESC_PER_HWRXQ      (8192)
+#define NBA_MAX_IO_DESC_PER_HWTXQ      (8192)
+#else
 #define NBA_MAX_IO_DESC_PER_HWRXQ      (1024)
 #define NBA_MAX_IO_DESC_PER_HWTXQ      (1024)
+#endif
 
 #define NBA_MAX_COPROC_PPDEPTH      (64u)
 #define NBA_MAX_COPROC_INPUTQ_LENGTH       (64)
