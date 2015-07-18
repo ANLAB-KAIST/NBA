@@ -108,15 +108,13 @@ class ExperimentEnv:
     @staticmethod
     def get_num_physical_cores():
         n = multiprocessing.cpu_count()
-        if ExperimentEnv.is_hyperthreading():
-            return n // 2
-        return n
+        return n // ExperimentEnv.get_hyperthreading_degree()
 
     @staticmethod
-    def is_hyperthreading():
+    def get_hyperthreading_degree():
         siblings = execute_memoized('cat /sys/devices/system/cpu/'
-                                  'cpu0/topology/thread_siblings_list').decode('ascii').split(',')
-        return len(siblings) > 1
+                                  'cpu0/topology/thread_siblings_list').split(',')
+        return len(siblings)
 
     def add_remote_server(self, category, hostname,
                           username=None, keyfile=None, sshargs=None):
@@ -165,20 +163,65 @@ class ExperimentEnv:
 
     @staticmethod
     def get_num_ports():
-        return int(execute('lspci | grep Ethernet | grep -c 82599', shell=True, read=True))
+        pmd = os.environ.get('NBA_PMD', 'ixgbe')
+        if pmd == 'ixgbe':
+            return int(execute('lspci | grep Ethernet | grep -c 82599', shell=True, read=True))
+        elif pmd == 'mlx4' or pmd == 'mlnx_uio':
+            return int(execute('lspci | grep Ethernet | grep -c Mellanox', shell=True, read=True))
+        elif pmd == 'null':
+            raise NotImplementedError()  # TODO: implement
+        else:
+            raise RuntimeError('Not recognized PMD: {0}'.format(pmd))
+
+    @staticmethod
+    def get_port_pci_addrs():
+        pmd = os.environ.get('NBA_PMD', 'ixgbe')
+        if pmd == 'ixgbe':
+            return execute('lspci -D | grep Ethernet | grep 82599 | cut -d \' \' -f 1', shell=True, read=True).splitlines()
+        elif pmd == 'mlx4' or pmd == 'mlnx_uio':
+            return execute('lspci -D | grep Ethernet | grep Mellanox | cut -d \' \' -f 1', shell=True, read=True).splitlines()
+        elif pmd == 'null':
+            raise NotImplementedError()  # TODO: implement
+        else:
+            raise RuntimeError('Not recognized PMD: {0}'.format(pmd))
+
+    @staticmethod
+    def get_nodes_with_nics():
+        '''
+        Return a list of NUMA nodes that have NICs.
+        '''
+        pci_addrs = ExperimentEnv.get_port_pci_addrs()
+        if len(pci_addrs) == 0:
+            raise RuntimeError('No ports detected! Please check NBA_PMD environment variable.')
+        core_bits = 0
+        nodes_with_nics = set()
+        for pci_addr in pci_addrs:
+            sys_pci_path = '/sys/bus/pci/devices/{0}/numa_node'.format(pci_addr)
+            with open(sys_pci_path, 'r', encoding='ascii') as f:
+                nodes_with_nics.add(int(f.read()))
+        return sorted(nodes_with_nics)
+
+    @staticmethod
+    def get_cpu_mask_with_nics(only_phys_cores=True):
+        '''
+        Return a CPU core index bitmask of all cores in the NUMA nodes that have NICs.
+        '''
+        core_bits = 0
+        node_cpus = ExperimentEnv.get_core_topology()
+        nodes_with_nics = ExperimentEnv.get_nodes_with_nics()
+        for node_id in nodes_with_nics:
+            ht_div = ExperimentEnv.get_hyperthreading_degree() if only_phys_cores else 1
+            phys_cnt = len(node_cpus[node_id]) // ht_div
+            for core_id in node_cpus[node_id][:phys_cnt]:
+                core_bits |= (1 << core_id)
+        return core_bits
 
     @staticmethod
     def mangle_main_args(config_name, click_name, emulate_opts=None, extra_args=None):
-
-        num_nodes = ExperimentEnv.get_num_nodes()
-        num_ports = ExperimentEnv.get_num_ports()
-        node_cpus = ExperimentEnv.get_core_topology()
-
         args = [
-            '-c', 'f' * (multiprocessing.cpu_count() // 4),
-            '-n', '4',
+            '-c', hex(ExperimentEnv.get_cpu_mask_with_nics()),
+            '-n', os.environ.get('NBA_MEM_CHANNELS', '4'),
         ]
-
         if extra_args:
             args.extend(extra_args)
         args.append('--')
@@ -194,7 +237,6 @@ class ExperimentEnv:
             args.append('--emulate-io')
             for k, v in emulate_args.items():
                 args.append('{0}={1}'.format(k, v))
-
         return args
 
     @staticmethod
@@ -456,36 +498,45 @@ class ExperimentEnv:
     def get_io_cores():
         core_set = []
         node_cpus = ExperimentEnv.get_core_topology()
-        num_nodes = ExperimentEnv.get_num_nodes()
-        num_coproc_cores = len(ExperimentEnv.get_coproc_cores())
-        ht_div = 2 if ExperimentEnv.is_hyperthreading() else 1
-        for n, cores in enumerate(node_cpus):
-            core_set.extend(cores[:(len(cores) // ht_div - num_coproc_cores // num_nodes)])
+        for node_id in ExperimentEnv.get_nodes_with_nics():
+            coproc_cores = ExperimentEnv.get_coproc_cores_in_node(node_id)
+            phys_cnt = len(node_cpus[node_id]) // ht_div
+            if len(coproc_cores) > 0:
+                core_set.extend(node_cpus[node_id][:phys_cnt - len(coproc_cores)])
+            else:
+                core_set.extend(node_cpus[node_id][:phys_cnt])
         return core_set
 
     @staticmethod
     def get_comp_cores(layout_type):
-        node_cpus = ExperimentEnv.get_core_topology()
         core_set = []
-        num_nodes = ExperimentEnv.get_num_nodes()
-        num_ports = ExperimentEnv.get_num_ports()
-        num_coproc_cores = len(ExperimentEnv.get_coproc_cores())
-        num_lcores_per_node = multiprocessing.cpu_count() // num_nodes
+        node_cpus = ExperimentEnv.get_core_topology()
+        ht_div = ExperimentEnv.get_hyperthreading_degree()
         if layout_type == 'same':
-            for n, cores in enumerate(node_cpus):
-                core_set.extend(cores[:len(cores) - num_coproc_cores])
+            for node_id in ExperimentEnv.get_nodes_with_nics():
+                coproc_cores = ExperimentEnv.get_coproc_cores_in_node(node_id)
+                phys_cnt = len(node_cpus[node_id]) // ht_div
+                if len(coproc_cores) > 0:
+                    core_set.extend(node_cpus[node_id][:phys_cnt - len(coproc_cores)])
+                else:
+                    core_set.extend(node_cpus[node_id][:phys_cnt])
         elif layout_type == 'sibling':
-            assert ExperimentEnv.is_hyperthreading()
-            for n, cores in enumerate(node_cpus):
-                for c in cores[:len(cores) - num_coproc_cores]:
-                    core_set.append(c + num_lcores_per_node)
+            assert ht_div > 1
+            for node_id in ExperimentEnv.get_nodes_with_nics():
+                coproc_cores = ExperimentEnv.get_coproc_cores_in_node(node_id)
+                phys_cnt = len(node_cpus[node_id]) // ht_div
+                if len(coproc_cores) > 0:
+                    core_set.extend(c + phys_cnt for c in node_cpus[node_id][:phys_cnt - len(coproc_cores)])
+                else:
+                    core_set.extend(c + phys_cnt for c in node_cpus[node_id][:phys_cnt])
         return core_set
 
     @staticmethod
     def get_coproc_cores():
-        node_cpus = ExperimentEnv.get_core_topology()
+        # FIXME: get actual coprocessor count instead of assuming one per node.
         core_set = []
-        num_nodes = ExperimentEnv.get_num_nodes()
-        for n in range(num_nodes):
-            core_set.append(node_cpus[n][-1])
+        node_cpus = ExperimentEnv.get_core_topology()
+        nodes_with_nics = ExperimentEnv.get_nodes_with_nics()
+        for node_id in nodes_with_nics:
+            core_set.append(node_cpus[node_id][-1])
         return core_set

@@ -31,7 +31,7 @@ def execute(cmdargs, shell=False, iterable=False, async=False, read=False):
     if iterable:
         return _iter_stdout(proc, cmdargs)
     if read:
-        ret = proc.stdout.read()
+        ret = proc.stdout.read().decode('utf8')
     elif async:
         return proc
     retcode = proc.wait()

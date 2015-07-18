@@ -35,6 +35,7 @@ bin/main
 lib/*_map.hh
 configs/pcre_table
 .settings
+scripts/run.sh
 
 # Python
 *.pyc

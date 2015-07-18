@@ -35,6 +35,7 @@ print("# logical cores: {0}, # physical cores {1} (hyperthreading {2})".format(
     "enabled" if nba.ht_enabled else "disabled"
 ))
 _ht_diff = nba.num_physical_cores if nba.ht_enabled else 0
+pmd = os.environ.get('NBA_PMD', 'ixgbe')
 
 thread_connections = []
 
@@ -59,6 +60,12 @@ for node_id, node_cores in enumerate(node_cpus):
         io_cores_in_node = node_cores[:-num_coproc_in_node]
     else:
         io_cores_in_node = node_cores[:]
+    if pmd in ('mlx4', 'mlnx_uio'):
+        # The # RXQs must be power of two for Mellanox cards.
+        lower_power_of_two = 1
+        while lower_power_of_two < (len(io_cores_in_node) >> 1):
+            lower_power_of_two <<= 1
+        io_cores_in_node = io_cores_in_node[:lower_power_of_two]
     for node_local_core_id, core_id in enumerate(io_cores_in_node):
         rxqs = [(netdev.device_id, node_local_core_id) for netdev in node_local_netdevices]
         io_threads.append(nba.IOThread(core_id=node_cpus[node_id][node_local_core_id], attached_rxqs=rxqs, mode='normal'))
