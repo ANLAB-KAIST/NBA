@@ -10,7 +10,8 @@ and the Ubuntu 14.04 LTS distribution.
 Step-by-step Guide
 ------------------
 
-**Software packages to install**
+Installing dependencies
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Ensure that you have a C/C++ compiler (e.g., g++ 4.8 or newer).
 The compiler must support the C++11 standard.
@@ -27,24 +28,33 @@ Check out the latest DPDK source tree:
 
    You need to install the kernel header/source packages first.
 
+Install library dependencies on your system:
+
+.. code-block:: console
+
+   $ sudo apt-get install libev-dev libssl-dev libpapi-dev
+
 Install Python 3.4 on your system.
 You may use the system package manager such as :code:`apt-get`.
 In that case, ensure that you also have development package as well:
 
 .. code-block:: console
 
-  $ sudo apt-get install python3.4 libpython3.4-dev
+   $ sudo apt-get install python3.4 libpython3.4-dev
 
 Then install our Python dependencies:
 
 .. code-block:: console
 
-  $ pip3 install --user snakemake
+   $ pip3 install --user snakemake
 
 .. note::
 
    We recommend using a separate Python environment contained inside the user directory.
    See `pyenv <https://github.com/yyuu/pyenv>`_ for more details.
+
+Compilation
+~~~~~~~~~~~
 
 Clone the project source code:
 
@@ -59,20 +69,20 @@ Install our 3rd-party libraries, the Click configuration parser:
    $ cd nba
    $ git submodule init && git submodule update
 
-.. note::
-
-   It will be *automatically built* along with NBA when you first build NBA.
-
-
-**Compilation**
+It will be *automatically built* along with NBA when you first build NBA.
 
 Set the environment variable as follows:
 
 .. code-block:: console
 
-  $ export NBA_DPDK_PATH=/home/userid/dpdk/x86_64-native-linuxapp-gcc
-  $ export USE_CUDA=0  # for testing CPU-only version without CUDA installation
-  $ snakemake -j
+   $ export NBA_DPDK_PATH=/home/userid/dpdk/x86_64-native-linuxapp-gcc
+   $ export USE_CUDA=0  # for testing CPU-only version without CUDA installation
+
+Finally, run:
+
+.. code-block:: console
+
+   $ snakemake -j
 
 If all is well, the executable is located in :code:`bin/main`.
 
@@ -82,11 +92,16 @@ Network Cards
 Intel X520 Series (82599 chipset)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-There is no other work required to use these network cards as they are natively
-supported by DPDK.
-
 You just need to bind the PCI addresses of network cards to igb_uio using
 :code:`tools/dpdk_nic_bind.py` script provided by DPDK.
+
+.. warning::
+
+   Disable vectorized ring increments in DPDK's configuration:
+   :code:`CONFIG_RTE_IXGBE_INC_VECTOR=n`
+
+   It has some problems with our batching scheme, as it cuts off the tail of
+   packet batches and looses tracking some packets.
 
 Mellanox ConnectX Series
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -112,7 +127,7 @@ To increase throughputs, set the following in the same config:
 
 For maximum throughputs, turn off the followings:
 
-* blueflame: :code:`sudo ethtool --set-priv-flags ethXX blueflame off`
+* blueflame [#blueflame]_: :code:`sudo ethtool --set-priv-flags ethXX blueflame off`
 * rx/tx auto-negotiation for flow control: :code:`sudo ethtool -A ethXX rx off tx off`
 
 Note that above settings must be done in packet generators as well.
@@ -120,11 +135,6 @@ Note that above settings must be done in packet generators as well.
 .. warning::
    We recommend to turn off blueflame when loading the mlx4_core kernel module
    as module parameters, instead of using ethtool afterwards.
-
-.. note::
-   "blueflame" is a Mellanox-specific feature that uses PCI BAR for tranferring
-   descriptors of small packets instead of using DMA on RX/TX rings.  It is
-   known to have lower latency, but causes throughput degradation with NBA.
 
 You do not need to explicitly bind the PCI addresses of Mellanox cards to
 igb_uio because mlx4_pmd automatically detects them using the kernel driver.
@@ -135,6 +145,11 @@ To use mlx4 in NBA, set the following environment variable and rebuild:
 
    $ export NBA_PMD=mlx4
    $ snakemake clean && snakemake -j
+
+.. [#blueflame]
+   "blueflame" is a Mellanox-specific feature that uses PCI BAR for tranferring
+   descriptors of small packets instead of using DMA on RX/TX rings.  It is
+   known to have lower latency, but causes throughput degradation with NBA.
 
 Optional Installations
 ----------------------
