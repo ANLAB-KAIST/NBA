@@ -22,7 +22,11 @@ Check out the latest DPDK source tree:
 
    $ git clone git://dpdk.org/dpdk
    $ cd dpdk
+   $ $EDITOR configs/common_linuxapp
    $ make install T=x86_64-native-linuxapp-gcc
+
+See details on what you need to edit on :code:`configs/common_linuxapp`
+at :ref:`DPDK configurations for network cards <dpdk-configs-for-nics>`.
 
 .. note::
 
@@ -86,8 +90,11 @@ Finally, run:
 
 If all is well, the executable is located in :code:`bin/main`.
 
-Network Cards
--------------
+
+.. _dpdk-configs-for-nics:
+
+DPDK Configs for Network Cards
+------------------------------
 
 Intel X520 Series (82599 chipset)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -98,7 +105,10 @@ You just need to bind the PCI addresses of network cards to igb_uio using
 .. warning::
 
    Disable vectorized ring increments in DPDK's configuration:
-   :code:`CONFIG_RTE_IXGBE_INC_VECTOR=n`
+
+   .. code-block:: properties
+
+      CONFIG_RTE_IXGBE_INC_VECTOR=n
 
    It has some problems with our batching scheme, as it cuts off the tail of
    packet batches and looses tracking some packets.
@@ -112,8 +122,7 @@ hardware and perform DMA.
 We recommend to use version 3.0 or later, as these new versions have much
 better performance and includes firmware updates.
 
-To use mlx4_pmd on DPDK, turn on it inside the DPDK compile configuration (edit
-:code:`configs/common_linuxapp` before :code:`make config` / :code:`make install`):
+To use mlx4_pmd on DPDK, turn on it inside DPDK's configuration:
 
 .. code-block:: properties
 
