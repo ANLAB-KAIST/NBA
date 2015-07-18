@@ -4,7 +4,7 @@ Running NBA
 Standalone Execution
 --------------------
 
-Execute `bin/main` with DPDK EAL arguments and NBA arguments.  
+Execute :code:`bin/main` with DPDK EAL arguments and NBA arguments.  
 For example,
 
 .. code-block:: console
