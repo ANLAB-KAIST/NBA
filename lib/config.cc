@@ -405,11 +405,12 @@ static PyModuleDef NSModule = {
     NULL, NULL, NULL, NULL
 };
 
-bool check_ht_enabled()
+int get_ht_degree()
 {
     // TODO: make it portable
     char line[2048];
     unsigned len, i;
+    int deg = 1;
     FILE *f = fopen("/sys/devices/system/cpu/cpu0/topology/thread_siblings_list", "r");
     assert(NULL != f);
     assert(NULL != fgets(line, 2048, f));
@@ -417,8 +418,8 @@ bool check_ht_enabled()
     len = strnlen(line, 2048);
     for (i = 0; i < len; i++)
         if (line[i] == ',')
-            return true;
-    return false;
+            deg ++;
+    return deg;
 }
 
 static PyObject *
@@ -479,10 +480,13 @@ PyInit_nba(void)
     Py_DECREF(col);
 
     PyModule_AddIntConstant(mod, "num_logical_cores", sysconf(_SC_NPROCESSORS_ONLN));
-    bool ht_enabled = check_ht_enabled();
-    PyModule_AddIntConstant(mod, "num_physical_cores", sysconf(_SC_NPROCESSORS_ONLN) / (ht_enabled ? 2 : 1));
-    PyObject *pbool = ht_enabled ? Py_True : Py_False;
+    int ht_deg = get_ht_degree();
+    PyModule_AddIntConstant(mod, "num_physical_cores", sysconf(_SC_NPROCESSORS_ONLN) / ht_deg);
+    PyObject *pdeg  = PyLong_FromLong((long) ht_deg);;
+    PyObject *pbool = (ht_deg > 1) ? Py_True : Py_False;
+    Py_INCREF(pdeg);
     Py_INCREF(pbool);
+    PyModule_AddObject(mod, "ht_degree", pdeg);
     PyModule_AddObject(mod, "ht_enabled", pbool);
     pbool = emulate_io ? Py_True : Py_False;
     Py_INCREF(pbool);

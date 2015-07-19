@@ -30,12 +30,30 @@ system_params = {
 }
 print("IO batch size: {0[IO_BATCH_SIZE]}, computation batch size: {0[COMP_BATCH_SIZE]}".format(system_params))
 print("Coprocessor pipeline depth: {0[COPROC_PPDEPTH]}".format(system_params))
-print("# logical cores: {0}, # physical cores {1} (hyperthreading {2})".format(
-    nba.num_logical_cores, nba.num_physical_cores,
-    "enabled" if nba.ht_enabled else "disabled"
+print("# logical cores: {0}, # physical cores {1} (hyperthreading degree {2})".format(
+    nba.num_logical_cores, nba.num_physical_cores, nba.ht_degree
 ))
 _ht_diff = nba.num_physical_cores if nba.ht_enabled else 0
 pmd = os.environ.get('NBA_PMD', 'ixgbe')
+
+def leq_power_of_two(val):
+    m = val if val & (val - 1) == 0 else (val >> 1)
+    v = 1
+    while v < m:
+        v <<= 1
+    return v
+
+def clean_siblings(core_list):
+    greater_siblings = set()
+    new_core_list = []
+    for c in core_list:
+        if c in greater_siblings: continue
+        sibling_list_path = '/sys/devices/system/cpu/cpu{}/topology/thread_siblings_list'.format(c)
+        with open(sibling_list_path, 'r', encoding='ascii') as f:
+            siblings = map(int, f.read().strip().split(','))
+            greater_siblings.update(s for s in siblings if s != c)
+        new_core_list.append(c)
+    return new_core_list
 
 thread_connections = []
 
@@ -56,16 +74,14 @@ coproc_completion_queues = []
 for node_id, node_cores in enumerate(node_cpus):
     node_local_netdevices = [netdev for netdev in netdevices if netdev.numa_node == node_id]
     num_coproc_in_node = len(node_local_coprocs[node_id])
+    node_cores = clean_siblings(node_cores)
     if num_coproc_in_node > 0:
         io_cores_in_node = node_cores[:-num_coproc_in_node]
     else:
         io_cores_in_node = node_cores[:]
     if pmd in ('mlx4', 'mlnx_uio'):
-        # The # RXQs must be power of two for Mellanox cards.
-        lower_power_of_two = 1
-        while lower_power_of_two < (len(io_cores_in_node) >> 1):
-            lower_power_of_two <<= 1
-        io_cores_in_node = io_cores_in_node[:lower_power_of_two]
+        # The number of RXQs must be a power of two for Mellanox cards.
+        io_cores_in_node = io_cores_in_node[:leq_power_of_two(len(io_cores_in_node))]
     for node_local_core_id, core_id in enumerate(io_cores_in_node):
         rxqs = [(netdev.device_id, node_local_core_id) for netdev in node_local_netdevices]
         io_threads.append(nba.IOThread(core_id=node_cpus[node_id][node_local_core_id], attached_rxqs=rxqs, mode='normal'))

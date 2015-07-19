@@ -284,7 +284,7 @@ int main(int argc, char **argv)
         printf("NUMA is disabled.\n");
     else
         printf("%d NUMA nodes are enabled.\n", num_nodes);
-    num_pcores = check_ht_enabled() ? num_lcores / 2 : num_lcores;
+    num_pcores = num_lcores / get_ht_degree();
 
     /* We have two types of configurations: system and Click.
      *

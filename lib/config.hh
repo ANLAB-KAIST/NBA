@@ -114,7 +114,7 @@ extern int emulated_num_fixed_flows;
 extern size_t num_emulated_ifaces;
 
 bool load_config(const char* pyfilename);
-bool check_ht_enabled();
+int get_ht_degree(void);
 
 }
 
