@@ -1,14 +1,19 @@
 #ifndef __NBA_MEMPOOL_HH__
 #define __NBA_MEMPOOL_HH__
 
-#include <stdint.h>
-#include <assert.h>
+#include <cstdint>
+#include <cassert>
+#include <cerrno>
 
 #define __ALIGN(x,a) (((x)+(a)-1)&~((a)-1))
 
 namespace nba
 {
 
+/**
+ * This abstract memory pool class provides a bump allocator
+ * in the memroy region defined by its subclasses.
+ */
 class MemoryPool
 {
 public:
@@ -22,7 +27,7 @@ public:
     int _alloc(size_t size, size_t *start_offset)
     {
         if (curpos_ + size > max_size_)
-            return -1;
+            return -ENOMEM;
         /* IMPORTANT: We need to return the position before adding the new size. */
         if (start_offset != nullptr)
             *start_offset = curpos_;
