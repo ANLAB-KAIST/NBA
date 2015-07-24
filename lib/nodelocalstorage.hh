@@ -59,7 +59,7 @@ public:
         assert(kid < NBA_MAX_NODELOCALSTORAGE_ENTRIES);
         _keys.insert(std::pair<std::string, int>(key, kid));
 
-        void *ptr = rte_malloc_socket("nls_alloc", size, 64, _node_id);
+        void *ptr = rte_malloc_socket("nls_alloc", size, CACHE_LINE_SIZE, _node_id);
         //void *ptr = new char*[size];
         assert(ptr != NULL);
         memset(ptr, 0xcd, size);
