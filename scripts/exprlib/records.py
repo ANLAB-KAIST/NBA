@@ -104,7 +104,7 @@ class PortThruputReader(BaseReader):
                                                           prev_record.out_bps + tx_bps,
                                                           prev_record.in_errs + swdrop_pps + rxdrop_pps,
                                                           prev_record.out_errs + txdrop_pps)
-    
+
     def get_records(self):
         return self._records
 

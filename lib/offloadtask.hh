@@ -52,6 +52,8 @@ public:
     struct resource_param res;
     uint64_t offload_start;
     double offload_cost;
+    size_t num_pkts;
+    size_t num_bytes;
 
     /* Initialized by element graph. */
     int local_dev_idx;

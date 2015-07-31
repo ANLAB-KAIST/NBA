@@ -184,7 +184,8 @@ librte_pmds    = {
     'mlnx_uio':  ['rte_pmd_mlnx_uio', 'rte_hash', 'rte_persistent'],
     'null':  ['rte_pmd_null', 'rte_kvargs'],
 }
-librte_names   = ['ethdev', 'rte_eal', 'rte_cmdline', 'rte_malloc', 'rte_mbuf', 'rte_mempool', 'rte_ring']
+librte_names   = ['ethdev', 'rte_eal', 'rte_cmdline', 'rte_sched',
+                  'rte_malloc', 'rte_mbuf', 'rte_mempool', 'rte_ring']
 librte_names.extend(librte_pmds[PMD])
 CFLAGS        += ' -I{DPDK_PATH}/include'
 LIBS          += ' -L{DPDK_PATH}/lib' \

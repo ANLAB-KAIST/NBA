@@ -116,10 +116,10 @@ void ElementGraph::flush_delayed_batches()
     while (!delayed_batches.empty() && !ctx->io_ctx->loop_broken) {
         PacketBatch *batch = delayed_batches.front();
         delayed_batches.pop_front();
-        if (batch->delay_start > 0) {
-            batch->compute_time += (rdtscp() - batch->delay_start);
-            batch->delay_start = 0;
-        }
+        //if (batch->delay_start > 0) {
+        //    batch->compute_time += (rdtscp() - batch->delay_start);
+        //    batch->delay_start = 0;
+        //}
 
         /* It must have the associated element where this batch is delayed. */
         assert(batch->element != nullptr);
@@ -193,7 +193,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                             if (!ctx->io_ctx->loop_broken)
                                 ev_run(ctx->io_ctx->loop, EVRUN_NOWAIT);
                             /* Keep the current batch for later processing. */
-                            batch->delay_start = rdtscp();
+                            //batch->delay_start = rdtscp();
                             delayed_batches.push_back(batch);
                             continue;
                         }
@@ -218,14 +218,19 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     if (task->batches.size() < ctx->num_coproc_ppdepth) {
                         task->batches.push_back(batch);
                         task->input_ports.push_back(input_port);
+                        task->num_pkts += batch->count;
+                        for (unsigned p = 0; p < batch->count; p++) {
+                            if (!batch->excluded[p])
+                                task->num_bytes += Packet::from_base(batch->packets[p])->length();
+                        }
                         #ifdef USE_NVPROF
                         nvtxMarkA("add_batch");
                         #endif
                     } else {
                         /* We have no room for batch in the preparing task.
                          * Keep the current batch for later processing. */
-                        assert(batch->delay_start == 0);
-                        batch->delay_start = rdtscp();
+                        //assert(batch->delay_start == 0);
+                        //batch->delay_start = rdtscp();
                         delayed_batches.push_back(batch);
                         continue;
                     }
@@ -239,10 +244,12 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                      *     10 x avg.task completion time.
                      */
                     assert(task->batches.size() > 0);
-                    if (task->batches.size() == ctx->num_coproc_ppdepth
-                        //|| (now - task->batches[0]->recv_timestamp) / (float) rte_get_tsc_hz()
-                        //    > ctx->inspector->avg_task_completion_sec[dev_idx] * 10
-                        )//|| (ctx->io_ctx->mode == IO_EMUL && !ctx->stop_task_batching))
+                    if (
+                            (task->batches.size() == ctx->num_coproc_ppdepth)
+                       //|| (task->num_bytes >= 64 * ctx->num_coproc_ppdepth * ctx->io_ctx->num_iobatch_size)
+                       //|| (task->batches.size() > 1 && (rdtsc() - task->offload_start) / (double) rte_get_tsc_hz() > 0.0005)
+                       //|| (ctx->io_ctx->mode == IO_EMUL && !ctx->stop_task_batching)
+                       )
                     {
                         //printf("avg task completion time: %.6f sec\n", ctx->inspector->avg_task_completion_sec[dev_idx]);
                         offloadable->tasks[dev_idx] = nullptr;  // Let the element be able to take next pkts/batches.

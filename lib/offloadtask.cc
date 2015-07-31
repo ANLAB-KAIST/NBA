@@ -38,6 +38,8 @@ OffloadTask::OffloadTask()
     completion_queue   = nullptr;
     cctx = nullptr;
     offload_start = 0;
+    num_pkts = 0;
+    num_bytes = 0;
 }
 
 OffloadTask::~OffloadTask()

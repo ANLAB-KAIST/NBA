@@ -199,11 +199,11 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
                                                   (void **) tasks,
                                                   ctx->task_completion_queue_size);
     print_ratelimit("# done tasks", nr_tasks, 100);
-    uint64_t now = rdtscp();
 
     for (unsigned t = 0; t < nr_tasks && !io_ctx->loop_broken; t++) {
         /* We already finished postprocessing.
          * Retrieve the task and results. */
+        uint64_t now = rdtscp();
         OffloadTask *task = tasks[t];
         ComputeContext *cctx = task->cctx;
         #ifdef USE_NVPROF
@@ -214,7 +214,8 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
         task->postprocess();
 
         /* Update statistics. */
-        float time_spent = (now - task->offload_start) / (float) rte_get_tsc_hz();
+        uint64_t task_cycles = now - task->offload_start;
+        float time_spent = (float) task_cycles / rte_get_tsc_hz();
         uint64_t task_count = ctx->inspector->dev_finished_task_count[task->local_dev_idx];
         ctx->inspector->avg_task_completion_sec[task->local_dev_idx] \
               = (ctx->inspector->avg_task_completion_sec[task->local_dev_idx] * task_count + time_spent) / (task_count + 1);
@@ -222,12 +223,11 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
         ctx->inspector->dev_finished_batch_count[task->local_dev_idx] += task->batches.size();
 
         /* Enqueue batches for later processing. */
-        uint64_t task_cycles = now - task->offload_start;
         uint64_t total_batch_size = 0;
         for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++)
             total_batch_size += task->batches[b]->count;
         for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++) {
-            task->batches[b]->compute_time += task_cycles / total_batch_size;
+            task->batches[b]->compute_time += (uint64_t) ((float) task_cycles / total_batch_size);
             ctx->elem_graph->enqueue_postproc_batch(task->batches[b], task->elem,
                                                     task->input_ports[b]);
         }
@@ -282,6 +282,7 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
     uint64_t t = rdtscp();
     batch->count = count;
     batch->recv_timestamp = t;
+    batch->compute_time = 0;
     batch->batch_id = recv_batch_cnt;
     for (p = 0; p < count; p++) {
         batch->excluded[p] = false;
