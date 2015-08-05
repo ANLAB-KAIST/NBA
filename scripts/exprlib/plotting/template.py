@@ -11,6 +11,11 @@ from matplotlib.gridspec import GridSpec
 from ..records import PPCRecord, AppThruputRecord
 from .utils import find_times_font
 
+
+def kilo_formatter(val, idx):
+    q = int(val) // 1000
+    return str(q) + 'K' if q > 0 else '0'
+
 def plot_ppc(category, records, confname, pktsize, base_path):
     now = datetime.now()
     timestamp_date = now.strftime('%Y-%m-%d')
@@ -62,6 +67,9 @@ def plot_ppc(category, records, confname, pktsize, base_path):
     box2 = ax_ratio.get_position()
     ax_ratio.set_position([box2.x0 - 0.03, box2.y0 + 0.05, box2.width*0.62, box.y0 - box2.y0])
 
+    ax_ppc.get_yaxis().set_major_formatter(
+        matplotlib.ticker.FuncFormatter(kilo_formatter))
+
     ppc_colors = [hex2color('#ff375d'), hex2color('#bf0000')]
     ratio_colors = [hex2color('#376bff'), hex2color('#0033bf')]
     thr_colors = [hex2color('#d8d8d8'), hex2color('#7f7f7f')]
@@ -89,9 +97,9 @@ def plot_ppc(category, records, confname, pktsize, base_path):
         #for thr in thruput[1:node_id+1]:
         #    step_thr += np.array(thr)
         #ax_perf.step(x_ind, step_thr, color='black', where='mid')
-        h_pcpu, = ax_ppc.plot(x_ind, ppc_cpu, color=ppc_colors[node_id], lw=0.8)
-        h_pgpu, = ax_ppc.plot(x_ind, ppc_gpu, color=ppc_colors[node_id], lw=0.8)
-        h_pest, = ax_ppc.plot(x_ind, ppc_est, color=ppc_colors[node_id], lw=1.6)
+        h_pcpu, = ax_ppc.plot(x_ind, ppc_cpu, color=ppc_colors[node_id], lw=0.3, alpha=0.72)
+        h_pgpu, = ax_ppc.plot(x_ind, ppc_gpu, color=ppc_colors[node_id], lw=0.3, alpha=0.72)
+        h_pest, = ax_ppc.plot(x_ind, ppc_est, color=ppc_colors[node_id], lw=0.8, alpha=0.5)
         h_ratio, = ax_ratio.plot(x_ind, offl_ratio, color=ratio_colors[node_id], lw=0.8)
         h_pcpu.set_dashes([0.6, 0.6])
         h_pgpu.set_dashes([2.4, 0.6])
