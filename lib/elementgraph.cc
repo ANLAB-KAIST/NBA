@@ -116,10 +116,10 @@ void ElementGraph::flush_delayed_batches()
     while (!delayed_batches.empty() && !ctx->io_ctx->loop_broken) {
         PacketBatch *batch = delayed_batches.front();
         delayed_batches.pop_front();
-        //if (batch->delay_start > 0) {
-        //    batch->compute_time += (rdtscp() - batch->delay_start);
-        //    batch->delay_start = 0;
-        //}
+        if (batch->delay_start > 0) {
+            batch->delay_time += (rdtscp() - batch->delay_start);
+            batch->delay_start = 0;
+        }
 
         /* It must have the associated element where this batch is delayed. */
         assert(batch->element != nullptr);
@@ -193,7 +193,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                             if (!ctx->io_ctx->loop_broken)
                                 ev_run(ctx->io_ctx->loop, EVRUN_NOWAIT);
                             /* Keep the current batch for later processing. */
-                            //batch->delay_start = rdtscp();
+                            batch->delay_start = rdtscp();
                             delayed_batches.push_back(batch);
                             continue;
                         }
@@ -229,8 +229,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     } else {
                         /* We have no room for batch in the preparing task.
                          * Keep the current batch for later processing. */
-                        //assert(batch->delay_start == 0);
-                        //batch->delay_start = rdtscp();
+                        batch->delay_start = rdtscp();
                         delayed_batches.push_back(batch);
                         continue;
                     }

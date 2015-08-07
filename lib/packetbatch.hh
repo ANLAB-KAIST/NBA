@@ -47,6 +47,7 @@ public:
     int input_port;
     bool has_results;
     uint64_t delay_start;
+    uint64_t delay_time;
     double compute_time;
 
     struct annotation_set banno __rte_cache_aligned;  /** Batch-level annotations. */

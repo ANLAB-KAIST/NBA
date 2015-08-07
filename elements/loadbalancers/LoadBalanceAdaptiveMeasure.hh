@@ -80,9 +80,8 @@ public:
 #endif
         // {{{ Deterministic load balancer
         int decision = 0;
-        const float c = (float) local_cpu_ratio / LB_MEASURE_CPU_RATIO_MULTIPLIER;
         rep ++;
-        if (offload) {
+        if (offload) { // GPU-mode
             decision = 1;
             if (rep >= rep_limit_gpu) { // Change to CPU-mode
                 if (local_cpu_ratio == 0)
@@ -92,7 +91,7 @@ public:
                 rep = 0;
                 offload = false;
             }
-        } else {
+        } else {       // CPU-mode
             decision = 0;
             if (rep >= rep_limit_cpu) { // Change to GPU-mode
                 rep_limit = rep_limit_gpu;
@@ -134,7 +133,7 @@ public:
                 rte_atomic64_set(cpu_ratio, temp_cpu_ratio);
             }
         }
-        #if 0
+        #if 1
         rep_limit_cpu = (unsigned) (c * ctx->num_coproc_ppdepth / (1.0f - c));
         rep_limit_gpu = ctx->num_coproc_ppdepth;
         #else

@@ -227,7 +227,7 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
         for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++)
             total_batch_size += task->batches[b]->count;
         for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++) {
-            task->batches[b]->compute_time += (uint64_t) ((float) task_cycles / total_batch_size);
+            task->batches[b]->compute_time += (uint64_t) ((float) task_cycles / total_batch_size - ((float) task->batches[b]->delay_time / task->batches[b]->count));
             ctx->elem_graph->enqueue_postproc_batch(task->batches[b], task->elem,
                                                     task->input_ports[b]);
         }
@@ -283,6 +283,8 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
     batch->count = count;
     batch->recv_timestamp = t;
     batch->compute_time = 0;
+    batch->delay_start = 0;
+    batch->delay_time = 0;
     batch->batch_id = recv_batch_cnt;
     for (p = 0; p < count; p++) {
         batch->excluded[p] = false;
