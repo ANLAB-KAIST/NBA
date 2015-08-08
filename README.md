@@ -1,4 +1,7 @@
 # NBA (Network Balancing Act)
+
+[![Join the chat at https://gitter.im/ANLAB-KAIST/NBA](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ANLAB-KAIST/NBA?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 "A High-performance packet processing framework for heterogeneous processors," [EuroSys 2015 paper](http://an.kaist.ac.kr/~sbmoon/paper/intl-conf/2015-eurosys-nba.pdf)
 
 ## Notice for paper readers
