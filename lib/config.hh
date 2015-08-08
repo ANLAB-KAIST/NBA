@@ -45,6 +45,8 @@
 #define NBA_OQ                      (true)  // Use output-queuing semantics when possible.
 #undef NBA_CPU_MICROBENCH                  // Enable support for PAPI library for microbenchmarks.
 
+#define NBA_MAX_ELEM_NEXTS (4)
+
 namespace nba {
 
 enum io_thread_mode {

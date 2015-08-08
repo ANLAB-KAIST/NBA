@@ -43,25 +43,34 @@ struct element_info {
 
 #define EXPORT_ELEMENT(...)
 
-#define NBA_MAX_ELEM_NEXTS (4)
-
-enum PacketDisposition {
-    /**
-     * If the value >= 0, it is interpreted as output port idx.
-     */
-    DROP = NBA_MAX_ELEM_NEXTS,
-    SLOWPATH,
-    PENDING,
-};
-
 #define HANDLE_ALL_PORTS case 0: \
                          case 1: \
                          case 2: \
                          case 3
 
-class Element : public GraphMetaData{
-
+class Element : public GraphMetaData {
+private:
     friend class ElementGraph;
+
+    class OutputPort {
+        /** A simple utility class to emulate Click's output port. */
+
+    private:
+        friend class Element;
+
+        int my_idx;
+        Element *elem;
+
+        OutputPort() : my_idx(0), elem(nullptr) { }
+        OutputPort(Element* elem, int idx) : my_idx(idx), elem(elem) { }
+        virtual ~OutputPort() { }
+
+    public:
+        void push(Packet *p) const {
+            elem->output_counts[my_idx] ++;
+            p->output = my_idx;
+        }
+    };
 
 public:
     uint64_t branch_total = 0;
@@ -70,6 +79,9 @@ public:
 
     Element();
     virtual ~Element();
+
+    inline const OutputPort &output(int idx) const
+    { return outputs[idx]; }
 
     /* == User-defined properties and methods == */
     virtual const char *class_name() const = 0;
@@ -96,6 +108,8 @@ public:
 protected:
     FixedArray<Element*, nullptr, NBA_MAX_ELEM_NEXTS> next_elems;
     FixedArray<int, -1, NBA_MAX_ELEM_NEXTS> next_connected_inputs;
+    OutputPort outputs[NBA_MAX_ELEM_NEXTS];
+    uint16_t output_counts[NBA_MAX_ELEM_NEXTS];
 
     Packet *packet;
 

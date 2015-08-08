@@ -26,7 +26,9 @@ Element::Element() : next_elems(), next_connected_inputs()
 {
     num_min_inputs = num_max_inputs = 0;
     num_min_outputs = num_max_outputs = 0;
-    memset(branch_count,0,sizeof(uint64_t)*ElementGraph::num_max_outputs);
+    memset(branch_count, 0, sizeof(uint64_t) * ElementGraph::num_max_outputs);
+    for (int i = 0; i < ElementGraph::num_max_outputs; i++)
+        outputs[i] = OutputPort(this, i);
 }
 
 Element::~Element()
@@ -35,9 +37,12 @@ Element::~Element()
 
 int Element::_process_batch(int input_port, PacketBatch *batch)
 {
+    memset(output_counts, 0, sizeof(uint16_t) * NBA_MAX_ELEM_NEXTS);
     for (unsigned p = 0; p < batch->count; p++) {
         if (likely(!batch->excluded[p])) {
-            batch->results[p] = this->process(input_port, Packet::from_base(batch->packets[p]));
+            Packet *pkt = Packet::from_base(batch->packets[p]);
+            this->process(input_port, pkt);
+            batch->results[p] = pkt->output;
         }
     }
     batch->has_results = true;

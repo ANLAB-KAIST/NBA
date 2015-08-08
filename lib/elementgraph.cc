@@ -287,7 +287,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
         assert(batch->has_results == true);
 
         //assert(current_elem->num_max_outputs <= num_max_outputs || current_elem->num_max_outputs == -1);
-        int num_outputs = current_elem->next_elems.size();
+        size_t num_outputs = current_elem->next_elems.size();
 
         if (num_outputs == 0) {
 
@@ -353,6 +353,11 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
 
         } else { /* num_outputs > 1 */
 
+            // TODO: Work in progress!
+            //size_t num_outputs = elem->next_elems.size();
+            //for (unsigned o = 1; o < num_outputs; o++) {
+            //}
+
             const int *const results = batch->results;
             PacketBatch *out_batches[num_max_outputs];
             // TODO: implement per-batch handling for branches
@@ -381,7 +386,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                 for (unsigned p = 0; p < batch->count; p++) {
                     if (batch->excluded[p]) continue;
                     int o = results[p];
-                    assert(o < num_outputs);
+                    assert(o < (signed) num_outputs);
 
                     /* Prediction mismatch! */
                     if (unlikely(o != predicted_output)) {
@@ -441,7 +446,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
 
                 /* Recurse into the element subgraph starting from each
                  * output port using copy-batches. */
-                for (int o = 0; o < num_outputs; o++) {
+                for (unsigned o = 0; o < num_outputs; o++) {
                     if (out_batches[o] && out_batches[o]->count > 0) {
                         assert(current_elem->next_elems[o] != NULL);
                         if (current_elem->next_elems[o]->get_type() & ELEMTYPE_OUTPUT) {
@@ -493,7 +498,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                 //       batch for that path.
 
                 /* Initialize copy-batches. */
-                for (int o = 0; o < num_outputs; o++) {
+                for (unsigned o = 0; o < num_outputs; o++) {
                     new (out_batches[o]) PacketBatch();
                     anno_set(&out_batches[o]->banno, NBA_BANNO_LB_DECISION, lb_decision);
                     out_batches[o]->recv_timestamp = batch->recv_timestamp;
@@ -504,7 +509,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     if (batch->excluded[p])
                         continue;
                     int o = results[p];
-                    assert(o < num_outputs);
+                    assert(o < (signed) num_outputs);
 
                     if (o >= 0) {
                         int cnt = out_batches[o]->count ++;
@@ -529,7 +534,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
 
                 /* Recurse into the element subgraph starting from each
                  * output port using copy-batches. */
-                for (int o = 0; o < num_outputs; o++) {
+                for (unsigned o = 0; o < num_outputs; o++) {
                     if (out_batches[o]->count > 0) {
                         assert(current_elem->next_elems[o] != NULL);
                         if (current_elem->next_elems[o]->get_type() & ELEMTYPE_OUTPUT) {

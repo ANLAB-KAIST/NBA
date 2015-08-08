@@ -86,9 +86,10 @@ int L2Forward::process(int input_port, Packet *pkt)
             break;
           }
         }
-        return 0;
-    }
-    return DROP;
+        output(0).push(pkt);
+    } else
+        pkt->kill();
+    return 0;
 }
 
 // vim: ts=8 sts=4 sw=4 et

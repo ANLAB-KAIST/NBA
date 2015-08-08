@@ -90,7 +90,7 @@ public:
     void free_batch(PacketBatch *batch, bool free_pkts = true);
 
     /* TODO: calculate from the actual graph */
-    static const int num_max_outputs = 16;
+    static const int num_max_outputs = NBA_MAX_ELEM_NEXTS;
 protected:
     /**
      * Used to book-keep element objects.

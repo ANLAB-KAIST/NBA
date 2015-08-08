@@ -1,16 +1,27 @@
 #ifndef __NBA_PACKET_HH__
 #define __NBA_PACKET_HH__
 
-#include "element.hh"
 #include <cassert>
+#include <rte_config.h>
 #include <rte_eal.h>
-#include <rte_memory.h>
+#include <rte_memcpy.h>
 #include <rte_mbuf.h>
 #include <rte_mempool.h>
+#include "config.hh"
+#include "annotation.hh"
 
 namespace nba {
 
 extern thread_local struct rte_mempool *packet_pool;
+
+enum PacketDisposition {
+    /**
+     * If the value >= 0, it is interpreted as output port idx.
+     */
+    DROP = NBA_MAX_ELEM_NEXTS,
+    SLOWPATH,
+    PENDING,
+};
 
 class PacketBatch;
 
@@ -27,6 +38,7 @@ private:
     #endif
     struct rte_mbuf *base;
     bool cloned;
+    int output;
 
     friend class Element;
 
@@ -67,7 +79,7 @@ public:
     #ifdef DEBUG
     magic(NBA_PACKET_MAGIC),
     #endif
-    base((struct rte_mbuf *) base), cloned(false)
+    base((struct rte_mbuf *) base), cloned(false), output(PacketDisposition::DROP)
     { }
 
     ~Packet() {
@@ -76,7 +88,7 @@ public:
         }
     }
 
-    inline void kill() { /** Deprecated. Use "return DROP" instead. */ }
+    inline void kill() { this->output = PacketDisposition::DROP; }
 
     inline unsigned char *data() { return rte_pktmbuf_mtod(base, unsigned char *); }
     inline uint32_t length() { return rte_pktmbuf_data_len(base); }
@@ -94,31 +106,16 @@ public:
     inline void take(uint32_t len) { rte_pktmbuf_trim(base, (uint16_t) len); }
 
     Packet *clone() {
-        //Packet *p;
-        //int ret = rte_mempool_get(packet_pool, (void **) &p);
-        //assert(ret == 0);
-        //struct rte_mbuf *new_mbuf = rte_pktmbuf_alloc(mbuf_pool);
-        //if (new_mbuf != nullptr) {
-        //    rte_pktmbuf_attach(new_mbuf, base);
-        //    p->set_mbuf_pool(mbuf_pool);
-        //    p->set_mbuf(batch, new_mbuf);
-        //    p->cloned = true;
-        //    return p;
-        //}
-        return nullptr;
+        Packet *q;
+        struct rte_mbuf *q_base = rte_pktmbuf_clone(this->base, packet_pool);
+        assert(q_base != nullptr);
+        q = Packet::from_base_nocheck(q);
+        rte_memcpy(q, this, sizeof(Packet));
+        q->cloned = true;
+        return q;
     }
 
     Packet *uniqueify() {
-        //Packet *p;
-        //int ret = rte_mempool_get(packet_pool, (void **) &p);
-        //assert(ret == 0);
-        //struct rte_mbuf *new_mbuf = rte_pktmbuf_clone(base, mbuf_pool);
-        //if (new_mbuf != nullptr) {
-        //    p->set_mbuf_pool(mbuf_pool);
-        //    p->set_mbuf(batch, new_mbuf);
-        //    p->cloned = true;
-        //    return p;
-        //}
         return nullptr;
     }
 
