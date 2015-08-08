@@ -27,26 +27,33 @@ int CheckIPHeader::process(int input_port, Packet *pkt)
 
     if (ntohs(ethh->ether_type) != ETHER_TYPE_IPv4) {
         RTE_LOG(DEBUG, ELEM, "CheckIPHeader: invalid packet type - %x\n", ntohs(ethh->ether_type));
-        return DROP;
+        pkt->kill();
+        return 0;
     }
 
     if ( (iph->version != 4) || (iph->ihl < 5) ) {
         RTE_LOG(DEBUG, ELEM, "CheckIPHeader: invalid packet - ver %d, ihl %d\n", iph->version, iph->ihl);
-        return SLOWPATH;
+        pkt->kill();
+        return 0;
+        // return SLOWPATH;
     }
 
     if ( (iph->ihl * 4) > ntohs(iph->tot_len)) {
         RTE_LOG(DEBUG, ELEM, "CheckIPHeader: invalid packet - total len %d, ihl %d\n", iph->tot_len, iph->ihl);
-        return SLOWPATH;
+        pkt->kill();
+        return 0;
+        // return SLOWPATH;
     }
 
     // TODO: Discard illegal source addresses.
 
     if (ip_fast_csum(iph, iph->ihl) != 0) {
-        return DROP;
+        pkt->kill();
+        return 0;
     }
 
-    return 0; // output port number: 0
+    output(0).push(pkt);
+    return 0;
 }
 
 // vim: ts=8 sts=4 sw=4 et

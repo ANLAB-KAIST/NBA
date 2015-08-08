@@ -21,13 +21,16 @@ int DecIPTTL::process(int input_port, Packet *pkt)
     struct iphdr *iph   = (struct iphdr *)(ethh + 1);
     uint32_t sum;
 
-    if (iph->ttl <= 1)
-        return DROP;
+    if (iph->ttl <= 1) {
+        pkt->kill();
+        return 0;
+    }
 
     // Decrement TTL.
     iph->ttl --;
     sum = (~ntohs(iph->check) & 0xFFFF) + 0xFEFF;
     iph->check = ~htons(sum + (sum >> 16));
+    output(0).push(pkt);
     return 0;
 }
 

@@ -73,28 +73,34 @@ int IPlookup::process(int input_port, Packet *pkt)
     uint16_t lookup_result = 0xffff;
 
     ipv4_route_lookup(dest_addr, &lookup_result);
-    if (lookup_result == 0xffff)
+    if (lookup_result == 0xffff) {
         /* Could not find destination. Use the second output for "error" packets. */
-        return DROP;
+        pkt->kill();
+        return 0;
+    }
 
     //unsigned n = (pkt->pkt.in_port <= (num_tx_ports / 2) - 1) ? 0 : (num_tx_ports / 2);
     //rr_port = (rr_port + 1) % (num_tx_ports / 2) + n;
     rr_port = (rr_port + 1) % (num_tx_ports);
     anno_set(&pkt->anno, NBA_ANNO_IFACE_OUT, rr_port);
+    output(0).push(pkt);
     return 0;
 }
 
 int IPlookup::postproc(int input_port, void *custom_output, Packet *pkt)
 {
     uint16_t lookup_result = *((uint16_t *)custom_output);
-    if (lookup_result == 0xffff)
+    if (lookup_result == 0xffff) {
         /* Could not find destination. Use the second output for "error" packets. */
-        return DROP;
+        pkt->kill();
+        return 0;
+    }
 
     //unsigned n = (pkt->pkt.in_port <= (num_tx_ports / 2) - 1) ? 0 : (num_tx_ports / 2);
     //rr_port = (rr_port + 1) % (num_tx_ports / 2) + n;
     rr_port = (rr_port + 1) % (num_tx_ports);
     anno_set(&pkt->anno, NBA_ANNO_IFACE_OUT, rr_port);
+    output(0).push(pkt);
     return 0;
 }
 

@@ -17,7 +17,8 @@ int Discard::configure(comp_thread_context *ctx, std::vector<std::string> &args)
 
 int Discard::process(int input_port, Packet *pkt)
 {
-    return DROP;
+    pkt->kill();
+    return 0;
 }
 
 // vim: ts=8 sts=4 sw=4 et
