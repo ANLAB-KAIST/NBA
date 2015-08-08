@@ -37,10 +37,11 @@ Element::~Element()
 
 int Element::_process_batch(int input_port, PacketBatch *batch)
 {
-    memset(output_counts, 0, sizeof(uint16_t) * NBA_MAX_ELEM_NEXTS);
+    memset(output_counts, 0, sizeof(uint16_t) * ElementGraph::num_max_outputs);
     for (unsigned p = 0; p < batch->count; p++) {
         if (likely(!batch->excluded[p])) {
             Packet *pkt = Packet::from_base(batch->packets[p]);
+            pkt->output = -1;
             this->process(input_port, pkt);
             batch->results[p] = pkt->output;
         }

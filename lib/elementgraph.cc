@@ -357,6 +357,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
             //size_t num_outputs = elem->next_elems.size();
             //for (unsigned o = 1; o < num_outputs; o++) {
             //}
+            // TODO: zero out the used portions of elem->output_cloned_packets[]
 
             const int *const results = batch->results;
             PacketBatch *out_batches[num_max_outputs];

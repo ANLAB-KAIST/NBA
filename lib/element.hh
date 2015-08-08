@@ -50,8 +50,6 @@ struct element_info {
 
 class Element : public GraphMetaData {
 private:
-    friend class ElementGraph;
-
     class OutputPort {
         /** A simple utility class to emulate Click's output port. */
 
@@ -66,22 +64,25 @@ private:
         virtual ~OutputPort() { }
 
     public:
-        void push(Packet *p) const {
+        void push(Packet *pkt) const {
+            /* We allow a packet to be pushed only once inside the process
+             * handler.  If you want to push the same packet multiple times
+             * to different outputs, you MUST clone it. */
+            assert(pkt->output == -1);
+            pkt->output = my_idx;
+            if (pkt->cloned) {
+                /* Store the cloned packet separately. */
+                elem->output_cloned_packets[my_idx][elem->output_counts[my_idx]] = pkt;
+            }
             elem->output_counts[my_idx] ++;
-            p->output = my_idx;
         }
     };
 
 public:
-    uint64_t branch_total = 0;
-    uint64_t branch_miss = 0;
-    uint64_t branch_count[NBA_MAX_ELEM_NEXTS];
-
     Element();
     virtual ~Element();
 
-    inline const OutputPort &output(int idx) const
-    { return outputs[idx]; }
+    inline const OutputPort &output(int idx) const { return outputs[idx]; }
 
     /* == User-defined properties and methods == */
     virtual const char *class_name() const = 0;
@@ -106,18 +107,25 @@ public:
     comp_thread_context *ctx;
 
 protected:
+    uint64_t branch_total = 0;
+    uint64_t branch_miss = 0;
+    uint64_t branch_count[NBA_MAX_ELEM_NEXTS];
+
     FixedArray<Element*, nullptr, NBA_MAX_ELEM_NEXTS> next_elems;
     FixedArray<int, -1, NBA_MAX_ELEM_NEXTS> next_connected_inputs;
     OutputPort outputs[NBA_MAX_ELEM_NEXTS];
-    uint16_t output_counts[NBA_MAX_ELEM_NEXTS];
-
-    Packet *packet;
 
     // used to manage per-node info
     int num_nodes;
     int node_idx;
 
 private:
+    friend class ElementGraph;
+    friend class Element::OutputPort;
+
+    uint16_t output_counts[NBA_MAX_ELEM_NEXTS];
+    Packet *output_cloned_packets[NBA_MAX_ELEM_NEXTS][NBA_MAX_COMP_BATCH_SIZE];
+
     /**
      * Parse "x/y" or "x1-x2/y1-y2" variations, where x is positive
      * integers and y is zero or positive integers or '*' (arbitrary
