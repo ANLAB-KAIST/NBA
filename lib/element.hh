@@ -107,6 +107,14 @@ public:
     comp_thread_context *ctx;
 
 protected:
+    /* Subclasses use below to manage node-local storage. */
+    int num_nodes;
+    int node_idx;
+
+private:
+    friend class ElementGraph;
+    friend class Element::OutputPort;
+
     uint64_t branch_total = 0;
     uint64_t branch_miss = 0;
     uint64_t branch_count[NBA_MAX_ELEM_NEXTS];
@@ -114,14 +122,6 @@ protected:
     FixedArray<Element*, nullptr, NBA_MAX_ELEM_NEXTS> next_elems;
     FixedArray<int, -1, NBA_MAX_ELEM_NEXTS> next_connected_inputs;
     OutputPort outputs[NBA_MAX_ELEM_NEXTS];
-
-    // used to manage per-node info
-    int num_nodes;
-    int node_idx;
-
-private:
-    friend class ElementGraph;
-    friend class Element::OutputPort;
 
     uint16_t output_counts[NBA_MAX_ELEM_NEXTS];
     Packet *output_cloned_packets[NBA_MAX_ELEM_NEXTS][NBA_MAX_COMP_BATCH_SIZE];
