@@ -275,7 +275,9 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
                        (char*) host_out_ptr + offset,
                        elemsz);
             Packet *pkt = Packet::from_base(batch->packets[p]);
-            batch->results[p] = elem->postproc(input_port, nullptr, pkt);
+            pkt->output = -1;
+            elem->postproc(input_port, nullptr, pkt);
+            batch->results[p] = pkt->output;
             batch->excluded[p] = (batch->results[p] == DROP);
         }
         batch->has_results = true;
@@ -290,12 +292,12 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
         /* Run postporcessing only. */
         for (unsigned p = 0; p < batch->count; p++) {
             if (batch->excluded[p]) continue;
-            unsigned elemsz = t->aligned_item_sizes.size;
-            unsigned offset = elemsz * p;
+            uintptr_t elemsz = t->aligned_item_sizes.size;
+            uintptr_t offset = elemsz * p;
             Packet *pkt = Packet::from_base(batch->packets[p]);
-            batch->results[p] = elem->postproc(input_port,
-                                               (char*) host_out_ptr + offset,
-                                               pkt);
+            pkt->output = -1;
+            elem->postproc(input_port, (char*) host_out_ptr + offset, pkt);
+            batch->results[p] = pkt->output;
             batch->excluded[p] = (batch->results[p] == DROP);
         }
         batch->has_results = true;

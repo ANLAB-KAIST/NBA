@@ -41,6 +41,7 @@ private:
     int output;
 
     friend class Element;
+    friend class DataBlock;
 
 public:
     struct annotation_set anno;
