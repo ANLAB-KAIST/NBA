@@ -1,8 +1,9 @@
 #include "L2Forward.hh"
-#include "../../lib/types.hh"
+#include <nba/framework/threadcontext.hh>
 #include <cassert>
-
+// TODO: replace with NBA's own Ethernet utilities
 #include <rte_string_fns.h>
+#include <rte_ether.h>
 
 
 using namespace std;

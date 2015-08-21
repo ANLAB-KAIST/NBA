@@ -11,6 +11,7 @@ typedef uint8_t u8;
 #include "util_jhash.h"
 
 using namespace std;
+using namespace nba;
 
 static void print128(uint128_t a)
 {

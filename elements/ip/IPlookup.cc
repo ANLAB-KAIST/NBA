@@ -2,14 +2,45 @@
 #ifdef USE_CUDA
 #include "IPlookup_kernel.hh"
 #endif
-#include "../../lib/computecontext.hh"
-#include "../../lib/types.hh"
+#include <nba/core/offloadtypes.hh>
+#include <nba/framework/threadcontext.hh>
+#include <nba/framework/computedevice.hh>
+#include <nba/framework/computecontext.hh>
+#include <nba/element/annotation.hh>
+#include <nba/element/nodelocalstorage.hh>
+#include <cstdio>
+#include <cstdlib>
+#include <cassert>
+#include <cerrno>
+#include <rte_ether.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
 
 using namespace std;
 using namespace nba;
 
 static unordered_map<uint32_t, uint16_t> pPrefixTable[33];
 static unsigned int current_TBLlong = 0;
+
+IPlookup::IPlookup(): OffloadableElement()
+{
+    #ifdef USE_CUDA
+    auto ch = [this](ComputeContext *ctx, struct resource_param *res) { this->cuda_compute_handler(ctx, res); };
+    offload_compute_handlers.insert({{"cuda", ch},});
+    auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
+    offload_init_handlers.insert({{"cuda", ih},});
+    #endif
+
+    num_tx_ports = 0;
+    rr_port = 0;
+    p_rwlock_TBL24 = NULL;
+    p_rwlock_TBLlong = NULL;
+    TBL24_h = NULL;
+    TBLlong_h = NULL;
+    TBL24_d = NULL;
+    TBLlong_d = NULL;
+}
 
 int IPlookup::initialize()
 {
@@ -167,6 +198,34 @@ int IPlookup::ipv4_route_del(uint32_t addr, uint16_t len)
     return 0;
 }
 
+int IPlookup::ipv4_load_rib_from_file(const char* filename)
+{
+    FILE *fp;
+    char buf[256];
+
+    fp = fopen(filename, "r");
+    if (fp == NULL) {
+        getcwd(buf, 256);
+        printf("NBA: IpCPULookup element: error during opening file \'%s\' from \'%s\'.: %s\n", filename, buf, strerror(errno));
+    }
+    assert(fp != NULL);
+
+    while (fgets(buf, 256, fp)) {
+        char *str_addr = strtok(buf, "/");
+        char *str_len = strtok(NULL, "\n");
+        assert(str_len != NULL);
+
+        uint32_t addr = ntohl(inet_addr(str_addr));
+        uint16_t len = atoi(str_len);
+
+        ipv4_route_add(addr, len, rand() % 65536);
+    }
+
+    fclose(fp);
+
+    return 0;
+}
+
 int IPlookup::ipv4_build_fib()
 {
     uint16_t *_TBL24    = (uint16_t *) ctx->node_local_storage->get_alloc("TBL24");
@@ -217,6 +276,24 @@ int IPlookup::ipv4_build_fib()
         }
     }
     return 0;
+}
+
+void IPlookup::ipv4_route_lookup(uint32_t ip, uint16_t *dest)
+{
+    uint16_t temp_dest;
+
+    // TODO: make an interface to set these locks to be
+    // automatically handled by process_batch() method.
+    //rte_rwlock_read_lock(p_rwlock_TBL24);
+    temp_dest = TBL24_h[ip >> 8];
+
+    if (temp_dest & 0x8000u) {
+        int index2 = (((uint32_t)(temp_dest & 0x7fff)) << 8) + (ip & 0xff);
+        temp_dest = TBLlong_h[index2];
+    }
+    //rte_rwlock_read_unlock(p_rwlock_TBL24);
+
+    *dest = temp_dest;
 }
 
 // vim: ts=8 sts=4 sw=4 et

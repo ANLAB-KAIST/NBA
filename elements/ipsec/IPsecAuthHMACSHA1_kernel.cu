@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
-#include "../../engines/cuda/utils.hh"
+#include <nba/engines/cuda/utils.hh>
 
 #include "IPsecAuthHMACSHA1_kernel.hh"
 
 /* Compatibility definitions. */
-#include "../../engines/cuda/compat.hh"
+#include <nba/engines/cuda/compat.hh>
 
 /* The index is given by the order in get_used_datablocks(). */
 #define dbid_enc_payloads_d (0)

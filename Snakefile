@@ -39,12 +39,12 @@ logger.debug(fmt('Compiling using {PMD} poll-mode driver...'))
 
 # List of source and header files
 THIRD_PARTY_DIR = '3rdparty'
-SOURCE_DIRS = ['lib', 'elements']
-SOURCE_DIRS += ['engines/dummy']
+SOURCE_DIRS = ['src/core', 'src/lib', 'elements']
+SOURCE_DIRS += ['src/engines/dummy']
 if USE_CUDA:
-    SOURCE_DIRS += ['engines/cuda']
+    SOURCE_DIRS += ['src/engines/cuda']
 if USE_PHI:
-    SOURCE_DIRS += ['engines/phi']
+    SOURCE_DIRS += ['src/engines/phi']
 BLACKLIST = {  # temporarily excluded for data-copy-optimization refactoring
     'elements/ipsec/IPsecHMACSHA1AES.cc',
     'elements/ipsec/IPsecHMACSHA1AES.hh',
@@ -68,7 +68,7 @@ BLACKLIST = {  # temporarily excluded for data-copy-optimization refactoring
 SOURCE_FILES = [s for s in compilelib.find_all(SOURCE_DIRS, r'^.+\.(c|cc|cpp)$') if s not in BLACKLIST]
 if USE_CUDA:
     SOURCE_FILES += [s for s in compilelib.find_all(SOURCE_DIRS, r'^.+\.cu$') if s not in BLACKLIST]
-SOURCE_FILES.append('main.cc')
+SOURCE_FILES.append('src/main.cc')
 HEADER_FILES         = [s for s in compilelib.find_all(SOURCE_DIRS, r'^.+\.(h|hh|hpp)$') if s not in BLACKLIST]
 ELEMENT_HEADER_FILES = [s for s in compilelib.find_all(['elements'], r'^.+\.(h|hh|hpp)$') if s not in BLACKLIST]
 
@@ -89,7 +89,7 @@ SUPPRESSED_CC_WARNINGS = (
     'unused-result',
     'unused-parameter',
 )
-CFLAGS         = '-march=native -O2 -g -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS))
+CFLAGS         = '-march=native -O2 -g -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude'
 if os.getenv('DEBUG', 0):
     CFLAGS     = '-march=native -Og -g3 -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -DDEBUG'
 #LIBS           = '-ltcmalloc_minimal -lnuma -lpthread -lpcre -lrt'
@@ -110,7 +110,7 @@ if v: CFLAGS += ' -DNBA_RANDOM_PORT_ACCESS'
 # NVIDIA CUDA configurations
 if USE_CUDA:
     CUDA_ARCHS    = compilelib.get_cuda_arch()
-    NVCFLAGS      = '-O2 -g -std=c++11 --use_fast_math -I/usr/local/cuda/include'
+    NVCFLAGS      = '-O2 -g -std=c++11 --use_fast_math -Iinclude -I/usr/local/cuda/include'
     CFLAGS       += ' -I/usr/local/cuda/include'
     LIBS         += ' -L/usr/local/cuda/lib64 -lcudart' #' -lnvidia-ml'
     print(CUDA_ARCHS)
@@ -233,7 +233,7 @@ rule clean:
 for srcfile in SOURCE_FILES:
     # We generate build rules dynamically depending on the actual header
     # dependencies to fully exploit automatic dependency checks.
-    includes = [f for f in compilelib.get_includes(srcfile)]
+    includes = [f for f in compilelib.get_includes(srcfile, 'include')]
     if srcfile.endswith('.c'):
         outputs = re.sub(r'(.+)\.c$', joinpath(OBJ_DIR, r'\1.o'), srcfile)
         rule:
@@ -255,11 +255,11 @@ for srcfile in SOURCE_FILES:
 
 rule elemmap:
     input: ELEMENT_HEADER_FILES
-    output: 'lib/element_map.hh'
+    output: 'include/nba/element/element_map.hh'
     run:
         elements = ((compilelib.detect_element_def(fname), fname) for fname in ELEMENT_HEADER_FILES)
         elements = list(filter(lambda t: t[0] is not None, elements))
-        with open('lib/element_map.hh', 'w') as fout:
+        with open('include/nba/element/element_map.hh', 'w') as fout:
             print('#ifndef __NBA_ELEMMAP_HH__', file=fout)
             print('#define __NBA_ELEMMAP_HH__', file=fout)
             print('/* DO NOT EDIT! This file is auto-generated. Run "snakemake elemmap" to update manually. */', file=fout)
@@ -267,7 +267,7 @@ rule elemmap:
             print('#include <functional>', file=fout)
             print('#include "element.hh"', file=fout)
             for eleminfo in elements:
-                print('#include "{hdrpath}"'.format(hdrpath=joinpath('..', eleminfo[1])), file=fout)
+                print('#include "{hdrpath}"'.format(hdrpath=joinpath('../../..', eleminfo[1])), file=fout)
             print('namespace nba {', file=fout)
             print('static std::unordered_map<std::string, struct element_info> element_registry = {', file=fout)
             for idx, eleminfo in enumerate(elements):

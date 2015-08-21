@@ -1,13 +1,7 @@
 #ifndef __NBA_ELEMENT_TOOUTPUT_HH__
 #define __NBA_ELEMENT_TOOUTPUT_HH__
 
-
-#include <rte_config.h>
-#include <rte_memory.h>
-#include <rte_mbuf.h>
-
-#include "../../lib/element.hh"
-#include "../../lib/annotation.hh"
+#include <nba/element/element.hh>
 #include <vector>
 #include <string>
 

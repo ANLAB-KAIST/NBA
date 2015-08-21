@@ -1,14 +1,12 @@
 #ifndef __NBA_ELEMENT_LOADBALANCEBYENV_HH__
 #define __NBA_ELEMENT_LOADBALANCEBYENV_HH__
 
-#include "../../lib/element.hh"
-#include "../../lib/annotation.hh"
-
-#include <rte_errno.h>
-#include <rte_log.h>
-
+#include <nba/element/element.hh>
+#include <nba/element/annotation.hh>
+#include <nba/framework/logging.hh>
 #include <vector>
 #include <string>
+#include <rte_errno.h>
 
 namespace nba {
 

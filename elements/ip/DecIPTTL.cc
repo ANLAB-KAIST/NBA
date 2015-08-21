@@ -1,5 +1,6 @@
 #include "DecIPTTL.hh"
-#include "../../lib/types.hh"
+#include <rte_ether.h>
+#include <netinet/ip.h>
 
 using namespace std;
 using namespace nba;
@@ -18,7 +19,7 @@ int DecIPTTL::configure(comp_thread_context *ctx, std::vector<std::string> &args
 int DecIPTTL::process(int input_port, Packet *pkt)
 {
     struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
-    struct iphdr *iph   = (struct iphdr *)(ethh + 1);
+    struct iphdr *iph      = (struct iphdr *)(ethh + 1);
     uint32_t sum;
 
     if (iph->ttl <= 1) {

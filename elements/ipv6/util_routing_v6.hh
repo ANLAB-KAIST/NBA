@@ -2,12 +2,10 @@
 #define __NBA_IPv6_ROUTINGTABLE_HH__
 
 #include <cstdint>
+#include <nba/core/threading.hh>
 #include "util_hash_table.hh"
 
-#include "../../lib/types.hh"
-
-using namespace std;
-using namespace nba;
+namespace nba {
 
 inline uint128_t mask(const uint128_t aa, int len)
 {
@@ -57,6 +55,8 @@ public:
 private:
     Lock build_lock_;
 };
+
+}
 
 #endif
 

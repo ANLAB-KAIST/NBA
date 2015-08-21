@@ -1,23 +1,12 @@
 #ifndef __NBA_ELEMENT_ETHER_ARPRESPONDER_HH__
 #define __NBA_ELEMENT_ETHER_ARPRESPONDER_HH__
 
-
-#include <rte_config.h>
-#include <rte_memory.h>
-#include <rte_mbuf.h>
-#include <rte_ether.h>
-
-#include "../../lib/element.hh"
-#include "../../lib/annotation.hh"
-//#include "../../lib/nodelocalstorage.hh"
+#include <nba/element/element.hh>
+#include <nba/element/annotation.hh>
 #include <vector>
 #include <string>
 #include <unordered_map>
-
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <arpa/inet.h>
-
+// TODO: separate EtherAddress definition
 #include "util_arptable.hh"
 
 namespace nba {
@@ -36,7 +25,7 @@ public:
     const char *port_count() const { return "1/1"; }
 
     int initialize();
-    int initialize_global();        // per-system configuration
+    int initialize_global();    // per-system configuration
     int initialize_per_node();  // per-node configuration
     int configure(comp_thread_context *ctx, std::vector<std::string> &args);
 

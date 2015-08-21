@@ -1,74 +1,24 @@
 #ifndef __NBA_ELEMENT_IPv6_LOOKUPIPV6ROUTE_HH__
 #define __NBA_ELEMENT_IPv6_LOOKUPIPV6ROUTE_HH__
 
-
-#include <rte_config.h>
-#include <rte_memory.h>
-#include <rte_mbuf.h>
-#include <rte_ether.h>
-
-#include "../../lib/element.hh"
-#include "../../lib/annotation.hh"
-#include "../../lib/computedevice.hh"
-#include "../../lib/computecontext.hh"
-#include "../../lib/nodelocalstorage.hh"
+#include <nba/element/element.hh>
 #include <vector>
 #include <string>
-#include <unordered_map>
-
-#include <stdint.h>
-
-#include <cstdio>
-#include <cstdlib>
-#include <assert.h>
-
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netinet/ip6.h>
-
+#include <rte_rwlock.h>
 #include "util_routing_v6.hh"
-#include <errno.h>
-
-#ifdef USE_CUDA
-#include <cuda.h>
-#include "../../engines/cuda/utils.hh"
-#endif
-
 #include "IPv6Datablocks.hh"
-
-using namespace std;
 
 namespace nba {
 
 class LookupIP6Route : public OffloadableElement {
 public:
-    LookupIP6Route(): OffloadableElement()
-    {
-        #ifdef USE_CUDA
-        auto ch = [this](ComputeContext *ctx, struct resource_param *res) { this->cuda_compute_handler(ctx, res); };
-        offload_compute_handlers.insert({{"cuda", ch},});
-        auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
-        offload_init_handlers.insert({{"cuda", ih},});
-        #endif
-
-        num_tx_ports = 0;
-        rr_port = 0;
-
-        _table_ptr = NULL;
-        _rwlock_ptr = NULL;
-        d_tables = NULL;
-        d_table_sizes = NULL;
-    }
-
-    virtual ~LookupIP6Route()
-    {
-    }
-
+    LookupIP6Route();
+    virtual ~LookupIP6Route() { }
     const char *class_name() const { return "LookupIP6Route"; }
     const char *port_count() const { return "1/1"; }
 
     int initialize();
-    int initialize_global();        // per-system configuration
+    int initialize_global();    // per-system configuration
     int initialize_per_node();  // per-node configuration
     int configure(comp_thread_context *ctx, std::vector<std::string> &args);
 

@@ -63,10 +63,11 @@ def find_all(dirlist, filepattern):
     return results
 
 _rx_included_local_header = re.compile(r'"(.+\.(h|hh))"')
-def get_includes(srcfile, dynamic_inputs=None, visited=None):
+_rx_included_nba_header = re.compile(r'<(nba/.+\.(h|hh))>')
+def get_includes(srcfile, nba_include_dir, dynamic_inputs=None, visited=None):
     '''
     Gets a list of included local header files from the given source file.
-    (e.g., #include "xxxx.hh")
+    (e.g., #include <nba/xxx/xxxx.hh>)
     '''
     results = set()
     visited = visited if visited else set()
@@ -75,16 +76,23 @@ def get_includes(srcfile, dynamic_inputs=None, visited=None):
             for line in f:
                 if line.startswith('#include'):
                     m = _rx_included_local_header.search(line)
-                    if not m: continue
-                    p = joinpath(os.path.split(srcfile)[0], m.group(1))
-                    if dynamic_inputs and any(di.endswith(p) for di in dynamic_inputs):
-                        p = dynamic(p)
-                    results.add(p)
+                    if m:
+                        p = joinpath(os.path.split(srcfile)[0], m.group(1))
+                        if dynamic_inputs and any(di.endswith(p) for di in dynamic_inputs):
+                            p = dynamic(p)
+                        results.add(p)
+                    m = _rx_included_nba_header.search(line)
+                    if m:
+                        p = joinpath(nba_include_dir, m.group(1))
+                        if dynamic_inputs and any(di.endswith(p) for di in dynamic_inputs):
+                            p = dynamic(p)
+                        results.add(p)
         for fname in results.copy():
             if (fname.endswith('.h') or fname.endswith('.hh')) \
                and not fname in visited:
                 visited.add(fname)
-                results.update(s for s in get_includes(fname, dynamic_inputs, visited))
+                results.update(s for s in get_includes(fname, nba_include_dir,
+                                                       dynamic_inputs, visited))
     except FileNotFoundError:
         pass
     return results

@@ -3,12 +3,14 @@
 #include <cstdio>
 
 #include <cuda.h>
-#include "../../engines/cuda/utils.hh"
+#include <nba/engines/cuda/utils.hh>
 #include "LookupIP6Route_kernel.hh"
 
 #include "util_jhash.h"
 #include "util_hash_table.hh"
-#include "../../engines/cuda/compat.hh"
+#include <nba/engines/cuda/compat.hh>
+
+using namespace nba;
 
 extern "C" {
 

@@ -1,8 +1,7 @@
 #ifndef __NBA_IPV6_DATABLOCKS_HH__
 #define __NBA_IPV6_DATABLOCKS_HH__
 
-#include "../../lib/packetbatch.hh"
-#include "../../lib/datablock.hh"
+#include <nba/framework/datablock.hh>
 #include "util_hash_table.hh"
 
 namespace nba {

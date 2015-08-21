@@ -1,51 +1,20 @@
 #ifndef __NBA_ELEMENT_IPSEC_IPSECAUTHHMACSHA1_HH__
 #define __NBA_ELEMENT_IPSEC_IPSECAUTHHMACSHA1_HH__
 
-
-#include <rte_config.h>
-#include <rte_memory.h>
-#include <rte_mbuf.h>
-#include <rte_ether.h>
-
-#include "../../lib/element.hh"
-#include "../../lib/annotation.hh"
-#include "../../lib/computedevice.hh"
-#include "../../lib/computecontext.hh"
-#include "../../lib/nodelocalstorage.hh"
+#include <nba/element/element.hh>
 #include <vector>
 #include <string>
-
-#include <openssl/sha.h>
-#include <openssl/hmac.h>
-#include <netinet/ip.h>
-
-#include "util_esp.hh"
+#include <unordered_map>
 #include "util_ipsec_key.hh"
 #include "util_sa_entry.hh"
-
 #include "IPsecDatablocks.hh"
 
 namespace nba {
 
 class IPsecAuthHMACSHA1 : public OffloadableElement {
 public:
-    IPsecAuthHMACSHA1(): OffloadableElement()
-    {
-        #ifdef USE_CUDA
-        auto ch = [this](ComputeContext *ctx, struct resource_param *res) { this->cuda_compute_handler(ctx, res); };
-        offload_compute_handlers.insert({{"cuda", ch},});
-        auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
-        offload_init_handlers.insert({{"cuda", ih},});
-        #endif
-
-        num_tunnels = 0;
-        dummy_index = 0;
-    }
-
-    ~IPsecAuthHMACSHA1()
-    {
-    }
-
+    IPsecAuthHMACSHA1();
+    ~IPsecAuthHMACSHA1() { }
     const char *class_name() const { return "IPsecAuthHMACSHA1"; }
     const char *port_count() const { return "1/1"; }
 
@@ -90,7 +59,7 @@ protected:
     int num_tunnels;
     int dummy_index;
 
-    unordered_map<struct ipaddr_pair, int> *h_sa_table; // tunnel lookup is done in CPU only. No need for GPU ptr.
+    std::unordered_map<struct ipaddr_pair, int> *h_sa_table; // tunnel lookup is done in CPU only. No need for GPU ptr.
     struct hmac_sa_entry *h_key_array = NULL;       // used in CPU.
     struct hmac_sa_entry *d_key_array_ptr = NULL;   // points to the device buffer.
 

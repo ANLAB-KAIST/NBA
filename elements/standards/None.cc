@@ -1,5 +1,4 @@
 #include "None.hh"
-#include "../../lib/types.hh"
 
 using namespace std;
 using namespace nba;

@@ -1,7 +1,9 @@
 #include "CheckIPHeader.hh"
-#include "../../lib/types.hh"
-#include "../../lib/log.hh"
-#include "../util/util_checksum.hh"
+#include <nba/core/checksum.hh>
+#include <nba/framework/logging.hh>
+#include <rte_ether.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
 
 using namespace std;
 using namespace nba;

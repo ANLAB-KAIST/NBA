@@ -1,13 +1,11 @@
 #ifndef __NBA_ELEMENT_CPUONLY_HH__
 #define __NBA_ELEMENT_CPUONLY_HH__
 
-
-#include <rte_errno.h>
-
-#include "../../lib/element.hh"
-#include "../../lib/annotation.hh"
+#include <nba/element/element.hh>
+#include <nba/element/annotation.hh>
 #include <vector>
 #include <string>
+#include <rte_errno.h>
 
 namespace nba {
 

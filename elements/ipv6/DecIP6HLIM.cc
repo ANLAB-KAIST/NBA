@@ -1,5 +1,6 @@
 #include "DecIP6HLIM.hh"
-#include "../../lib/types.hh"
+#include <rte_ether.h>
+#include <netinet/ip6.h>
 
 using namespace std;
 using namespace nba;

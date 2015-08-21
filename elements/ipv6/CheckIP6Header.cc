@@ -1,5 +1,8 @@
 #include "CheckIP6Header.hh"
-#include "../../lib/types.hh"
+#include <nba/framework/logging.hh>
+#include <rte_ether.h>
+#include <netinet/in.h>
+#include <netinet/ip6.h>
 
 using namespace std;
 using namespace nba;

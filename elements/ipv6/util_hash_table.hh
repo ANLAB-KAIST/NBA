@@ -11,6 +11,8 @@
 
 // A 128-bit unsigned integer.
 
+namespace nba {
+
 union uint128_t {
         uint32_t u32[4];
         uint64_t u64[2];
@@ -99,6 +101,8 @@ public:
     int m_NextChain;
     Item *m_Table;
 };
+
+}
 
 #endif
 

@@ -22,39 +22,23 @@
 #ifndef __NBA_UTIL_ARP_TABLE_HH__
 #define __NBA_UTIL_ARP_TABLE_HH__
 
-
-#include <rte_config.h>
-#include <rte_rwlock.h>
-#include <rte_cycles.h>
-#include <rte_memory.h>
-#include <rte_malloc.h>
-
-#include <rte_common.h>
-#include <rte_launch.h>
-#include <rte_eal.h>
-#include <rte_per_lcore.h>
-#include <rte_lcore.h>
-
-#include <rte_ether.h>
-
-
-#include <string.h>
-#include <sys/time.h>
-#include <unistd.h>
-
 #include <list>
-#include <vector>
 #include <unordered_map>
 #include <string>
-
+#include <cstring>
+#include <unistd.h>
+#include <sys/time.h>
 #include <net/if_arp.h>
 #include <netinet/ip.h>
+#include <rte_config.h>
+#include <rte_rwlock.h>
+#include <rte_ether.h>
 
-using namespace std;
+namespace nba {
 
 // Copied from <netinet/if_ether.h>
 // If we include <if_ether.h>, it collides with rte_ether.h
-struct  ether_arp {
+struct ether_arp {
     struct  arphdr ea_hdr;          /* fixed-size header */
     uint8_t arp_sha[6];             /* sender hardware address */
     uint8_t arp_spa[4];            /* sender protocol address */
@@ -81,7 +65,7 @@ public:
     // From stackoverflow
     // http://stackoverflow.com/questions/7326123/convert-mac-address-stdstring-into-uint64-t
     // Input string in the form of "AA:BB:CC:DD:EE:FF"
-    inline EtherAddress(string const& s) {
+    inline EtherAddress(std::string const& s) {
         uint8_t a[6];
         int last = -1;
         int rc = sscanf(s.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx%n",
@@ -172,8 +156,8 @@ class ARPTable { public:
   private:
     rte_rwlock_t _lock;
 
-    typedef unordered_map<uint32_t, ARPEntry*> EntryHashMap;
-    typedef list<ARPEntry *> AgeList;
+    typedef std::unordered_map<uint32_t, ARPEntry*> EntryHashMap;
+    typedef std::list<ARPEntry *> AgeList;
     EntryHashMap *_hash_map;
     AgeList *_age;
     uint32_t _entry_count;
@@ -216,6 +200,8 @@ ARPTable::lookup(uint32_t ip)
         eth.set_broadcast();
         return eth;
     }
+}
+
 }
 
 #endif

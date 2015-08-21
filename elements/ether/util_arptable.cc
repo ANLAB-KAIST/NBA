@@ -21,6 +21,8 @@
 
 #include "util_arptable.hh"
 
+using namespace nba;
+
 void convert_ip_addr(uint32_t from, uint8_t *to) {
     to[0] = (from & 0x000000ff);
     to[1] = (from & 0x0000ff00) >> 8;

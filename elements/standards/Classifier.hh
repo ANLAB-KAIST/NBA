@@ -1,16 +1,8 @@
 #ifndef __NBA_ELEMENT_STANDARD_CLASSIFIER_HH__
 #define __NBA_ELEMENT_STANDARD_CLASSIFIER_HH__
 
-
-#include <rte_config.h>
-#include <rte_memory.h>
-#include <rte_mbuf.h>
-#include <rte_ether.h>
-
-#include "../../lib/element.hh"
-#include "../../lib/annotation.hh"
+#include <nba/element/element.hh>
 #include <vector>
-#include <queue>
 #include <string>
 
 namespace nba {
@@ -23,12 +15,12 @@ struct MatchCondition {
 
 class Classifier : public Element {
 public:
-	Classifier(): Element()
-	{
-	}
+    Classifier(): Element()
+    {
+    }
 
-	~Classifier()
-	{
+    ~Classifier()
+    {
         std::vector<struct MatchCondition *>::iterator iter = condition_vector.begin();
         struct MatchCondition *condition = nullptr;
         struct MatchCondition *next_condition = nullptr;
@@ -40,22 +32,22 @@ public:
                 prev_condition = next_condition;
                 next_condition = next_condition->next;
                 free(prev_condition);
-            } 
+            }
             free(condition);
         }
-	}
+    }
 
-	const char *class_name() const { return "Classifier"; };
-	const char *port_count() const { return "1/*"; };
+    const char *class_name() const { return "Classifier"; };
+    const char *port_count() const { return "1/*"; };
 
-	int initialize();
-	int initialize_global() { return 0; };		// per-system configuration
-	int initialize_per_node() { return 0; };	// per-node configuration
-	int configure(comp_thread_context *ctx, std::vector<std::string> &args);
+    int initialize();
+    int initialize_global() { return 0; };      // per-system configuration
+    int initialize_per_node() { return 0; };    // per-node configuration
+    int configure(comp_thread_context *ctx, std::vector<std::string> &args);
 
-	int process(int input_port, Packet *pkt);
+    int process(int input_port, Packet *pkt);
 
-    std::vector<struct MatchCondition*> condition_vector; 
+    std::vector<struct MatchCondition*> condition_vector;
 };
 
 EXPORT_ELEMENT(Classifier);
@@ -63,3 +55,4 @@ EXPORT_ELEMENT(Classifier);
 }
 
 #endif
+// vim: ts=8 sts=4 sw=4 et

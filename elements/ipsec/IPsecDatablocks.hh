@@ -1,9 +1,9 @@
 #ifndef __NBA_IPSEC_DATABLOCKS_HH__
 #define __NBA_IPSEC_DATABLOCKS_HH__
 
-#include "../../lib/packet.hh"
-#include "../../lib/packetbatch.hh"
-#include "../../lib/datablock.hh"
+#include <nba/element/packet.hh>
+#include <nba/element/packetbatch.hh>
+#include <nba/framework/datablock.hh>
 #include <xmmintrin.h>
 #include <netinet/ip.h>
 #include <openssl/aes.h>
@@ -11,6 +11,7 @@
 #include "util_esp.hh"
 #include "util_ipsec_key.hh"
 #include "util_sa_entry.hh"
+#include <rte_ether.h>
 
 namespace nba {
 
@@ -212,7 +213,7 @@ public:
             /* Per-block loop for the packet. */
             unsigned strip_hdr_len = sizeof(struct ether_hdr) + sizeof(struct iphdr) + sizeof(struct esphdr);
             unsigned pkt_len = rte_pktmbuf_data_len(batch->packets[p]);
-            unsigned payload_len = ALIGN(pkt_len - strip_hdr_len, AES_BLOCK_SIZE);
+            unsigned payload_len = ALIGN_CEIL(pkt_len - strip_hdr_len, AES_BLOCK_SIZE);
             unsigned pkt_local_num_blocks = (payload_len + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE;
             for (unsigned q = 0; q < pkt_local_num_blocks; ++q) {
                 unsigned global_block_idx = global_block_cnt + q;
@@ -224,7 +225,7 @@ public:
             global_block_cnt  += pkt_local_num_blocks;
             // NOTE: 여기서 align하는 부분은 DataBlock READ_WHOLE_PACKET을 프레임워크가
             //       수행할 때 align하는 것과 동일한 방법을 써야 한다.
-            global_pkt_offset  = ALIGN(global_pkt_offset + pkt_len + SHA_DIGEST_LENGTH, CACHE_LINE_SIZE);
+            global_pkt_offset  = ALIGN_CEIL(global_pkt_offset + pkt_len + SHA_DIGEST_LENGTH, CACHE_LINE_SIZE);
         }
         out_bytes = sizeof(struct aes_block_info) * global_block_cnt;
         out_count = global_block_cnt;

@@ -2,6 +2,7 @@
 #include "util_routing_v6.hh"
 
 using namespace std;
+using namespace nba;
 
 int RoutingTableV6::from_random(int seed, int count)
 {

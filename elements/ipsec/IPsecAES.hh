@@ -1,53 +1,19 @@
 #ifndef __NBA_ELEMENT_IPSEC_IPSECAES_HH__
 #define __NBA_ELEMENT_IPSEC_IPSECAES_HH_
 
-
-#include <rte_config.h>
-#include <rte_memory.h>
-#include <rte_mbuf.h>
-#include <rte_ether.h>
-
-#include "../../lib/element.hh"
-#include "../../lib/annotation.hh"
-#include "../../lib/computedevice.hh"
-#include "../../lib/computecontext.hh"
-#include "../../lib/nodelocalstorage.hh"
+#include <nba/element/element.hh>
 #include <vector>
 #include <string>
-
-#include <netinet/ip.h>
-#include <openssl/evp.h>
-#include <openssl/err.h>
-#include <openssl/aes.h>
-#include <openssl/sha.h>
-
-#include "util_esp.hh"
-#include "util_ipsec_key.hh"
-#include "util_sa_entry.hh"
 #include <unordered_map>
-
+#include "util_sa_entry.hh"
 #include "IPsecDatablocks.hh"
 
 namespace nba {
 
 class IPsecAES : public OffloadableElement {
 public:
-    IPsecAES(): OffloadableElement()
-    {
-        #ifdef USE_CUDA
-        auto ch = [this](ComputeContext *ctx, struct resource_param *res) { this->cuda_compute_handler(ctx, res); };
-        offload_compute_handlers.insert({{"cuda", ch},});
-        auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
-        offload_init_handlers.insert({{"cuda", ih},});
-        #endif
-        num_tunnels = 0;
-    }
-
-    ~IPsecAES()
-    {
-    }
-
-
+    IPsecAES();
+    ~IPsecAES() { }
     const char *class_name() const { return "IPsecAES"; }
     const char *port_count() const { return "1/1"; }
 
@@ -94,7 +60,7 @@ protected:
     int num_tunnels;
 
     /* Per-thread pointers, which points to the node local storage variables. */
-    unordered_map<struct ipaddr_pair, int> *h_sa_table; // tunnel lookup is done in CPU only. No need for GPU ptr.
+    std::unordered_map<struct ipaddr_pair, int> *h_sa_table; // tunnel lookup is done in CPU only. No need for GPU ptr.
     struct aes_sa_entry *h_key_array = NULL; // used in CPU.
     memory_t d_key_array_ptr; // points to the device buffer.
 };

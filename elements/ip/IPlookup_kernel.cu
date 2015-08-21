@@ -10,13 +10,13 @@
 
 // includes, project
 #include <cuda.h>
-#include "../../engines/cuda/utils.hh"
+#include <nba/engines/cuda/utils.hh>
 #include "IPlookup_kernel.hh"
 
 #define IGNORED_IP 0xFFffFFffu
 
 /* Compatibility definitions. */
-#include "../../engines/cuda/compat.hh"
+#include <nba/engines/cuda/compat.hh>
 
 extern "C" {
 

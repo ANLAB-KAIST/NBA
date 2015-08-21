@@ -1,25 +1,11 @@
 #ifndef __NBA_ELEMENT_IPSEC_IPSECESPENCAP_HH__
 #define __NBA_ELEMENT_IPSEC_IPSECESPENCAP_HH__
 
-
-#include <rte_config.h>
-#include <rte_memory.h>
-#include <rte_mbuf.h>
-#include <rte_ether.h>
-
-#include "../../lib/element.hh"
-#include "../../lib/annotation.hh"
+#include <nba/element/element.hh>
 #include <vector>
 #include <string>
 #include <unordered_map>
 #include <functional>
-
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-
-#include <openssl/aes.h>
-#include <openssl/sha.h>
 
 #include "util_esp.hh"
 #include "../ipv6/util_hash_table.hh"

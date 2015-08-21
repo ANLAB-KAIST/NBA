@@ -2,8 +2,25 @@
 #ifdef USE_CUDA
 #include "LookupIP6Route_kernel.hh"
 #endif
-#include "../../lib/computecontext.hh"
-#include "../../lib/types.hh"
+#include <nba/element/annotation.hh>
+#include <nba/element/nodelocalstorage.hh>
+#include <nba/framework/threadcontext.hh>
+#include <nba/framework/computedevice.hh>
+#include <nba/framework/computecontext.hh>
+#include <cstdio>
+#include <cstdlib>
+#include <cassert>
+#include <cerrno>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netinet/ip6.h>
+#include <rte_ether.h>
+#include "util_routing_v6.hh"
+
+#ifdef USE_CUDA
+#include <cuda.h>
+#include <nba/engines/cuda/utils.hh>
+#endif
 
 using namespace std;
 using namespace nba;
@@ -14,6 +31,24 @@ static uint64_t ntohll(uint64_t val)
                 (((val) >> 24) & 0x0000000000ff0000) | (((val) >>  8) & 0x00000000ff000000) | \
                 (((val) <<  8) & 0x000000ff00000000) | (((val) << 24) & 0x0000ff0000000000) | \
                 (((val) << 40) & 0x00ff000000000000) | (((val) << 56) & 0xff00000000000000) );
+}
+
+LookupIP6Route::LookupIP6Route(): OffloadableElement()
+{
+    #ifdef USE_CUDA
+    auto ch = [this](ComputeContext *ctx, struct resource_param *res) { this->cuda_compute_handler(ctx, res); };
+    offload_compute_handlers.insert({{"cuda", ch},});
+    auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
+    offload_init_handlers.insert({{"cuda", ih},});
+    #endif
+
+    num_tx_ports = 0;
+    rr_port = 0;
+
+    _table_ptr = NULL;
+    _rwlock_ptr = NULL;
+    d_tables = NULL;
+    d_table_sizes = NULL;
 }
 
 int LookupIP6Route::initialize()

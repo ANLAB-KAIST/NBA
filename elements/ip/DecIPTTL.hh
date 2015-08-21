@@ -1,18 +1,9 @@
 #ifndef __NBA_ELEMENT_IP_DECIPTTL_HH__
 #define __NBA_ELEMENT_IP_DECIPTTL_HH__
 
-
-#include <rte_config.h>
-#include <rte_memory.h>
-#include <rte_mbuf.h>
-#include <rte_ether.h>
-
-#include "../../lib/element.hh"
-#include "../../lib/annotation.hh"
+#include <nba/element/element.hh>
 #include <vector>
 #include <string>
-
-#include <netinet/ip.h>
 
 namespace nba {
 

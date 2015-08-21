@@ -1,10 +1,14 @@
+#include <nba/core/intrinsic.hh>
+#include <nba/element/element.hh>
+#include <nba/element/packet.hh>
 #include "ARPQuerier.hh"
-#include "../../lib/types.hh"
+#include "util_arptable.hh"
+#include <net/if_arp.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
 
 using namespace std;
 using namespace nba;
-
-ARPTable *ARPQuerier::_table = NULL;
 
 int ARPQuerier::initialize()
 {

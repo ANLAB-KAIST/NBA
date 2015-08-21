@@ -1,19 +1,18 @@
 #ifndef __NBA_ELEMENT_LOADBALANCETHRUPUT_HH__
 #define __NBA_ELEMENT_LOADBALANCETHRUPUT_HH__
 
-#include "../../lib/element.hh"
-#include "../../lib/annotation.hh"
-#include "../../lib/loadbalancer.hh"
-#include "../../lib/queue.hh"
-
-#include <rte_errno.h>
-#include <rte_log.h>
-#include <rte_atomic.h>
-
+#include <nba/element/element.hh>
+#include <nba/element/annotation.hh>
+#include <nba/framework/loadbalancer.hh>
+#include <nba/framework/logging.hh>
+#include <nba/core/queue.hh>
+#include <nba/core/timing.hh>
 #include <vector>
 #include <string>
 #include <random>
 #include <cmath>
+#include <rte_errno.h>
+#include <rte_atomic.h>
 
 namespace nba {
 

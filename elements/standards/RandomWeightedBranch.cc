@@ -1,5 +1,4 @@
 #include "RandomWeightedBranch.hh"
-#include "../../lib/types.hh"
 #include <cmath>
 #include <limits>
 #include <stdexcept>

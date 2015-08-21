@@ -1,18 +1,16 @@
 #ifndef __NBA_ELEMENT_LOADBALANCEADAPTIVEGLOBAL_HH__
 #define __NBA_ELEMENT_LOADBALANCEADAPTIVEGLOBAL_HH__
 
-#include "../../lib/element.hh"
-#include "../../lib/annotation.hh"
-#include "../../lib/loadbalancer.hh"
-#include "../../lib/queue.hh"
-
-#include <rte_errno.h>
-#include <rte_log.h>
-#include <rte_atomic.h>
-
+#include <nba/element/element.hh>
+#include <nba/element/annotation.hh>
+#include <nba/framework/loadbalancer.hh>
+#include <nba/framework/logging.hh>
+#include <nba/core/queue.hh>
 #include <vector>
 #include <string>
 #include <random>
+#include <rte_errno.h>
+#include <rte_atomic.h>
 
 #define _LB_PPC_GLOBAL_MY_CPU_TIME (1000)
 #define _LB_PPC_GLOBAL_MY_CPU_DELTA (10)

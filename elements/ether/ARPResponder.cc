@@ -1,6 +1,11 @@
+#include <nba/element/element.hh>
 #include "ARPResponder.hh"
-#include "../../lib/types.hh"
+#include "util_arptable.hh"
 #include "sstream"
+#include <tuple>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <arpa/inet.h>
 
 using namespace std;
 using namespace nba;

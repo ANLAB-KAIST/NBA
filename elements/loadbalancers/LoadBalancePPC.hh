@@ -1,19 +1,17 @@
 #ifndef __NBA_ELEMENT_LOADBALANCEPPC_HH__
 #define __NBA_ELEMENT_LOADBALANCEPPC_HH__
 
-#include "../../lib/element.hh"
-#include "../../lib/annotation.hh"
-#include "../../lib/loadbalancer.hh"
-#include "../../lib/queue.hh"
-
-#include <rte_errno.h>
-#include <rte_log.h>
-#include <rte_atomic.h>
-
+#include <nba/element/element.hh>
+#include <nba/element/annotation.hh>
+#include <nba/framework/loadbalancer.hh>
+#include <nba/framework/logging.hh>
+#include <nba/core/queue.hh>
 #include <vector>
 #include <string>
 #include <random>
 #include <cmath>
+#include <rte_errno.h>
+#include <rte_atomic.h>
 
 #define LB_PPC_CPU_RATIO_MULTIPLIER (1000)
 #define LB_PPC_CPU_RATIO_DELTA (50)

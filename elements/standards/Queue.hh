@@ -1,12 +1,9 @@
 #ifndef __NBA_ELEMENT_QUEUE_HH__
 #define __NBA_ELEMENT_QUEUE_HH__
 
-
 #include <rte_errno.h>
-
-#include "../../lib/element.hh"
-#include "../../lib/annotation.hh"
-#include "../../lib/queue.hh"
+#include <nba/element/element.hh>
+#include <nba/core/queue.hh>
 #include <vector>
 #include <string>
 

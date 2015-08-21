@@ -2,7 +2,19 @@
 #ifdef USE_CUDA
 #include "IPsecAuthHMACSHA1_kernel.hh"
 #endif
-#include "../../lib/types.hh"
+#include <nba/element/annotation.hh>
+#include <nba/element/nodelocalstorage.hh>
+#include <nba/framework/threadcontext.hh>
+#include <nba/framework/computedevice.hh>
+#include <nba/framework/computecontext.hh>
+#include <openssl/sha.h>
+#include <openssl/hmac.h>
+#include <netinet/ip.h>
+#include "util_esp.hh"
+#include "util_ipsec_key.hh"
+#include "util_sa_entry.hh"
+#include <rte_memory.h>
+#include <rte_ether.h>
 
 using namespace std;
 using namespace nba;
@@ -14,6 +26,19 @@ struct hmac_sa_entry *hmac_sa_entry_array;
 /* Map which stores (src-dst pair, tunnel index).
  * It is copied to each node's node local storage during per-node initialization*/
 unordered_map<struct ipaddr_pair, int> hmac_sa_table;
+
+IPsecAuthHMACSHA1::IPsecAuthHMACSHA1(): OffloadableElement()
+{
+    #ifdef USE_CUDA
+    auto ch = [this](ComputeContext *ctx, struct resource_param *res) { this->cuda_compute_handler(ctx, res); };
+    offload_compute_handlers.insert({{"cuda", ch},});
+    auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
+    offload_init_handlers.insert({{"cuda", ih},});
+    #endif
+
+    num_tunnels = 0;
+    dummy_index = 0;
+}
 
 int IPsecAuthHMACSHA1::initialize()
 {

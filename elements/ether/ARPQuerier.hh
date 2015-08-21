@@ -1,29 +1,17 @@
 #ifndef __NBA_ELEMENT_ETHER_ARPQUERIER_HH__
 #define __NBA_ELEMENT_ETHER_ARPQUERIER_HH__
 
-
-#include <rte_config.h>
-#include <rte_memory.h>
-#include <rte_mbuf.h>
-#include <rte_ether.h>
-
-#include "../../lib/element.hh"
-#include "../../lib/annotation.hh"
-//#include "../../lib/nodelocalstorage.hh"
+#include <nba/element/element.hh>
 #include <vector>
 #include <string>
 
-#include "util_arptable.hh"
-
-#include <net/if_arp.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-
 namespace nba {
+
+class ARPTable;
 
 class ARPQuerier : public SchedulableElement {
 public:
-    ARPQuerier(): SchedulableElement()
+    ARPQuerier(): SchedulableElement(), _table(NULL)
     {
         prev = {0, 0};
     }
@@ -51,7 +39,7 @@ private:
 
     struct timespec prev;
 
-    static ARPTable *_table;    // per-element ARP table, which is malloced on heap. (Is it okay??)
+    ARPTable *_table;  // FIXME: use node-local storage
 };
 
 EXPORT_ELEMENT(ARPQuerier);
