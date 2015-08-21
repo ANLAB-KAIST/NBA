@@ -1,5 +1,5 @@
-#ifndef __NBA_OBJTYPES_HH__
-#define __NBA_OBJTYPES_HH__
+#ifndef __NBA_OFFLOADTYPES_HH__
+#define __NBA_OFFLOADTYPES_HH__
 
 #include <cstdint>
 #ifdef USE_CUDA

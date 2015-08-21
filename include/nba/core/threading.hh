@@ -1,5 +1,5 @@
-#ifndef __NBA_THREAD_HH__
-#define __NBA_THREAD_HH__
+#ifndef __NBA_THREADING_HH__
+#define __NBA_THREADING_HH__
 
 /**
  * NBA's Portable Thread Primitives.

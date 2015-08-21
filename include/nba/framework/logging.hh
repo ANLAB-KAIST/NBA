@@ -1,5 +1,5 @@
-#ifndef __NBA_LOGGING_HH__
-#define __NBA_LOGGING_HH__
+#ifndef __NBA_HIGHLEVEL_LOGGING_HH__
+#define __NBA_HIGHLEVEL_LOGGING_HH__
 
 #include <rte_config.h>
 #include <rte_log.h>

@@ -1,16 +1,14 @@
-#ifndef __IO_HH__
-#define __IO_HH__
+#ifndef __NBA_IO_HH__
+#define __NBA_IO_HH__
 
 #include <nba/core/intrinsic.hh>
-#include <nba/core/threading.hh>
 #include <nba/framework/config.hh>
-#include <nba/framework/threadcontext.hh>
-#include <nba/element/annotation.hh>
-
 #include <rte_atomic.h>
 
-
 namespace nba {
+
+struct io_thread_context;
+class PacketBatch;
 
 struct io_port_stat {
     uint64_t num_recv_pkts;

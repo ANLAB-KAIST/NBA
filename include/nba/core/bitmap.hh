@@ -1,8 +1,8 @@
 /*
- * bitmap.hpp
+ * bitmap.hh
  *
  *  Created on: 2014. 9. 12.
- *      Author: 근홍
+ *      Author: Keunhong Lee
  */
 
 #ifndef __NBA_BITMAP_HPP__

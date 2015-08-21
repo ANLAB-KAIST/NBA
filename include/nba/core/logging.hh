@@ -1,5 +1,5 @@
-#ifndef __NBA_COMMON_HH__
-#define __NBA_COMMON_HH__
+#ifndef __NBA_LOGGING_HH__
+#define __NBA_LOGGING_HH__
 
 #define GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 

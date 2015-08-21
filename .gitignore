@@ -32,7 +32,7 @@ bin/main
 *.hex
 
 # Miscelleneous
-lib/*_map.hh
+include/nba/element/*_map.hh
 configs/pcre_table
 .settings
 scripts/run.sh
