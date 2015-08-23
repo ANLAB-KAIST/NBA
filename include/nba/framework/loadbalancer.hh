@@ -3,7 +3,6 @@
 
 #include <nba/framework/config.hh>
 #include <nba/framework/computedevice.hh>
-#include <nba/element/packetbatch.hh>
 #include <vector>
 
 namespace nba {

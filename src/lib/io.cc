@@ -36,94 +36,17 @@
 #include <rte_atomic.h>
 #include <rte_byteorder.h>
 #include <rte_errno.h>
-#include <rte_log.h>
 #include <rte_memory.h>
 #include <rte_memzone.h>
 #include <rte_malloc.h>
 #include <rte_memcpy.h>
+#include <rte_mempool.h>
 #include <rte_mbuf.h>
 #include <rte_byteorder.h>
 #include <rte_ethdev.h>
 #include <rte_prefetch.h>
 #include <rte_cycles.h>
 #include <rte_ring.h>
-/* {{{ netinet/dpdk header clash resolution */
-#ifdef IPPROTO_IP
-#undef IPPROTO_IP
-#endif
-#ifdef IPPROTO_HOPOPTS
-#undef IPPROTO_HOPOPTS
-#endif
-#ifdef IPPROTO_ICMP
-#undef IPPROTO_ICMP
-#endif
-#ifdef IPPROTO_IGMP
-#undef IPPROTO_IGMP
-#endif
-#ifdef IPPROTO_TCP
-#undef IPPROTO_TCP
-#endif
-#ifdef IPPROTO_EGP
-#undef IPPROTO_EGP
-#endif
-#ifdef IPPROTO_PUP
-#undef IPPROTO_PUP
-#endif
-#ifdef IPPROTO_UDP
-#undef IPPROTO_UDP
-#endif
-#ifdef IPPROTO_IDP
-#undef IPPROTO_IDP
-#endif
-#ifdef IPPROTO_TP
-#undef IPPROTO_TP
-#endif
-#ifdef IPPROTO_IPV6
-#undef IPPROTO_IPV6
-#endif
-#ifdef IPPROTO_ROUTING
-#undef IPPROTO_ROUTING
-#endif
-#ifdef IPPROTO_FRAGMENT
-#undef IPPROTO_FRAGMENT
-#endif
-#ifdef IPPROTO_RSVP
-#undef IPPROTO_RSVP
-#endif
-#ifdef IPPROTO_GRE
-#undef IPPROTO_GRE
-#endif
-#ifdef IPPROTO_ESP
-#undef IPPROTO_ESP
-#endif
-#ifdef IPPROTO_AH
-#undef IPPROTO_AH
-#endif
-#ifdef IPPROTO_ICMPV6
-#undef IPPROTO_ICMPV6
-#endif
-#ifdef IPPROTO_NONE
-#undef IPPROTO_NONE
-#endif
-#ifdef IPPROTO_DSTOPTS
-#undef IPPROTO_DSTOPTS
-#endif
-#ifdef IPPROTO_MTP
-#undef IPPROTO_MTP
-#endif
-#ifdef IPPROTO_ENCAP
-#undef IPPROTO_ENCAP
-#endif
-#ifdef IPPROTO_PIM
-#undef IPPROTO_PIM
-#endif
-#ifdef IPPROTO_SCTP
-#undef IPPROTO_SCTP
-#endif
-#ifdef IPPROTO_RAW
-#undef IPPROTO_RAW
-#endif
-/* }}} */
 #include <rte_ether.h>
 #include <rte_ip.h>
 #include <rte_udp.h>

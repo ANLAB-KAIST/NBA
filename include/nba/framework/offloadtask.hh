@@ -8,8 +8,6 @@
 #include <nba/framework/threadcontext.hh>
 #include <nba/framework/computecontext.hh>
 #include <nba/framework/datablock.hh>
-#include <nba/element/annotation.hh>
-#include <nba/element/packetbatch.hh>
 #include <cstdint>
 #include <vector>
 #include <ev.h>
@@ -18,8 +16,10 @@
 
 namespace nba {
 
+/* Forward declarations */
 class ElementGraph;
 class OffloadableElement;
+class PacketBatch;
 
 class OffloadTask {
 public:

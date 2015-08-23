@@ -2,11 +2,8 @@
 #define __NBA_THREADCONTEXT_HH__
 
 #include <nba/core/intrinsic.hh>
-#include <nba/core/offloadtypes.hh>
-#include <nba/core/threading.hh>
 #include <nba/core/queue.hh>
 #include <nba/framework/config.hh>
-#include <nba/element/annotation.hh>
 #include <cstdint>
 #include <cstdbool>
 #include <string>
@@ -18,11 +15,9 @@
 #include <unistd.h>
 #include <ev.h>
 #include <rte_config.h>
-#include <rte_common.h>
 #include <rte_atomic.h>
-#include <rte_mbuf.h>
-#include <rte_ether.h>
 #include <rte_ring.h>
+#include <rte_ether.h>
 
 namespace nba {
 
@@ -40,7 +35,6 @@ class ComputeContext;
 class NodeLocalStorage;
 class OffloadTask;
 class comp_thread_context;
-struct annotation_set;
 struct io_port_stat;
 
 struct core_location {

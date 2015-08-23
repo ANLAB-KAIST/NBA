@@ -26,6 +26,7 @@
 #include <rte_errno.h>
 #include <rte_malloc.h>
 #include <rte_mbuf.h>
+#include <rte_mempool.h>
 #include <rte_ring.h>
 #include <rte_cycles.h>
 #include <rte_prefetch.h>
