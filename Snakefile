@@ -275,4 +275,4 @@ rule elemmap:
                       .format(idx=idx, name=eleminfo[0]), file=fout)
             print('};\n}\n#endif', file=fout)
 
-# vim: ft=python
+# vim: ft=snakemake
