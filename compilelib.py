@@ -24,7 +24,7 @@ def get_cuda_arch():
     devtypes_found = set()
     for devtype in supported_archs:
         fname = devtype + '_DEVICES'
-        with open(fname, 'r') as f:
+        with open(fname, 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
                 if not line: continue
@@ -72,7 +72,7 @@ def get_includes(srcfile, nba_include_dir, dynamic_inputs=None, visited=None):
     results = set()
     visited = visited if visited else set()
     try:
-        with open(srcfile, 'r') as f:
+        with open(srcfile, 'r', encoding='utf-8') as f:
             for line in f:
                 if line.startswith('#include'):
                     m = _rx_included_local_header.search(line)
@@ -99,7 +99,7 @@ def get_includes(srcfile, nba_include_dir, dynamic_inputs=None, visited=None):
 
 _rx_export_elem_decl = re.compile(r'^EXPORT_ELEMENT\(([a-zA-Z0-9_]+)\)')
 def detect_element_def(header_file):
-    with open(header_file, 'r') as fin:
+    with open(header_file, 'r', encoding='utf-8') as fin:
         for line in fin:
             m = _rx_export_elem_decl.search(line)
             if not m: continue
@@ -107,7 +107,7 @@ def detect_element_def(header_file):
 
 _rx_export_lb_decl = re.compile(r'EXPORT_LOADBALANCER\(([a-zA-Z0-9_]+)\)')
 def detect_loadbalancer_def(header_file):
-    with open(header_file, 'r') as fin:
+    with open(header_file, 'r', encoding='utf-8') as fin:
         for line in fin:
             m = _rx_export_lb_decl.search(line)
             if not m: continue

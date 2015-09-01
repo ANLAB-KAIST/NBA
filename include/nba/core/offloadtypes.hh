@@ -1,6 +1,7 @@
 #ifndef __NBA_OFFLOADTYPES_HH__
 #define __NBA_OFFLOADTYPES_HH__
 
+#include <cstdlib>
 #include <cstdint>
 #ifdef USE_CUDA
 #include <cuda_runtime.h>
