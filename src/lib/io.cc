@@ -569,8 +569,12 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
              * 1 GbE cards. */
             unsigned txq = ctx->loc.global_thread_idx;
             unsigned sent_cnt = rte_eth_tx_burst((uint8_t) o, txq, pkts, count);
-            for (unsigned k = sent_cnt; k < count; k++)
+            for (unsigned k = sent_cnt; k < count; k++) {
+                struct rte_mbuf* cur_pkt = out_batches[o].packets[k];
+                unsigned len = rte_pktmbuf_pkt_len(cur_pkt) + 24;
+                ctx->port_stats[o].num_sent_bytes -= len;
                 rte_pktmbuf_free(pkts[k]);
+            }
             ctx->port_stats[o].num_sent_pkts += sent_cnt;
             ctx->port_stats[o].num_tx_drop_pkts += (count - sent_cnt);
             ctx->global_tx_cnt += sent_cnt;
