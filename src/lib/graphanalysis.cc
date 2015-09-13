@@ -25,16 +25,6 @@ const vector<vector<GraphMetaData*> > &GraphAnalyzer::get_linear_groups()
     return linear_group_set;
 }
 
-GraphMetaData::GraphMetaData()
-{
-    this->linear_group = -1;
-}
-
-GraphMetaData::~GraphMetaData()
-{
-
-}
-
 void GraphMetaData::link(GraphMetaData* child)
 {
     this->outEdge.insert(child);
@@ -52,7 +42,6 @@ void GraphAnalyzer::analyze(ParseInfo* info)
     int linear_group_id = 0;
     int total_modules = click_num_module(info);
     int total_roots = click_num_root(info);
-    vector<vector<GraphMetaData*> > linear_group_set;
 
     /* This loop groups elements into a set of disjoint linear paths. */
     for (int root_id = 0; root_id < total_roots; root_id++) {

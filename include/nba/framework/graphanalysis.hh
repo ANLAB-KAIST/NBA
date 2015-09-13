@@ -48,8 +48,8 @@ private:
     std::vector<L::Bitmap> dbReadBitmap;
     std::vector<L::Bitmap> dbWriteBitmap;
 public:
-    GraphMetaData();
-    virtual ~GraphMetaData();
+    GraphMetaData() : linear_group(-1) { }
+    virtual ~GraphMetaData() { }
 
     void link(GraphMetaData* child);
     int get_linear_group();
