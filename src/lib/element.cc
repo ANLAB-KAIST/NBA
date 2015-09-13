@@ -1,6 +1,7 @@
 #include <nba/core/offloadtypes.hh>
 #include <nba/framework/config.hh>
 #include <nba/framework/elementgraph.hh>
+#include <nba/framework/offloadtask.hh>
 #include <nba/element/packet.hh>
 #include <nba/element/packetbatch.hh>
 #include <nba/element/element.hh>
@@ -20,6 +21,8 @@
 
 using namespace std;
 using namespace nba;
+ 
+static uint64_t task_id = 0;
 
 Element::Element() : next_elems(), next_connected_inputs()
 {
@@ -113,6 +116,100 @@ int Element::initialize() {
 
 int Element::configure(comp_thread_context *ctx, vector<string> &args) {
     this->ctx = ctx;
+    return 0;
+}
+
+int OffloadableElement::offload(ElementGraph *mother, PacketBatch *in_batch, int input_port)
+{
+    int dev_idx = 0;
+    OffloadTask *task = nullptr;
+    if (tasks[dev_idx] == nullptr) {
+        #ifdef USE_NVPROF
+        nvtxRangePush("accum_batch");
+        #endif
+        /* We assume: task pool size >= task input queue length */
+        int ret = rte_mempool_get(ctx->task_pool, (void **) &task);
+        if (ret == -ENOENT) {
+            //if (!ctx->io_ctx->loop_broken)
+            //    ev_run(ctx->io_ctx->loop, EVRUN_NOWAIT);
+            /* Keep the current batch for later processing. */
+            return -1;
+        }
+        new (task) OffloadTask();
+        task->state = TASK_INITIALIZING;
+        task->task_id = task_id ++;
+        task->src_loop = ctx->loop;
+        task->comp_ctx = ctx;
+        task->completion_queue = ctx->task_completion_queue;
+        task->completion_watcher = ctx->task_completion_watcher;
+        task->elemgraph = mother;
+        task->local_dev_idx = dev_idx;
+        //task->device = ctx->offload_devices->at(dev_idx);
+        //assert(task->device != nullptr);
+        task->elem = this;
+
+        tasks[dev_idx] = task;
+    } else
+        task = tasks[dev_idx];
+    assert(task != nullptr);
+
+    /* Add the current batch if the task batch is not full. */
+    if (task->batches.size() < ctx->num_coproc_ppdepth) {
+        task->batches.push_back(in_batch);
+        task->input_ports.push_back(input_port);
+        #ifdef USE_NVPROF
+        nvtxMarkA("add_batch");
+        #endif
+    } else {
+        return -1;
+    }
+
+    /* Start offloading when one or more following conditions are met:
+     *  1. The task batch size has reached the limit (num_coproc_ppdepth).
+     *     This is the ideal case that pipelining happens and GPU utilization is high.
+     *  2. The load balancer has changed its decision to CPU.
+     *     We need to flush the pending offload tasks.
+     *  3. The time elapsed since the first packet is greater than
+     *     10 x avg.task completion time.
+     */
+    assert(task->batches.size() > 0);
+    uint64_t now = rte_rdtsc();
+    if (task->batches.size() == ctx->num_coproc_ppdepth
+        // || (task->num_bytes >= 64 * ctx->num_coproc_ppdepth * ctx->io_ctx->num_iobatch_size)
+        // || (task->batches.size() > 1 && (rdtsc() - task->offload_start) / (double) rte_get_tsc_hz() > 0.0005)
+        // || (ctx->io_ctx->mode == IO_EMUL && !ctx->stop_task_batching)
+        )
+    {
+        //printf("avg task completion time: %.6f sec\n", ctx->inspector->avg_task_completion_sec[dev_idx]);
+
+        tasks[dev_idx] = nullptr;  // Let the element be able to take next pkts/batches.
+        task->offload_start = now;
+
+        task->state = TASK_INITIALIZED;
+        mother->ready_tasks[dev_idx].push_back(task);
+        #ifdef USE_NVPROF
+        nvtxRangePop();
+        #endif
+    }
+    return 0;
+}
+
+int OffloadableElement::enqueue_batch(PacketBatch *batch)
+{
+    finished_batches.push_back(batch);
+    return 0;
+}
+
+int OffloadableElement::dispatch(uint64_t loop_count, PacketBatch*& out_batch, uint64_t &next_delay)
+{
+    /* Retrieve out_batch from the internal completion_queue. */
+    if (finished_batches.size() > 0) {
+        out_batch = finished_batches.front();
+        finished_batches.pop_front();
+    } else {
+        out_batch = nullptr;
+    }
+    next_delay = 0;
     return 0;
 }
 

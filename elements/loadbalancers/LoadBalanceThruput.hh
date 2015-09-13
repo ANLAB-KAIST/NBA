@@ -60,7 +60,7 @@ public:
     {
         /* Generate a random number and find the interval where it belongs to. */
         int64_t x = uniform_dist(random_generator);
-        int choice = (x > local_cpu_ratio);
+        int choice = (x > local_cpu_ratio) - 1;
         anno_set(&batch->banno, NBA_BANNO_LB_DECISION, choice);
         return 0;
     }

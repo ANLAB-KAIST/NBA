@@ -7,10 +7,18 @@
 #include <nba/element/element.hh>
 #include <nba/element/packetbatch.hh>
 #include <vector>
+#include <map>
 
 namespace nba {
 
 #define ROOT_ELEMENT (nullptr)
+
+enum ElementOffloadingActions : int {
+    ELEM_OFFL_NOTHING = 0,
+    ELEM_OFFL_PREPROC = 1,
+    ELEM_OFFL_POSTPROC = 2,
+    ELEM_OFFL_POSTPROC_FIN = 4,
+};
 
 class Element;
 class OffloadTask;
@@ -41,14 +49,12 @@ public:
     /* Tries to run all delayed batches. */
     void flush_delayed_batches();
 
-    /**
-     * A special case on completion of offloading.
-     * It begins DFS-based element graph traversing from the given
-     * offloaded element, with all results already calculated in the
-     * coprocessor thread.
-     */
-    void enqueue_postproc_batch(PacketBatch *batch, Element *offloaded_elem,
-                                int input_port);
+    /* Scan and execute schedulable elements. */
+    void scan_offloadable_elements();
+
+    bool check_preproc(OffloadableElement *oel, int dbid);
+    bool check_postproc(OffloadableElement *oel, int dbid);
+    bool check_postproc_all(OffloadableElement *oel);
 
     /**
      * Check if the given datablock (represented as a global ID) is reused
@@ -106,11 +112,18 @@ protected:
     comp_thread_context *ctx;
 
     FixedRing<PacketBatch *, nullptr> queue;
-    FixedRing<OffloadTask *, nullptr> ready_tasks[NBA_MAX_PROCESSOR_TYPES];
+    FixedRing<OffloadTask *, nullptr> ready_tasks[NBA_MAX_COPROCESSOR_TYPES];
     FixedRing<PacketBatch *, nullptr> delayed_batches;
 
 private:
+    std::map<std::pair<OffloadableElement*, int>, int> offl_actions;
+    std::set<OffloadableElement*> offl_fin;
+
     SchedulableElement *input_elem;
+
+    friend int io_loop(void *arg);
+    friend int OffloadableElement::offload(ElementGraph *mother, PacketBatch *in_batch, int input_port);
+    friend void comp_thread_context::build_element_graph(const char *config);
 
 };
 

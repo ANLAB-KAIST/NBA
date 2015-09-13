@@ -32,7 +32,7 @@ ElementGraph::ElementGraph(comp_thread_context *ctx)
     input_elem = nullptr;
     assert(0 == rte_malloc_validate(ctx, NULL));
     /* IMPORTANT: ready_tasks must be larger than task_pool. */
-    for (int i = 0; i < NBA_MAX_PROCESSOR_TYPES; i++)
+    for (int i = 0; i < NBA_MAX_COPROCESSOR_TYPES; i++)
         ready_tasks[i].init(256, ctx->loc.node_id);
 }
 
@@ -41,19 +41,22 @@ void ElementGraph::flush_offloaded_tasks()
     if (unlikely(ctx->io_ctx->loop_broken))
         return;
 
-    for (int dev_idx = 1; dev_idx < NBA_MAX_PROCESSOR_TYPES; dev_idx++) {
+    for (int dev_idx = 0; dev_idx < NBA_MAX_COPROCESSOR_TYPES; dev_idx++) {
 
-        uint64_t len_ready_tasks = ready_tasks[dev_idx].size();
-        print_ratelimit("# ready tasks", len_ready_tasks, 10000);
+        //uint64_t len_ready_tasks = ready_tasks[dev_idx].size();
+        //print_ratelimit("# ready tasks", len_ready_tasks, 10000);
         // TODO: now it's possible to merge multiple tasks to increase batch size!
 
         while (!ready_tasks[dev_idx].empty()) {
             OffloadTask *task = ready_tasks[dev_idx].front();
             ready_tasks[dev_idx].pop_front();
+            if (task == nullptr)
+                continue;
 
             /* Start offloading! */
             // TODO: create multiple cctx_list and access them via dev_idx for hetero-device systems.
             ComputeContext *cctx = ctx->cctx_list.front();
+
             if (cctx->state == ComputeContext::READY) {
 
                 /* Grab a compute context. */
@@ -68,43 +71,61 @@ void ElementGraph::flush_offloaded_tasks()
                 cctx->currently_running_task = task;
                 task->cctx = cctx;
 
-                /* In the GPU side, datablocks argument has only used
-                 * datablocks in the beginning of the array (not sparsely). */
-                int datablock_ids[NBA_MAX_DATABLOCKS];
-                size_t num_db_used = task->elem->get_used_datablocks(datablock_ids);
-                for (unsigned k = 0; k < num_db_used; k++) {
-                    int dbid = datablock_ids[k];
-                    task->datablocks.push_back(dbid);
-                    task->dbid_h2d[dbid] = k;
+                if (task->state < TASK_PREPARED) {
+                    task->cctx = cctx;
+
+                    /* In the GPU side, datablocks argument has only used
+                     * datablocks in the beginning of the array (not sparsely). */
+                    int datablock_ids[NBA_MAX_DATABLOCKS];
+                    size_t num_db_used = task->elem->get_used_datablocks(datablock_ids);
+                    for (unsigned k = 0; k < num_db_used; k++) {
+                        int dbid = datablock_ids[k];
+                        task->datablocks.push_back(dbid);
+                        task->dbid_h2d[dbid] = k;
+                    }
+
+                    //size_t total_num_pkts = 0;
+                    for (PacketBatch *batch : task->batches) {
+                        //total_num_pkts = batch->count;
+                        if (batch->datablock_states == nullptr) {
+                            assert(0 == rte_mempool_get(ctx->dbstate_pool, (void **) &batch->datablock_states));
+                        }
+                        //assert(task->offload_start);
+                        //task->offload_cost += (rte_rdtsc() - task->offload_start);
+                        task->offload_start = 0;
+                    }
+                    //print_ratelimit("avg.# pkts sent to GPU", total_num_pkts, 100);
+                    //assert(total_num_pkts > 0);
+
+                    /* Calculate required buffer sizes, allocate them, and initialize them.
+                     * The mother buffer is statically allocated on start-up and here we
+                     * reserve regions inside it. */
+                    task->prepare_read_buffer();
+                    task->prepare_write_buffer();
+                    task->state = TASK_PREPARED;
                 }
 
-                for (PacketBatch *batch : task->batches) {
-                    if (batch->datablock_states == nullptr)
-                        assert(0 == rte_mempool_get(ctx->dbstate_pool, (void **) &batch->datablock_states));
-                }
-                //print_ratelimit("avg.# pkts sent to GPU", total_num_pkts, 100);
-
-                task->prepare_read_buffer();
-                task->prepare_write_buffer();
-
-                /* Until this point, no device operations (e.g., CUDA API calls) has been executed. */
                 /* Enqueue the offload task. */
-                assert(0 == rte_ring_enqueue(ctx->offload_input_queues[dev_idx], (void*) task));
-                ev_async_send(ctx->coproc_ctx->loop, ctx->offload_devices->at(dev_idx)->input_watcher);
-                if (ctx->inspector) ctx->inspector->dev_sent_batch_count[dev_idx] += task->batches.size();
+                int ret = rte_ring_enqueue(ctx->offload_input_queues[dev_idx], (void*) task);
+                if (ret == ENOENT) {
+                    ready_tasks[dev_idx].push_front(task);
+                    break;
+                } else {
+                    ev_async_send(ctx->coproc_ctx->loop, ctx->offload_devices->at(dev_idx)->input_watcher);
+                    if (ctx->inspector) ctx->inspector->dev_sent_batch_count[0] += task->batches.size();
+                }
                 #ifdef USE_NVPROF
                 nvtxRangePop();
                 #endif
 
             } else {
 
-                /* There is no available compute contexts.
-                 * Delay the current offloading task and break. */
-                ready_tasks[dev_idx].push_back(task);
+                /* Delay the current offloading task and break. */
+                ready_tasks[dev_idx].push_front(task);
                 break;
 
-            }
-        }
+            } /* endif(task.prepared) */
+        } /* endif(compctx.ready) */
     }
 }
 
@@ -139,6 +160,24 @@ void ElementGraph::free_batch(PacketBatch *batch, bool free_pkts)
                 //rte_pktmbuf_free(batch->packets[p]);
     }
     rte_mempool_put(ctx->batch_pool, (void *) batch);
+}
+
+void ElementGraph::scan_offloadable_elements()
+{
+    PacketBatch *next_batch = nullptr;
+    const auto &selems = get_schedulable_elements();
+    for (SchedulableElement *selem : selems) {
+        if (0 != (selem->get_type() & ELEMTYPE_OFFLOADABLE)) {
+            do {
+                next_batch = nullptr;
+                selem->dispatch(0, next_batch, selem->_last_delay);
+                if (next_batch != nullptr) {
+                    next_batch->has_results = true;
+                    run(next_batch, selem, 0);
+                }
+            } while (next_batch != nullptr);
+        } /* endif(ELEMTYPE_OFFLOADABLE) */
+    } /* endfor(selems) */
 }
 
 void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
@@ -177,93 +216,20 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
             if (current_elem->get_type() & ELEMTYPE_OFFLOADABLE) {
                 OffloadableElement *offloadable = dynamic_cast<OffloadableElement*>(current_elem);
                 assert(offloadable != nullptr);
-                if (lb_decision > 0) {
+                if (lb_decision != -1) {
                     /* Get or initialize the task object.
                      * This step is always executed for every input batch
                      * passing every offloadable element. */
-                    int dev_idx = lb_decision;
-                    OffloadTask *task = nullptr;
-                    if (offloadable->tasks[dev_idx] == nullptr) {
-                        #ifdef USE_NVPROF
-                        nvtxRangePush("accum_batch");
-                        #endif
-                        /* We assume: task pool size >= task input queue length */
-                        //printf("current cuda task qlen: %lu\n", ready_tasks[dev_idx].size());
-                        int ret = rte_mempool_get(ctx->task_pool, (void **) &task);
-                        if (ret == -ENOENT) {
-                            if (!ctx->io_ctx->loop_broken)
-                                ev_run(ctx->io_ctx->loop, EVRUN_NOWAIT);
-                            /* Keep the current batch for later processing. */
-                            batch->delay_start = rdtscp();
-                            delayed_batches.push_back(batch);
-                            continue;
-                        }
-                        new (task) OffloadTask();
-                        task->src_loop = ctx->loop;
-                        task->comp_ctx = ctx;
-                        task->completion_queue = ctx->task_completion_queue;
-                        task->completion_watcher = ctx->task_completion_watcher;
-                        task->elemgraph = this;
-                        task->offload_start = rdtscp();
-                        task->local_dev_idx = dev_idx;
-                        //task->device = ctx->offload_devices->at(dev_idx);
-                        //assert(task->device != nullptr);
-                        task->elem = offloadable;
-
-                        offloadable->tasks[dev_idx] = task;
-                    } else
-                        task = offloadable->tasks[dev_idx];
-                    assert(task != nullptr);
-
-                    /* Add the current batch if the task batch is not full. */
-                    if (task->batches.size() < ctx->num_coproc_ppdepth) {
-                        task->batches.push_back(batch);
-                        task->input_ports.push_back(input_port);
-                        task->num_pkts += batch->count;
-                        for (unsigned p = 0; p < batch->count; p++) {
-                            if (!batch->excluded[p])
-                                task->num_bytes += Packet::from_base(batch->packets[p])->length();
-                        }
-                        #ifdef USE_NVPROF
-                        nvtxMarkA("add_batch");
-                        #endif
-                    } else {
+                    if (offloadable->offload(this, batch, input_port) != 0) {
                         /* We have no room for batch in the preparing task.
                          * Keep the current batch for later processing. */
-                        batch->delay_start = rdtscp();
+                        assert(batch->delay_start == 0);
+                        batch->delay_start = rte_rdtsc();
                         delayed_batches.push_back(batch);
-                        continue;
                     }
-
-                    /* Start offloading when one or more following conditions are met:
-                     *  1. The task batch size has reached the limit (num_coproc_ppdepth).
-                     *     This is the ideal case that pipelining happens and GPU utilization is high.
-                     *  2. The load balancer has changed its decision to CPU.
-                     *     We need to flush the pending offload tasks.
-                     *  3. The time elapsed since the first packet is greater than
-                     *     10 x avg.task completion time.
-                     */
-                    assert(task->batches.size() > 0);
-                    if (
-                            (task->batches.size() == ctx->num_coproc_ppdepth)
-                       //|| (task->num_bytes >= 64 * ctx->num_coproc_ppdepth * ctx->io_ctx->num_iobatch_size)
-                       //|| (task->batches.size() > 1 && (rdtsc() - task->offload_start) / (double) rte_get_tsc_hz() > 0.0005)
-                       //|| (ctx->io_ctx->mode == IO_EMUL && !ctx->stop_task_batching)
-                       )
-                    {
-                        //printf("avg task completion time: %.6f sec\n", ctx->inspector->avg_task_completion_sec[dev_idx]);
-                        offloadable->tasks[dev_idx] = nullptr;  // Let the element be able to take next pkts/batches.
-                        ready_tasks[dev_idx].push_back(task);
-                        #ifdef USE_NVPROF
-                        nvtxRangePop();
-                        #endif
-                    }
-                    flush_offloaded_tasks();
-
                     /* At this point, the batch is already consumed to the task
                      * or delayed. */
                     continue;
-
                 } else {
                     /* If not offloaded, run the element's CPU-version handler. */
                     batch_disposition = current_elem->_process_batch(input_port, batch);
@@ -274,7 +240,6 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                 batch_disposition = current_elem->_process_batch(input_port, batch);
             }
         }
-        lb_decision = anno_get(&batch->banno, NBA_BANNO_LB_DECISION);
 
         /* If the element was per-batch and it said it will keep the batch,
          * we do not have to perform batch-split operations below. */
@@ -284,8 +249,14 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
         /* When offloading is complete, processing of the resultant batches begins here.
          * (ref: enqueue_postproc_batch) */
 
-        /* Here, we should have the results no matter what happened before. */
-        assert(batch->has_results == true);
+        /* Here, we should have the results no matter what happened before.
+         * If not, drop all packets in the batch. */
+        if (!batch->has_results) {
+            RTE_LOG(DEBUG, ELEM, "elemgraph: dropping a batch with no results\n");
+            if (ctx->inspector) ctx->inspector->drop_pkt_count += batch->count;
+            free_batch(batch);
+            continue;
+        }
 
         //assert(current_elem->num_max_outputs <= num_max_outputs || current_elem->num_max_outputs == -1);
         size_t num_outputs = current_elem->next_elems.size();
@@ -399,8 +370,6 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                                 while (rte_mempool_get(ctx->batch_pool, (void**)(out_batches + o)) == -ENOENT
                                        && !ctx->io_ctx->loop_broken) {
                                     ev_run(ctx->io_ctx->loop, EVRUN_NOWAIT);
-                                    flush_delayed_batches();
-                                    flush_offloaded_tasks();
                                 }
                                 new (out_batches[o]) PacketBatch();
                                 anno_set(&out_batches[o]->banno, NBA_BANNO_LB_DECISION, lb_decision);
@@ -492,8 +461,6 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                 while (rte_mempool_get_bulk(ctx->batch_pool, (void **) out_batches, num_outputs) == -ENOENT
                        && !ctx->io_ctx->loop_broken) {
                     ev_run(ctx->io_ctx->loop, EVRUN_NOWAIT);
-                    flush_delayed_batches();
-                    flush_offloaded_tasks();
                 }
 
                 // TODO: optimize by choosing/determining the "major" path and reuse the
@@ -580,13 +547,42 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
     return;
 }
 
-void ElementGraph::enqueue_postproc_batch(PacketBatch *batch, Element *offloaded_elem, int input_port)
+bool ElementGraph::check_preproc(OffloadableElement *oel, int dbid)
 {
-    assert(offloaded_elem != nullptr);
-    assert(batch->has_results == true);
-    batch->element = offloaded_elem;
-    batch->input_port = input_port;
-    delayed_batches.push_back(batch);
+#ifdef NBA_REUSE_DATABLOCKS
+    auto key = make_pair(oel, dbid);
+    auto it = offl_actions.find(key);
+    if (it != offl_actions.end() && 0 != (offl_actions[key] & ELEM_OFFL_PREPROC))
+        return true;
+    return false;
+#else
+    return true;
+#endif
+}
+
+bool ElementGraph::check_postproc(OffloadableElement *oel, int dbid)
+{
+#ifdef NBA_REUSE_DATABLOCKS
+    auto key = make_pair(oel, dbid);
+    auto it = offl_actions.find(key);
+    if (it != offl_actions.end() && 0 != (offl_actions[key] & ELEM_OFFL_POSTPROC))
+        return true;
+    return false;
+#else
+    return true;
+#endif
+}
+
+bool ElementGraph::check_postproc_all(OffloadableElement *oel)
+{
+#ifdef NBA_REUSE_DATABLOCKS
+    auto it = offl_fin.find(oel);
+    if (it != offl_fin.end())
+        return true;
+    return false;
+#else
+    return true;
+#endif
 }
 
 bool ElementGraph::check_datablock_reuse(Element *offloaded_elem, int datablock_id)

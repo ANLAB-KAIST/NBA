@@ -65,14 +65,6 @@ namespace nba {
 
 static thread_local uint64_t recv_batch_cnt = 0;
 
-#ifdef NBA_SLEEPY_IO
-struct rx_state {
-    uint16_t rx_length;
-    uint16_t rx_quick_sleep;
-    uint16_t rx_full_quick_sleep_count;
-};
-#endif
-
 #ifdef TEST_MINIMAL_L2FWD
 struct packet_batch {
     unsigned count;
@@ -101,14 +93,13 @@ static void comp_task_init(struct rte_mempool *mp, void *arg, void *obj, unsigne
     OffloadTask *t = (OffloadTask *) obj;
     new (t) OffloadTask();
 }
-
-static inline void comp_check_delayed_operations(comp_thread_context *ctx)
+static void comp_check_cb(struct ev_loop *loop, struct ev_check *watcher, int revents)
 {
-    if (likely(!ctx->io_ctx->loop_broken)) {
-        ev_run(ctx->io_ctx->loop, EVRUN_NOWAIT);
-        ctx->elem_graph->flush_delayed_batches();
-        ctx->elem_graph->flush_offloaded_tasks();
-    }
+    io_thread_context *io_ctx = (io_thread_context *) ev_userdata(loop);
+    comp_thread_context *ctx = io_ctx->comp_ctx;
+    ctx->elem_graph->flush_delayed_batches();
+    ctx->elem_graph->flush_offloaded_tasks();
+    ctx->elem_graph->scan_offloadable_elements();
 }
 
 static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_async *watcher, int revents)
@@ -152,8 +143,7 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
             total_batch_size += task->batches[b]->count;
         for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++) {
             task->batches[b]->compute_time += (uint64_t) ((float) task_cycles / total_batch_size - ((float) task->batches[b]->delay_time / task->batches[b]->count));
-            ctx->elem_graph->enqueue_postproc_batch(task->batches[b], task->elem,
-                                                    task->input_ports[b]);
+            task->elem->enqueue_batch(task->batches[b]);
         }
 
         /* Free the task object. */
@@ -164,7 +154,6 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
         /* Free the resources used for this offload task. */
         cctx->currently_running_task = nullptr;
         cctx->state = ComputeContext::READY;
-        //ctx->cctx_list.push_back(cctx);
 
         #ifdef USE_NVPROF
         nvtxRangePop();
@@ -175,28 +164,29 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
     #endif
 }
 
-static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count, uint64_t loop_count)
+static size_t comp_process_batch(io_thread_context *ctx, void *pkts, size_t count, uint64_t loop_count)
 {
     assert(count <= ctx->comp_ctx->num_combatch_size);
-    if (count == 0) return;
+    if (count == 0) return 0;
     int ret;
-    PacketBatch *batch = NULL;
-    do {
+    PacketBatch *batch = nullptr;
+    while (true) {
         ret = rte_mempool_get(ctx->comp_ctx->batch_pool, (void **) &batch);
+        if (unlikely(ctx->loop_broken)) return 0;
         if (ret == -ENOENT) {
             /* Try to free some batches by processing
-             * offload-completino events. */
-            if (unlikely(ctx->loop_broken))
-                break;
-            comp_check_delayed_operations(ctx->comp_ctx);
-        }
-    } while (ret == -ENOENT);
-    if (unlikely(ctx->loop_broken))
-        return;
+             * offload-completion events. */
+            ev_run(ctx->loop, EVRUN_NOWAIT);
+        } else
+            break;
+    }
+
+    /* Okay, let's initialize a new packet batch. */
+    assert(batch != nullptr);
     new (batch) PacketBatch();
     memcpy((void **) &batch->packets[0], (void **) pkts, count * sizeof(void*));
     batch->banno.bitmask = 0;
-    anno_set(&batch->banno, NBA_BANNO_LB_DECISION, 0);
+    anno_set(&batch->banno, NBA_BANNO_LB_DECISION, -1);
 
     unsigned p;
     /* t is NOT the actual receive timestamp but a
@@ -258,6 +248,8 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
         next_batch->has_results = true; // skip processing
         ctx->comp_ctx->elem_graph->run(next_batch, input_elem, 0);
     }
+
+    return count;
 }
 /* ===== END_OF_COMP ===== */
 
@@ -511,7 +503,7 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
 {
     PacketBatch out_batches[NBA_MAX_PORTS];
     uint64_t t = rdtscp();
-    int64_t proc_id = anno_get(&batch->banno, NBA_BANNO_LB_DECISION);  // adjust range to be positive
+    int64_t proc_id = anno_get(&batch->banno, NBA_BANNO_LB_DECISION) + 1; // adjust range to be positive
     ctx->comp_ctx->inspector->update_batch_proc_time(t - batch->recv_timestamp);
     ctx->comp_ctx->inspector->update_pkt_proc_cycles(batch->compute_time, proc_id);
 //#ifdef NBA_CPU_MICROBENCH
@@ -688,7 +680,7 @@ int io_loop(void *arg)
     snprintf(temp, RTE_MEMPOOL_NAMESIZE,
          "comp.batch.%u:%u@%u", ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
     ctx->comp_ctx->batch_pool = rte_mempool_create(temp, ctx->comp_ctx->num_batchpool_size + 1,
-                                                   sizeof(PacketBatch), 64,
+                                                   sizeof(PacketBatch), CACHE_LINE_SIZE,
                                                    0, nullptr, nullptr,
                                                    comp_packetbatch_init, nullptr,
                                                    ctx->loc.node_id, 0);
@@ -722,7 +714,7 @@ int io_loop(void *arg)
     ctx->comp_ctx->packet_pool = packet_create_mempool(128, ctx->loc.node_id, ctx->loc.core_id);
     assert(ctx->comp_ctx->packet_pool != nullptr);
 
-    ctx->comp_ctx->inspector = (SystemInspector *) rte_malloc_socket(NULL, sizeof(SystemInspector),
+    ctx->comp_ctx->inspector = (SystemInspector *) rte_malloc_socket(nullptr, sizeof(SystemInspector),
                                                                      CACHE_LINE_SIZE, ctx->loc.node_id);
     new (ctx->comp_ctx->inspector) SystemInspector();
 
@@ -732,6 +724,13 @@ int io_loop(void *arg)
         // TODO: remove this event and just check the completion queue on every iteration.
         ev_async_start(ctx->loop, ctx->comp_ctx->task_completion_watcher);
     }
+
+    /* Register per-iteration check event. */
+    ctx->comp_ctx->check_watcher = (struct ev_check *) rte_malloc_socket(nullptr, sizeof(struct ev_check),
+                                                                         CACHE_LINE_SIZE, ctx->loc.node_id);
+    ev_check_init(ctx->comp_ctx->check_watcher, comp_check_cb);
+    ev_check_start(ctx->loop, ctx->comp_ctx->check_watcher);
+
     /* ==== END_OF_COMP ====*/
 
     /* Register the termination event. */
@@ -768,12 +767,6 @@ int io_loop(void *arg)
     ctx->stat_timer->repeat = 1.;
     ev_timer_again(ctx->loop, ctx->stat_timer);
 
-#ifdef NBA_SLEEPY_IO
-    struct rx_state *states = (struct rx_state *) rte_malloc_socket("rxstates",
-            sizeof(*states) * ctx->num_hw_rx_queues,
-            64, ctx->loc.node_id);
-    memset(states, 0, sizeof(*states) * ctx->num_hw_rx_queues);
-#endif
 #ifdef TEST_MINIMAL_L2FWD
     unsigned txq = (ctx->loc.node_id * (ctx->num_tx_ports / num_nodes)) + ctx->loc.local_thread_idx;
     struct packet_batch *batch = (struct packet_batch *) rte_malloc_socket("pktbatch",
@@ -878,43 +871,8 @@ int io_loop(void *arg)
                     break;
                 }
             } else {/*}}}*/
-#ifdef NBA_SLEEPY_IO /*{{{*/
-                struct rx_state *state = &states[i];
-                if ((state->rx_quick_sleep --) > 0) {
-                    pthread_yield();
-#  if !defined(TEST_RXONLY) && !defined(TEST_MINIMAL_L2FWD)
-                    goto __skip_rx;
-#  else
-                    continue;
-#  endif
-                }
-
-#  if !defined(TEST_RXONLY) && !defined(TEST_MINIMAL_L2FWD)
-                state->rx_length = rte_eth_rx_burst((uint8_t) port_idx, rxq,
-                                                    //pkts, RTE_MIN(free_cnt, ctx->num_iobatch_size));
-                                                    &pkts[total_recv_cnt], ctx->num_iobatch_size);
-#  else
-                state->rx_length = rte_eth_rx_burst((uint8_t) port_idx, rxq,
-                                                    &pkts[total_recv_cnt], ctx->num_iobatch_size);
-#  endif
-                state->rx_quick_sleep = (uint16_t) (ctx->num_iobatch_size - state->rx_length);
-                if (state->rx_length != 0) {
-                    /* We received some packets, and expect some more packets may arrive soon.
-                     * Reset the sleep amount. */
-                    state->rx_full_quick_sleep_count = 0;
-                } else {
-                    /* No packets. We need some sleep. Adjust how much to sleep. */
-                    if (state->rx_full_quick_sleep_count < ctx->num_iobatch_size)
-                        /* Increase sleep count if no return happens repeatedly. */
-                        state->rx_full_quick_sleep_count ++;
-                    state->rx_quick_sleep = (uint16_t) (state->rx_quick_sleep \
-                                                        * state->rx_full_quick_sleep_count);
-                }
-                recv_cnt = state->rx_length;
-#else /*}}}*/
                 recv_cnt = rte_eth_rx_burst((uint8_t) port_idx, rxq,
                                              &pkts[total_recv_cnt], ctx->num_iobatch_size);
-#endif        /* endif NBA_SLEEPY_IO */
             } /* endif IO_EMUL */
 
 #if !defined(TEST_RXONLY) && !defined(TEST_MINIMAL_L2FWD)
@@ -1002,49 +960,31 @@ int io_loop(void *arg)
             }
         }
 
-        /* Process received packets. */
-        print_ratelimit("# received pkts from all rxq", total_recv_cnt, 10000);
-
-        ctx->comp_ctx->stop_task_batching = (total_recv_cnt == 0); // not used currently...
-        #ifdef NBA_CPU_MICROBENCH
-        PAPI_start(ctx->papi_evset_comp);
-        #endif
-
-        ctx->comp_ctx->elem_graph->flush_offloaded_tasks();
-        ctx->comp_ctx->elem_graph->flush_delayed_batches();
-        unsigned comp_batch_size = ctx->comp_ctx->num_combatch_size;
-        for (unsigned pidx = 0; pidx < total_recv_cnt; pidx += comp_batch_size) {
-            comp_process_batch(ctx, &pkts[pidx], RTE_MIN(comp_batch_size, total_recv_cnt - pidx), loop_count);
-        }
-
+        /* Scan and execute schedulable elements. */
         const auto &selems = ctx->comp_ctx->elem_graph->get_schedulable_elements();
+        uint64_t now = 0;
+        if ((loop_count & 0x3ff) == 0)
+            now = get_usec();
         for (SchedulableElement *selem : selems) {
-            PacketBatch *next_batch = nullptr;
-            if (0 == (selem->get_type() & ELEMTYPE_INPUT)) { // FromInput is executed in comp_process_batch() already.
-                while (true) {
-                    /* Try to "drain" internally stored batches. */
-                    if (selem->_last_delay == 0) {
-                        ret = selem->dispatch(loop_count, next_batch, selem->_last_delay);
-                        if (selem->_last_check_tick == 0)
-                            selem->_last_call_ts = get_usec();
-                        selem->_last_check_tick ++;
-                    } else if (selem->_last_check_tick > 100) { // rate-limit calls to clock_gettime()
-                        uint64_t now = get_usec();
-                        if (now >= selem->_last_call_ts + selem->_last_delay) {
-                            ret = selem->dispatch(loop_count, next_batch, selem->_last_delay);
-                            selem->_last_call_ts = now;
-                        }
-                        selem->_last_check_tick = 0;
-                    } else
-                        selem->_last_check_tick ++;
-                    if (next_batch != nullptr) {
-                        next_batch->has_results = true; // skip processing
-                        ctx->comp_ctx->elem_graph->run(next_batch, selem, 0);
-                    } else
-                        break;
+            /* FromInput is handled by comp_process_batch(). */
+            if (0 == (selem->get_type() & ELEMTYPE_INPUT)) {
+                PacketBatch *next_batch = nullptr;
+                if (now > 0 && selem->_last_delay != 0 && now >= selem->_last_call_ts + selem->_last_delay) {
+                    ret = selem->dispatch(loop_count, next_batch, selem->_last_delay);
+                    selem->_last_call_ts = now;
+                }
+                if (selem->_last_delay == 0) {
+                    ret = selem->dispatch(loop_count, next_batch, selem->_last_delay);
+                }
+                /* Try to "drain" internally stored batches. */
+                while (next_batch != nullptr) {
+                    next_batch->has_results = true; // skip processing
+                    ctx->comp_ctx->elem_graph->run(next_batch, selem, 0);
+                    ret = selem->dispatch(loop_count, next_batch, selem->_last_delay);
                 };
-            }
-        }
+            } /* endif(!ELEMTYPE_INPUT) */
+        } /* endfor(selems) */
+
         #ifdef NBA_CPU_MICROBENCH
         {
             long long ctr[5];
@@ -1053,8 +993,6 @@ int io_loop(void *arg)
                 ctx->papi_ctr_comp[i] += ctr[i];
         }
         #endif
-
-        loop_count ++;
 
         while (!rte_ring_empty(ctx->new_packet_request_ring))/*{{{*/
         {
@@ -1088,9 +1026,21 @@ int io_loop(void *arg)
             rte_mempool_put(ctx->new_packet_request_pool, new_packet);
         }/*}}}*/
 
+        /* Process received packets. */
+        print_ratelimit("# received pkts from all rxq", total_recv_cnt, 10000);
+        #ifdef NBA_CPU_MICROBENCH
+        PAPI_start(ctx->papi_evset_comp);
+        #endif
+        unsigned comp_batch_size = ctx->comp_ctx->num_combatch_size;
+        for (unsigned pidx = 0; pidx < total_recv_cnt; pidx += comp_batch_size) {
+            comp_process_batch(ctx, &pkts[pidx], RTE_MIN(comp_batch_size, total_recv_cnt - pidx), loop_count);
+        }
+
         /* The io event loop. */
         if (likely(!ctx->loop_broken))
             ev_run(ctx->loop, EVRUN_NOWAIT);
+
+        loop_count ++;
     }
     if (ctx->loc.local_thread_idx == 0) {
         ctx->init_cond->~CondVar();

@@ -95,7 +95,7 @@ struct io_thread_context {
 
     char _reserved1[64];
 
-    struct rte_ring* rx_queue;
+    struct rte_ring *rx_queue;
     struct ev_async *rx_watcher;
     struct port_info tx_ports[NBA_MAX_PORTS];
     comp_thread_context *comp_ctx;
@@ -185,6 +185,7 @@ public:
 
     struct rte_ring *task_completion_queue; /* to receive completed offload tasks */
     struct ev_async *task_completion_watcher;
+    struct ev_check *check_watcher;
 } __cache_aligned;
 
 struct coproc_thread_context {

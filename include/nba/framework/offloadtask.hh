@@ -16,6 +16,16 @@
 
 namespace nba {
 
+enum TaskStates {
+    TASK_INITIALIZING = 0,
+    TASK_INITIALIZED = 1,
+    TASK_PREPARED = 2,
+    TASK_H2D_COPYING = 3,
+    TASK_EXECUTING = 4,
+    TASK_D2H_COPYING = 5,
+    TASK_FINISHED = 6
+};
+
 /* Forward declarations */
 class ElementGraph;
 class OffloadableElement;
@@ -53,6 +63,7 @@ public:
     double offload_cost;
     size_t num_pkts;
     size_t num_bytes;
+    enum TaskStates state;
 
     /* Initialized by element graph. */
     int local_dev_idx;
@@ -71,6 +82,10 @@ public:
 
     struct ev_async *completion_watcher __cache_aligned;
     struct rte_ring *completion_queue __cache_aligned;
+
+private:
+    uint64_t task_id; // for deubgging
+    friend class OffloadableElement;
 };
 
 }

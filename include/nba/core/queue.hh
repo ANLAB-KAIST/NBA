@@ -157,10 +157,10 @@ public:
         /* Default constructor. You must explicitly call init() to use the instance. */
     }
 
-    FixedRing(size_t max_size, int numa_node = 0)
+    FixedRing(size_t max_size, int numa_node = 0, T *xmem = nullptr)
         : v_(nullptr), push_idx(0), pop_idx(0), count(0), max_size(max_size)
     {
-        init(max_size, numa_node);
+        init(max_size, numa_node, xmem);
     }
 
     virtual ~FixedRing()
@@ -169,12 +169,16 @@ public:
             rte_free(v_);
     }
 
-    void init(size_t max_size, int numa_node = 0)
+    void init(size_t max_size, int numa_node = 0, T *xmem = nullptr)
     {
         assert(max_size > 0);
         this->count = 0;
         this->max_size = max_size;
-        v_ = (T*) rte_malloc_socket("fixedring", sizeof(T) * max_size, 64, numa_node);
+        if (xmem == nullptr) {
+            v_ = (T*) rte_malloc_socket("fixedring", sizeof(T) * max_size, 64, numa_node);
+        } else {
+            v_ = xmem;
+        }
         assert(v_ != nullptr);
     }
 
@@ -183,6 +187,14 @@ public:
         assert(count < max_size);
         v_[push_idx] = t;
         push_idx = (push_idx + 1) % max_size;
+        count ++;
+    }
+
+    void push_front(T t)
+    {
+        assert(count < max_size);
+        v_[pop_idx - 1] = t;
+        pop_idx = (pop_idx - 1) % max_size;
         count ++;
     }
 

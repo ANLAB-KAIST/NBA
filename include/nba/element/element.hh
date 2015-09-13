@@ -19,6 +19,7 @@ namespace nba {
 
 /* Forward declarations. */
 class Element;
+class ElementGraph;
 class OffloadTask;
 class comp_thread_context;
 class ComputeContext;
@@ -58,6 +59,7 @@ private:
 
     private:
         friend class Element;
+        friend class GraphMetaData;
 
         int my_idx;
         Element *elem;
@@ -186,15 +188,18 @@ public:
     uint64_t _last_check_tick;
 };
 
-class OffloadableElement : virtual public Element {
+class OffloadableElement : virtual public SchedulableElement {
 
     friend class ElementGraph;
+
+private:
+    static const size_t MAX_FINBATCH_QLEN = NBA_MAX_COPROC_PPDEPTH * 16;
 
 public:
     int reuse_head_ref = 0;
     int reuse_tail_ref = 0;
 
-    OffloadableElement() : Element()
+    OffloadableElement() : SchedulableElement()
     {
         if (dummy_device) {
             auto ch = [this] (ComputeContext *ctx, struct resource_param *res) {
@@ -202,12 +207,23 @@ public:
             };
             offload_compute_handlers.insert({{"dummy", ch},});
         }
-        for (int i = 0; i < NBA_MAX_PROCESSOR_TYPES; i++)
+        for (int i = 0; i < NBA_MAX_COPROCESSOR_TYPES; i++)
             tasks[i] = nullptr;
+        finished_batches.init(MAX_FINBATCH_QLEN, -1, finished_batches_arrbuf);
     }
     virtual ~OffloadableElement() {}
-    int get_type() const { return ELEMTYPE_OFFLOADABLE; }
+    int get_type() const { return ELEMTYPE_OFFLOADABLE | ELEMTYPE_SCHEDULABLE; }
 
+    /** Begins offloading of the given batch. */
+    int offload(ElementGraph *mother, PacketBatch *in_batch, int input_port);
+
+    /** Stores the batches that are returned from offloading. */
+    int enqueue_batch(PacketBatch *batch);
+
+    /** Resumes the element graph processing using the enqueued batches. */
+    int dispatch(uint64_t loop_count, PacketBatch*& out_batch, uint64_t &next_delay);
+
+    /** Returns the list of supported devices for offloading. */
     virtual void get_supported_devices(std::vector<std::string> &device_names) const = 0;
     //virtual size_t get_desired_workgroup_size(const char *device_name) const = 0;
     virtual int get_offload_item_counter_dbid() const = 0;
@@ -222,7 +238,9 @@ public:
     std::unordered_map<std::string, offload_init_handler> offload_init_handlers;
 
 private:
-    OffloadTask *tasks[NBA_MAX_PROCESSOR_TYPES];
+    OffloadTask *tasks[NBA_MAX_COPROCESSOR_TYPES];
+    FixedRing<PacketBatch*, nullptr> finished_batches;
+    PacketBatch *finished_batches_arrbuf[MAX_FINBATCH_QLEN];
     void dummy_compute_handler(ComputeContext *ctx, struct resource_param *res);
 };
 

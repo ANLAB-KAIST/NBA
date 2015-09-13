@@ -162,8 +162,8 @@ void *coproc_loop(void *arg)
     #endif
 
     /* Initialize task queues. */
-    ctx->d2h_pending_queue = new FixedRing<OffloadTask *, nullptr>(64, ctx->loc.node_id);
-    ctx->task_done_queue   = new FixedRing<OffloadTask *, nullptr>(64, ctx->loc.node_id);
+    ctx->d2h_pending_queue = new FixedRing<OffloadTask *, nullptr>(256, ctx->loc.node_id);
+    ctx->task_done_queue   = new FixedRing<OffloadTask *, nullptr>(256, ctx->loc.node_id);
 
     /* Initialize the event loop. */
     ctx->loop = ev_loop_new(EVFLAG_AUTO);

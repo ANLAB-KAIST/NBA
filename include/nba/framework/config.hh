@@ -10,7 +10,7 @@
 #define NBA_MAX_PORTS               (16)
 #define NBA_MAX_QUEUES_PER_PORT     (128)
 #define NBA_MAX_COPROCESSORS        (2)     // Max number of coprocessor devices
-#define NBA_MAX_PROCESSOR_TYPES     (2)     // Max number of device types (current: CPU and GPU)
+#define NBA_MAX_COPROCESSOR_TYPES   (1)     // Max number of coprocessor types
 
 #define NBA_MAX_PACKET_SIZE         (2048)
 #ifdef NBA_NO_HUGE
@@ -44,6 +44,8 @@
 
 #define NBA_OQ                      (true)  // Use output-queuing semantics when possible.
 #undef NBA_CPU_MICROBENCH                  // Enable support for PAPI library for microbenchmarks.
+
+#define NBA_REUSE_DATABLOCKS (1)
 
 /* If you change below, update HANDLE_ALL_PORTS macro in lib/element.hh as well!! */
 #define NBA_MAX_ELEM_NEXTS (4)
@@ -126,13 +128,6 @@ int get_ht_degree(void);
 /* For microbenchmarks (see lib/io.cc) */
 //#define TEST_MINIMAL_L2FWD
 //#define TEST_RXONLY
-
-/* Inserts forced sleep when there is no packets received,
- * to reduce PCIe traffic.  The performance may increase or decrease
- * depending on the system configuration.
- * (see lib/io.cc)
- */
-//#define NBA_SLEEPY_IO
 
 #endif
 
