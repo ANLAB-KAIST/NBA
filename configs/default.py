@@ -23,7 +23,7 @@ for node_id, cpus in enumerate(node_cpus):
 # - thread_connections
 
 system_params = {
-    'IO_BATCH_SIZE': int(os.environ.get('NBA_IO_BATCH_SIZE', 64)),
+    'IO_BATCH_SIZE': int(os.environ.get('NBA_IO_BATCH_SIZE', 32)),
     'COMP_BATCH_SIZE': int(os.environ.get('NBA_COMP_BATCH_SIZE', 64)),
     'COPROC_PPDEPTH': int(os.environ.get('NBA_COPROC_PPDEPTH', 32)),
     'COPROC_CTX_PER_COMPTHREAD': 1,
