@@ -4,6 +4,7 @@
 #include <nba/core/intrinsic.hh>
 #include <nba/core/queue.hh>
 #include <nba/core/offloadtypes.hh>
+#include <nba/core/vector.hh>
 #include <nba/framework/config.hh>
 #include <nba/framework/graphanalysis.hh>
 #include <nba/element/packet.hh>
@@ -35,6 +36,7 @@ enum ElementType {
     ELEMTYPE_OFFLOADABLE = 8,
     ELEMTYPE_INPUT = 16,
     ELEMTYPE_OUTPUT = 32,
+    ELEMTYPE_VECTOR = 64,
 };
 
 struct element_info {
@@ -142,9 +144,23 @@ private:
     int num_max_outputs;
 };
 
+class VectorElement : virtual public Element {
+public:
+    VectorElement() : Element() { }
+    virtual int get_type() const { return ELEMTYPE_VECTOR; }
+
+    int _process_batch(int input_port, PacketBatch *batch);
+
+    /** User-defined vectorized packet processing function. */
+    virtual int process_vector(int input_port, Packet **pkt_vec, vec_mask_arg_t mask) = 0;
+
+    /** Unused. Should not be overriden. */
+    int process(int input_port, Packet *pkt) { assert(0); return -1; }
+};
+
 class PerBatchElement : virtual public Element {
 public:
-    PerBatchElement() : Element() {}
+    PerBatchElement() : Element() { }
     virtual int get_type() const { return ELEMTYPE_PER_BATCH; }
 
     int _process_batch(int input_port, PacketBatch *batch);

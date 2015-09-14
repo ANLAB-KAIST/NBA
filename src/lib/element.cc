@@ -1,4 +1,5 @@
 #include <nba/core/offloadtypes.hh>
+#include <nba/core/vector.hh>
 #include <nba/framework/config.hh>
 #include <nba/framework/elementgraph.hh>
 #include <nba/element/packet.hh>
@@ -47,6 +48,42 @@ int Element::_process_batch(int input_port, PacketBatch *batch)
     }
     batch->has_results = true;
     return 0; // this value will be ignored.
+}
+
+int VectorElement::_process_batch(int input_port, PacketBatch *batch)
+{
+    unsigned stride = 0;
+    for (stride = 0; stride < batch->count; stride += NBA_VECTOR_WIDTH) {
+        vec_mask_t mask = _mm256_set1_epi64x(0);
+        vec_mask_arg_t mask_arg = {0,};
+        // TODO: vectorize: !batch->excluded[p]
+        Packet *pkt_vec[NBA_VECTOR_WIDTH] = {nullptr,}; // TODO: call Packet::from_base(batch->packets[p]);
+        // TODO: vectorize: pkt->output = -1;
+        // TODO: copy mask to mask_arg
+        this->process_vector(input_port, pkt_vec, mask_arg);
+        // TODO: vectorize: batch->results[p] = pkt->output;
+        for (unsigned i = 0; i < NBA_VECTOR_WIDTH; i++) {
+            unsigned idx = stride + i;
+            if (!batch->excluded[idx])
+                batch->results[idx] = 0;
+        }
+    }
+    {
+        vec_mask_t mask = _mm256_set1_epi64x(0);
+        vec_mask_arg_t mask_arg = {0,};
+        // TODO: vectorize: !batch->excluded[p]
+        Packet *pkt_vec[NBA_VECTOR_WIDTH] = {nullptr,}; // TODO: Packet::from_base(batch->packets[p]);
+        // TODO: vectorize: pkt->output = -1;
+        // TODO: copy mask to mask_arg
+        this->process_vector(input_port, pkt_vec, mask_arg);
+        // TODO: vectorize: batch->results[p] = pkt->output;
+        for (unsigned idx = stride; idx < batch->count; idx++) {
+            if (!batch->excluded[idx])
+                batch->results[idx] = 0;
+        }
+    }
+    batch->has_results = true;
+    return 0;
 }
 
 int PerBatchElement::_process_batch(int input_port, PacketBatch *batch)
