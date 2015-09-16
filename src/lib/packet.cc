@@ -1,4 +1,5 @@
 #include <nba/element/packet.hh>
+#include <nba/element/packetbatch.hh>
 #include <cstring>
 #include <rte_mbuf.h>
 #include <rte_mempool.h>
@@ -26,4 +27,13 @@ struct rte_mempool *packet_create_mempool(size_t size, int node_id, int core_id)
     return packet_pool;
 }
 
+void Packet::kill()
+{
+    mother->results[bidx] = PacketDisposition::DROP;
+    mother->excluded[bidx] = true;
+    mother->has_dropped = true;
 }
+
+}
+
+// vim: ts=8 sts=4 sw=4 et

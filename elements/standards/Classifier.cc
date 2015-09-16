@@ -130,12 +130,14 @@ int Classifier::process(int input_port, Packet *pkt)
             cur_condition = cur_condition->next;
         }
         if (is_match) {
-            return output_port;
+            output(output_port).push(pkt);
+            return 0;
         }
         output_port++;
     }
 
-    return DROP;
+    pkt->kill();
+    return 0;
 }
 
 // vim: ts=8 sts=4 sw=4 et

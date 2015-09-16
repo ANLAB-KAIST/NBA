@@ -43,11 +43,14 @@ int RandomWeightedBranch::process(int input_port, Packet *pkt)
     float x = uniform_dist(random_generator);
     int idx = 0;
     for (auto cur = out_probs.begin(); cur != out_probs.end(); cur++) {
-        if(x < *cur)
-            return idx;
+        if(x < *cur) {
+            output(idx).push(pkt);
+            return 0;
+        }
         idx++;
     }
-    return idx-1;
+    output(idx - 1).push(pkt);
+    return 0;
 }
 
 // vim: ts=8 sts=4 sw=4 et

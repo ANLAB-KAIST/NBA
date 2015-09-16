@@ -170,9 +170,11 @@ int IPsecAES::process(int input_port, Packet *pkt)
         AES_ctr128_encrypt(encrypt_ptr, encrypt_ptr, enc_size, &sa_entry->aes_key_t, esph->esp_iv, ecount_buf, &mode);
 #endif
     } else {
-    return DROP;
+        pkt->kill();
+        return 0;
     }
 
+    output(0).push(pkt);
     return 0;
 }
 
@@ -222,6 +224,7 @@ size_t IPsecAES::get_desired_workgroup_size(const char *device_name) const
 
 int IPsecAES::postproc(int input_port, void *custom_output, Packet *pkt)
 {
+    output(0).push(pkt);
     return 0;
 }
 

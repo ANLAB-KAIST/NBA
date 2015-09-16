@@ -122,23 +122,29 @@ int LookupIP6Route::process(int input_port, Packet *pkt)
     lookup_result = _table_ptr->lookup((reinterpret_cast<uint128_t*>(&dest_addr)));
     //rte_rwlock_read_unlock(_rwlock_ptr);
 
-    if (lookup_result == 0xffff)
+    if (lookup_result == 0xffff) {
         /* Could not find destination. Use the second output for "error" packets. */
-        return DROP;
+        pkt->kill();
+        return 0;
+    }
 
     rr_port = (rr_port + 1) % num_tx_ports;
     anno_set(&pkt->anno, NBA_ANNO_IFACE_OUT, rr_port);
+    output(0).push(pkt);
     return 0;
 }
 
 int LookupIP6Route::postproc(int input_port, void *custom_output, Packet *pkt)
 {
     uint16_t lookup_result = *((uint16_t *)custom_output);
-    if (lookup_result == 0xffff)
+    if (lookup_result == 0xffff) {
         /* Could not find destination. Use the second output for "error" packets. */
-        return DROP;
+        pkt->kill();
+        return 0;
+    }
     rr_port = (rr_port + 1) % num_tx_ports;
     anno_set(&pkt->anno, NBA_ANNO_IFACE_OUT, rr_port);
+    output(0).push(pkt);
     return 0;
 }
 

@@ -166,8 +166,10 @@ int IPsecAuthHMACSHA1::process(int input_port, Packet *pkt)
         SHA1(hmac_buf, 64 + SHA_DIGEST_LENGTH, payload_out + payload_len);
         // TODO: correctness check..
     } else {
-        return DROP;
+        pkt->kill();
+        return 0;
     }
+    output(0).push(pkt);
     return 0;
 }
 
@@ -213,6 +215,7 @@ size_t IPsecAuthHMACSHA1::get_desired_workgroup_size(const char *device_name) co
 
 int IPsecAuthHMACSHA1::postproc(int input_port, void *custom_output, Packet *pkt)
 {
+    output(0).push(pkt);
     return 0;
 }
 

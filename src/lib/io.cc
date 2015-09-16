@@ -515,20 +515,16 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
     //   just transmit as requested
     for (unsigned p = 0; p < batch->count; p++) {
         Packet *pkt = Packet::from_base(batch->packets[p]);
-        if (batch->excluded[p] == false && anno_isset(&pkt->anno, NBA_ANNO_IFACE_OUT)) {
-            struct ether_hdr *ethh = rte_pktmbuf_mtod(batch->packets[p], struct ether_hdr *);
-            uint64_t o = anno_get(&pkt->anno, NBA_ANNO_IFACE_OUT);
+        struct ether_hdr *ethh = rte_pktmbuf_mtod(batch->packets[p], struct ether_hdr *);
+        uint64_t o = anno_get(&pkt->anno, NBA_ANNO_IFACE_OUT);
 
-            /* Update source/dest MAC addresses. */
-            ether_addr_copy(&ethh->s_addr, &ethh->d_addr);
-            ether_addr_copy(&ctx->tx_ports[o].addr, &ethh->s_addr);
+        /* Update source/dest MAC addresses. */
+        ether_addr_copy(&ethh->s_addr, &ethh->d_addr);
+        ether_addr_copy(&ctx->tx_ports[o].addr, &ethh->s_addr);
 
-            /* Append to the corresponding output batch. */
-            int cnt = out_batches[o].count ++;
-            out_batches[o].packets[cnt] = batch->packets[p];
-        } else {
-            assert(batch->packets[p] == nullptr);
-        }
+        /* Append to the corresponding output batch. */
+        int cnt = out_batches[o].count ++;
+        out_batches[o].packets[cnt] = batch->packets[p];
     }
 
     unsigned tx_tries = 0;
@@ -945,7 +941,7 @@ int io_loop(void *arg)
             while (!rte_ring_empty(ctx->drop_queue)) {
                 int n = rte_ring_dequeue_burst(ctx->drop_queue, (void**) drop_pkts,
                                                ctx->num_iobatch_size);
-                assert(n >= 0);
+                // TODO: add nullcheck?
                 rte_mempool_put_bulk(ctx->emul_rx_packet_pool, (void **) drop_pkts, n);
                 ctx->port_stats[0].num_sw_drop_pkts += n;
             }
@@ -953,9 +949,9 @@ int io_loop(void *arg)
             while (!rte_ring_empty(ctx->drop_queue)) {
                 int n = rte_ring_dequeue_burst(ctx->drop_queue, (void**) drop_pkts,
                                                ctx->num_iobatch_size);
-                assert(n >= 0);
                 for (int p = 0; p < n; p++)
-                    rte_pktmbuf_free(drop_pkts[p]);
+                    if (drop_pkts[p] != nullptr)
+                        rte_pktmbuf_free(drop_pkts[p]);
                 ctx->port_stats[0].num_sw_drop_pkts += n;
             }
         }

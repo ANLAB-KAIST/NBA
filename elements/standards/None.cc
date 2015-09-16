@@ -16,6 +16,7 @@ int None::configure(comp_thread_context *ctx, std::vector<std::string> &args)
 
 int None::process(int input_port, Packet *pkt)
 {
+    output(0).push(pkt);
     return 0;
 }
 

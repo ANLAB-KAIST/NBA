@@ -263,8 +263,8 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
     case WRITE_WHOLE_PACKET: {
 
         /* Update the packets and run postprocessing. */
+        batch->has_dropped = false;
         for (unsigned p = 0; p < batch->count; p++) {
-            if (batch->excluded[p]) continue;
             size_t elemsz = bitselect<size_t>(write_roi.type == WRITE_PARTIAL_PACKET,
                                               t->aligned_item_sizes.size,
                                               t->aligned_item_sizes.sizes[p]);
@@ -275,11 +275,11 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
                        (char*) host_out_ptr + offset,
                        elemsz);
             Packet *pkt = Packet::from_base(batch->packets[p]);
-            pkt->output = -1;
+            pkt->bidx = p;
             elem->postproc(input_port, nullptr, pkt);
-            batch->results[p] = pkt->output;
-            batch->excluded[p] = (batch->results[p] == DROP);
         }
+        if (batch->has_dropped)
+            batch->collect_excluded_packets();
         batch->has_results = true;
 
         break; }
@@ -290,16 +290,16 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
     case WRITE_FIXED_SEGMENTS: {
 
         /* Run postporcessing only. */
+        batch->has_dropped = false;
         for (unsigned p = 0; p < batch->count; p++) {
-            if (batch->excluded[p]) continue;
             uintptr_t elemsz = t->aligned_item_sizes.size;
             uintptr_t offset = elemsz * p;
             Packet *pkt = Packet::from_base(batch->packets[p]);
-            pkt->output = -1;
+            pkt->bidx = p;
             elem->postproc(input_port, (char*) host_out_ptr + offset, pkt);
-            batch->results[p] = pkt->output;
-            batch->excluded[p] = (batch->results[p] == DROP);
         }
+        if (batch->has_dropped)
+            batch->collect_excluded_packets();
         batch->has_results = true;
 
         break; }
