@@ -46,7 +46,8 @@ public:
     int process(int input_port, Packet *pkt)
     {
         unsigned pkt_len = pkt->length();
-        return buckets[pkt_len >> 4];
+        output(buckets[pkt_len >> 4]).push(pkt);
+        return 0;
     }
 
 private:
