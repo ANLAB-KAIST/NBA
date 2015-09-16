@@ -64,8 +64,10 @@ int IPsecESPencap::process(int input_port, Packet *pkt)
     // TODO: Set src & dest of encaped pkt to ip addrs from configuration.
 
     struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
-    if (ntohs(ethh->ether_type) != ETHER_TYPE_IPv4)
-        return DROP;
+    if (ntohs(ethh->ether_type) != ETHER_TYPE_IPv4) {
+        pkt->kill();
+        return 0;
+    }
     struct iphdr *iph = (struct iphdr *) (ethh + 1);
 
     struct ipaddr_pair pair;
@@ -119,6 +121,7 @@ int IPsecESPencap::process(int input_port, Packet *pkt)
     iph->protocol = 0x32;               // mark that this packet contains a secured payload.
     iph->check = 0;                     // ignoring previous checksum.
     iph->check = ip_fast_csum(iph, iph->ihl);
+    output(0).push(pkt);
     return 0;
 }
 

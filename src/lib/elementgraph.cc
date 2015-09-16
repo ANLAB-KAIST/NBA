@@ -133,10 +133,12 @@ void ElementGraph::flush_delayed_batches()
 void ElementGraph::free_batch(PacketBatch *batch, bool free_pkts)
 {
     if (free_pkts) {
-        for (unsigned p = 0; p < batch->count; p++)
-            if (!batch->excluded[p] && batch->packets[p] != nullptr)
-                rte_ring_enqueue(ctx->io_ctx->drop_queue, (void *) batch->packets[p]);  // only for separate comp/io threads
-                //rte_pktmbuf_free(batch->packets[p]);
+        rte_ring_enqueue_bulk(ctx->io_ctx->drop_queue,
+                              (void **) &batch->packets[0],
+                              batch->count);
+        rte_ring_enqueue_bulk(ctx->io_ctx->drop_queue,
+                              (void **) &batch->packets[batch->count],
+                              batch->drop_count);
     }
     rte_mempool_put(ctx->batch_pool, (void *) batch);
 }
@@ -221,8 +223,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                         task->input_ports.push_back(input_port);
                         task->num_pkts += batch->count;
                         for (unsigned p = 0; p < batch->count; p++) {
-                            if (!batch->excluded[p])
-                                task->num_bytes += Packet::from_base(batch->packets[p])->length();
+                            task->num_bytes += Packet::from_base(batch->packets[p])->length();
                         }
                         #ifdef USE_NVPROF
                         nvtxMarkA("add_batch");
@@ -303,30 +304,29 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
              * batches.  Just reuse the given one. */
             if (0 == (current_elem->get_type() & ELEMTYPE_PER_BATCH)) {
                 const int *const results = batch->results;
+                batch->has_dropped = false;
                 for (unsigned p = 0; p < batch->count; p++) {
-                    if (batch->excluded[p]) continue;
                     int o = results[p];
                     switch (o) {
                     case 0:
                         // pass
-                        break;
-                    case DROP:
-                        if (ctx->inspector) ctx->inspector->drop_pkt_count += batch->count;
-                        rte_ring_enqueue(ctx->io_ctx->drop_queue, (void *) batch->packets[p]);
-                        batch->excluded[p] = true;
-                        batch->packets[p] = nullptr;
                         break;
                     case PENDING:
                         // remove from PacketBatch, but don't free..
                         // They are stored in io_thread_ctx::pended_pkt_queue.
                         batch->excluded[p] = true;
                         batch->packets[p]  = nullptr;
+                        batch->has_dropped = true;
                         break;
                     case SLOWPATH:
                         rte_panic("SLOWPATH is not supported yet. (element: %s)\n", current_elem->class_name());
                         break;
                     }
                 }
+                if (batch->has_dropped)
+                    batch->collect_excluded_packets();
+                if (ctx->inspector) ctx->inspector->drop_pkt_count += batch->drop_count;
+                batch->clean_drops(ctx->io_ctx->drop_queue);
             }
             if (current_elem->next_elems[0]->get_type() & ELEMTYPE_OUTPUT) {
                 /* We are at the end leaf of the pipeline.
@@ -335,9 +335,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     ctx->inspector->tx_batch_count ++;;
                     ctx->inspector->tx_pkt_count += batch->count;
                 }
-                //printf("txtx? (%u)\n", rte_mempool_count(ctx->io_ctx->emul_rx_packet_pool));
                 io_tx_batch(ctx->io_ctx, batch);
-                //printf("txtx! (%u)\n", rte_mempool_count(ctx->io_ctx->emul_rx_packet_pool));
                 free_batch(batch, false);
                 continue;
             } else {
@@ -385,8 +383,8 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                 out_batches[predicted_output] = batch;
 
                 /* Classify packets into copy-batches. */
+                batch->has_dropped = false;
                 for (unsigned p = 0; p < batch->count; p++) {
-                    if (batch->excluded[p]) continue;
                     int o = results[p];
                     assert(o < (signed) num_outputs);
 
@@ -413,20 +411,14 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                             /* Exclude it from the batch. */
                             out_batches[predicted_output]->excluded[p] = true;
                             out_batches[predicted_output]->packets[p]  = nullptr;
-                            break; }
-                        case DROP: {
-                            /* Let the IO loop free the packet. */
-                            if (ctx->inspector) ctx->inspector->drop_pkt_count += 1;
-                            rte_ring_enqueue(ctx->io_ctx->drop_queue, (void *) out_batches[predicted_output]->packets[p]);
-                            /* Exclude it from the batch. */
-                            out_batches[predicted_output]->excluded[p] = true;
-                            out_batches[predicted_output]->packets[p]  = nullptr;
+                            out_batches[predicted_output]->has_dropped = true;
                             break; }
                         case PENDING: {
                             /* The packet is stored in io_thread_ctx::pended_pkt_queue. */
                             /* Exclude it from the batch. */
                             out_batches[predicted_output]->excluded[p] = true;
                             out_batches[predicted_output]->packets[p]  = nullptr;
+                            out_batches[predicted_output]->has_dropped = true;
                             break; }
                         case SLOWPATH:
                             assert(0); // Not implemented yet.
@@ -436,7 +428,13 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     }
                     current_elem->branch_total++;
                     current_elem->branch_count[o]++;
-                }
+                } /* endfor(batch->count) */
+
+                // NOTE: out_batches[predicted_output] == batch
+                if (batch->has_dropped)
+                    batch->collect_excluded_packets();
+                if (ctx->inspector) ctx->inspector->drop_pkt_count += batch->drop_count;
+                batch->clean_drops(ctx->io_ctx->drop_queue);
 
                 if (current_elem->branch_total & BRANCH_TRUNC_LIMIT) {
                     //double percentage = ((double)(current_elem->branch_total-current_elem->branch_miss) / (double)current_elem->branch_total);
@@ -508,18 +506,15 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
 
                 /* Classify packets into copy-batches. */
                 for (unsigned p = 0; p < batch->count; p++) {
-                    if (batch->excluded[p])
-                        continue;
                     int o = results[p];
-                    assert(o < (signed) num_outputs);
+                    if (o >= (signed) num_outputs || o < 0)
+                        printf("o=%d, num_outputs=%u, %u/%u/%u\n", o, num_outputs, p, batch->count, batch->drop_count);
+                    assert(o < (signed) num_outputs && o >= 0);
 
                     if (o >= 0) {
                         int cnt = out_batches[o]->count ++;
                         out_batches[o]->packets[cnt] = batch->packets[p];
                         out_batches[o]->excluded[cnt] = false;
-                    } else if (o == DROP) {
-                        if (ctx->inspector) ctx->inspector->drop_pkt_count += batch->count;
-                        rte_ring_enqueue(ctx->io_ctx->drop_queue, (void *) batch->packets[p]);
                     } else if (o == PENDING) {
                         // remove from PacketBatch, but don't free..
                         // They are stored in io_thread_ctx::pended_pkt_queue.
@@ -528,11 +523,11 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     } else {
                         rte_panic("Invalid packet disposition value. (element: %s, value: %d)\n", current_elem->class_name(), o);
                     }
-
-                    // Packets are excluded from original batch in all cases.
+                    /* Packets are excluded from original batch in ALL cases. */
+                    /* Therefore, we do not have to collect_excluded_packets()
+                     * nor clean_drops()! */
                     batch->excluded[p] = true;
-                    batch->packets[p]  = nullptr;
-                }
+                } /* endfor(batch->count) */
 
                 /* Recurse into the element subgraph starting from each
                  * output port using copy-batches. */

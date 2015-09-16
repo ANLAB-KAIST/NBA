@@ -24,6 +24,8 @@ enum PacketDisposition {
 };
 
 class PacketBatch;
+class Element;
+class VectorElement;
 
 /* We have to manage two memory pools:
  * first for the original memory pool that our mbuf is allocated from.
@@ -36,11 +38,13 @@ private:
     #ifdef DEBUG
     uint32_t magic;
     #endif
+    PacketBatch *mother;
     struct rte_mbuf *base;
     bool cloned;
-    int output;
+    int bidx;
 
     friend class Element;
+    friend class VectorElement;
     friend class DataBlock;
 
 public:
@@ -80,7 +84,7 @@ public:
     #ifdef DEBUG
     magic(NBA_PACKET_MAGIC),
     #endif
-    base((struct rte_mbuf *) base), cloned(false), output(PacketDisposition::DROP)
+    mother(mother), base((struct rte_mbuf *) base), cloned(false), bidx(-1)
     { }
 
     ~Packet() {
@@ -89,7 +93,7 @@ public:
         }
     }
 
-    inline void kill() { this->output = PacketDisposition::DROP; }
+    void kill();
 
     inline unsigned char *data() { return rte_pktmbuf_mtod(base, unsigned char *); }
     inline uint32_t length() { return rte_pktmbuf_data_len(base); }
@@ -117,7 +121,7 @@ public:
     }
 
     Packet *uniqueify() {
-        return nullptr;
+        return this;
     }
 
     Packet *push(uint32_t len) {

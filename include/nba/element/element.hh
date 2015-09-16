@@ -55,6 +55,8 @@ struct element_info {
 
 class Element : public GraphMetaData {
 private:
+    friend class Packet;
+
     class OutputPort {
         /** A simple utility class to emulate Click's output port. */
 
@@ -73,8 +75,7 @@ private:
             /* We allow a packet to be pushed only once inside the process
              * handler.  If you want to push the same packet multiple times
              * to different outputs, you MUST clone it. */
-            assert(pkt->output == -1);
-            pkt->output = my_idx;
+            pkt->mother->results[pkt->bidx] = my_idx;
             if (pkt->cloned) {
                 /* Store the cloned packet separately. */
                 elem->output_cloned_packets[my_idx][elem->output_counts[my_idx]] = pkt;

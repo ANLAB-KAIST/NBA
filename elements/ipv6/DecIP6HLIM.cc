@@ -23,12 +23,14 @@ int DecIP6HLIM::process(int input_port, Packet *pkt)
     uint32_t checksum;
 
     if (iph->ip6_hlim <= 1) {
-        return DROP;
+        pkt->kill();
+        return 0;
     }
 
     // Decrement TTL.
     iph->ip6_hlim = htons(ntohs(iph->ip6_hlim) - 1);
 
+    output(0).push(pkt);
     return 0;
 }
 

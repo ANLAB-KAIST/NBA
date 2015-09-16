@@ -26,14 +26,17 @@ int CheckIP6Header::process(int input_port, Packet *pkt)
     // Validate the packet header.
     if (ntohs(ethh->ether_type) != ETHER_TYPE_IPv6) {
         //RTE_LOG(DEBUG, ELEM, "CheckIP6Header: invalid packet type - %x\n", ntohs(ethh->ether_type));
-        return DROP;
+        pkt->kill();
+        return 0;
     }
 
-    if ((iph->ip6_vfc & 0xf0) >> 4 != 6)  // get the first 4 bits.
+    if ((iph->ip6_vfc & 0xf0) >> 4 != 6) {  // get the first 4 bits.
+        pkt->kill();
         return SLOWPATH;
+    }
 
     // TODO: Discard illegal source addresses.
-
+    output(0).push(pkt);
     return 0; // output port number: 0
 }
 
