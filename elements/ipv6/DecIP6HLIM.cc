@@ -28,7 +28,7 @@ int DecIP6HLIM::process(int input_port, Packet *pkt)
     }
 
     // Decrement TTL.
-    iph->ip6_hlim = htons(ntohs(iph->ip6_hlim) - 1);
+    iph->ip6_hlim--;
 
     output(0).push(pkt);
     return 0;
