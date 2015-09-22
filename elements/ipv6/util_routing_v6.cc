@@ -96,7 +96,7 @@ uint16_t RoutingTableV6::lookup(uint128_t *ip)
 
         uint16_t temp = m_Tables[len]->find(mask(*ip, len + 1));
 
-        if (result == 0) {
+        if (temp == 0) {
             end = len - 1;
         } else {
             result = temp;
