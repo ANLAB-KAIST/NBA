@@ -1,6 +1,3 @@
-Element Catalog
-===============
-
 Intrinsic Elements
 ------------------
 

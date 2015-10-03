@@ -102,7 +102,7 @@ Intel X520 Series (82599 chipset)
 You just need to bind the PCI addresses of network cards to igb_uio using
 :code:`tools/dpdk_nic_bind.py` script provided by DPDK.
 
-.. warning::
+.. attention::
 
    When using ixgbe driver with *vectorized* PMD enabled, you should fix the IO
    batch size to be 32, whereas you may change the computation batch size as
