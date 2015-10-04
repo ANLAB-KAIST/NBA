@@ -300,6 +300,7 @@ static inline uint32_t io_myrand(uint64_t *seed) /*{{{*/
 static void io_local_stat_timer_cb(struct ev_loop *loop, struct ev_timer *watcher, int revents)/*{{{*/
 {
     io_thread_context *ctx = (io_thread_context *) ev_userdata(loop);
+    ctx->tx_pkt_thruput = 0;
     /* Atomically update the counters in the master. */
     for (unsigned j = 0; j < ctx->node_stat->num_ports; j++) {
         rte_atomic64_add(&ctx->node_stat->port_stats[j].num_recv_pkts, ctx->port_stats[j].num_recv_pkts);
@@ -310,6 +311,7 @@ static void io_local_stat_timer_cb(struct ev_loop *loop, struct ev_timer *watche
         rte_atomic64_add(&ctx->node_stat->port_stats[j].num_invalid_pkts, ctx->port_stats[j].num_invalid_pkts);
         rte_atomic64_add(&ctx->node_stat->port_stats[j].num_recv_bytes, ctx->port_stats[j].num_recv_bytes);
         rte_atomic64_add(&ctx->node_stat->port_stats[j].num_sent_bytes, ctx->port_stats[j].num_sent_bytes);
+        ctx->tx_pkt_thruput += ctx->port_stats[j].num_sent_pkts;
         memset(&ctx->port_stats[j], 0, sizeof(struct io_port_stat));
     }
  #ifdef NBA_CPU_MICROBENCH
