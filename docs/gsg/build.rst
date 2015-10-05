@@ -102,16 +102,14 @@ Intel X520 Series (82599 chipset)
 You just need to bind the PCI addresses of network cards to igb_uio using
 :code:`tools/dpdk_nic_bind.py` script provided by DPDK.
 
-.. warning::
+.. attention::
 
-   Disable vectorized ring increments in DPDK's configuration:
+   When using ixgbe driver with *vectorized* PMD enabled, you should fix the IO
+   batch size to be 32, whereas you may change the computation batch size as
+   you want.
 
-   .. code-block:: properties
-
-      CONFIG_RTE_IXGBE_INC_VECTOR=n
-
-   It has some problems with our batching scheme, as it cuts off the tail of
-   packet batches and looses tracking some packets.
+   In our experiements, the IO batch size 32 and the computation batch size 64 performs best.
+   We have already set those as the default values. (see ``config/default.py``)
 
 Mellanox ConnectX Series
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -200,16 +198,16 @@ Customizing Your Build
 
 Our build script offers a few configurable parameters as environment variables:
 
-* :code:`NBA_DPDK_PATH`: specifies the path to Intel DPDK (required)
-* :code:`NBA_RANDOM_PORT_ACCESS`: randomizes the RX queue scanning order for each worker thread (default: :code:`false`)
-* :code:`NBA_OPENSSL_PATH`: specifies the path of OpenSSL library (default: :code:`/usr`)
-* :code:`DEBUG`: build without compiler optimization (default: 0)
-* :code:`USE_CUDA`: activates NVIDIA CUDA support (default: 1)
-* :code:`USE_PHI`: activates Intel Xeon Phi support (default: 0, not fully implemented yet)
-* :code:`USE_NVPROF`: activates nvprof API calls to track GPU-related timings (default: 0)
-* :code:`USE_OPENSSL_EVP`: determines whether to use EVP API for OpenSSL that enables AES-NI support (default: 1)
-* :code:`NBA_NO_HUGE`: determines whether to use huge-pages (default: 1)
-* :code:`NBA_PMD`: determines what poll-mode driver to use (default: :code:`ixgbe`)
+* :envvar:`NBA_DPDK_PATH`: specifies the path to Intel DPDK (required)
+* :envvar:`NBA_RANDOM_PORT_ACCESS`: randomizes the RX queue scanning order for each worker thread (default: :code:`false`)
+* :envvar:`NBA_OPENSSL_PATH`: specifies the path of OpenSSL library (default: :code:`/usr`)
+* :envvar:`DEBUG`: build without compiler optimization (default: 0)
+* :envvar:`USE_CUDA`: activates NVIDIA CUDA support (default: 1)
+* :envvar:`USE_PHI`: activates Intel Xeon Phi support (default: 0, not fully implemented yet)
+* :envvar:`USE_NVPROF`: activates nvprof API calls to track GPU-related timings (default: 0)
+* :envvar:`USE_OPENSSL_EVP`: determines whether to use EVP API for OpenSSL that enables AES-NI support (default: 1)
+* :envvar:`NBA_NO_HUGE`: determines whether to use huge-pages (default: 1)
+* :envvar:`NBA_PMD`: determines what poll-mode driver to use (default: :code:`ixgbe`)
 
 .. note::
 

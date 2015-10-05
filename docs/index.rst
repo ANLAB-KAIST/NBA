@@ -1,10 +1,14 @@
-.. Network Balancing Act documentation master file, created by
-   sphinx-quickstart on Wed Jul 15 19:56:55 2015.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Network Balancing Act
 =====================
+
+**Network Balancing Act**, or **NBA**, is a packet processing framework based on Linux and commodity Intel x86 hardware.
+
+Its goal is to offer both programmability and high performance by exploiting modern commodity hardware such as multi-queue-enabled 10 GbE network cards, multi-socket/multi-core CPUs, and computation accelerators like GPUs.
+The programming interface resembles `the Click modular router <http://www.read.cs.ucla.edu/click/click>`_, which express packet processing functions as composable C++ classes (called *elements*).
+Click has been a de-facto standard framework for software-based packet processors for years, but suffered from low performance.
+In contrast, on Intel Sandy Bridge (E5-2670) dual-socket servers with eight 10 GbE (Intel X520-DA2) network cards, NBA saturates the hardware I/O capacity with light-weight workloads: 80 Gbps IPv4 forwarding throughput for large packets and 62 Gbps for minimum-sized packets.
+
+Note that NBA covers per-packet processing only---it does not support flow-level processing yet.
 
 .. _gsg:
 
