@@ -69,13 +69,11 @@ int Element::_process_batch(int input_port, PacketBatch *batch)
     }
     #undef NBA_UNROLL_STRIDE
 #else
-    for (unsigned p = 0; p < batch->count; p++) {
-        if (likely(!batch->excluded[p])) {
-            Packet *pkt = Packet::from_base(batch->packets[p]);
-            pkt->bidx = p;
-            this->process(input_port, pkt);
-        }
-    }
+    FOR_EACH_PACKET(batch) {
+        Packet *pkt = Packet::from_base(batch->packets[pkt_idx]);
+        pkt->bidx = pkt_idx;
+        this->process(input_port, pkt);
+    } END_FOR;
 #endif
     if (batch->has_dropped)
         batch->collect_excluded_packets();

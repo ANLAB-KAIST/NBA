@@ -19,6 +19,54 @@ struct rte_ring;
 namespace nba {
 
 class Element;
+#define NBA_BATCHING_TRADITIONAL
+
+#ifdef NBA_BATCHING_TRADITIONAL
+/* Traditional batching: just skip the excluded packets. */
+/*
+ * FOR_EACH_PACKET wraps a per-packet iteration loop over a packet batch.
+ * It interally exposes pkt (Packet*) and pkt_idx (unsigned) loop
+ * variables.
+ */
+#define FOR_EACH_PACKET(batch) \
+    for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
+        if (likely(!batch->excluded[pkt_idx])) {
+#define END_FOR \
+        } /* endif(!excluded) */ \
+} /* endfor(batch) */
+#endif
+
+#ifdef NBA_BATCHING_CONTINUOUS
+/* Continuous batching: sort out excluded packets at the end of batch
+ * to completely remove the exclusion check. */
+// TODO: add ifdef checks to batch reorganization codes.
+#define FOR_EACH_PACKET(batch) \
+    for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
+#define END_FOR \
+} /* endfor(batch) */
+#endif
+
+#ifdef NBA_BATCHING_BITVECTOR
+/* Bitvector batching: use built-in bit operators over a exclusion mask to
+ * efficiently skip the excluded packets without conditional branches. */
+/* WARNING: the computation batch size must be <= 64. */
+// TODO: implement
+#define FOR_EACH_PACKET(batch) { \
+    for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
+        if (likely(!batch->excluded[pkt_idx])) {
+#define END_FOR } /* endif(!excluded) */ \
+    } /* endfor(batch) */ \
+}
+#endif
+
+#ifdef NBA_BATCHING_LINKEDLIST
+/* Linked-list batching: batches are no longer arrays.
+ * We store "next packet" pointers inside the packets and use them to
+ * retrieve the next packet in the batch and stop when it is nullptr.
+ */
+// TODO: backport from the linked-list-batch branch.
+    #error NBA_BATCHING_LINKEDLIST is not implemented yet.
+#endif
 
 enum BatchDisposition {
     KEPT_BY_ELEMENT = -1,
@@ -28,7 +76,7 @@ enum BatchDisposition {
 class PacketBatch {
 public:
     PacketBatch()
-        : count(0), drop_count(0), datablock_states(nullptr), recv_timestamp(0),
+        : count(0), drop_count(0), mask(0), datablock_states(nullptr), recv_timestamp(0),
           generation(0), batch_id(0), element(nullptr), input_port(0), has_results(false),
           has_dropped(false), delay_start(0), compute_time(0)
     {
@@ -67,6 +115,7 @@ public:
 
     unsigned count;
     unsigned drop_count;
+    uint64_t mask;
     struct datablock_tracker *datablock_states;
     uint64_t recv_timestamp;
     uint64_t generation;

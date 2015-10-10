@@ -14,8 +14,8 @@
 
 #define NBA_MAX_PACKET_SIZE         (2048)
 #ifdef NBA_NO_HUGE
-  #define NBA_MAX_IOBATCH_SIZE      (4u)
-  #define NBA_MAX_COMPBATCH_SIZE    (4u)
+  #define NBA_MAX_IO_BATCH_SIZE      (4u)
+  #define NBA_MAX_COMP_BATCH_SIZE    (4u)
 #else
   #define NBA_MAX_IO_BATCH_SIZE      (256u)
   #define NBA_MAX_COMP_BATCH_SIZE    (256u)
