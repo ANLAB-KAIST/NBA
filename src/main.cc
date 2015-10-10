@@ -474,12 +474,13 @@ int main(int argc, char **argv)
             rte_eth_promiscuous_enable(port_idx);
             rte_eth_link_get(port_idx, &link_info);
             RTE_LOG(INFO, MAIN, "port %u -- link running at %s %s, %s\n", port_idx,
-                    (link_info.link_speed == ETH_LINK_SPEED_10000) ? "10G" : "lower than 10G",
+                    (link_info.link_speed == ETH_LINK_SPEED_40G) ? "40G" :
+                    (link_info.link_speed == ETH_LINK_SPEED_20G) ? "20G" :
+                    (link_info.link_speed == ETH_LINK_SPEED_10G) ? "10G" : "lower than 10G",
                     (link_info.link_duplex == ETH_LINK_FULL_DUPLEX) ? "full-duplex" : "half-duplex",
                     (link_info.link_status == 1) ? "UP" : "DOWN");
 
-
-        } // endif emulate_io
+        } /* endif(!emulate_io) */
 
         RTE_LOG(INFO, MAIN, "port %d is enabled.\n", port_idx);
     }
