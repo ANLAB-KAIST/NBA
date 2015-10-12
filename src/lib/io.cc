@@ -210,10 +210,23 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
     batch->delay_start = 0;
     batch->delay_time = 0;
     batch->batch_id = recv_batch_cnt;
+    #if NBA_BATCHING_SCHEME == NBA_BATCHING_LINKEDLIST
+    batch->first_idx = 0;
+    batch->last_idx = batch->count - 1;
+    batch->slot_count = batch->count;
+    Packet *prev_pkt = nullptr;
+    #endif
     FOR_EACH_PACKET_ALL_INIT_PREFETCH(batch, 8u) {
         /* Initialize packet metadata objects in pktmbuf's private area. */
         Packet *pkt = Packet::from_base_nocheck(batch->packets[pkt_idx]);
         new (pkt) Packet(batch, batch->packets[pkt_idx]);
+        #if NBA_BATCHING_SCHEME == NBA_BATCHING_LINKEDLIST
+        if (prev_pkt != nullptr) {
+            prev_pkt->next_idx = pkt_idx;
+            pkt->prev_idx = pkt_idx - 1;
+        }
+        prev_pkt = pkt;
+        #endif
 
         /* Set annotations and strip the temporary headroom. */
         pkt->anno.bitmask = 0;

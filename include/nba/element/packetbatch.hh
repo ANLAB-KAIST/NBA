@@ -32,6 +32,8 @@ struct rte_ring;
  * Usage:
  * ------
  *
+ * Note: these loops cannot be nested!
+ *
  * FOR_EACH_PACKET(batch) {
  *   ... batch->packets[pkt_idx] ...
  * } END_FOR;
@@ -173,7 +175,6 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
         batch->excluded[pkt_idx] = false; \
     } \
 }
-// IS_PACKET_VALID, IS_PACKET_INVALID should be avoided.
 #define IS_PACKET_VALID(batch, pkt_idx) true
 #define IS_PACKET_INVALID(batch, pkt_idx) false
 #define EXCLUDE_PACKET(batch, pkt_idx) \
@@ -206,7 +207,7 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
 { \
     uint64_t _mask = batch->mask; \
     while (_mask != 0) { \
-        unsigned pkt_idx = __builtin_clzll(_mask); \
+        const unsigned pkt_idx = __builtin_clzll(_mask); \
         _mask &= ~(1llu << (64 - (pkt_idx + 1)));
 #define END_FOR \
     } /* endwhile(_mask) */ \
@@ -225,18 +226,18 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
     uint64_t _mask = batch->mask; \
     unsigned _cnt = 0; \
     while (_pmask != 0 && _cnt < depth) { \
-        unsigned pre_pkt_idx = __builtin_clzll(_pmask); \
+        const unsigned pre_pkt_idx = __builtin_clzll(_pmask); \
         rte_prefetch0(rte_pktmbuf_mtod(batch->packets[pre_pkt_idx], void*)); \
         _pmask &= ~(1llu << (64 - (pre_pkt_idx + 1))); \
         _cnt ++; \
     } \
     while (_mask != 0) { \
         if (_pmask != 0) { \
-            unsigned pre_pkt_idx = __builtin_clzll(_pmask); \
+            const unsigned pre_pkt_idx = __builtin_clzll(_pmask); \
             rte_prefetch0(rte_pktmbuf_mtod(batch->packets[pre_pkt_idx], void*)); \
             _pmask &= ~(1llu << (64 - (pre_pkt_idx + 1))); \
         } \
-        unsigned pkt_idx = __builtin_clzll(_mask); \
+        const unsigned pkt_idx = __builtin_clzll(_mask); \
         _mask &= ~(1llu << (64 - (pkt_idx + 1)));
 #define END_FOR_ALL_PREFETCH \
     } /* endwhile(batch) */ \
@@ -289,8 +290,101 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
  * retrieve the next packet in the batch and stop when it is nullptr.
  */
 
-// TODO: backport from the linked-list-batch branch.
-#error NBA_BATCHING_LINKEDLIST is not implemented yet.
+#define FOR_EACH_PACKET(batch) \
+{ \
+    int _next_idx = batch->first_idx; \
+    while (_next_idx != -1) { \
+        const unsigned pkt_idx = (unsigned) _next_idx; \
+        assert(pkt_idx < NBA_MAX_COMP_BATCH_SIZE);
+#define END_FOR \
+        /*printf("pkt = %p\n", batch->packets[pkt_idx]);*/ \
+        _next_idx = Packet::from_base(batch->packets[pkt_idx])->next_idx; \
+    } /* endwhile(batch) */ \
+}
+
+#define FOR_EACH_PACKET_ALL(batch) \
+{ \
+    int _next_idx = batch->first_idx; \
+    while (_next_idx != -1) { \
+        const unsigned pkt_idx = (unsigned) _next_idx;
+#define END_FOR_ALL \
+        _next_idx = Packet::from_base(batch->packets[pkt_idx])->next_idx; \
+    } /* endwhile(batch) */ \
+}
+
+// TODO: apply prefetching??
+#define FOR_EACH_PACKET_ALL_PREFETCH(batch, depth) \
+{ \
+    int _next_idx = batch->first_idx; \
+    while (_next_idx != -1) { \
+        const unsigned pkt_idx = (unsigned) _next_idx;
+#define END_FOR_ALL_PREFETCH \
+        _next_idx = Packet::from_base(batch->packets[pkt_idx])->next_idx; \
+    } /* endwhile(batch) */ \
+}
+
+/* Initialization is a special case where we need to manually set up
+ * next/prev pointers of all packets. */
+#define FOR_EACH_PACKET_ALL_INIT_PREFETCH(batch, depth) \
+{ \
+    for (unsigned pkt_idx = 0; pkt_idx < RTE_MIN(depth, batch->count); pkt_idx++) { \
+        rte_prefetch0(rte_pktmbuf_mtod(batch->packets[pkt_idx], void*)); \
+        rte_prefetch0(Packet::from_base_nocheck(batch->packets[pkt_idx])); \
+    } \
+    for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
+        if (pkt_idx + depth < batch->count) { \
+            rte_prefetch0(rte_pktmbuf_mtod(batch->packets[pkt_idx + depth], void*)); \
+            rte_prefetch0(Packet::from_base_nocheck(batch->packets[pkt_idx + depth])); \
+        }
+#define END_FOR_ALL_INIT_PREFETCH \
+    } /* endfor(batch) */ \
+}
+
+#define INIT_BATCH_MASK(batch) \
+{ \
+    /* do nothing. */ \
+}
+#define IS_PACKET_VALID(batch, pkt_idx) true
+#define IS_PACKET_INVALID(batch, pkt_idx) false
+#define EXCLUDE_PACKET(batch, pkt_idx) \
+{ \
+    Packet *pkt = Packet::from_base(batch->packets[pkt_idx]); \
+    int p = pkt->prev_idx; \
+    int n = pkt->next_idx; \
+    if (p != -1) \
+        Packet::from_base(batch->packets[p])->next_idx = n; \
+    else \
+        batch->first_idx = n; \
+    if (n != -1) \
+        Packet::from_base(batch->packets[n])->prev_idx = p; \
+    else \
+        batch->last_idx = p; \
+    /*batch->packets[pkt_idx] = nullptr;*/ \
+    batch->count --; \
+}
+#define EXCLUDE_PACKET_MARK_ONLY(batch, pkt_idx) \
+{ \
+    /* do nothing. */ \
+}
+#define ADD_PACKET(batch, raw_pkt) \
+{ \
+    int l = batch->last_idx; \
+    Packet *pkt = Packet::from_base(raw_pkt); \
+    assert(batch->slot_count < NBA_MAX_COMP_BATCH_SIZE); \
+    unsigned new_idx = batch->slot_count ++; \
+    if (l != -1) { \
+        pkt->prev_idx = l; \
+        pkt->next_idx = -1; \
+        Packet::from_base(batch->packets[l])->next_idx = new_idx; \
+    } else { \
+        pkt->prev_idx = -1; \
+        pkt->next_idx = -1; \
+        batch->first_idx = new_idx; \
+    } \
+    batch->packets[new_idx] = raw_pkt; \
+    batch->last_idx = new_idx; \
+    batch->count ++; \
+}
 
 
 #else
@@ -316,6 +410,9 @@ public:
           #endif
           #if NBA_BATCHING_SCHEME == NBA_BATCHING_BITVECTOR
           mask(0),
+          #endif
+          #if NBA_BATCHING_SCHEME == NBA_BATCHING_LINKEDLIST
+          first_idx(-1), last_idx(-1), slot_count(0),
           #endif
           datablock_states(nullptr), recv_timestamp(0),
           generation(0), batch_id(0), element(nullptr), input_port(0), has_results(false),
@@ -368,6 +465,11 @@ public:
     #endif
     #if NBA_BATCHING_SCHEME == NBA_BATCHING_BITVECTOR
     uint64_t mask;
+    #endif
+    #if NBA_BATCHING_SCHEME == NBA_BATCHING_LINKEDLIST
+    int first_idx;
+    int last_idx;
+    unsigned slot_count;
     #endif
     struct datablock_tracker *datablock_states;
     uint64_t recv_timestamp;

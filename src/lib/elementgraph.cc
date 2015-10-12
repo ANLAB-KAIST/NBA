@@ -318,7 +318,7 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
                     case DROP:
                         rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]);
-                        batch->packets[pkt_idx] = nullptr;
+                        EXCLUDE_PACKET(batch, pkt_idx);
                         break;
                     #endif
                     case PENDING:
@@ -419,17 +419,17 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                             /* Append the packet to the output batch. */
                             ADD_PACKET(out_batches[o], batch->packets[pkt_idx]);
                             /* Exclude it from the batch. */
-                            EXCLUDE_PACKET(out_batches[predicted_output], pkt_idx);
+                            EXCLUDE_PACKET(batch, pkt_idx);
                             break; }
                         #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
                         case DROP:
                             rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]);
-                            batch->packets[pkt_idx] = nullptr;
+                            EXCLUDE_PACKET(batch, pkt_idx);
                         #endif
                         case PENDING: {
                             /* The packet is stored in io_thread_ctx::pended_pkt_queue. */
                             /* Exclude it from the batch. */
-                            EXCLUDE_PACKET(out_batches[predicted_output], pkt_idx);
+                            EXCLUDE_PACKET(batch, pkt_idx);
                             break; }
                         case SLOWPATH:
                             assert(0); // Not implemented yet.
