@@ -294,8 +294,7 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
 { \
     int _next_idx = batch->first_idx; \
     while (_next_idx != -1) { \
-        const unsigned pkt_idx = (unsigned) _next_idx; \
-        assert(pkt_idx < NBA_MAX_COMP_BATCH_SIZE);
+        const unsigned pkt_idx = (unsigned) _next_idx;
 #define END_FOR \
         /*printf("pkt = %p\n", batch->packets[pkt_idx]);*/ \
         _next_idx = Packet::from_base(batch->packets[pkt_idx])->next_idx; \
