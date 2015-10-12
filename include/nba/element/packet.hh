@@ -41,6 +41,12 @@ private:
     PacketBatch *mother;
     struct rte_mbuf *base;
     bool cloned;
+public:
+    #if NBA_BATCHING_SCHEME == NBA_BATCHING_LINKEDLIST
+    int prev_idx;
+    int next_idx;
+    #endif
+private:
     int bidx;
 
     friend class Element;
@@ -84,7 +90,11 @@ public:
     #ifdef DEBUG
     magic(NBA_PACKET_MAGIC),
     #endif
-    mother(mother), base((struct rte_mbuf *) base), cloned(false), bidx(-1)
+    mother(mother), base((struct rte_mbuf *) base), cloned(false),
+    #if NBA_BATCHING_SCHEME == NBA_BATCHING_LINKEDLIST
+    prev_idx(-1), next_idx(-1),
+    #endif
+    bidx(-1)
     { }
 
     ~Packet() {

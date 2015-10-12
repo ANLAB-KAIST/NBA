@@ -12,13 +12,24 @@
 #define NBA_MAX_COPROCESSORS        (2)     // Max number of coprocessor devices
 #define NBA_MAX_PROCESSOR_TYPES     (2)     // Max number of device types (current: CPU and GPU)
 
+#define NBA_BATCHING_TRADITIONAL    (0)
+#define NBA_BATCHING_CONTINUOUS     (1)
+#define NBA_BATCHING_BITVECTOR      (2)
+#define NBA_BATCHING_LINKEDLIST     (3)
+#define NBA_BATCHING_SCHEME         NBA_BATCHING_BITVECTOR
+
 #define NBA_MAX_PACKET_SIZE         (2048)
 #ifdef NBA_NO_HUGE
-  #define NBA_MAX_IOBATCH_SIZE      (4u)
-  #define NBA_MAX_COMPBATCH_SIZE    (4u)
+  #define NBA_MAX_IO_BATCH_SIZE      (4u)
+  #define NBA_MAX_COMP_BATCH_SIZE    (4u)
 #else
-  #define NBA_MAX_IO_BATCH_SIZE      (256u)
-  #define NBA_MAX_COMP_BATCH_SIZE    (256u)
+  #if NBA_BATCHING_SCHEME == NBA_BATCHING_BITVECTOR
+    #define NBA_MAX_IO_BATCH_SIZE    (64u)
+    #define NBA_MAX_COMP_BATCH_SIZE  (64u)
+  #else
+    #define NBA_MAX_IO_BATCH_SIZE    (256u)
+    #define NBA_MAX_COMP_BATCH_SIZE  (256u)
+  #endif
 #endif
 #define NBA_MAX_COMP_PREPKTQ_LENGTH (256u)
 #if defined(NBA_PMD_MLX4) || defined(NBA_PMD_MLNX_UIO)

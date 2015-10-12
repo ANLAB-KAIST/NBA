@@ -87,16 +87,14 @@ public:
     void preproc_batch(PacketBatch *batch, void *buffer)
     {
         char *buf = (char *) buffer;
-        for (unsigned p = 0; p < batch->count; p++) {
-            if (batch->excluded[p] == false) {
-                Packet *pkt = Packet::from_base(batch->packets[p]);
-                assert(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_IV1));
-                assert(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_IV2));
-                __m128i iv = _mm_set_epi64((__m64) anno_get(&pkt->anno, NBA_ANNO_IPSEC_IV1),
-                                        (__m64) anno_get(&pkt->anno, NBA_ANNO_IPSEC_IV2));
-                _mm_storeu_si128((__m128i *) (buf + sizeof(__m128i) * p), iv);
-            }
-        }
+        FOR_EACH_PACKET(batch) {
+            Packet *pkt = Packet::from_base(batch->packets[pkt_idx]);
+            assert(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_IV1));
+            assert(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_IV2));
+            __m128i iv = _mm_set_epi64((__m64) anno_get(&pkt->anno, NBA_ANNO_IPSEC_IV1),
+                                    (__m64) anno_get(&pkt->anno, NBA_ANNO_IPSEC_IV2));
+            _mm_storeu_si128((__m128i *) (buf + sizeof(__m128i) * pkt_idx), iv);
+        } END_FOR;
     }
 };
 
@@ -141,17 +139,17 @@ public:
     void preproc_batch(PacketBatch *batch, void *buffer)
     {
         uint64_t *buf = (uint64_t *) buffer;
-        for (unsigned p = 0; p < batch->count; p++) {
-            if (batch->excluded[p] == false) {
-                Packet *pkt = Packet::from_base(batch->packets[p]);
+        FOR_EACH_PACKET_ALL(batch) {
+            if (IS_PACKET_VALID(batch, pkt_idx)) {
+                Packet *pkt = Packet::from_base(batch->packets[pkt_idx]);
                 assert(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID));
-                buf[p] = anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID);
-                assert(buf[p] < 1024);
+                buf[pkt_idx] = anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID);
+                assert(buf[pkt_idx] < 1024);
             } else {
                 // FIXME: Quick-and-dirty.. Just put invalid value in flow id to specify invalid packet.
-                buf[p] = invalid_value;
+                buf[pkt_idx] = invalid_value;
             }
-        }
+        } END_FOR_ALL;
     }
 
     uint64_t invalid_value = 65536;
@@ -202,9 +200,9 @@ public:
         memset(&block_info[0], 0xcc, sizeof(struct aes_block_info) * NBA_MAX_COMP_BATCH_SIZE * (NBA_MAX_PACKET_SIZE / AES_BLOCK_SIZE));
         #endif
 
-        for (unsigned p = 0; p < batch->count; ++p) {
-            Packet *pkt = Packet::from_base(batch->packets[p]);
-            if (batch->excluded[p] || !anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)) {
+        FOR_EACH_PACKET(batch) {
+            Packet *pkt = Packet::from_base(batch->packets[pkt_idx]);
+            if (!anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)) {
                 // h_pkt_index and h_block_offset are per-block.
                 // We just skip to set them here.
                 continue;
@@ -212,12 +210,12 @@ public:
 
             /* Per-block loop for the packet. */
             unsigned strip_hdr_len = sizeof(struct ether_hdr) + sizeof(struct iphdr) + sizeof(struct esphdr);
-            unsigned pkt_len = rte_pktmbuf_data_len(batch->packets[p]);
+            unsigned pkt_len = rte_pktmbuf_data_len(batch->packets[pkt_idx]);
             unsigned payload_len = ALIGN_CEIL(pkt_len - strip_hdr_len, AES_BLOCK_SIZE);
             unsigned pkt_local_num_blocks = (payload_len + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE;
             for (unsigned q = 0; q < pkt_local_num_blocks; ++q) {
                 unsigned global_block_idx = global_block_cnt + q;
-                block_info[global_block_idx].pkt_idx = p;
+                block_info[global_block_idx].pkt_idx = pkt_idx;
                 block_info[global_block_idx].block_idx = q;
                 block_info[global_block_idx].pkt_offset = global_pkt_offset;
                 block_info[global_block_idx].magic = 85739;
@@ -226,7 +224,7 @@ public:
             // NOTE: 여기서 align하는 부분은 DataBlock READ_WHOLE_PACKET을 프레임워크가
             //       수행할 때 align하는 것과 동일한 방법을 써야 한다.
             global_pkt_offset  = ALIGN_CEIL(global_pkt_offset + pkt_len + SHA_DIGEST_LENGTH, CACHE_LINE_SIZE);
-        }
+        } END_FOR;
         out_bytes = sizeof(struct aes_block_info) * global_block_cnt;
         out_count = global_block_cnt;
         if (out_count > 0)

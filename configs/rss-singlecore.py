@@ -20,7 +20,7 @@ for node_id, cpus in enumerate(node_cpus):
 
 no_huge = int(os.environ.get('NBA_NO_HUGE', 0))
 system_params = {
-    'IO_BATCH_SIZE': int(os.environ.get('NBA_IO_BATCH_SIZE', 4 if no_huge else 64)),
+    'IO_BATCH_SIZE': int(os.environ.get('NBA_IO_BATCH_SIZE', 4 if no_huge else 32)),
     'COMP_BATCH_SIZE': int(os.environ.get('NBA_COMP_BATCH_SIZE', 4 if no_huge else 64)),
     'COPROC_PPDEPTH': int(os.environ.get('NBA_COPROC_PPDEPTH', 2 if no_huge else 32)),
     'COPROC_CTX_PER_COMPTHREAD': 1,

@@ -91,7 +91,7 @@ SUPPRESSED_CC_WARNINGS = (
 )
 CFLAGS         = '-march=native -O2 -g -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude'
 if os.getenv('DEBUG', 0):
-    CFLAGS     = '-march=native -Og -g3 -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -DDEBUG'
+    CFLAGS     = '-march=native -Og -g3 -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude -DDEBUG'
 #LIBS           = '-ltcmalloc_minimal -lnuma -lpthread -lpcre -lrt'
 LIBS           = '-lnuma -lpthread -lpcre -lrt'
 if USE_CUDA:        CFLAGS += ' -DUSE_CUDA'
@@ -115,7 +115,7 @@ if USE_CUDA:
     LIBS         += ' -L/usr/local/cuda/lib64 -lcudart' #' -lnvidia-ml'
     print(CUDA_ARCHS)
     if os.getenv('DEBUG', 0):
-        NVCFLAGS  = '-O0 --device-debug -g -G -std=c++11 --use_fast_math -I/usr/local/cuda/include --ptxas-options=-v'
+        NVCFLAGS  = '-O0 --device-debug -g -G -std=c++11 --use_fast_math -Iinclude -I/usr/local/cuda/include --ptxas-options=-v'
     if len(CUDA_ARCHS) == 0:
         NVCFLAGS += ' -DMP_USE_64BIT=0' \
                   + ' -gencode arch=compute_10,code=sm_10' \
