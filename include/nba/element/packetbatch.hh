@@ -25,9 +25,26 @@ struct rte_ring;
  * variables.
  *
  * "ALL" modifier means that it does not check packet exclusion,
- * "PREFETCH" modifier means that is performs prefetching with the given depth,
+ * "PREFETCH" modifier means that it performs prefetching with the given depth,
  * and "INIT" modifier means that it is used for batch initialization
  * where the batch is always continuous.
+ *
+ * Usage:
+ * ------
+ *
+ * FOR_EACH_PACKET(batch) {
+ *   ... batch->packets[pkt_idx] ...
+ * } END_FOR;
+ *
+ * FOR_EACH_PACKET_ALL(batch) {
+ *   if (IS_PACKET_VALID(batch, pkt_idx)) ...
+ *   ... batch->packets[pkt_idx] ...
+ * } END_FOR_ALL;
+ *
+ * FOR_EACH_PACKET_ALL_PREFETCH(batch, 4u) {
+ *   ... batch->packets[pkt_idx] ...
+ * } END_FOR_ALL_PREFETCH;
+ *
  */
 
 #if NBA_BATCHING_SCHEME == NBA_BATCHING_TRADITIONAL
