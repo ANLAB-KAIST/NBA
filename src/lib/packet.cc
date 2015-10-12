@@ -30,8 +30,10 @@ struct rte_mempool *packet_create_mempool(size_t size, int node_id, int core_id)
 void Packet::kill()
 {
     mother->results[bidx] = PacketDisposition::DROP;
-    mother->excluded[bidx] = true;
+    EXCLUDE_PACKET_MARK_ONLY(mother, bidx);
+    #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
     mother->has_dropped = true;
+    #endif
 }
 
 }

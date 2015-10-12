@@ -198,50 +198,31 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
     batch->banno.bitmask = 0;
     anno_set(&batch->banno, NBA_BANNO_LB_DECISION, 0);
 
-    unsigned p;
     /* t is NOT the actual receive timestamp but a
      * "start-of-processing" timestamp.
      * However its ordering is same as we do FIFO here.
      */
     uint64_t t = rdtscp();
     batch->count = count;
+    INIT_BATCH_MASK(batch);
     batch->recv_timestamp = t;
     batch->compute_time = 0;
     batch->delay_start = 0;
     batch->delay_time = 0;
     batch->batch_id = recv_batch_cnt;
-    for (p = 0; p < count; p++) {
-        batch->excluded[p] = false;
-    }
-    #define PREFETCH_DEPTH (8u)
-    #if PREFETCH_DEPTH
-    for (p = 0; p < RTE_MIN(count, PREFETCH_DEPTH); p++) {
-        rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p], void*));
-        rte_prefetch0(Packet::from_base_nocheck(batch->packets[p]));
-    }
-    #endif
-    for (p = 0; p < count; p++) {
-        /* Prefetch the next packet object spaces. */
-        #if PREFETCH_DEPTH
-        if (p + PREFETCH_DEPTH < count) {
-            rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p + PREFETCH_DEPTH], void*));
-            rte_prefetch0(Packet::from_base_nocheck(batch->packets[p + PREFETCH_DEPTH]));
-        }
-        #endif
-
+    FOR_EACH_PACKET_ALL_INIT_PREFETCH(batch, 8u) {
         /* Initialize packet metadata objects in pktmbuf's private area. */
-        Packet *pkt = Packet::from_base_nocheck(batch->packets[p]);
-        new (pkt) Packet(batch, batch->packets[p]);
+        Packet *pkt = Packet::from_base_nocheck(batch->packets[pkt_idx]);
+        new (pkt) Packet(batch, batch->packets[pkt_idx]);
 
         /* Set annotations and strip the temporary headroom. */
         pkt->anno.bitmask = 0;
         anno_set(&pkt->anno, NBA_ANNO_IFACE_IN,
-                 batch->packets[p]->port);
+                 batch->packets[pkt_idx]->port);
         anno_set(&pkt->anno, NBA_ANNO_TIMESTAMP, t);
         anno_set(&pkt->anno, NBA_ANNO_BATCH_ID, recv_batch_cnt);
-    }
+    } END_FOR_ALL_INIT_PREFETCH;
     recv_batch_cnt ++;
-    #undef PREFETCH_DEPTH
 
     /* Run the element graph's schedulable elements.
      * FIXME: allow multiple FromInput elements depending on the flow groups. */
@@ -511,7 +492,9 @@ static void io_terminate_cb(struct ev_loop *loop, struct ev_async *watcher, int 
  */
 void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
 {
-    PacketBatch out_batches[NBA_MAX_PORTS];
+    struct rte_mbuf *out_batches[NBA_MAX_PORTS][NBA_MAX_COMP_BATCH_SIZE];
+    unsigned out_batches_cnt[NBA_MAX_PORTS];
+    memset(out_batches_cnt, 0, sizeof(unsigned) * NBA_MAX_PORTS);
     uint64_t t = rdtscp();
     int64_t proc_id = anno_get(&batch->banno, NBA_BANNO_LB_DECISION);  // adjust range to be positive
     ctx->comp_ctx->inspector->update_batch_proc_time(t - batch->recv_timestamp);
@@ -523,9 +506,9 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
     // TODO: keep ordering of packets (or batches)
     //   NOTE: current implementation: no extra queueing,
     //   just transmit as requested
-    for (unsigned p = 0; p < batch->count; p++) {
-        Packet *pkt = Packet::from_base(batch->packets[p]);
-        struct ether_hdr *ethh = rte_pktmbuf_mtod(batch->packets[p], struct ether_hdr *);
+    FOR_EACH_PACKET(batch) {
+        Packet *pkt = Packet::from_base(batch->packets[pkt_idx]);
+        struct ether_hdr *ethh = rte_pktmbuf_mtod(batch->packets[pkt_idx], struct ether_hdr *);
         uint64_t o = anno_get(&pkt->anno, NBA_ANNO_IFACE_OUT);
 
         /* Update source/dest MAC addresses. */
@@ -533,21 +516,21 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
         ether_addr_copy(&ctx->tx_ports[o].addr, &ethh->s_addr);
 
         /* Append to the corresponding output batch. */
-        int cnt = out_batches[o].count ++;
-        out_batches[o].packets[cnt] = batch->packets[p];
-    }
+        int cnt = out_batches_cnt[o] ++;
+        out_batches[o][cnt] = batch->packets[pkt_idx];
+    } END_FOR;
 
     unsigned tx_tries = 0;
     for (unsigned o = 0; o < ctx->num_tx_ports; o++) {
-        if (out_batches[o].count == 0)
+        if (out_batches_cnt[o] == 0)
             continue;
-        struct rte_mbuf **pkts = out_batches[o].packets;
-        unsigned count = out_batches[o].count;
+        struct rte_mbuf **pkts = out_batches[o];
+        unsigned count = out_batches_cnt[o];
         uint64_t total_sent_byte = 0;
 
         /* Sum TX packet bytes. */
         for(unsigned k = 0; k < count; k++) {
-            struct rte_mbuf* cur_pkt = out_batches[o].packets[k];
+            struct rte_mbuf* cur_pkt = out_batches[o][k];
             unsigned len = rte_pktmbuf_pkt_len(cur_pkt) + 24;  /* Add Ethernet overheads */
             ctx->port_stats[o].num_sent_bytes += len;
         }
@@ -568,7 +551,7 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
             unsigned txq = ctx->loc.global_thread_idx;
             unsigned sent_cnt = rte_eth_tx_burst((uint8_t) o, txq, pkts, count);
             for (unsigned k = sent_cnt; k < count; k++) {
-                struct rte_mbuf* cur_pkt = out_batches[o].packets[k];
+                struct rte_mbuf* cur_pkt = out_batches[o][k];
                 unsigned len = rte_pktmbuf_pkt_len(cur_pkt) + 24;
                 ctx->port_stats[o].num_sent_bytes -= len;
                 rte_pktmbuf_free(pkts[k]);
