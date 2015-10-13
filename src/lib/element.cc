@@ -41,55 +41,29 @@ Element::~Element()
 int Element::_process_batch(int input_port, PacketBatch *batch)
 {
     memset(output_counts, 0, sizeof(uint16_t) * ElementGraph::num_max_outputs);
+    #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
     batch->has_dropped = false;
     batch->drop_count = 0;
-//#define NBA_LOOP_UNROLLING
-#ifdef NBA_LOOP_UNROLLING
-    #define NBA_UNROLL_STRIDE (4)
-    unsigned stride;
-    for (stride = 0; stride < batch->count; stride += NBA_UNROLL_STRIDE) {
-        unsigned idx1 = stride + 0;
-        unsigned idx2 = stride + 1;
-        unsigned idx3 = stride + 2;
-        unsigned idx4 = stride + 3;
-        Packet *pkt1 = Packet::from_base(batch->packets[idx1]);
-        Packet *pkt2 = Packet::from_base(batch->packets[idx2]);
-        Packet *pkt3 = Packet::from_base(batch->packets[idx3]);
-        Packet *pkt4 = Packet::from_base(batch->packets[idx4]);
-        pkt1->bidx = idx1;
-        pkt2->bidx = idx2;
-        pkt3->bidx = idx3;
-        pkt4->bidx = idx4;
-        this->process(input_port, pkt1);
-        this->process(input_port, pkt2);
-        this->process(input_port, pkt3);
-        this->process(input_port, pkt4);
-    }
-    for (unsigned p = stride - NBA_UNROLL_STRIDE; p < batch->count; p++) {
-        Packet *pkt = Packet::from_base(batch->packets[p]);
-        pkt->bidx = p;
+    #endif
+    FOR_EACH_PACKET(batch) {
+        Packet *pkt = Packet::from_base(batch->packets[pkt_idx]);
+        pkt->bidx = pkt_idx;
         this->process(input_port, pkt);
-    }
-    #undef NBA_UNROLL_STRIDE
-#else
-    for (unsigned p = 0; p < batch->count; p++) {
-        if (likely(!batch->excluded[p])) {
-            Packet *pkt = Packet::from_base(batch->packets[p]);
-            pkt->bidx = p;
-            this->process(input_port, pkt);
-        }
-    }
-#endif
+    } END_FOR;
+    #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
     if (batch->has_dropped)
         batch->collect_excluded_packets();
+    #endif
     batch->has_results = true;
     return 0; // this value will be ignored.
 }
 
 int VectorElement::_process_batch(int input_port, PacketBatch *batch)
 {
+    #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
     batch->has_dropped = false;
     batch->drop_count = 0;
+    #endif
     unsigned stride = 0;
     for (stride = 0; stride < batch->count; stride += NBA_VECTOR_WIDTH) {
         vec_mask_t mask = _mm256_set1_epi64x(1);
@@ -126,8 +100,10 @@ int VectorElement::_process_batch(int input_port, PacketBatch *batch)
         }
         this->process_vector(input_port, pkt_vec, mask_arg);
     }
+    #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
     if (batch->has_dropped)
         batch->collect_excluded_packets();
+    #endif
     batch->has_results = true;
     return 0;
 }

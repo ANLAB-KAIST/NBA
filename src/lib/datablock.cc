@@ -74,21 +74,27 @@ tuple<size_t, size_t> DataBlock::calc_read_buffer_size(PacketBatch *batch)
 
         num_read_items = batch->count;
         size_t align = (read_roi.align == 0) ? CACHE_LINE_SIZE : read_roi.align;
-        for (unsigned p = 0; p < batch->count; p++) {
-            if (batch->excluded[p]) {
-                t->aligned_item_sizes.offsets[p] = 0;
-                //t->exact_item_sizes.sizes[p]   = 0;
-                t->aligned_item_sizes.sizes[p]   = 0;
+        FOR_EACH_PACKET_ALL(batch) {
+            #if (NBA_BATCHING_SCHEME == NBA_BATCHING_TRADITIONAL) \
+                || (NBA_BATCHING_SCHEME == NBA_BATCHING_BITVECTOR)
+            if (IS_PACKET_INVALID(batch, pkt_idx)) {
+                t->aligned_item_sizes.offsets[pkt_idx] = 0;
+                //t->exact_item_sizes.sizes[pkt_idx]   = 0;
+                t->aligned_item_sizes.sizes[pkt_idx]   = 0;
             } else {
-                unsigned exact_len   = rte_pktmbuf_data_len(batch->packets[p]) - read_roi.offset
+            #endif
+                unsigned exact_len   = rte_pktmbuf_data_len(batch->packets[pkt_idx]) - read_roi.offset
                                        + read_roi.length + read_roi.size_delta;
                 unsigned aligned_len = RTE_ALIGN_CEIL(exact_len, align);
-                t->aligned_item_sizes.offsets[p] = read_buffer_size;
-                //t->exact_item_sizes.sizes[p]   = exact_len;
-                t->aligned_item_sizes.sizes[p]   = aligned_len;
+                t->aligned_item_sizes.offsets[pkt_idx] = read_buffer_size;
+                //t->exact_item_sizes.sizes[pkt_idx]   = exact_len;
+                t->aligned_item_sizes.sizes[pkt_idx]   = aligned_len;
                 read_buffer_size += aligned_len;
-            }
-        }
+            #if (NBA_BATCHING_SCHEME == NBA_BATCHING_TRADITIONAL) \
+                || (NBA_BATCHING_SCHEME == NBA_BATCHING_BITVECTOR)
+            } /* endif(excluded) */
+            #endif
+        } END_FOR_ALL;
 
         break; }
     case READ_USER_PREPROC: {
@@ -179,56 +185,34 @@ void DataBlock::preprocess(PacketBatch *batch, void *host_in_buffer) {
 
     switch (read_roi.type) {
     case READ_PARTIAL_PACKET: {
-        #define PREFETCH_DEPTH (4u)
-        #if PREFETCH_DEPTH
-        for (unsigned p = 0; p < RTE_MIN(PREFETCH_DEPTH, batch->count); p++)
-            if (batch->packets[p] != nullptr)
-                rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p], void*));
-        #endif
         void *invalid_value = this->get_invalid_value();
-        for (unsigned p = 0; p < batch->count; p++) {
-            #if PREFETCH_DEPTH
-            if (p + PREFETCH_DEPTH < batch->count && batch->packets[p + PREFETCH_DEPTH] != nullptr)
-                rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p + PREFETCH_DEPTH], void*));
-            #endif
+        FOR_EACH_PACKET_ALL_PREFETCH(batch, 4u) {
             size_t aligned_elemsz = t->aligned_item_sizes.size;
-            size_t offset         = t->aligned_item_sizes.size * p;
-            if (batch->excluded[p]) {
+            size_t offset         = t->aligned_item_sizes.size * pkt_idx;
+            if (IS_PACKET_INVALID(batch, pkt_idx)) {
                 if (invalid_value != nullptr) {
                     rte_memcpy((char *) host_in_buffer + offset, invalid_value, aligned_elemsz);
                 }
             } else {
                 rte_memcpy((char*) host_in_buffer + offset,
-                           rte_pktmbuf_mtod(batch->packets[p], char*) + read_roi.offset,
+                           rte_pktmbuf_mtod(batch->packets[pkt_idx], char*) + read_roi.offset,
                            aligned_elemsz);
             }
-        }
-        #undef PREFETCH_DEPTH
+        } END_FOR_ALL_PREFETCH;
 
         break; }
     case READ_WHOLE_PACKET: {
 
         /* Copy the speicified region of packet to the input buffer. */
-        #define PREFETCH_DEPTH (4u)
-        #if PREFETCH_DEPTH
-        for (unsigned p = 0; p < RTE_MIN(PREFETCH_DEPTH, batch->count); p++)
-            if (batch->packets[p] != nullptr)
-                rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p], void*));
-        #endif
-        for (unsigned p = 0; p < batch->count; p++) {
-            #if PREFETCH_DEPTH
-            if (p + PREFETCH_DEPTH < batch->count && batch->packets[p + PREFETCH_DEPTH] != nullptr)
-                rte_prefetch0(rte_pktmbuf_mtod(batch->packets[p + PREFETCH_DEPTH], void*));
-            #endif
-            if (batch->excluded[p])
+        FOR_EACH_PACKET_ALL_PREFETCH(batch, 4u) {
+            if (IS_PACKET_INVALID(batch, pkt_idx))
                 continue;
-            size_t aligned_elemsz = t->aligned_item_sizes.sizes[p];
-            size_t offset         = t->aligned_item_sizes.offsets[p];
+            size_t aligned_elemsz = t->aligned_item_sizes.sizes[pkt_idx];
+            size_t offset         = t->aligned_item_sizes.offsets[pkt_idx];
             rte_memcpy((char*) host_in_buffer + offset,
-                       rte_pktmbuf_mtod(batch->packets[p], char*) + read_roi.offset,
+                       rte_pktmbuf_mtod(batch->packets[pkt_idx], char*) + read_roi.offset,
                        aligned_elemsz);
-        }
-        #undef PREFETCH_DEPTH
+        } END_FOR_ALL_PREFETCH;
 
         break; }
     case READ_USER_PREPROC: {
@@ -263,23 +247,27 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
     case WRITE_WHOLE_PACKET: {
 
         /* Update the packets and run postprocessing. */
+        #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
         batch->has_dropped = false;
-        for (unsigned p = 0; p < batch->count; p++) {
+        #endif
+        FOR_EACH_PACKET(batch) {
             size_t elemsz = bitselect<size_t>(write_roi.type == WRITE_PARTIAL_PACKET,
                                               t->aligned_item_sizes.size,
-                                              t->aligned_item_sizes.sizes[p]);
+                                              t->aligned_item_sizes.sizes[pkt_idx]);
             size_t offset = bitselect<size_t>(write_roi.type == WRITE_PARTIAL_PACKET,
-                                              t->aligned_item_sizes.size * p,
-                                              t->aligned_item_sizes.offsets[p]);
-            rte_memcpy(rte_pktmbuf_mtod(batch->packets[p], char*) + write_roi.offset,
+                                              t->aligned_item_sizes.size * pkt_idx,
+                                              t->aligned_item_sizes.offsets[pkt_idx]);
+            rte_memcpy(rte_pktmbuf_mtod(batch->packets[pkt_idx], char*) + write_roi.offset,
                        (char*) host_out_ptr + offset,
                        elemsz);
-            Packet *pkt = Packet::from_base(batch->packets[p]);
-            pkt->bidx = p;
+            Packet *pkt = Packet::from_base(batch->packets[pkt_idx]);
+            pkt->bidx = pkt_idx;
             elem->postproc(input_port, nullptr, pkt);
-        }
+        } END_FOR;
+        #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
         if (batch->has_dropped)
             batch->collect_excluded_packets();
+        #endif
         batch->has_results = true;
 
         break; }
@@ -290,16 +278,20 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
     case WRITE_FIXED_SEGMENTS: {
 
         /* Run postporcessing only. */
+        #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
         batch->has_dropped = false;
-        for (unsigned p = 0; p < batch->count; p++) {
+        #endif
+        FOR_EACH_PACKET(batch) {
             uintptr_t elemsz = t->aligned_item_sizes.size;
-            uintptr_t offset = elemsz * p;
-            Packet *pkt = Packet::from_base(batch->packets[p]);
-            pkt->bidx = p;
+            uintptr_t offset = elemsz * pkt_idx;
+            Packet *pkt = Packet::from_base(batch->packets[pkt_idx]);
+            pkt->bidx = pkt_idx;
             elem->postproc(input_port, (char*) host_out_ptr + offset, pkt);
-        }
+        } END_FOR;
+        #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
         if (batch->has_dropped)
             batch->collect_excluded_packets();
+        #endif
         batch->has_results = true;
 
         break; }

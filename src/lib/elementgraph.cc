@@ -157,9 +157,11 @@ void ElementGraph::free_batch(PacketBatch *batch, bool free_pkts)
         rte_ring_enqueue_bulk(ctx->io_ctx->drop_queue,
                               (void **) &batch->packets[0],
                               batch->count);
+        #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
         rte_ring_enqueue_bulk(ctx->io_ctx->drop_queue,
                               (void **) &batch->packets[batch->count],
                               batch->drop_count);
+        #endif
     }
     rte_mempool_put(ctx->batch_pool, (void *) batch);
 }
@@ -276,29 +278,37 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
              * batches.  Just reuse the given one. */
             if (0 == (current_elem->get_type() & ELEMTYPE_PER_BATCH)) {
                 const int *const results = batch->results;
+                #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
                 batch->has_dropped = false;
-                for (unsigned p = 0; p < batch->count; p++) {
-                    int o = results[p];
+                #endif
+                FOR_EACH_PACKET(batch) {
+                    int o = results[pkt_idx];
                     switch (o) {
                     case 0:
                         // pass
                         break;
+                    #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
+                    case DROP:
+                        rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]);
+                        EXCLUDE_PACKET(batch, pkt_idx);
+                        break;
+                    #endif
                     case PENDING:
                         // remove from PacketBatch, but don't free..
                         // They are stored in io_thread_ctx::pended_pkt_queue.
-                        batch->excluded[p] = true;
-                        batch->packets[p]  = nullptr;
-                        batch->has_dropped = true;
+                        EXCLUDE_PACKET(batch, pkt_idx);
                         break;
                     case SLOWPATH:
                         rte_panic("SLOWPATH is not supported yet. (element: %s)\n", current_elem->class_name());
                         break;
                     }
-                }
+                } END_FOR;
+                #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
                 if (batch->has_dropped)
                     batch->collect_excluded_packets();
                 if (ctx->inspector) ctx->inspector->drop_pkt_count += batch->drop_count;
                 batch->clean_drops(ctx->io_ctx->drop_queue);
+                #endif
             }
             if (current_elem->next_elems[0]->get_type() & ELEMTYPE_OUTPUT) {
                 /* We are at the end leaf of the pipeline.
@@ -355,9 +365,11 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                 out_batches[predicted_output] = batch;
 
                 /* Classify packets into copy-batches. */
+                #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
                 batch->has_dropped = false;
-                for (unsigned p = 0; p < batch->count; p++) {
-                    int o = results[p];
+                #endif
+                FOR_EACH_PACKET(batch) {
+                    int o = results[pkt_idx];
                     assert(o < (signed) num_outputs);
 
                     /* Prediction mismatch! */
@@ -375,20 +387,19 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                                 out_batches[o]->recv_timestamp = batch->recv_timestamp;
                             }
                             /* Append the packet to the output batch. */
-                            int cnt = out_batches[o]->count ++;
-                            out_batches[o]->packets[cnt] = batch->packets[p];
-                            out_batches[o]->excluded[cnt] = false;
+                            ADD_PACKET(out_batches[o], batch->packets[pkt_idx]);
                             /* Exclude it from the batch. */
-                            out_batches[predicted_output]->excluded[p] = true;
-                            out_batches[predicted_output]->packets[p]  = nullptr;
-                            out_batches[predicted_output]->has_dropped = true;
+                            EXCLUDE_PACKET(batch, pkt_idx);
                             break; }
+                        #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
+                        case DROP:
+                            rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]);
+                            EXCLUDE_PACKET(batch, pkt_idx);
+                        #endif
                         case PENDING: {
                             /* The packet is stored in io_thread_ctx::pended_pkt_queue. */
                             /* Exclude it from the batch. */
-                            out_batches[predicted_output]->excluded[p] = true;
-                            out_batches[predicted_output]->packets[p]  = nullptr;
-                            out_batches[predicted_output]->has_dropped = true;
+                            EXCLUDE_PACKET(batch, pkt_idx);
                             break; }
                         case SLOWPATH:
                             assert(0); // Not implemented yet.
@@ -398,13 +409,15 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     }
                     current_elem->branch_total++;
                     current_elem->branch_count[o]++;
-                } /* endfor(batch->count) */
+                } END_FOR;
 
                 // NOTE: out_batches[predicted_output] == batch
+                #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
                 if (batch->has_dropped)
                     batch->collect_excluded_packets();
                 if (ctx->inspector) ctx->inspector->drop_pkt_count += batch->drop_count;
                 batch->clean_drops(ctx->io_ctx->drop_queue);
+                #endif
 
                 if (current_elem->branch_total & BRANCH_TRUNC_LIMIT) {
                     //double percentage = ((double)(current_elem->branch_total-current_elem->branch_miss) / (double)current_elem->branch_total);
@@ -473,16 +486,23 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                 }
 
                 /* Classify packets into copy-batches. */
-                for (unsigned p = 0; p < batch->count; p++) {
-                    int o = results[p];
+                FOR_EACH_PACKET(batch) {
+                    int o = results[pkt_idx];
+                    #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
                     if (o >= (signed) num_outputs || o < 0)
-                        printf("o=%d, num_outputs=%u, %u/%u/%u\n", o, num_outputs, p, batch->count, batch->drop_count);
+                        printf("o=%d, num_outputs=%lu, %u/%u/%u\n", o, num_outputs, pkt_idx, batch->count, batch->drop_count);
+                    #else
+                    if (o >= (signed) num_outputs || o < 0)
+                        printf("o=%d, num_outputs=%lu, %u/%u\n", o, num_outputs, pkt_idx, batch->count);
+                    #endif
                     assert(o < (signed) num_outputs && o >= 0);
 
                     if (o >= 0) {
-                        int cnt = out_batches[o]->count ++;
-                        out_batches[o]->packets[cnt] = batch->packets[p];
-                        out_batches[o]->excluded[cnt] = false;
+                        ADD_PACKET(out_batches[o], batch->packets[pkt_idx]);
+                    #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
+                    } else if (o == DROP) {
+                        rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]);
+                    #endif
                     } else if (o == PENDING) {
                         // remove from PacketBatch, but don't free..
                         // They are stored in io_thread_ctx::pended_pkt_queue.
@@ -494,8 +514,8 @@ void ElementGraph::run(PacketBatch *batch, Element *start_elem, int input_port)
                     /* Packets are excluded from original batch in ALL cases. */
                     /* Therefore, we do not have to collect_excluded_packets()
                      * nor clean_drops()! */
-                    batch->excluded[p] = true;
-                } /* endfor(batch->count) */
+                    EXCLUDE_PACKET_MARK_ONLY(batch, pkt_idx);
+                } END_FOR;
 
                 /* Recurse into the element subgraph starting from each
                  * output port using copy-batches. */

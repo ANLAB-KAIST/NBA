@@ -11,6 +11,7 @@ using namespace nba;
 /* empty currently */
 namespace nba {
 
+#if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
 void PacketBatch::collect_excluded_packets()
 {
     unsigned dropped_cnt = 0;
@@ -40,6 +41,7 @@ void PacketBatch::clean_drops(struct rte_ring *drop_queue)
         this->drop_count = 0;
     }
 }
+#endif
 
 }
 
