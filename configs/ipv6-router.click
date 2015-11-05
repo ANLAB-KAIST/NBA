@@ -1,6 +1,6 @@
 FromInput() ->
 CheckIP6Header() ->
-LoadBalancePPC() ->
+LoadBalanceThruput() ->
 LookupIP6Route() ->
 DecIP6HLIM() ->
 DropBroadcasts() ->
