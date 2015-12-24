@@ -157,7 +157,7 @@ LIBS          += ' -L{SSL_PATH}/lib -lcrypto'
 
 # Python configurations (assuming we use the same version of Python for Snakemake and configuration scripts)
 CFLAGS        += ' -I{0} -fwrapv'.format(sysconfig.get_path('include'))
-LIBS          += ' -L{0} -lpython{1}m {2} {3}'.format(sysconfig.get_path('stdlib'),
+LIBS          += ' -L{0} -lpython{1}m {2} {3}'.format(sysconfig.get_config_var('LIBDIR'),
                                                       '{0}.{1}'.format(sys.version_info.major, sys.version_info.minor),
                                                       sysconfig.get_config_var('LIBS'),
                                                       sysconfig.get_config_var('LINKFORSHARED'))
