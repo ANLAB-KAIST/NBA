@@ -8,6 +8,7 @@
 #include <nba/framework/threadcontext.hh>
 #include <nba/framework/computecontext.hh>
 #include <nba/framework/datablock.hh>
+#include <nba/framework/task.hh>
 #include <cstdint>
 #include <vector>
 #include <ev.h>
@@ -66,11 +67,13 @@ public:
     enum TaskStates state;
 
     /* Initialized by element graph. */
+    struct task_tracker tracker;
     int local_dev_idx;
     struct ev_loop *src_loop;
     comp_thread_context *comp_ctx;
     coproc_thread_context *coproc_ctx;
     ComputeContext *cctx;
+    io_base_t io_base;
     ElementGraph *elemgraph;
     FixedArray<PacketBatch*, nullptr, NBA_MAX_COPROC_PPDEPTH> batches;
     FixedArray<int, -1, NBA_MAX_COPROC_PPDEPTH> input_ports;
@@ -86,10 +89,18 @@ public:
 private:
     uint64_t task_id; // for deubgging
     friend class OffloadableElement;
+
+    void *host_write_begin;
+    void *host_read_begin;
+    memory_t dev_write_begin;
+    memory_t dev_read_begin;
+    size_t input_alloc_size_begin;
+    size_t output_alloc_size_begin;
+
 };
 
 }
 
-#endif
+#endif /* __NBA_OFFLOADTASK_HH__ */
 
 // vim: ts=8 sts=4 sw=4 et foldmethod=marker

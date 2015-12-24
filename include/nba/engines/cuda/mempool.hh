@@ -12,7 +12,7 @@ namespace nba {
 class CUDAMemoryPool : public MemoryPool
 {
 public:
-    CUDAMemoryPool() : MemoryPool(), base_(NULL)
+    CUDAMemoryPool() : MemoryPool(), base(NULL)
     {
     }
 
@@ -23,8 +23,8 @@ public:
 
     virtual bool init(size_t max_size)
     {
-        max_size_ = max_size;
-        cutilSafeCall(cudaMalloc((void **) &base_, max_size));
+        max_size = max_size;
+        cutilSafeCall(cudaMalloc((void **) &base, max_size));
         return true;
     }
 
@@ -33,29 +33,29 @@ public:
         size_t offset;
         int ret = _alloc(size, &offset);
         if (ret == 0)
-            return (void *) ((uint8_t *) base_ + (uintptr_t) offset);
+            return (void *) ((uint8_t *) base + (uintptr_t) offset);
         return NULL;
     }
 
     void destroy()
     {
-        if (base_ != NULL)
-            cudaFree(base_);
+        if (base != NULL)
+            cudaFree(base);
     }
 
-    void *get_base_ptr()
+    void *get_base_ptr() const
     {
-        return base_;
+        return base;
     }
 
 private:
-    void *base_;
+    void *base;
 };
 
 class CPUMemoryPool : public MemoryPool
 {
 public:
-    CPUMemoryPool(int cuda_flags) : MemoryPool(), base_(NULL), flags_(cuda_flags)
+    CPUMemoryPool(int cuda_flags = 0) : MemoryPool(), base(NULL), flags(cuda_flags)
     {
     }
 
@@ -66,9 +66,17 @@ public:
 
     virtual bool init(unsigned long size)
     {
-        max_size_ = size;
-        cutilSafeCall(cudaHostAlloc((void **) &base_, size,
-                      flags_));
+        max_size = size;
+        cutilSafeCall(cudaHostAlloc((void **) &base, size,
+                      this->flags));
+        return true;
+    }
+
+    bool init_with_flags(unsigned long size, int flags)
+    {
+        max_size = size;
+        cutilSafeCall(cudaHostAlloc((void **) &base, size,
+                      flags));
         return true;
     }
 
@@ -77,24 +85,24 @@ public:
         size_t offset;
         int ret = _alloc(size, &offset);
         if (ret == 0)
-            return (void *) ((uint8_t *) base_ + (uintptr_t) offset);
+            return (void *) ((uint8_t *) base + (uintptr_t) offset);
         return NULL;
     }
 
     void destroy()
     {
-        if (base_ != NULL)
-            cudaFreeHost(base_);
+        if (base != NULL)
+            cudaFreeHost(base);
     }
 
-    void *get_base_ptr()
+    void *get_base_ptr() const
     {
-        return base_;
+        return base;
     }
 
 protected:
-    void *base_;
-    int flags_;
+    void *base;
+    int flags;
 };
 
 }

@@ -24,12 +24,14 @@ private:
 public:
     virtual ~PhiComputeContext();
 
-    int alloc_input_buffer(size_t size, void **host_ptr, memory_t *dev_mem);
-    int alloc_output_buffer(size_t size, void **host_ptr, memory_t *dev_mem);
-    void clear_io_buffers();
-    void *get_host_input_buffer_base();
-    memory_t get_device_input_buffer_base();
-    size_t get_total_input_buffer_size();
+    io_base_t alloc_io_base();
+    int alloc_input_buffer(io_base_t io_base, size_t size, void **host_ptr, memory_t *dev_mem);
+    int alloc_output_buffer(io_base_t io_base, size_t size, void **host_ptr, memory_t *dev_mem);
+    void get_input_current_pos(io_base_t io_base, void **host_ptr, memory_t *dev_mem) const;
+    void get_output_current_pos(io_base_t io_base, void **host_ptr, memory_t *dev_mem) const;
+    size_t get_input_size(io_base_t io_base) const;
+    size_t get_output_size(io_base_t io_base) const;
+    void clear_io_buffers(io_base_t io_base);
 
     void clear_kernel_args() { }
     void push_kernel_arg(struct kernel_arg &arg) { }

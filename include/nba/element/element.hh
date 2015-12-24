@@ -224,15 +224,17 @@ public:
             };
             offload_compute_handlers.insert({{"dummy", ch},});
         }
-        for (int i = 0; i < NBA_MAX_COPROCESSOR_TYPES; i++)
-            tasks[i] = nullptr;
         finished_batches.init(MAX_FINBATCH_QLEN, -1, finished_batches_arrbuf);
     }
     virtual ~OffloadableElement() {}
     int get_type() const { return ELEMTYPE_OFFLOADABLE | ELEMTYPE_SCHEDULABLE; }
 
-    /** Begins offloading of the given batch. */
+    /** Enqueues the given batch for offloading and begins offloading when
+     * it has sufficient amount of work. */
     int offload(ElementGraph *mother, PacketBatch *in_batch, int input_port);
+
+    /** Immediately begins offloading of the given (reused) offload-task. */
+    int offload(ElementGraph *mother, OffloadTask *reused_offl_task, int input_port);
 
     /** Stores the batches that are returned from offloading. */
     int enqueue_batch(PacketBatch *batch);

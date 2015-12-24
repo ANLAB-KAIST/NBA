@@ -16,10 +16,14 @@ struct datablock_kernel_arg {
     void *buffer_bases_out[NBA_MAX_COPROC_PPDEPTH];
     uint32_t item_count_in[NBA_MAX_COPROC_PPDEPTH];
     uint32_t item_count_out[NBA_MAX_COPROC_PPDEPTH];
-    uint16_t item_size_in;
-    uint16_t *item_sizes_in[NBA_MAX_COPROC_PPDEPTH];
-    uint16_t item_size_out;
-    uint16_t *item_sizes_out[NBA_MAX_COPROC_PPDEPTH];
+    union {
+        uint16_t item_size_in;
+        uint16_t *item_sizes_in[NBA_MAX_COPROC_PPDEPTH];
+    };
+    union {
+        uint16_t item_size_out;
+        uint16_t *item_sizes_out[NBA_MAX_COPROC_PPDEPTH];
+    };
     uint16_t *item_offsets_in[NBA_MAX_COPROC_PPDEPTH];
     uint16_t *item_offsets_out[NBA_MAX_COPROC_PPDEPTH];
 };

@@ -4,6 +4,7 @@
 #include <nba/core/queue.hh>
 #include <nba/framework/computation.hh>
 #include <nba/framework/threadcontext.hh>
+#include <nba/framework/task.hh>
 #include <nba/element/element.hh>
 #include <nba/element/packetbatch.hh>
 #include <vector>
@@ -34,20 +35,18 @@ public:
         return elements.size();
     }
 
-    /* Executes the element graph for the given batch and free it after
-     * processing.  Internally it manages a queue to handle diverged paths
-     * with multiple batches to multipe outputs.
-     * When it needs to stop processing and wait for asynchronous events
-     * (e.g., completion of offloading or release of resources), it moves
-     * the batch to the delayed_batches queue. */
-    void run(PacketBatch *batch, Element *start_elem, int input_port = 0);
+    /* Inserts the given batch/offloadtask to the internal task queue.
+     * This does not execute the pipeline; call flush_tasks() for that. */
+    void enqueue_batch(PacketBatch *batch, Element *start_elem, int input_port = 0);
+    void enqueue_offload_task(OffloadTask *otask, Element *start_elem, int input_port = 0);
 
+    // TODO: merge with flush_tasks()
     /* Tries to execute all pending offloaded tasks.
      * This method does not allocate/free any batches. */
     void flush_offloaded_tasks();
 
-    /* Tries to run all delayed batches. */
-    void flush_delayed_batches();
+    /* Tries to run all delayed tasks. */
+    void flush_tasks();
 
     /* Scan and execute schedulable elements. */
     void scan_offloadable_elements();
@@ -103,25 +102,35 @@ protected:
     /**
      * Used to book-keep element objects.
      */
-    FixedRing<Element*, nullptr> elements;
-    FixedRing<SchedulableElement*, nullptr> sched_elements;
+    FixedRing<Element *, nullptr> elements;
+    FixedRing<SchedulableElement *, nullptr> sched_elements;
 
     /**
      * Used to pass context objects when calling element handlers.
      */
     comp_thread_context *ctx;
 
-    FixedRing<PacketBatch *, nullptr> queue;
+    FixedRing<void *, nullptr> queue;
     FixedRing<OffloadTask *, nullptr> ready_tasks[NBA_MAX_COPROCESSOR_TYPES];
-    FixedRing<PacketBatch *, nullptr> delayed_batches;
+    //FixedRing<Task *, nullptr> delayed_batches;
 
 private:
+    /* Executes the element graph for the given batch and free it after
+     * processing.  Internally it manages a queue to handle diverged paths
+     * with multiple batches to multipe outputs.
+     * When it needs to stop processing and wait for asynchronous events
+     * (e.g., completion of offloading or release of resources), it moves
+     * the batch to the delayed_batches queue. */
+    void process_batch(PacketBatch *batch);
+    void process_offload_task(OffloadTask *otask);
+
     std::map<std::pair<OffloadableElement*, int>, int> offl_actions;
     std::set<OffloadableElement*> offl_fin;
 
     SchedulableElement *input_elem;
 
     friend int io_loop(void *arg);
+    friend int OffloadableElement::offload(ElementGraph *mother, OffloadTask *otask, int input_port);
     friend int OffloadableElement::offload(ElementGraph *mother, PacketBatch *in_batch, int input_port);
     friend void comp_thread_context::build_element_graph(const char *config);
 

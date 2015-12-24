@@ -3,9 +3,11 @@
 
 #include <deque>
 
+#include <nba/core/queue.hh>
+#include <nba/core/mempool.hh>
+#include <nba/framework/config.hh>
 #include <nba/framework/computedevice.hh>
 #include <nba/framework/computecontext.hh>
-#include <nba/core/mempool.hh>
 #include <nba/engines/dummy/mempool.hh>
 
 namespace nba
@@ -21,12 +23,14 @@ private:
 public:
     virtual ~DummyComputeContext();
 
-    int alloc_input_buffer(size_t size, void **host_ptr, memory_t *dev_mem);
-    int alloc_output_buffer(size_t size, void **host_ptr, memory_t *dev_mem);
-    void clear_io_buffers();
-    void *get_host_input_buffer_base();
-    memory_t get_device_input_buffer_base();
-    size_t get_total_input_buffer_size();
+    io_base_t alloc_io_base();
+    int alloc_input_buffer(io_base_t io_base, size_t size, void **host_ptr, memory_t *dev_mem);
+    int alloc_output_buffer(io_base_t io_base, size_t size, void **host_ptr, memory_t *dev_mem);
+    void get_input_current_pos(io_base_t io_base, void **host_ptr, memory_t *dev_mem) const;
+    void get_output_current_pos(io_base_t io_base, void **host_ptr, memory_t *dev_mem) const;
+    size_t get_input_size(io_base_t io_base) const;
+    size_t get_output_size(io_base_t io_base) const;
+    void clear_io_buffers(io_base_t io_base);
 
     void clear_kernel_args() { }
     void push_kernel_arg(struct kernel_arg &arg) { }
@@ -62,10 +66,13 @@ public:
     }
 
 private:
-    DummyCPUMemoryPool _dev_mempool_in;
-    DummyCPUMemoryPool _dev_mempool_out;
-    DummyCPUMemoryPool _cpu_mempool_in;
-    DummyCPUMemoryPool _cpu_mempool_out;
+    DummyCPUMemoryPool _dev_mempool_in[NBA_MAX_IO_BASES];
+    DummyCPUMemoryPool _dev_mempool_out[NBA_MAX_IO_BASES];
+    DummyCPUMemoryPool _cpu_mempool_in[NBA_MAX_IO_BASES];
+    DummyCPUMemoryPool _cpu_mempool_out[NBA_MAX_IO_BASES];
+
+    FixedRing<unsigned, 0> io_base_ring;
+    unsigned io_base_ring_buf[NBA_MAX_IO_BASES];
 };
 
 }

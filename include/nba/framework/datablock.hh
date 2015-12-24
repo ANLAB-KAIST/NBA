@@ -105,9 +105,9 @@ struct datablock_tracker {
     size_t in_count;
     size_t out_size;
     size_t out_count;
-
     //struct item_size_info exact_item_sizes;
-    struct item_size_info aligned_item_sizes;
+    struct item_size_info *aligned_item_sizes_h;
+    memory_t aligned_item_sizes_d;
 };
 
 /* NOTE: The alignment of this struct should match with CUDA. */
@@ -118,10 +118,14 @@ struct datablock_kernel_arg {
     void *buffer_bases_out[NBA_MAX_COPROC_PPDEPTH];
     uint32_t item_count_in[NBA_MAX_COPROC_PPDEPTH];
     uint32_t item_count_out[NBA_MAX_COPROC_PPDEPTH];
-    uint16_t item_size_in;
-    uint16_t *item_sizes_in[NBA_MAX_COPROC_PPDEPTH];
-    uint16_t item_size_out;
-    uint16_t *item_sizes_out[NBA_MAX_COPROC_PPDEPTH];
+    union {
+        uint16_t item_size_in;
+        uint16_t *item_sizes_in[NBA_MAX_COPROC_PPDEPTH];
+    };
+    union {
+        uint16_t item_size_out;
+        uint16_t *item_sizes_out[NBA_MAX_COPROC_PPDEPTH];
+    };
     uint16_t *item_offsets_in[NBA_MAX_COPROC_PPDEPTH];
     uint16_t *item_offsets_out[NBA_MAX_COPROC_PPDEPTH];
 }; // __attribute__((aligned(8)));
@@ -171,6 +175,9 @@ public:
 
 private:
     int my_id;
+
+    size_t read_buffer_size;
+    size_t write_buffer_size;
 };
 
 class MergedDataBlock : DataBlock

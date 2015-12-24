@@ -9,6 +9,9 @@ namespace nba {
 
 class OffloadTask;
 
+typedef unsigned io_base_t;
+const io_base_t INVALID_IO_BASE = 0xffffffffu;
+
 class ComputeContext {
 
     /**
@@ -31,12 +34,18 @@ public:
     }
     virtual ~ComputeContext() {}
 
-    virtual int alloc_input_buffer(size_t size, void **host_ptr, memory_t *dev_mem) = 0;
-    virtual int alloc_output_buffer(size_t size, void **host_ptr, memory_t *dev_mem) = 0;
-    virtual void clear_io_buffers() = 0;
-    virtual void *get_host_input_buffer_base() = 0;
-    virtual memory_t get_device_input_buffer_base() = 0;
-    virtual size_t get_total_input_buffer_size() = 0;
+    virtual io_base_t alloc_io_base() = 0;
+    virtual int alloc_input_buffer(io_base_t io_base, size_t size,
+                                   void **host_ptr, memory_t *dev_mem) = 0;
+    virtual int alloc_output_buffer(io_base_t io_base, size_t size,
+                                    void **host_ptr, memory_t *dev_mem) = 0;
+    virtual void get_input_current_pos(io_base_t io_base,
+                                       void **host_ptr, memory_t *dev_mem) const = 0;
+    virtual void get_output_current_pos(io_base_t io_base,
+                                        void **host_ptr, memory_t *dev_mem) const = 0;
+    virtual size_t get_input_size(io_base_t io_base) const = 0;
+    virtual size_t get_output_size(io_base_t io_base) const = 0;
+    virtual void clear_io_buffers(io_base_t io_base) = 0;
 
     virtual void clear_kernel_args() = 0;
     virtual void push_kernel_arg(struct kernel_arg &arg) = 0;

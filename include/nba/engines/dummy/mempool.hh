@@ -10,7 +10,7 @@ namespace nba {
 class DummyCPUMemoryPool : public MemoryPool
 {
 public:
-    DummyCPUMemoryPool() : MemoryPool(), base_(NULL)
+    DummyCPUMemoryPool() : MemoryPool(), base(NULL)
     {
     }
 
@@ -21,8 +21,8 @@ public:
 
     virtual bool init(unsigned long size)
     {
-        max_size_ = size;
-        base_ = malloc(size);
+        max_size = size;
+        base = malloc(size);
         return true;
     }
 
@@ -31,25 +31,25 @@ public:
         size_t offset;
         int ret = _alloc(size, &offset);
         if (ret == 0)
-            return (void *) ((uint8_t *) base_ + offset);
+            return (void *) ((uint8_t *) base + offset);
         return NULL;
     }
 
     void destroy()
     {
-        if (base_ != NULL) {
-            free(base_);
-            base_ = NULL;
+        if (base != NULL) {
+            free(base);
+            base = NULL;
         }
     }
 
-    void *get_base_ptr()
+    void *get_base_ptr() const
     {
-        return base_;
+        return base;
     }
 
 protected:
-    void *base_;
+    void *base;
 };
 
 }

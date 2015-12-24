@@ -16,7 +16,7 @@ namespace nba
 class MemoryPool
 {
 public:
-    MemoryPool() : max_size_(0), curpos_(0)
+    MemoryPool() : max_size(0), cur_pos(0)
     {}
 
     virtual ~MemoryPool() {}
@@ -25,13 +25,13 @@ public:
 
     int _alloc(size_t size, size_t *start_offset)
     {
-        if (curpos_ + size > max_size_)
+        if (cur_pos + size > max_size)
             return -ENOMEM;
         /* IMPORTANT: We need to return the position before adding the new size. */
         if (start_offset != nullptr)
-            *start_offset = curpos_;
-        curpos_ += size;
-        curpos_ = ALIGN_CEIL(curpos_, CACHE_LINE_SIZE);
+            *start_offset = cur_pos;
+        cur_pos += size;
+        cur_pos = ALIGN_CEIL(cur_pos, CACHE_LINE_SIZE);
         return 0;
     }
 
@@ -39,19 +39,19 @@ public:
 
     void reset()
     {
-        curpos_ = 0;
+        cur_pos = 0;
     }
 
-    size_t get_alloc_size()
+    size_t get_alloc_size() const
     {
-        return curpos_;
+        return cur_pos;
     }
 
-    virtual void *get_base_ptr() = 0;
+    virtual void *get_base_ptr() const = 0;
 
 protected:
-    size_t max_size_;
-    size_t curpos_;
+    size_t max_size;
+    size_t cur_pos;
 };
 
 }

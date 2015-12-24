@@ -43,7 +43,8 @@ void declare_datablock_impl(const char *name, datablock_constructor ctor, int &y
 
 tuple<size_t, size_t> DataBlock::calc_read_buffer_size(PacketBatch *batch)
 {
-    size_t read_buffer_size = 0, num_read_items = 0;
+    read_buffer_size = 0;
+    size_t num_read_items = 0;
     size_t accum_idx = 0;
     struct read_roi_info read_roi;
     this->get_read_roi(&read_roi);
@@ -62,8 +63,8 @@ tuple<size_t, size_t> DataBlock::calc_read_buffer_size(PacketBatch *batch)
         num_read_items = batch->count;
         size_t align = (read_roi.align == 0) ? 2 : read_roi.align;
         unsigned aligned_len = RTE_ALIGN_CEIL(read_roi.length, align);
-        t->aligned_item_sizes.size = aligned_len;
-        read_buffer_size           = aligned_len * num_read_items;
+        t->aligned_item_sizes_h->size = aligned_len;
+        read_buffer_size              = aligned_len * num_read_items;
 
         break; }
     case READ_WHOLE_PACKET: {
@@ -78,17 +79,15 @@ tuple<size_t, size_t> DataBlock::calc_read_buffer_size(PacketBatch *batch)
             #if (NBA_BATCHING_SCHEME == NBA_BATCHING_TRADITIONAL) \
                 || (NBA_BATCHING_SCHEME == NBA_BATCHING_BITVECTOR)
             if (IS_PACKET_INVALID(batch, pkt_idx)) {
-                t->aligned_item_sizes.offsets[pkt_idx] = 0;
-                //t->exact_item_sizes.sizes[pkt_idx]   = 0;
-                t->aligned_item_sizes.sizes[pkt_idx]   = 0;
+                t->aligned_item_sizes_h->offsets[pkt_idx] = 0;
+                t->aligned_item_sizes_h->sizes[pkt_idx]   = 0;
             } else {
             #endif
                 unsigned exact_len   = rte_pktmbuf_data_len(batch->packets[pkt_idx]) - read_roi.offset
                                        + read_roi.length + read_roi.size_delta;
                 unsigned aligned_len = RTE_ALIGN_CEIL(exact_len, align);
-                t->aligned_item_sizes.offsets[pkt_idx] = read_buffer_size;
-                //t->exact_item_sizes.sizes[pkt_idx]   = exact_len;
-                t->aligned_item_sizes.sizes[pkt_idx]   = aligned_len;
+                t->aligned_item_sizes_h->offsets[pkt_idx] = read_buffer_size;
+                t->aligned_item_sizes_h->sizes[pkt_idx]   = aligned_len;
                 read_buffer_size += aligned_len;
             #if (NBA_BATCHING_SCHEME == NBA_BATCHING_TRADITIONAL) \
                 || (NBA_BATCHING_SCHEME == NBA_BATCHING_BITVECTOR)
@@ -121,7 +120,8 @@ tuple<size_t, size_t> DataBlock::calc_read_buffer_size(PacketBatch *batch)
 
 tuple<size_t, size_t> DataBlock::calc_write_buffer_size(PacketBatch *batch)
 {
-    size_t write_buffer_size = 0, num_write_items = 0;
+    write_buffer_size = 0;
+    size_t num_write_items = 0;
     struct read_roi_info read_roi;
     struct write_roi_info write_roi;
     this->get_read_roi(&read_roi);
@@ -132,26 +132,20 @@ tuple<size_t, size_t> DataBlock::calc_write_buffer_size(PacketBatch *batch)
     struct datablock_tracker *t = &batch->datablock_states[this->get_id()];
 
     switch (write_roi.type) {
-    case WRITE_PARTIAL_PACKET:
+    case WRITE_PARTIAL_PACKET: {
+
+        size_t align         = (write_roi.align == 0) ? 2 : write_roi.align;
+        unsigned aligned_len = RTE_ALIGN_CEIL(write_roi.length, align);
+        num_write_items   = batch->count;
+        write_buffer_size = aligned_len * num_write_items;
+
+        break; }
     case WRITE_WHOLE_PACKET: {
 
-        num_write_items = batch->count;
         // FIXME: We currently assume same-as-input when read_roi.type is same.
-        assert((read_roi.type == READ_PARTIAL_PACKET
-                && write_roi.type == WRITE_PARTIAL_PACKET) ||
-               (read_roi.type == READ_WHOLE_PACKET
-                && write_roi.type == WRITE_WHOLE_PACKET));
-        //if (read_roi.type == READ_PARTIAL_PACKET
-        //        && write_roi.type == WRITE_PARTIAL_PACKET) {
-        //    //write_item_sizes.size = aligned_item_sizes.size;
-        //} else if (read_roi.type == READ_WHOLE_PACKET
-        //        && write_roi.type == WRITE_WHOLE_PACKET) {
-        //    //rte_memcpy(&write_item_sizes, &aligned_item_sizes,
-        //    //           sizeof(struct item_size_info));
-        //} else {
-        //    assert(0); // Not implemented yet!
-        //}
-        write_buffer_size     = write_roi.length * num_write_items;
+        assert(read_roi.type == READ_WHOLE_PACKET && write_roi.type == WRITE_WHOLE_PACKET);
+        num_write_items   = batch->count;
+        write_buffer_size = read_buffer_size;
 
         break; }
     case WRITE_FIXED_SEGMENTS: {
@@ -187,8 +181,8 @@ void DataBlock::preprocess(PacketBatch *batch, void *host_in_buffer) {
     case READ_PARTIAL_PACKET: {
         void *invalid_value = this->get_invalid_value();
         FOR_EACH_PACKET_ALL_PREFETCH(batch, 4u) {
-            size_t aligned_elemsz = t->aligned_item_sizes.size;
-            size_t offset         = t->aligned_item_sizes.size * pkt_idx;
+            size_t aligned_elemsz = t->aligned_item_sizes_h->size;
+            size_t offset         = t->aligned_item_sizes_h->size * pkt_idx;
             if (IS_PACKET_INVALID(batch, pkt_idx)) {
                 if (invalid_value != nullptr) {
                     rte_memcpy((char *) host_in_buffer + offset, invalid_value, aligned_elemsz);
@@ -207,8 +201,8 @@ void DataBlock::preprocess(PacketBatch *batch, void *host_in_buffer) {
         FOR_EACH_PACKET_ALL_PREFETCH(batch, 4u) {
             if (IS_PACKET_INVALID(batch, pkt_idx))
                 continue;
-            size_t aligned_elemsz = t->aligned_item_sizes.sizes[pkt_idx];
-            size_t offset         = t->aligned_item_sizes.offsets[pkt_idx];
+            size_t aligned_elemsz = t->aligned_item_sizes_h->sizes[pkt_idx];
+            size_t offset         = t->aligned_item_sizes_h->offsets[pkt_idx];
             rte_memcpy((char*) host_in_buffer + offset,
                        rte_pktmbuf_mtod(batch->packets[pkt_idx], char*) + read_roi.offset,
                        aligned_elemsz);
@@ -252,11 +246,11 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
         #endif
         FOR_EACH_PACKET(batch) {
             size_t elemsz = bitselect<size_t>(write_roi.type == WRITE_PARTIAL_PACKET,
-                                              t->aligned_item_sizes.size,
-                                              t->aligned_item_sizes.sizes[pkt_idx]);
+                                              t->aligned_item_sizes_h->size,
+                                              t->aligned_item_sizes_h->sizes[pkt_idx]);
             size_t offset = bitselect<size_t>(write_roi.type == WRITE_PARTIAL_PACKET,
-                                              t->aligned_item_sizes.size * pkt_idx,
-                                              t->aligned_item_sizes.offsets[pkt_idx]);
+                                              t->aligned_item_sizes_h->size * pkt_idx,
+                                              t->aligned_item_sizes_h->offsets[pkt_idx]);
             rte_memcpy(rte_pktmbuf_mtod(batch->packets[pkt_idx], char*) + write_roi.offset,
                        (char*) host_out_ptr + offset,
                        elemsz);
@@ -268,7 +262,7 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
         if (batch->has_dropped)
             batch->collect_excluded_packets();
         #endif
-        batch->has_results = true;
+        batch->tracker.has_results = true;
 
         break; }
     case WRITE_USER_POSTPROC:
@@ -282,7 +276,7 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
         batch->has_dropped = false;
         #endif
         FOR_EACH_PACKET(batch) {
-            uintptr_t elemsz = t->aligned_item_sizes.size;
+            uintptr_t elemsz = write_roi.length;
             uintptr_t offset = elemsz * pkt_idx;
             Packet *pkt = Packet::from_base(batch->packets[pkt_idx]);
             pkt->bidx = pkt_idx;
@@ -292,7 +286,7 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
         if (batch->has_dropped)
             batch->collect_excluded_packets();
         #endif
-        batch->has_results = true;
+        batch->tracker.has_results = true;
 
         break; }
     case WRITE_NONE: {

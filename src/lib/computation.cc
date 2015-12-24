@@ -95,7 +95,7 @@ void comp_thread_context::stop_rx()
 void comp_thread_context::resume_rx()
 {
     /* Flush the processing pipeline. */
-    elem_graph->flush_delayed_batches();
+    elem_graph->flush_tasks();
 
     /* Reactivate the packet RX event. */
     ev_async_start(loop, rx_watcher);

@@ -25,7 +25,7 @@ public:
 
     virtual bool init(unsigned long max_size)
     {
-        max_size_ = max_size;
+        max_size = max_size;
         cl_int err_ret;
         clbuf = clCreateBuffer(clctx, CL_MEM_HOST_NO_ACCESS |
                           (direction_hint == HOST_TO_DEVICE ? CL_MEM_READ_ONLY : CL_MEM_WRITE_ONLY),
@@ -60,7 +60,7 @@ public:
         clReleaseMemObject(clbuf);
     }
 
-    void *get_base_ptr()
+    void *get_base_ptr() const
     {
         // TODO: convert clbuf to void*
         assert(false, "not implemented yet");
@@ -85,8 +85,8 @@ public:
     virtual bool init(size_t max_size)
     {
         void *ret = NULL;
-        max_size_ = max_size;
-        base_ = (uint8_t*) malloc(max_size);
+        max_size = max_size;
+        base = (uint8_t*) malloc(max_size);
         return ret;
     }
 
@@ -95,23 +95,23 @@ public:
         size_t offset;
         int ret = _alloc(size, &offset);
         if (ret == 0)
-            return (void *) ((uint8_t *) base_ + offset);
+            return (void *) ((uint8_t *) base + offset);
         return NULL;
     }
 
     virtual void destroy()
     {
-        if (base_)
-            free(base_);
+        if (base)
+            free(base);
     }
 
-    void *get_base_ptr()
+    void *get_base_ptr() const
     {
-        return base_;
+        return base;
     }
 
 private:
-    void *base_;
+    void *base;
 };
 
 }

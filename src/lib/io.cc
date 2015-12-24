@@ -13,6 +13,7 @@
 #include <nba/framework/io.hh>
 #include <nba/framework/threadcontext.hh>
 #include <nba/framework/datablock.hh>
+#include <nba/framework/task.hh>
 #include <nba/framework/offloadtask.hh>
 #include <nba/framework/loadbalancer.hh>
 #include <nba/framework/elementgraph.hh>
@@ -79,7 +80,7 @@ typedef function<void(char*, int, int, random32_func_t)> packet_builder_func_t;
 /* ===== COMP ===== */
 static void comp_packetbatch_init(struct rte_mempool *mp, void *arg, void *obj, unsigned idx)
 {
-    PacketBatch *b = (PacketBatch*) obj;
+    PacketBatch *b = (PacketBatch *) obj;
     new (b) PacketBatch();
 }
 
@@ -97,7 +98,7 @@ static void comp_check_cb(struct ev_loop *loop, struct ev_check *watcher, int re
 {
     io_thread_context *io_ctx = (io_thread_context *) ev_userdata(loop);
     comp_thread_context *ctx = io_ctx->comp_ctx;
-    ctx->elem_graph->flush_delayed_batches();
+    ctx->elem_graph->flush_tasks();
     ctx->elem_graph->flush_offloaded_tasks();
     ctx->elem_graph->scan_offloadable_elements();
 }
@@ -143,6 +144,7 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
             total_batch_size += task->batches[b]->count;
         for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++) {
             task->batches[b]->compute_time += (uint64_t) ((float) task_cycles / total_batch_size - ((float) task->batches[b]->delay_time / task->batches[b]->count));
+            // TODO: if next elem is offloadable, then use enqueue_offloadtask
             task->elem->enqueue_batch(task->batches[b]);
         }
 
@@ -239,8 +241,8 @@ static size_t comp_process_batch(io_thread_context *ctx, void *pkts, size_t coun
         ctx->comp_ctx->elem_graph->free_batch(batch);
     } else {
         assert(next_batch == batch);
-        next_batch->has_results = true; // skip processing
-        ctx->comp_ctx->elem_graph->run(next_batch, input_elem, 0);
+        next_batch->tracker.has_results = true; // skip processing
+        ctx->comp_ctx->elem_graph->enqueue_batch(next_batch, input_elem, 0);
     }
 
     return count;
@@ -972,8 +974,8 @@ int io_loop(void *arg)
                 }
                 /* Try to "drain" internally stored batches. */
                 while (next_batch != nullptr) {
-                    next_batch->has_results = true; // skip processing
-                    ctx->comp_ctx->elem_graph->run(next_batch, selem, 0);
+                    next_batch->tracker.has_results = true; // skip processing
+                    ctx->comp_ctx->elem_graph->enqueue_batch(next_batch, selem, 0);
                     ret = selem->dispatch(loop_count, next_batch, selem->_last_delay);
                 };
             } /* endif(!ELEMTYPE_INPUT) */
