@@ -225,6 +225,7 @@ public:
             offload_compute_handlers.insert({{"dummy", ch},});
         }
         finished_batches.init(MAX_FINBATCH_QLEN, -1, finished_batches_arrbuf);
+        memset(tasks, 0, sizeof(OffloadTask *) * NBA_MAX_COPROCESSOR_TYPES);
     }
     virtual ~OffloadableElement() {}
     int get_type() const { return ELEMTYPE_OFFLOADABLE | ELEMTYPE_SCHEDULABLE; }

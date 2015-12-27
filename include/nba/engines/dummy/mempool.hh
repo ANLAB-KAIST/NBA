@@ -21,7 +21,7 @@ public:
 
     virtual bool init(unsigned long size)
     {
-        max_size = size;
+        this->max_size = size;
         base = malloc(size);
         return true;
     }

@@ -685,7 +685,7 @@ int io_loop(void *arg)
 
     snprintf(temp, RTE_MEMPOOL_NAMESIZE,
         "comp.dbstate.%u:%u@%u", ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
-    size_t dbstate_pool_size = NBA_MAX_COPROC_PPDEPTH;
+    size_t dbstate_pool_size = NBA_MAX_COPROC_PPDEPTH * 16;
     size_t dbstate_item_size = sizeof(struct datablock_tracker) * NBA_MAX_DATABLOCKS;
     ctx->comp_ctx->dbstate_pool = rte_mempool_create(temp, dbstate_pool_size + 1,
                                                      dbstate_item_size, 32,

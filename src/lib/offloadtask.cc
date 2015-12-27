@@ -100,12 +100,9 @@ void OffloadTask::prepare_read_buffer()
                 for (PacketBatch *batch : batches) {
                     struct datablock_tracker *t = &batch->datablock_states[dbid];
                     tie(t->in_size, t->in_count) = db->calc_read_buffer_size(batch);
-                    t->host_in_ptr    = nullptr;
-                    t->dev_in_ptr.ptr = nullptr;
                     if (t->in_size > 0 && t->in_count > 0) {
                         cctx->alloc_input_buffer(io_base, t->in_size,
                                                  (void **) &t->host_in_ptr, &t->dev_in_ptr);
-                        assert(t->host_in_ptr != nullptr);
                         db->preprocess(batch, t->host_in_ptr);
                     }
                 }
@@ -148,7 +145,6 @@ void OffloadTask::prepare_write_buffer()
                             cctx->alloc_output_buffer(io_base, t->out_size,
                                                       (void **) &t->host_out_ptr,
                                                       &t->dev_out_ptr);
-                            assert(t->host_out_ptr != nullptr);
                         }
                     }
                 }

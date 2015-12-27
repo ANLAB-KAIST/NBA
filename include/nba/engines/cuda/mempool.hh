@@ -23,7 +23,7 @@ public:
 
     virtual bool init(size_t max_size)
     {
-        max_size = max_size;
+        this->max_size = max_size;
         cutilSafeCall(cudaMalloc((void **) &base, max_size));
         return true;
     }
@@ -66,7 +66,7 @@ public:
 
     virtual bool init(unsigned long size)
     {
-        max_size = size;
+        this->max_size = size;
         cutilSafeCall(cudaHostAlloc((void **) &base, size,
                       this->flags));
         return true;
@@ -74,7 +74,7 @@ public:
 
     bool init_with_flags(unsigned long size, int flags)
     {
-        max_size = size;
+        this->max_size = size;
         cutilSafeCall(cudaHostAlloc((void **) &base, size,
                       flags));
         return true;

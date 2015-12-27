@@ -25,7 +25,7 @@ public:
 
     virtual bool init(unsigned long max_size)
     {
-        max_size = max_size;
+        this->max_size = max_size;
         cl_int err_ret;
         clbuf = clCreateBuffer(clctx, CL_MEM_HOST_NO_ACCESS |
                           (direction_hint == HOST_TO_DEVICE ? CL_MEM_READ_ONLY : CL_MEM_WRITE_ONLY),
@@ -85,7 +85,7 @@ public:
     virtual bool init(size_t max_size)
     {
         void *ret = NULL;
-        max_size = max_size;
+        this->max_size = max_size;
         base = (uint8_t*) malloc(max_size);
         return ret;
     }

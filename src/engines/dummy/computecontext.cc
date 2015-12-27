@@ -60,7 +60,7 @@ size_t DummyComputeContext::get_input_size(io_base_t io_base) const
 size_t DummyComputeContext::get_output_size(io_base_t io_base) const
 {
     unsigned i = io_base;
-    return _cpu_mempool_in[i].get_alloc_size();
+    return _cpu_mempool_out[i].get_alloc_size();
 }
 
 int DummyComputeContext::alloc_input_buffer(io_base_t io_base, size_t size, void **host_ptr, memory_t *dev_mem)
