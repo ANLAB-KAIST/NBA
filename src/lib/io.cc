@@ -142,10 +142,22 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
         uint64_t total_batch_size = 0;
         for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++)
             total_batch_size += task->batches[b]->count;
-        for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++) {
-            task->batches[b]->compute_time += (uint64_t) ((float) task_cycles / total_batch_size - ((float) task->batches[b]->delay_time / task->batches[b]->count));
-            // TODO: if next elem is offloadable, then use enqueue_offloadtask
-            task->elem->enqueue_batch(task->batches[b]);
+        if (ctx->elem_graph->check_next_offloadable(task->elem)) {
+            for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++) {
+                task->batches[b]->compute_time += (uint64_t)
+                        ((float) task_cycles / total_batch_size
+                         - ((float) task->batches[b]->delay_time / task->batches[b]->count));
+            }
+            ctx->elem_graph->enqueue_offload_task(task,
+                                                  ctx->elem_graph->get_first_next(task->elem),
+                                                  0);
+        } else {
+            for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++) {
+                task->batches[b]->compute_time += (uint64_t)
+                        ((float) task_cycles / total_batch_size
+                         - ((float) task->batches[b]->delay_time / task->batches[b]->count));
+                task->elem->enqueue_batch(task->batches[b]);
+            }
         }
 
         /* Free the task object. */

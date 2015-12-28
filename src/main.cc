@@ -702,6 +702,14 @@ int main(int argc, char **argv)
             computation_threads[i].comp_ctx = ctx;
             ctx->thread_init_barrier = comp_init_barrier;
 
+            ctx->num_combatch_size = system_params["COMP_BATCH_SIZE"];
+            ctx->num_coproc_ppdepth = system_params["COPROC_PPDEPTH"];
+            ctx->num_batchpool_size = system_params["BATCHPOOL_SIZE"];
+            ctx->num_taskpool_size = system_params["TASKPOOL_SIZE"];
+            ctx->task_completion_queue_size = system_params["COPROC_COMPLETIONQ_LENGTH"];
+            ctx->num_tx_ports = num_ports;
+            ctx->num_nodes = num_nodes;
+
             ctx->io_ctx = NULL;
             ctx->coproc_ctx = NULL;
             ctx->ready_flag = &ready_flag;
@@ -711,14 +719,6 @@ int main(int argc, char **argv)
             ctx->elem_graph = (ElementGraph *) rte_malloc_socket(NULL, sizeof(ElementGraph), CACHE_LINE_SIZE, node_id);
             new (ctx->elem_graph) ElementGraph(ctx);
             ctx->inspector = NULL;
-
-            ctx->num_combatch_size = system_params["COMP_BATCH_SIZE"];
-            ctx->num_coproc_ppdepth = system_params["COPROC_PPDEPTH"];
-            ctx->num_batchpool_size = system_params["BATCHPOOL_SIZE"];
-            ctx->num_taskpool_size = system_params["TASKPOOL_SIZE"];
-            ctx->task_completion_queue_size = system_params["COPROC_COMPLETIONQ_LENGTH"];
-            ctx->num_tx_ports = num_ports;
-            ctx->num_nodes = num_nodes;
 
             // TODO: extend to multiple devices
             ctx->named_offload_devices = (unordered_map<string, ComputeDevice *> *)

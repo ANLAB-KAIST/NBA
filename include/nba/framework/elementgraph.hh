@@ -55,12 +55,8 @@ public:
     bool check_postproc(OffloadableElement *oel, int dbid);
     bool check_postproc_all(OffloadableElement *oel);
 
-    /**
-     * Check if the given datablock (represented as a global ID) is reused
-     * after the given offloaded element in a same (linear?) path.
-     */
-    bool check_datablock_reuse(Element *offloaded_elem, int datablock_id);
     bool check_next_offloadable(Element *offloaded_elem);
+    Element *get_first_next(Element *elem);
 
     /**
      * Add a new element instance to the graph.

@@ -29,12 +29,14 @@ ElementGraph::ElementGraph(comp_thread_context *ctx)
     : elements(128, ctx->loc.node_id), sched_elements(16, ctx->loc.node_id),
       queue(2048, ctx->loc.node_id)
 {
+    const size_t ready_task_qlen = 256;
     this->ctx = ctx;
     input_elem = nullptr;
     assert(0 == rte_malloc_validate(ctx, NULL));
     /* IMPORTANT: ready_tasks must be larger than task_pool. */
+    assert(ready_task_qlen <= ctx->num_taskpool_size);
     for (int i = 0; i < NBA_MAX_COPROCESSOR_TYPES; i++)
-        ready_tasks[i].init(256, ctx->loc.node_id);
+        ready_tasks[i].init(ready_task_qlen, ctx->loc.node_id);
 }
 
 void ElementGraph::flush_offloaded_tasks()
@@ -280,7 +282,7 @@ void ElementGraph::process_batch(PacketBatch *batch)
             batch->clean_drops(ctx->io_ctx->drop_queue);
             #endif
         }
-        if (current_elem->next_elems[0]->get_type() & ELEMTYPE_OUTPUT) {
+        if (unlikely(current_elem->next_elems[0]->get_type() & ELEMTYPE_OUTPUT)) {
             /* We are at the end leaf of the pipeline.
              * Inidicate free of the original batch. */
             if (ctx->inspector) {
@@ -606,25 +608,14 @@ bool ElementGraph::check_postproc_all(OffloadableElement *oel)
 #endif
 }
 
-bool ElementGraph::check_datablock_reuse(Element *offloaded_elem, int datablock_id)
-{
-    //bool is_offloadable = ((offloaded_elem->next_elems[0]->get_type() & ELEMTYPE_OFFLOADABLE) != 0);
-    //int used_dbids[NBA_MAX_DATABLOCKS];
-    //if (is_offloadable) {
-    //    OffloadableElement *oelem = dynamic_cast<OffloadableElement*> (offloaded_elem);
-    //    assert(oelem != nullptr);
-    //    size_t n = oelem->get_used_datablocks(used_dbids);
-    //    for (unsigned i = 0; i < n; i++)
-    //        if (used_dbids[i] == datablock_id)
-    //            return true;
-    //}
-    return false;
-}
-
 bool ElementGraph::check_next_offloadable(Element *offloaded_elem)
 {
-    // FIXME: generalize for branched offloaded_elem
     return ((offloaded_elem->next_elems[0]->get_type() & ELEMTYPE_OFFLOADABLE) != 0);
+}
+
+Element *ElementGraph::get_first_next(Element *elem)
+{
+    return elem->next_elems[0];
 }
 
 int ElementGraph::add_element(Element *new_elem)
