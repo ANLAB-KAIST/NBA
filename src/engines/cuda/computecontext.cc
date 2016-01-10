@@ -26,6 +26,13 @@ CUDAComputeContext::CUDAComputeContext(unsigned ctx_id, ComputeDevice *mother_de
         _cpu_mempool_in[i].init_with_flags(io_base_size, cudaHostAllocPortable);
         _cpu_mempool_out[i].init_with_flags(io_base_size, cudaHostAllocPortable);
     }
+    {
+        void *t;
+        cutilSafeCall(cudaMalloc((void **) &t, 64));
+        dummy_dev_buf.ptr = t;
+        cutilSafeCall(cudaHostAlloc((void **) &t, 64, cudaHostAllocPortable));
+        dummy_host_buf = t;
+    }
     cutilSafeCall(cudaHostAlloc((void **) &checkbits_h, MAX_BLOCKS, cudaHostAllocMapped));
     cutilSafeCall(cudaHostGetDevicePointer((void **) &checkbits_d, checkbits_h, 0));
     assert(checkbits_h != NULL);
@@ -111,12 +118,14 @@ void CUDAComputeContext::clear_io_buffers(io_base_t io_base)
 
 int CUDAComputeContext::enqueue_memwrite_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size)
 {
+    //cutilSafeCall(cudaMemcpyAsync(dummy_dev_buf.ptr, dummy_host_buf, 64, cudaMemcpyHostToDevice, _stream));
     cutilSafeCall(cudaMemcpyAsync(dev_buf.ptr, host_buf, size, cudaMemcpyHostToDevice, _stream));
     return 0;
 }
 
 int CUDAComputeContext::enqueue_memread_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size)
 {
+    //cutilSafeCall(cudaMemcpyAsync(dummy_host_buf, dummy_dev_buf.ptr, 64, cudaMemcpyDeviceToHost, _stream));
     cutilSafeCall(cudaMemcpyAsync(host_buf, dev_buf.ptr, size, cudaMemcpyDeviceToHost, _stream));
     return 0;
 }

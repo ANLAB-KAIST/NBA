@@ -151,6 +151,7 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
             ctx->elem_graph->enqueue_offload_task(task,
                                                   ctx->elem_graph->get_first_next(task->elem),
                                                   0);
+            /* This task is reused. We keep them intact. */
         } else {
             for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++) {
                 task->batches[b]->compute_time += (uint64_t)
@@ -158,12 +159,12 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
                          - ((float) task->batches[b]->delay_time / task->batches[b]->count));
                 task->elem->enqueue_batch(task->batches[b]);
             }
-        }
 
-        /* Free the task object. */
-        task->cctx = nullptr;
-        task->~OffloadTask();
-        rte_mempool_put(ctx->task_pool, (void *) task);
+            /* Free the task object. */
+            task->cctx = nullptr;
+            task->~OffloadTask();
+            rte_mempool_put(ctx->task_pool, (void *) task);
+        }
 
         /* Free the resources used for this offload task. */
         cctx->currently_running_task = nullptr;

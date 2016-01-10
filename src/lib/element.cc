@@ -181,9 +181,9 @@ int OffloadableElement::offload(ElementGraph *mother, OffloadTask *otask, int in
     int dev_idx = 0;
     uint64_t now = rte_rdtsc();
     otask->state = TASK_INITIALIZING;
-    otask->task_id = task_id ++;
+    otask->task_id += 100000; // for debugging
     otask->offload_start = now;
-    otask->state = TASK_INITIALIZED;
+    otask->state = TASK_PREPARED;
     mother->ready_tasks[dev_idx].push_back(otask);
     /* This should always succeed. */
     return 0;

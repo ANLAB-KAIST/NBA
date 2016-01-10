@@ -92,6 +92,9 @@ private:
     CPUMemoryPool _cpu_mempool_in[NBA_MAX_IO_BASES];
     CPUMemoryPool _cpu_mempool_out[NBA_MAX_IO_BASES];
 
+    void *dummy_host_buf;
+    memory_t dummy_dev_buf;
+
     size_t num_kernel_args;
     struct kernel_arg kernel_args[CUDA_MAX_KERNEL_ARGS];
 

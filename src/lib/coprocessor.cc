@@ -7,6 +7,7 @@
 #include <nba/core/intrinsic.hh>
 #include <nba/core/threading.hh>
 #include <nba/core/queue.hh>
+#include <nba/element/packetbatch.hh>
 #include <nba/framework/threadcontext.hh>
 #include <nba/framework/logging.hh>
 #include <nba/framework/computation.hh>
@@ -56,7 +57,6 @@ static void coproc_task_input_cb(struct ev_loop *loop, struct ev_async *watcher,
      * and libev will call them first and then call earlier steps again. */
     ret = rte_ring_dequeue(ctx->task_input_queue, (void **) &task);
     if (task != nullptr) {
-        assert(task->cctx != nullptr);
         task->coproc_ctx = ctx;
         task->copy_h2d();
         task->execute();
@@ -87,7 +87,6 @@ static void coproc_task_d2h_cb(struct ev_loop *loop, struct ev_async *watcher, i
     if (ctx->d2h_pending_queue->size() > 0) {
         OffloadTask *task = ctx->d2h_pending_queue->front();
         ctx->d2h_pending_queue->pop_front();
-        assert(task != nullptr);
         if (task->poll_kernel_finished()) {
             //task->cctx->sync();
             task->copy_d2h();

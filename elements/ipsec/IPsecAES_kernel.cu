@@ -16,8 +16,8 @@
 
 /* The index is given by the order in get_used_datablocks(). */
 #define dbid_enc_payloads_d   (0)
-#define dbid_iv_d             (1)
-#define dbid_flow_ids_d       (2)
+#define dbid_flow_ids_d       (1)
+#define dbid_iv_d             (2)
 #define dbid_aes_block_info_d (3)
 
 #ifndef __AES_CORE__ /*same constants are defined in ssl/aes/aes_core.h */

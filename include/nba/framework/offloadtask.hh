@@ -86,8 +86,8 @@ public:
     struct ev_async *completion_watcher __cache_aligned;
     struct rte_ring *completion_queue __cache_aligned;
 
-private:
     uint64_t task_id; // for deubgging
+private:
     friend class OffloadableElement;
 
     void *host_write_begin;
@@ -97,6 +97,8 @@ private:
     size_t input_alloc_size_begin;
     size_t output_alloc_size_begin;
 
+    size_t last_input_size;
+    size_t last_output_size;
 };
 
 }

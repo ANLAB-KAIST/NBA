@@ -33,7 +33,7 @@ public:
         size_t offset;
         int ret = _alloc(size, &offset);
         if (ret == 0)
-            return (void *) ((uint8_t *) base + (uintptr_t) offset);
+            return (void *) ((uintptr_t) base + offset);
         return NULL;
     }
 
@@ -85,7 +85,7 @@ public:
         size_t offset;
         int ret = _alloc(size, &offset);
         if (ret == 0)
-            return (void *) ((uint8_t *) base + (uintptr_t) offset);
+            return (void *) ((uintptr_t) base + offset);
         return NULL;
     }
 

@@ -70,6 +70,7 @@ void ElementGraph::flush_offloaded_tasks()
             task->cctx = cctx;
 
             if (task->state < TASK_PREPARED) {
+                bool had_io_base = (task->io_base != INVALID_IO_BASE);
                 bool has_io_base = false;
                 if (task->io_base == INVALID_IO_BASE) {
                     task->io_base = cctx->alloc_io_base();
@@ -174,6 +175,7 @@ void ElementGraph::enqueue_batch(PacketBatch *batch, Element *start_elem, int in
 void ElementGraph::enqueue_offload_task(OffloadTask *otask, Element *start_elem, int input_port)
 {
     assert(start_elem != nullptr);
+    otask->elem = dynamic_cast<OffloadableElement*>(start_elem);
     otask->tracker.element = start_elem;
     otask->tracker.input_port = input_port;
     queue.push_back(Task::to_task(otask));
@@ -533,7 +535,6 @@ void ElementGraph::process_offload_task(OffloadTask *otask)
 {
     Element *current_elem = otask->tracker.element;
     OffloadableElement *offloadable = dynamic_cast<OffloadableElement*>(current_elem);
-    assert(offloadable != nullptr);
     assert(offloadable->offload(this, otask, otask->tracker.input_port) == 0);
 }
 

@@ -49,8 +49,8 @@ public:
     size_t get_used_datablocks(int *datablock_ids)
     {
         datablock_ids[0] = dbid_enc_payloads;
-        datablock_ids[1] = dbid_iv;
-        datablock_ids[2] = dbid_flow_ids;
+        datablock_ids[1] = dbid_flow_ids;
+        datablock_ids[2] = dbid_iv;
         datablock_ids[3] = dbid_aes_block_info;
         return 4;
     }
