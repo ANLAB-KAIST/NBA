@@ -26,7 +26,9 @@ using namespace std;
 using namespace nba;
 
 ElementGraph::ElementGraph(comp_thread_context *ctx)
-    : elements(128, ctx->loc.node_id), sched_elements(16, ctx->loc.node_id),
+    : elements(128, ctx->loc.node_id),
+      sched_elements(16, ctx->loc.node_id),
+      offl_elements(16, ctx->loc.node_id),
       queue(2048, ctx->loc.node_id)
 {
     const size_t ready_task_qlen = 256;
@@ -53,8 +55,6 @@ void ElementGraph::flush_offloaded_tasks()
         while (!ready_tasks[dev_idx].empty()) {
             OffloadTask *task = ready_tasks[dev_idx].front();
             ready_tasks[dev_idx].pop_front();
-            if (task == nullptr)
-                continue;
 
             /* Start offloading! */
             // TODO: create multiple cctx_list and access them via dev_idx for hetero-device systems.
@@ -144,24 +144,24 @@ void ElementGraph::free_batch(PacketBatch *batch, bool free_pkts)
         #endif
     }
     rte_mempool_put(ctx->batch_pool, (void *) batch);
+    /* Make any blocking call to ev_run() to break. */
+    ev_break(ctx->io_ctx->loop, EVBREAK_ALL);
 }
 
 void ElementGraph::scan_offloadable_elements()
 {
     PacketBatch *next_batch = nullptr;
-    const auto &selems = get_schedulable_elements();
-    for (SchedulableElement *selem : selems) {
-        if (0 != (selem->get_type() & ELEMTYPE_OFFLOADABLE)) {
-            do {
-                next_batch = nullptr;
-                selem->dispatch(0, next_batch, selem->_last_delay);
-                if (next_batch != nullptr) {
-                    next_batch->tracker.has_results = true;
-                    enqueue_batch(next_batch, selem, 0);
-                }
-            } while (next_batch != nullptr);
-        } /* endif(ELEMTYPE_OFFLOADABLE) */
-    } /* endfor(selems) */
+    const auto &oelems = get_offloadable_elements();
+    for (OffloadableElement *oelem : oelems) {
+        do {
+            next_batch = nullptr;
+            oelem->dispatch(0, next_batch, oelem->_last_delay);
+            if (next_batch != nullptr) {
+                next_batch->tracker.has_results = true;
+                enqueue_batch(next_batch, oelem, 0);
+            }
+        } while (next_batch != nullptr);
+    } /* endfor(oelems) */
 }
 
 void ElementGraph::enqueue_batch(PacketBatch *batch, Element *start_elem, int input_port)
@@ -352,7 +352,7 @@ void ElementGraph::process_batch(PacketBatch *batch)
                             /* out_batch is not allocated yet... */
                             while (rte_mempool_get(ctx->batch_pool, (void**)(out_batches + o)) == -ENOENT
                                    && !ctx->io_ctx->loop_broken) {
-                                ev_run(ctx->io_ctx->loop, EVRUN_NOWAIT);
+                                ev_run(ctx->io_ctx->loop, 0);
                             }
                             new (out_batches[o]) PacketBatch();
                             anno_set(&out_batches[o]->banno, NBA_BANNO_LB_DECISION, lb_decision);
@@ -443,7 +443,7 @@ void ElementGraph::process_batch(PacketBatch *batch)
         {
             while (rte_mempool_get_bulk(ctx->batch_pool, (void **) out_batches, num_outputs) == -ENOENT
                    && !ctx->io_ctx->loop_broken) {
-                ev_run(ctx->io_ctx->loop, EVRUN_NOWAIT);
+                ev_run(ctx->io_ctx->loop, 0);
             }
 
             // TODO: optimize by choosing/determining the "major" path and reuse the
@@ -630,6 +630,11 @@ int ElementGraph::add_element(Element *new_elem)
         assert(selem != nullptr);
         sched_elements.push_back(selem);
     }
+    if (new_elem->get_type() & ELEMTYPE_OFFLOADABLE) {
+        auto oelem = dynamic_cast<OffloadableElement*> (new_elem);
+        assert(oelem != nullptr);
+        offl_elements.push_back(oelem);
+    }
     if (new_elem->get_type() & ELEMTYPE_INPUT) {
         assert(input_elem == nullptr);
         input_elem = dynamic_cast<SchedulableElement*> (new_elem);
@@ -676,6 +681,11 @@ int ElementGraph::validate()
 const FixedRing<SchedulableElement*, nullptr>& ElementGraph::get_schedulable_elements() const
 {
     return sched_elements;
+}
+
+const FixedRing<OffloadableElement*, nullptr>& ElementGraph::get_offloadable_elements() const
+{
+    return offl_elements;
 }
 
 const FixedRing<Element*, nullptr>& ElementGraph::get_elements() const

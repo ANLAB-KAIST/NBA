@@ -81,6 +81,7 @@ public:
      * They are executed once on every polling iteration.
      */
     const FixedRing<SchedulableElement*, nullptr>& get_schedulable_elements() const;
+    const FixedRing<OffloadableElement*, nullptr>& get_offloadable_elements() const;
 
     /**
      * Returns the list of all elements.
@@ -99,7 +100,12 @@ protected:
      * Used to book-keep element objects.
      */
     FixedRing<Element *, nullptr> elements;
+
+    /**
+     * Book-keepers to avoid dynamic_cast and runtime type checks.
+     */
     FixedRing<SchedulableElement *, nullptr> sched_elements;
+    FixedRing<OffloadableElement *, nullptr> offl_elements;
 
     /**
      * Used to pass context objects when calling element handlers.

@@ -168,7 +168,9 @@ CFLAGS        += ' -I{CLICKPARSER_PATH}/include'
 LIBS          += ' -L{CLICKPARSER_PATH}/build -lclickparser'
 
 # libev configurations
-LIBS          += ' -lev'
+LIBEV_PREFIX = os.getenv('LIBEV_PATH', '/usr/local')
+CFLAGS       += ' -I{LIBEV_PREFIX}/include'
+LIBS         += ' -L{LIBEV_PREFIX}/lib -lev'
 
 # PAPI configurations
 LIBS          += ' -lpapi'

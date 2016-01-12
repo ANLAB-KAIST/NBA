@@ -189,9 +189,8 @@ static size_t comp_process_batch(io_thread_context *ctx, void *pkts, size_t coun
         ret = rte_mempool_get(ctx->comp_ctx->batch_pool, (void **) &batch);
         if (unlikely(ctx->loop_broken)) return 0;
         if (ret == -ENOENT) {
-            /* Try to free some batches by processing
-             * offload-completion events. */
-            ev_run(ctx->loop, EVRUN_NOWAIT);
+            /* Wait until some batches are freed. */
+            ev_run(ctx->loop, 0);
         } else
             break;
     }
