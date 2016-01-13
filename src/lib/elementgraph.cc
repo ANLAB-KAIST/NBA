@@ -111,7 +111,10 @@ void ElementGraph::flush_offloaded_tasks()
                 /* Enqueue the offload task. */
                 int ret = rte_ring_enqueue(ctx->offload_input_queues[dev_idx], (void*) task);
                 //if (ret == -ENOBUFS) {
-                if (ret == -EDQUOT || ret == -ENOBUFS) {
+                if (ret == -EDQUOT) {
+                    ready_tasks[dev_idx].pop_front();
+                    break;
+                } else if (ret == -ENOBUFS) {
                     break;
                 } else {
                     ready_tasks[dev_idx].pop_front();
