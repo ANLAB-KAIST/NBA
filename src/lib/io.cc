@@ -154,7 +154,8 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
                         ((float) task_cycles / total_batch_size
                          - ((float) task->batches[b]->delay_time / task->batches[b]->count));
             }
-            /* We need to rewind the state so that it gets executed by ElemGraph. */
+            /* Rewind the state so that it gets "prepared" by ElemGraph.
+             * (e.g., update datablock list used by next element) */
             task->state = TASK_INITIALIZED;
             ctx->elem_graph->enqueue_offload_task(task,
                                                   ctx->elem_graph->get_first_next(task->elem),

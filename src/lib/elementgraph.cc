@@ -110,12 +110,13 @@ void ElementGraph::send_offload_task_to_device(OffloadTask *task)
         task->prepare_read_buffer();
         task->prepare_write_buffer();
         task->state = TASK_PREPARED;
-    } /* endif(!task.prepared) */
+    }
 
     /* Send the offload task to device thread. */
     assert(task->state == TASK_PREPARED);
     int ret = rte_ring_enqueue(ctx->offload_input_queues[dev_idx], (void*) task);
     if (ret == -ENOBUFS) {
+        /* The input queue is full.  Delay the task. */
         enqueue_offload_task(task, task->tracker.element, task->tracker.input_port);
     } else {
         /* It may return -EDQUOT, but here we ignore this HWM signal.

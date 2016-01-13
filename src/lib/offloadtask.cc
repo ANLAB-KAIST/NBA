@@ -327,13 +327,13 @@ void OffloadTask::execute()
         arg = {(void *) &checkbits_d, sizeof(void *), alignof(void *)};
         cctx->push_kernel_arg(arg);
 
-        //offload_compute_handler &handler = elem->offload_compute_handlers[cctx->type_name];
-        //handler(cctx, &res);
+        offload_compute_handler &handler = elem->offload_compute_handlers[cctx->type_name];
+        handler(cctx, &res);
         /* Skip kernel execution. */
-        res.num_workitems = 0;
-        res.num_threads_per_workgroup = 1;
-        res.num_workgroups = 1;
-        cctx->get_host_checkbits()[0] = 1;
+        //res.num_workitems = 0;
+        //res.num_threads_per_workgroup = 1;
+        //res.num_workgroups = 1;
+        //cctx->get_host_checkbits()[0] = 1;
 
     } else {
 
