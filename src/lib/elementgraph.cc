@@ -38,10 +38,6 @@ ElementGraph::ElementGraph(comp_thread_context *ctx)
     this->ctx = ctx;
     input_elem = nullptr;
     assert(0 == rte_malloc_validate(ctx, NULL));
-    /* IMPORTANT: ready_tasks must be larger than task_pool. */
-    assert(ready_task_qlen <= ctx->num_taskpool_size);
-    for (int i = 0; i < NBA_MAX_COPROCESSOR_TYPES; i++)
-        ready_tasks[i].init(ready_task_qlen, ctx->loc.node_id);
 
     struct rte_hash_parameters hparams;
     char namebuf[RTE_HASH_NAMESIZE];
@@ -56,96 +52,78 @@ ElementGraph::ElementGraph(comp_thread_context *ctx)
     assert(offl_actions != nullptr);
 }
 
-void ElementGraph::flush_offloaded_tasks()
+void ElementGraph::send_offload_task_to_device(OffloadTask *task)
 {
     if (unlikely(ctx->io_ctx->loop_broken))
         return;
 
-    for (int dev_idx = 0; dev_idx < NBA_MAX_COPROCESSOR_TYPES; dev_idx++) {
+    /* Start offloading! */
+    // TODO: create multiple cctx_list and access them via dev_idx for hetero-device systems.
+    const int dev_idx = 0;
+    ComputeContext *cctx = ctx->cctx_list.front();
+    assert(cctx != nullptr);
+    #ifdef USE_NVPROF
+    nvtxRangePush("offl_prepare");
+    #endif
+    task->cctx = cctx;
 
-        //uint64_t len_ready_tasks = ready_tasks[dev_idx].size();
-        //print_ratelimit("# ready tasks", len_ready_tasks, 10000);
-        // TODO: now it's possible to merge multiple tasks to increase batch size!
-
-        while (!ready_tasks[dev_idx].empty()) {
-            OffloadTask *task = ready_tasks[dev_idx].front();
-            assert(task != nullptr);
-
-            /* Start offloading! */
-            // TODO: create multiple cctx_list and access them via dev_idx for hetero-device systems.
-            ComputeContext *cctx = ctx->cctx_list.front();
-            assert(cctx != nullptr);
-            #ifdef USE_NVPROF
-            nvtxRangePush("offl_prepare");
-            #endif
-            task->cctx = cctx;
-
-            /* Prepare to offload. */
-            if (task->state < TASK_PREPARED) {
-                bool had_io_base = (task->io_base != INVALID_IO_BASE);
-                bool has_io_base = false;
-                if (task->io_base == INVALID_IO_BASE) {
-                    task->io_base = cctx->alloc_io_base();
-                    has_io_base = (task->io_base != INVALID_IO_BASE);
-                }
-                if (has_io_base) {
-                    /* In the GPU side, datablocks argument has only used
-                     * datablocks in the beginning of the array (not sparsely). */
-                    int datablock_ids[NBA_MAX_DATABLOCKS];
-                    size_t num_db_used = task->elem->get_used_datablocks(datablock_ids);
-                    for (unsigned k = 0; k < num_db_used; k++) {
-                        int dbid = datablock_ids[k];
-                        task->datablocks.push_back(dbid);
-                        task->dbid_h2d[dbid] = k;
-                    }
-
-                    size_t num_batches = task->batches.size();
-                    /* As we reuse tasks between subsequent offloadables
-                     * and only does in linear groups of elements,
-                     * it is okay to check only the first batch. */
-                    if (task->batches[0]->datablock_states == nullptr) {
-                        void *dbstates[num_batches];
-                        int bidx = 0;
-                        assert(0 == rte_mempool_get_bulk(ctx->dbstate_pool, (void **) &dbstates,
-                                                         num_batches));
-                        for (PacketBatch *batch : task->batches) {
-                            batch->datablock_states = (struct datablock_tracker *) dbstates[bidx];
-                            bidx ++;
-                        }
-                    }
-                    task->offload_start = 0;
-
-                    /* Calculate required buffer sizes, allocate them, and initialize them.
-                     * The mother buffer is statically allocated on start-up and here we
-                     * reserve regions inside it. */
-                    task->prepare_read_buffer();
-                    task->prepare_write_buffer();
-                    task->state = TASK_PREPARED;
-                } /* endif(has_io_base) */
-            } /* endif(!task.prepared) */
-
-            if (task->state == TASK_PREPARED) {
-                /* Enqueue the offload task. */
-                int ret = rte_ring_enqueue(ctx->offload_input_queues[dev_idx], (void*) task);
-                if (ret == -EDQUOT) {
-                    ready_tasks[dev_idx].pop_front();
-                    break;
-                } else if (ret == -ENOBUFS) {
-                    break;
-                } else {
-                    ready_tasks[dev_idx].pop_front();
-                    ev_async_send(ctx->coproc_ctx->loop, ctx->offload_devices->at(dev_idx)->input_watcher);
-                    if (ctx->inspector) ctx->inspector->dev_sent_batch_count[0] += task->batches.size();
-                }
-                #ifdef USE_NVPROF
-                nvtxRangePop();
-                #endif
-            } else {
-                /* Delay the current offloading task and break. */
-                break;
+    /* Prepare to offload. */
+    if (task->state < TASK_PREPARED) {
+        //bool had_io_base = (task->io_base != INVALID_IO_BASE);
+        bool has_io_base = false;
+        if (task->io_base == INVALID_IO_BASE) {
+            task->io_base = cctx->alloc_io_base();
+            has_io_base = (task->io_base != INVALID_IO_BASE);
+        }
+        if (has_io_base) {
+            /* In the GPU side, datablocks argument has only used
+             * datablocks in the beginning of the array (not sparsely). */
+            int datablock_ids[NBA_MAX_DATABLOCKS];
+            size_t num_db_used = task->elem->get_used_datablocks(datablock_ids);
+            for (unsigned k = 0; k < num_db_used; k++) {
+                int dbid = datablock_ids[k];
+                task->datablocks.push_back(dbid);
+                task->dbid_h2d[dbid] = k;
             }
-        } /* endwhile(ready_tasks) */
+
+            size_t num_batches = task->batches.size();
+            /* As we reuse tasks between subsequent offloadables
+             * and only does in linear groups of elements,
+             * it is okay to check only the first batch. */
+            if (task->batches[0]->datablock_states == nullptr) {
+                void *dbstates[num_batches];
+                int bidx = 0;
+                assert(0 == rte_mempool_get_bulk(ctx->dbstate_pool, (void **) &dbstates,
+                                                 num_batches));
+                for (PacketBatch *batch : task->batches) {
+                    batch->datablock_states = (struct datablock_tracker *) dbstates[bidx];
+                    bidx ++;
+                }
+            }
+            task->offload_start = 0;
+
+            /* Calculate required buffer sizes, allocate them, and initialize them.
+             * The mother buffer is statically allocated on start-up and here we
+             * reserve regions inside it. */
+            task->prepare_read_buffer();
+            task->prepare_write_buffer();
+        } /* endif(has_io_base) */
+        task->state = TASK_PREPARED;
+    } /* endif(!task.prepared) */
+
+    /* Send the offload task to device thread. */
+    assert(task->state == TASK_PREPARED);
+    int ret = rte_ring_enqueue(ctx->offload_input_queues[dev_idx], (void*) task);
+    if (ret == -ENOBUFS) {
+        enqueue_offload_task(task, task->tracker.element, task->tracker.input_port);
+    } else {
+        ev_async_send(ctx->coproc_ctx->loop, ctx->offload_devices->at(dev_idx)->input_watcher);
+        if (ctx->inspector) ctx->inspector->dev_sent_batch_count[0] += task->batches.size();
     }
+    #ifdef USE_NVPROF
+    nvtxRangePop();
+    #endif
+    return;
 }
 
 void ElementGraph::free_batch(PacketBatch *batch, bool free_pkts)
@@ -593,8 +571,10 @@ void ElementGraph::process_batch(PacketBatch *batch)
 
 void ElementGraph::process_offload_task(OffloadTask *otask)
 {
-    OffloadableElement *offloadable = otask->elem;
-    assert(offloadable->offload(this, otask, otask->tracker.input_port) == 0);
+    uint64_t now = rte_rdtsc();
+    otask->task_id += 100000; // for debugging
+    otask->offload_start = now;
+    send_offload_task_to_device(otask);
 }
 
 void ElementGraph::flush_tasks()

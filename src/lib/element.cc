@@ -176,20 +176,6 @@ int Element::configure(comp_thread_context *ctx, vector<string> &args) {
     return 0;
 }
 
-int OffloadableElement::offload(ElementGraph *mother, OffloadTask *otask, int input_port)
-{
-    int dev_idx = 0;
-    uint64_t now = rte_rdtsc();
-    assert(otask != nullptr);
-    otask->state = TASK_INITIALIZING;
-    otask->task_id += 100000; // for debugging
-    otask->offload_start = now;
-    otask->state = TASK_PREPARED;
-    mother->ready_tasks[dev_idx].push_back(otask);
-    /* This should always succeed. */
-    return 0;
-}
-
 int OffloadableElement::offload(ElementGraph *mother, PacketBatch *batch, int input_port)
 {
     int dev_idx = 0;
@@ -260,7 +246,7 @@ int OffloadableElement::offload(ElementGraph *mother, PacketBatch *batch, int in
         otask->offload_start = now;
 
         otask->state = TASK_INITIALIZED;
-        mother->ready_tasks[dev_idx].push_back(otask);
+        mother->enqueue_offload_task(otask, this, input_port);
         #ifdef USE_NVPROF
         nvtxRangePop();
         #endif

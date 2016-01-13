@@ -105,7 +105,6 @@ static void comp_prepare_cb(struct ev_loop *loop, struct ev_prepare *watcher, in
     io_thread_context *io_ctx = (io_thread_context *) ev_userdata(loop);
     comp_thread_context *ctx = io_ctx->comp_ctx;
     ctx->elem_graph->flush_tasks();
-    ctx->elem_graph->flush_offloaded_tasks();
     ctx->elem_graph->scan_offloadable_elements(0);
 }
 
@@ -154,6 +153,8 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
                         ((float) task_cycles / total_batch_size
                          - ((float) task->batches[b]->delay_time / task->batches[b]->count));
             }
+            /* We need to rewind the state so that it gets executed by ElemGraph. */
+            task->state = TASK_INITIALIZED;
             ctx->elem_graph->enqueue_offload_task(task,
                                                   ctx->elem_graph->get_first_next(task->elem),
                                                   0);

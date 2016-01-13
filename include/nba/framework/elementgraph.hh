@@ -48,11 +48,6 @@ public:
     void enqueue_batch(PacketBatch *batch, Element *start_elem, int input_port = 0);
     void enqueue_offload_task(OffloadTask *otask, Element *start_elem, int input_port = 0);
 
-    // TODO: merge with flush_tasks()
-    /* Tries to execute all pending offloaded tasks.
-     * This method does not allocate/free any batches. */
-    void flush_offloaded_tasks();
-
     /* Tries to run all pending computation tasks. */
     void flush_tasks();
 
@@ -123,7 +118,6 @@ private:
     comp_thread_context *ctx;
 
     FixedRing<void *, nullptr> queue;
-    FixedRing<OffloadTask *, nullptr> ready_tasks[NBA_MAX_COPROCESSOR_TYPES];
 
     /* Executes the element graph for the given batch and free it after
      * processing.  Internally it manages a queue to handle diverged paths
@@ -133,14 +127,12 @@ private:
      * the batch to the delayed_batches queue. */
     void process_batch(PacketBatch *batch);
     void process_offload_task(OffloadTask *otask);
+    void send_offload_task_to_device(OffloadTask *task);
 
     struct rte_hash *offl_actions;
 
     /* The entry point of packet processing pipeline (graph). */
     SchedulableElement *input_elem;
-
-    friend int OffloadableElement::offload(ElementGraph *mother, OffloadTask *otask, int input_port);
-    friend int OffloadableElement::offload(ElementGraph *mother, PacketBatch *in_batch, int input_port);
 };
 
 }

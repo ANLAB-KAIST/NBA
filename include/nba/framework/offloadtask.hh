@@ -17,7 +17,7 @@
 
 namespace nba {
 
-enum TaskStates {
+enum TaskStates : int {
     TASK_INITIALIZING = 0,
     TASK_INITIALIZED = 1,
     TASK_PREPARED = 2,

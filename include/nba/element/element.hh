@@ -234,9 +234,6 @@ public:
      * it has sufficient amount of work. */
     int offload(ElementGraph *mother, PacketBatch *in_batch, int input_port);
 
-    /** Immediately begins offloading of the given (reused) offload-task. */
-    int offload(ElementGraph *mother, OffloadTask *reused_offl_task, int input_port);
-
     /** Stores the batches that are returned from offloading. */
     int enqueue_batch(PacketBatch *batch);
 
