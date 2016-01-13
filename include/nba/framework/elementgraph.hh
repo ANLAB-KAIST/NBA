@@ -45,11 +45,17 @@ public:
      * This method does not allocate/free any batches. */
     void flush_offloaded_tasks();
 
-    /* Tries to run all delayed tasks. */
+    /* Tries to run all pending computation tasks. */
     void flush_tasks();
 
-    /* Scan and execute schedulable elements. */
+    /* Scans and executes dispatch() handlers of schedulable elements.
+     * This implies scan_offloadable_elements() since offloadable elements
+     * inherits schedulable elements. */
     void scan_schedulable_elements(uint64_t loop_count);
+
+    /* Scans and executes dispatch() handlers of offloadable elements.
+     * This fetches the GPU-processed batches and feed them into the graph
+     * again. */
     void scan_offloadable_elements(uint64_t loop_count);
 
     /* Start processing with the given batch and the entry point. */
@@ -70,22 +76,12 @@ public:
     int link_element(Element *to_elem, int input_port,
                      Element *from_elem, int output_port);
 
-    SchedulableElement *get_entry_point(int entry_point_idx = 0);
-
-
     /**
      * Validate the element graph.
      * Currently, this checks the writer-reader pairs of structured
      * annotations.
      */
     int validate();
-
-    /**
-     * Returns the list of schedulable elements.
-     * They are executed once on every polling iteration.
-     */
-    const FixedRing<SchedulableElement*, nullptr>& get_schedulable_elements() const;
-    const FixedRing<OffloadableElement*, nullptr>& get_offloadable_elements() const;
 
     /**
      * Returns the list of all elements.
@@ -99,7 +95,8 @@ public:
 
     /* TODO: calculate from the actual graph */
     static const int num_max_outputs = NBA_MAX_ELEM_NEXTS;
-protected:
+
+private:
     /**
      * Used to book-keep element objects.
      */
@@ -118,9 +115,7 @@ protected:
 
     FixedRing<void *, nullptr> queue;
     FixedRing<OffloadTask *, nullptr> ready_tasks[NBA_MAX_COPROCESSOR_TYPES];
-    //FixedRing<Task *, nullptr> delayed_batches;
 
-private:
     /* Executes the element graph for the given batch and free it after
      * processing.  Internally it manages a queue to handle diverged paths
      * with multiple batches to multipe outputs.
@@ -133,9 +128,9 @@ private:
     std::map<std::pair<OffloadableElement*, int>, int> offl_actions;
     std::set<OffloadableElement*> offl_fin;
 
+    /* The entry point of packet processing pipeline (graph). */
     SchedulableElement *input_elem;
 
-    friend int io_loop(void *arg);
     friend int OffloadableElement::offload(ElementGraph *mother, OffloadTask *otask, int input_port);
     friend int OffloadableElement::offload(ElementGraph *mother, PacketBatch *in_batch, int input_port);
     friend void comp_thread_context::build_element_graph(const char *config);

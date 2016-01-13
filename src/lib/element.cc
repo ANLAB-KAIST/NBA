@@ -180,6 +180,7 @@ int OffloadableElement::offload(ElementGraph *mother, OffloadTask *otask, int in
 {
     int dev_idx = 0;
     uint64_t now = rte_rdtsc();
+    assert(otask != nullptr);
     otask->state = TASK_INITIALIZING;
     otask->task_id += 100000; // for debugging
     otask->offload_start = now;

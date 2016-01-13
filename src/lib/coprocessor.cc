@@ -56,7 +56,7 @@ static void coproc_task_input_cb(struct ev_loop *loop, struct ev_async *watcher,
      * processing of the remainings.  The later steps have higher priority
      * and libev will call them first and then call earlier steps again. */
     ret = rte_ring_dequeue(ctx->task_input_queue, (void **) &task);
-    if (task != nullptr) {
+    if (ret == 0 && task != nullptr) {
         task->coproc_ctx = ctx;
         task->copy_h2d();
         task->execute();

@@ -517,7 +517,7 @@ int main(int argc, char **argv)
             queues[qidx]  = rte_ring_create(ring_name, queue_length, conf.node_id,
                                             0); //(conf.mp_enq ? 0 : RING_F_SP_ENQ) | (conf.mc_deq ? 0 : RING_F_SC_DEQ));
             assert(queues[qidx] != NULL);
-            assert(0 == rte_ring_set_water_mark(queues[qidx], queue_length - 16));
+            assert(0 == rte_ring_set_water_mark(queues[qidx], queue_length - 8));
             qwatchers[qidx] = (struct ev_async *) rte_malloc_socket("ev_async", sizeof(struct ev_async),
                                                                     CACHE_LINE_SIZE, conf.node_id);
             assert(qwatchers[qidx] != NULL);

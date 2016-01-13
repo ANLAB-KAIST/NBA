@@ -55,21 +55,18 @@ void ElementGraph::flush_offloaded_tasks()
 
         while (!ready_tasks[dev_idx].empty()) {
             OffloadTask *task = ready_tasks[dev_idx].front();
-            ready_tasks[dev_idx].pop_front();
+            assert(task != nullptr);
 
             /* Start offloading! */
             // TODO: create multiple cctx_list and access them via dev_idx for hetero-device systems.
             ComputeContext *cctx = ctx->cctx_list.front();
-
-            /* Grab a compute context. */
             assert(cctx != nullptr);
             #ifdef USE_NVPROF
             nvtxRangePush("offl_prepare");
             #endif
-
-            /* Prepare to offload. */
             task->cctx = cctx;
 
+            /* Prepare to offload. */
             if (task->state < TASK_PREPARED) {
                 bool had_io_base = (task->io_base != INVALID_IO_BASE);
                 bool has_io_base = false;
@@ -92,10 +89,10 @@ void ElementGraph::flush_offloaded_tasks()
                     for (PacketBatch *batch : task->batches) {
                         //total_num_pkts = batch->count;
                         if (batch->datablock_states == nullptr) {
-                            assert(0 == rte_mempool_get(ctx->dbstate_pool, (void **) &batch->datablock_states));
+                            /* This should always succeed. */
+                            assert(0 == rte_mempool_get(ctx->dbstate_pool,
+                                                        (void **) &batch->datablock_states));
                         }
-                        //assert(task->offload_start);
-                        //task->offload_cost += (rte_rdtsc() - task->offload_start);
                         task->offload_start = 0;
                     }
                     //print_ratelimit("avg.# pkts sent to GPU", total_num_pkts, 100);
@@ -113,19 +110,20 @@ void ElementGraph::flush_offloaded_tasks()
             if (task->state == TASK_PREPARED) {
                 /* Enqueue the offload task. */
                 int ret = rte_ring_enqueue(ctx->offload_input_queues[dev_idx], (void*) task);
-                if (ret == ENOENT) {
-                    ready_tasks[dev_idx].push_front(task);
+                //if (ret == -ENOBUFS) {
+                if (ret == -EDQUOT || ret == -ENOBUFS) {
                     break;
                 } else {
+                    ready_tasks[dev_idx].pop_front();
                     ev_async_send(ctx->coproc_ctx->loop, ctx->offload_devices->at(dev_idx)->input_watcher);
                     if (ctx->inspector) ctx->inspector->dev_sent_batch_count[0] += task->batches.size();
+                    //if (ret == -EDQUOT) break;
                 }
                 #ifdef USE_NVPROF
                 nvtxRangePop();
                 #endif
             } else {
                 /* Delay the current offloading task and break. */
-                ready_tasks[dev_idx].push_front(task);
                 break;
             }
         } /* endwhile(ready_tasks) */
@@ -135,13 +133,13 @@ void ElementGraph::flush_offloaded_tasks()
 void ElementGraph::free_batch(PacketBatch *batch, bool free_pkts)
 {
     if (free_pkts) {
-        rte_ring_enqueue_bulk(ctx->io_ctx->drop_queue,
-                              (void **) &batch->packets[0],
-                              batch->count);
+        assert(0 == rte_ring_enqueue_bulk(ctx->io_ctx->drop_queue,
+                                          (void **) &batch->packets[0],
+                                          batch->count));
         #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
-        rte_ring_enqueue_bulk(ctx->io_ctx->drop_queue,
-                              (void **) &batch->packets[batch->count],
-                              batch->drop_count);
+        assert(0 == rte_ring_enqueue_bulk(ctx->io_ctx->drop_queue,
+                                          (void **) &batch->packets[batch->count],
+                                          batch->drop_count));
         #endif
     }
     rte_mempool_put(ctx->batch_pool, (void *) batch);
@@ -151,11 +149,10 @@ void ElementGraph::free_batch(PacketBatch *batch, bool free_pkts)
 
 void ElementGraph::scan_schedulable_elements(uint64_t loop_count)
 {
-    const auto &selems = get_schedulable_elements();
     uint64_t now = 0;
     if ((loop_count & 0x3ff) == 0)
         now = get_usec();
-    for (SchedulableElement *selem : selems) {
+    for (SchedulableElement *selem : sched_elements) {
         /* FromInput is handled by feed_input() invoked by comp_process_batch(). */
         if (0 == (selem->get_type() & ELEMTYPE_INPUT)) {
             PacketBatch *next_batch = nullptr;
@@ -179,8 +176,7 @@ void ElementGraph::scan_schedulable_elements(uint64_t loop_count)
 void ElementGraph::scan_offloadable_elements(uint64_t loop_count)
 {
     PacketBatch *next_batch = nullptr;
-    const auto &oelems = get_offloadable_elements();
-    for (OffloadableElement *oelem : oelems) {
+    for (OffloadableElement *oelem : offl_elements) {
         do {
             next_batch = nullptr;
             oelem->dispatch(loop_count, next_batch, oelem->_last_delay);
@@ -195,7 +191,8 @@ void ElementGraph::scan_offloadable_elements(uint64_t loop_count)
 void ElementGraph::feed_input(int entry_point_idx, PacketBatch *batch, uint64_t loop_count)
 {
     uint64_t next_delay = 0; /* unused but required to pass as reference */
-    SchedulableElement *input_elem = get_entry_point(entry_point_idx);
+    // TODO: implement multiple packet entry points.
+    SchedulableElement *input_elem = this->input_elem;
     PacketBatch *next_batch = nullptr;
     assert(0 != (input_elem->get_type() & ELEMTYPE_INPUT));
     ctx->input_batch = batch;
@@ -308,7 +305,7 @@ void ElementGraph::process_batch(PacketBatch *batch)
                     break;
                 #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
                 case DROP:
-                    rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]);
+                    assert(0 == rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]));
                     EXCLUDE_PACKET(batch, pkt_idx);
                     break;
                 #endif
@@ -709,27 +706,10 @@ int ElementGraph::link_element(Element *to_elem, int input_port,
     return 0;
 }
 
-SchedulableElement *ElementGraph::get_entry_point(int entry_point_idx)
-{
-    // TODO: implement multiple packet entry points.
-    assert(input_elem != nullptr);
-    return input_elem;
-}
-
 int ElementGraph::validate()
 {
     // TODO: implement
     return 0;
-}
-
-const FixedRing<SchedulableElement*, nullptr>& ElementGraph::get_schedulable_elements() const
-{
-    return sched_elements;
-}
-
-const FixedRing<OffloadableElement*, nullptr>& ElementGraph::get_offloadable_elements() const
-{
-    return offl_elements;
 }
 
 const FixedRing<Element*, nullptr>& ElementGraph::get_elements() const
