@@ -249,20 +249,7 @@ static size_t comp_process_batch(io_thread_context *ctx, void *pkts, size_t coun
 
     /* Run the element graph's schedulable elements.
      * FIXME: allow multiple FromInput elements depending on the flow groups. */
-    SchedulableElement *input_elem = ctx->comp_ctx->elem_graph->get_entry_point(0);
-    PacketBatch *next_batch = nullptr;
-    assert(0 != (input_elem->get_type() & ELEMTYPE_INPUT));
-    ctx->comp_ctx->input_batch = batch;
-    uint64_t next_delay = 0;
-    ret = input_elem->dispatch(loop_count, next_batch, next_delay);
-    if (next_batch == nullptr) {
-        ctx->comp_ctx->elem_graph->free_batch(batch);
-    } else {
-        assert(next_batch == batch);
-        next_batch->tracker.has_results = true; // skip processing
-        ctx->comp_ctx->elem_graph->enqueue_batch(next_batch, input_elem, 0);
-    }
-
+    ctx->comp_ctx->elem_graph->feed_input(0, batch, loop_count);
     return count;
 }
 /* ===== END_OF_COMP ===== */

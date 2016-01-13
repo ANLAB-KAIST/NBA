@@ -51,6 +51,9 @@ public:
     /* Scan and execute schedulable elements. */
     void scan_offloadable_elements();
 
+    /* Start processing with the given batch and the entry point. */
+    void feed_input(int entry_point_idx, PacketBatch *batch, uint64_t loop_count);
+
     bool check_preproc(OffloadableElement *oel, int dbid);
     bool check_postproc(OffloadableElement *oel, int dbid);
     bool check_postproc_all(OffloadableElement *oel);

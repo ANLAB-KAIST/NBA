@@ -164,6 +164,23 @@ void ElementGraph::scan_offloadable_elements()
     } /* endfor(oelems) */
 }
 
+void ElementGraph::feed_input(int entry_point_idx, PacketBatch *batch, uint64_t loop_count)
+{
+    uint64_t next_delay = 0; /* unused but required to pass as reference */
+    SchedulableElement *input_elem = get_entry_point(entry_point_idx);
+    PacketBatch *next_batch = nullptr;
+    assert(0 != (input_elem->get_type() & ELEMTYPE_INPUT));
+    ctx->input_batch = batch;
+    input_elem->dispatch(loop_count, next_batch, next_delay);
+    if (next_batch == nullptr) {
+        free_batch(batch);
+    } else {
+        assert(next_batch == batch);
+        next_batch->tracker.has_results = true; // skip processing
+        enqueue_batch(next_batch, input_elem, 0);
+    }
+}
+
 void ElementGraph::enqueue_batch(PacketBatch *batch, Element *start_elem, int input_port)
 {
     assert(start_elem != nullptr);
