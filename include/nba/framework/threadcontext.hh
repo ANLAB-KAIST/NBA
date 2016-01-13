@@ -185,7 +185,7 @@ public:
 
     struct rte_ring *task_completion_queue; /* to receive completed offload tasks */
     struct ev_async *task_completion_watcher;
-    struct ev_check *check_watcher;
+    struct ev_prepare *prepare_watcher;
 } __cache_aligned;
 
 struct coproc_thread_context {

@@ -533,8 +533,7 @@ void ElementGraph::process_batch(PacketBatch *batch)
 
 void ElementGraph::process_offload_task(OffloadTask *otask)
 {
-    Element *current_elem = otask->tracker.element;
-    OffloadableElement *offloadable = dynamic_cast<OffloadableElement*>(current_elem);
+    OffloadableElement *offloadable = otask->elem;
     assert(offloadable->offload(this, otask, otask->tracker.input_port) == 0);
 }
 

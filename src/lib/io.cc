@@ -94,8 +94,14 @@ static void comp_task_init(struct rte_mempool *mp, void *arg, void *obj, unsigne
     OffloadTask *t = (OffloadTask *) obj;
     new (t) OffloadTask();
 }
-static void comp_check_cb(struct ev_loop *loop, struct ev_check *watcher, int revents)
+
+static void comp_prepare_cb(struct ev_loop *loop, struct ev_prepare *watcher, int revents)
 {
+    /* This routine is called when ev_run() is about to block.
+     * (i.e., there is no outstanding events)
+     * Calling this there allows to check any pending tasks so that
+     * we could eventually release any resources such as batch objects
+     * and allow other routines waiting for their releases to continue. */
     io_thread_context *io_ctx = (io_thread_context *) ev_userdata(loop);
     comp_thread_context *ctx = io_ctx->comp_ctx;
     ctx->elem_graph->flush_tasks();
@@ -734,10 +740,10 @@ int io_loop(void *arg)
     }
 
     /* Register per-iteration check event. */
-    ctx->comp_ctx->check_watcher = (struct ev_check *) rte_malloc_socket(nullptr, sizeof(struct ev_check),
+    ctx->comp_ctx->prepare_watcher = (struct ev_prepare *) rte_malloc_socket(nullptr, sizeof(struct ev_prepare),
                                                                          CACHE_LINE_SIZE, ctx->loc.node_id);
-    ev_check_init(ctx->comp_ctx->check_watcher, comp_check_cb);
-    ev_check_start(ctx->loop, ctx->comp_ctx->check_watcher);
+    ev_prepare_init(ctx->comp_ctx->prepare_watcher, comp_prepare_cb);
+    ev_prepare_start(ctx->loop, ctx->comp_ctx->prepare_watcher);
 
     /* ==== END_OF_COMP ====*/
 
