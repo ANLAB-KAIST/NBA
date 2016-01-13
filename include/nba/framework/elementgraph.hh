@@ -57,6 +57,7 @@ public:
     void scan_schedulable_elements(uint64_t loop_count);
 
     /* Scans and executes dispatch() handlers of offloadable elements.
+     * It is a shorthand version that ignores next_delay output arguments.
      * This fetches the GPU-processed batches and feed them into the graph
      * again. */
     void scan_offloadable_elements(uint64_t loop_count);

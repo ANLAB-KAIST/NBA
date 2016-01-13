@@ -147,6 +147,7 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
         uint64_t total_batch_size = 0;
         for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++)
             total_batch_size += task->batches[b]->count;
+        #ifdef NBA_REUSE_DATABLOCKS
         if (ctx->elem_graph->check_next_offloadable(task->elem)) {
             for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++) {
                 task->batches[b]->compute_time += (uint64_t)
@@ -160,6 +161,9 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
                                                   0);
             /* This task is reused. We keep them intact. */
         } else {
+        #else
+        {
+        #endif
             for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++) {
                 task->batches[b]->compute_time += (uint64_t)
                         ((float) task_cycles / total_batch_size

@@ -16,7 +16,7 @@ CUDAComputeContext::CUDAComputeContext(unsigned ctx_id, ComputeDevice *mother_de
    /* NOTE: Write-combined memory degrades performance to half... */
 {
     type_name = "cuda";
-    size_t io_base_size = 5 * 1024 * 1024; // TODO: read from config
+    size_t io_base_size = 4 * 1024 * 1024; // TODO: read from config
     cutilSafeCall(cudaStreamCreateWithFlags(&_stream, cudaStreamNonBlocking));
     io_base_ring.init(NBA_MAX_IO_BASES, node_id, io_base_ring_buf);
     for (unsigned i = 0; i < NBA_MAX_IO_BASES; i++) {

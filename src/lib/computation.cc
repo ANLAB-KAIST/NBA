@@ -185,6 +185,7 @@ void comp_thread_context::build_element_graph(const char* config_file)
         }
     }
     RTE_LOG(INFO, ELEM, "Number of linear groups: %lu\n", linear_groups.size());
+    #ifdef NBA_REUSE_DATABLOCKS
     for (vector<GraphMetaData *> group : linear_groups) {
 
         Element *prev_el = nullptr;
@@ -254,6 +255,7 @@ void comp_thread_context::build_element_graph(const char* config_file)
         }
         // TODO: 여기서 한번 더 체크해줘야 offloadable이 맨 마지막인 경우 제대로 처리될 것.
     }
+    #endif
     click_destroy_configuration(pi);
     fclose(input);
     elemgraph_lock->release();

@@ -39,6 +39,7 @@ ElementGraph::ElementGraph(comp_thread_context *ctx)
     input_elem = nullptr;
     assert(0 == rte_malloc_validate(ctx, NULL));
 
+#ifdef NBA_REUSE_DATABLOCKS
     struct rte_hash_parameters hparams;
     char namebuf[RTE_HASH_NAMESIZE];
     sprintf(namebuf, "elemgraph@%u.%u:offl_actions", ctx->loc.node_id, ctx->loc.local_thread_idx);
@@ -50,6 +51,9 @@ ElementGraph::ElementGraph(comp_thread_context *ctx)
     hparams.socket_id = ctx->loc.node_id;
     offl_actions = rte_hash_create(&hparams);
     assert(offl_actions != nullptr);
+#else
+    offl_actions = nullptr;
+#endif
 }
 
 void ElementGraph::send_offload_task_to_device(OffloadTask *task)
@@ -69,45 +73,43 @@ void ElementGraph::send_offload_task_to_device(OffloadTask *task)
 
     /* Prepare to offload. */
     if (task->state < TASK_PREPARED) {
-        //bool had_io_base = (task->io_base != INVALID_IO_BASE);
-        bool has_io_base = false;
+        /* In the GPU side, datablocks argument has only used
+         * datablocks in the beginning of the array (not sparsely). */
+        int datablock_ids[NBA_MAX_DATABLOCKS];
+        size_t num_db_used = task->elem->get_used_datablocks(datablock_ids);
+        for (unsigned k = 0; k < num_db_used; k++) {
+            int dbid = datablock_ids[k];
+            task->datablocks.push_back(dbid);
+            task->dbid_h2d[dbid] = k;
+        }
+
+        size_t num_batches = task->batches.size();
+        /* As we reuse tasks between subsequent offloadables
+         * and only does in linear groups of elements,
+         * it is okay to check only the first batch. */
+        if (task->batches[0]->datablock_states == nullptr) {
+            void *dbstates[num_batches];
+            int bidx = 0;
+            assert(0 == rte_mempool_get_bulk(ctx->dbstate_pool, (void **) &dbstates,
+                                             num_batches));
+            for (PacketBatch *batch : task->batches) {
+                batch->datablock_states = (struct datablock_tracker *) dbstates[bidx];
+                bidx ++;
+            }
+        }
+        task->offload_start = 0;
+
         if (task->io_base == INVALID_IO_BASE) {
             task->io_base = cctx->alloc_io_base();
-            has_io_base = (task->io_base != INVALID_IO_BASE);
-        }
-        if (has_io_base) {
-            /* In the GPU side, datablocks argument has only used
-             * datablocks in the beginning of the array (not sparsely). */
-            int datablock_ids[NBA_MAX_DATABLOCKS];
-            size_t num_db_used = task->elem->get_used_datablocks(datablock_ids);
-            for (unsigned k = 0; k < num_db_used; k++) {
-                int dbid = datablock_ids[k];
-                task->datablocks.push_back(dbid);
-                task->dbid_h2d[dbid] = k;
-            }
-
-            size_t num_batches = task->batches.size();
-            /* As we reuse tasks between subsequent offloadables
-             * and only does in linear groups of elements,
-             * it is okay to check only the first batch. */
-            if (task->batches[0]->datablock_states == nullptr) {
-                void *dbstates[num_batches];
-                int bidx = 0;
-                assert(0 == rte_mempool_get_bulk(ctx->dbstate_pool, (void **) &dbstates,
-                                                 num_batches));
-                for (PacketBatch *batch : task->batches) {
-                    batch->datablock_states = (struct datablock_tracker *) dbstates[bidx];
-                    bidx ++;
-                }
-            }
-            task->offload_start = 0;
-
+            bool has_io_base = (task->io_base != INVALID_IO_BASE);
+            assert(has_io_base);
             /* Calculate required buffer sizes, allocate them, and initialize them.
              * The mother buffer is statically allocated on start-up and here we
              * reserve regions inside it. */
-            task->prepare_read_buffer();
-            task->prepare_write_buffer();
-        } /* endif(has_io_base) */
+        } /* endif(!has_io_base) */
+
+        task->prepare_read_buffer();
+        task->prepare_write_buffer();
         task->state = TASK_PREPARED;
     } /* endif(!task.prepared) */
 
