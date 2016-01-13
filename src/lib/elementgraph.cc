@@ -99,19 +99,21 @@ void ElementGraph::flush_offloaded_tasks()
                         task->dbid_h2d[dbid] = k;
                     }
 
-                    //size_t total_num_pkts = 0;
-                    for (PacketBatch *batch : task->batches) {
-                        //total_num_pkts = batch->count;
-                        // TODO: change below to use bulk API.
-                        if (batch->datablock_states == nullptr) {
-                            /* This should always succeed. */
-                            assert(0 == rte_mempool_get(ctx->dbstate_pool,
-                                                        (void **) &batch->datablock_states));
+                    size_t num_batches = task->batches.size();
+                    /* As we reuse tasks between subsequent offloadables
+                     * and only does in linear groups of elements,
+                     * it is okay to check only the first batch. */
+                    if (task->batches[0]->datablock_states == nullptr) {
+                        void *dbstates[num_batches];
+                        int bidx = 0;
+                        assert(0 == rte_mempool_get_bulk(ctx->dbstate_pool, (void **) &dbstates,
+                                                         num_batches));
+                        for (PacketBatch *batch : task->batches) {
+                            batch->datablock_states = (struct datablock_tracker *) dbstates[bidx];
+                            bidx ++;
                         }
-                        task->offload_start = 0;
                     }
-                    //print_ratelimit("avg.# pkts sent to GPU", total_num_pkts, 100);
-                    //assert(total_num_pkts > 0);
+                    task->offload_start = 0;
 
                     /* Calculate required buffer sizes, allocate them, and initialize them.
                      * The mother buffer is statically allocated on start-up and here we
