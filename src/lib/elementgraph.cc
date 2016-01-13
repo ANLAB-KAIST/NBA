@@ -83,10 +83,10 @@ void ElementGraph::send_offload_task_to_device(OffloadTask *task)
             task->dbid_h2d[dbid] = k;
         }
 
-        size_t num_batches = task->batches.size();
         /* As we reuse tasks between subsequent offloadables
          * and only does in linear groups of elements,
          * it is okay to check only the first batch. */
+        size_t num_batches = task->batches.size();
         if (task->batches[0]->datablock_states == nullptr) {
             void *dbstates[num_batches];
             int bidx = 0;
@@ -99,15 +99,14 @@ void ElementGraph::send_offload_task_to_device(OffloadTask *task)
         }
         task->offload_start = 0;
 
-        if (task->io_base == INVALID_IO_BASE) {
+        /* Allocate the host-device IO buffer pool. */
+        if (task->io_base == INVALID_IO_BASE)
             task->io_base = cctx->alloc_io_base();
-            bool has_io_base = (task->io_base != INVALID_IO_BASE);
-            assert(has_io_base);
-            /* Calculate required buffer sizes, allocate them, and initialize them.
-             * The mother buffer is statically allocated on start-up and here we
-             * reserve regions inside it. */
-        } /* endif(!has_io_base) */
+        assert(task->io_base != INVALID_IO_BASE);
 
+        /* Calculate required buffer sizes, allocate them, and initialize them.
+         * The mother buffer is statically allocated on start-up and here we
+         * reserve regions inside it. */
         task->prepare_read_buffer();
         task->prepare_write_buffer();
         task->state = TASK_PREPARED;
@@ -119,6 +118,8 @@ void ElementGraph::send_offload_task_to_device(OffloadTask *task)
     if (ret == -ENOBUFS) {
         enqueue_offload_task(task, task->tracker.element, task->tracker.input_port);
     } else {
+        /* It may return -EDQUOT, but here we ignore this HWM signal.
+         * Even for that case, the task is enqueued successfully. */
         ev_async_send(ctx->coproc_ctx->loop, ctx->offload_devices->at(dev_idx)->input_watcher);
         if (ctx->inspector) ctx->inspector->dev_sent_batch_count[0] += task->batches.size();
     }
