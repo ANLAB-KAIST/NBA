@@ -106,7 +106,7 @@ static void comp_prepare_cb(struct ev_loop *loop, struct ev_prepare *watcher, in
     comp_thread_context *ctx = io_ctx->comp_ctx;
     ctx->elem_graph->flush_tasks();
     ctx->elem_graph->flush_offloaded_tasks();
-    ctx->elem_graph->scan_offloadable_elements();
+    ctx->elem_graph->scan_offloadable_elements(0);
 }
 
 static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_async *watcher, int revents)
@@ -962,29 +962,7 @@ int io_loop(void *arg)
         }
 
         /* Scan and execute schedulable elements. */
-        const auto &selems = ctx->comp_ctx->elem_graph->get_schedulable_elements();
-        uint64_t now = 0;
-        if ((loop_count & 0x3ff) == 0)
-            now = get_usec();
-        for (SchedulableElement *selem : selems) {
-            /* FromInput is handled by comp_process_batch(). */
-            if (0 == (selem->get_type() & ELEMTYPE_INPUT)) {
-                PacketBatch *next_batch = nullptr;
-                if (now > 0 && selem->_last_delay != 0 && now >= selem->_last_call_ts + selem->_last_delay) {
-                    ret = selem->dispatch(loop_count, next_batch, selem->_last_delay);
-                    selem->_last_call_ts = now;
-                }
-                if (selem->_last_delay == 0) {
-                    ret = selem->dispatch(loop_count, next_batch, selem->_last_delay);
-                }
-                /* Try to "drain" internally stored batches. */
-                while (next_batch != nullptr) {
-                    next_batch->tracker.has_results = true; // skip processing
-                    ctx->comp_ctx->elem_graph->enqueue_batch(next_batch, selem, 0);
-                    ret = selem->dispatch(loop_count, next_batch, selem->_last_delay);
-                };
-            } /* endif(!ELEMTYPE_INPUT) */
-        } /* endfor(selems) */
+        ctx->comp_ctx->elem_graph->scan_schedulable_elements(loop_count);
 
         #ifdef NBA_CPU_MICROBENCH
         {

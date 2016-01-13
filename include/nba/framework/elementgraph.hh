@@ -49,7 +49,8 @@ public:
     void flush_tasks();
 
     /* Scan and execute schedulable elements. */
-    void scan_offloadable_elements();
+    void scan_schedulable_elements(uint64_t loop_count);
+    void scan_offloadable_elements(uint64_t loop_count);
 
     /* Start processing with the given batch and the entry point. */
     void feed_input(int entry_point_idx, PacketBatch *batch, uint64_t loop_count);

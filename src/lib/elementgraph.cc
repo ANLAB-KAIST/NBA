@@ -9,6 +9,7 @@
 #include <nba/framework/offloadtask.hh>
 #include <nba/element/packetbatch.hh>
 #include <nba/core/logging.hh>
+#include <nba/core/timing.hh>
 #include <cassert>
 #include <rte_cycles.h>
 #include <rte_memory.h>
@@ -148,14 +149,41 @@ void ElementGraph::free_batch(PacketBatch *batch, bool free_pkts)
     ev_break(ctx->io_ctx->loop, EVBREAK_ALL);
 }
 
-void ElementGraph::scan_offloadable_elements()
+void ElementGraph::scan_schedulable_elements(uint64_t loop_count)
+{
+    const auto &selems = get_schedulable_elements();
+    uint64_t now = 0;
+    if ((loop_count & 0x3ff) == 0)
+        now = get_usec();
+    for (SchedulableElement *selem : selems) {
+        /* FromInput is handled by feed_input() invoked by comp_process_batch(). */
+        if (0 == (selem->get_type() & ELEMTYPE_INPUT)) {
+            PacketBatch *next_batch = nullptr;
+            if (now > 0 && selem->_last_delay != 0 && now >= selem->_last_call_ts + selem->_last_delay) {
+                selem->dispatch(loop_count, next_batch, selem->_last_delay);
+                selem->_last_call_ts = now;
+            }
+            if (selem->_last_delay == 0) {
+                selem->dispatch(loop_count, next_batch, selem->_last_delay);
+            }
+            /* Try to "drain" internally stored batches. */
+            while (next_batch != nullptr) {
+                next_batch->tracker.has_results = true; // skip processing
+                enqueue_batch(next_batch, selem, 0);
+                selem->dispatch(loop_count, next_batch, selem->_last_delay);
+            };
+        } /* endif(!ELEMTYPE_INPUT) */
+    } /* endfor(selems) */
+}
+
+void ElementGraph::scan_offloadable_elements(uint64_t loop_count)
 {
     PacketBatch *next_batch = nullptr;
     const auto &oelems = get_offloadable_elements();
     for (OffloadableElement *oelem : oelems) {
         do {
             next_batch = nullptr;
-            oelem->dispatch(0, next_batch, oelem->_last_delay);
+            oelem->dispatch(loop_count, next_batch, oelem->_last_delay);
             if (next_batch != nullptr) {
                 next_batch->tracker.has_results = true;
                 enqueue_batch(next_batch, oelem, 0);
