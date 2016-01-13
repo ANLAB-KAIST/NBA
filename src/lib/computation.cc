@@ -223,29 +223,15 @@ void comp_thread_context::build_element_graph(const char* config_file)
                                      deleted_dbids.begin());
             deleted_dbids.resize(it - deleted_dbids.begin());
 
-            auto& actions = this->elem_graph->offl_actions;
-            auto& fin     = this->elem_graph->offl_fin;
             for (int dbid : new_dbids) {
-                auto key = make_pair(oel, dbid);
-                auto ret = actions.find(key);
-                if (ret == actions.end()) {
-                    actions.insert(make_pair(key, ELEM_OFFL_PREPROC));
-                } else {
-                    int flag = actions[key];
-                    actions[key] = flag | ELEM_OFFL_PREPROC;
-                }
+                struct offload_action_key key = { (void *) oel, dbid, ELEM_OFFL_PREPROC };
+                elem_graph->add_offload_action(&key);
                 RTE_LOG(INFO, ELEM, "%s (%p, %d) -> preproc\n", el->class_name(), oel, dbid);
                 all_new_dbids.insert(dbid);
             }
             for (int dbid : deleted_dbids) {
-                auto key = make_pair(prev_oel, dbid);
-                auto ret = actions.find(key);
-                if (ret == actions.end()) {
-                    actions.insert(make_pair(key, ELEM_OFFL_POSTPROC));
-                } else {
-                    int flag = actions[key];
-                    actions[key] = flag | ELEM_OFFL_POSTPROC;
-                }
+                struct offload_action_key key = { (void *) prev_oel, dbid, ELEM_OFFL_POSTPROC };
+                elem_graph->add_offload_action(&key);
                 RTE_LOG(INFO, ELEM, "%s (%p, %d) -> postproc\n", prev_el->class_name(), prev_oel, dbid);
                 all_deleted_dbids.insert(dbid);
 
@@ -255,7 +241,8 @@ void comp_thread_context::build_element_graph(const char* config_file)
                         && includes(all_deleted_dbids.begin(), all_deleted_dbids.end(),
                                     all_new_dbids.begin(), all_new_dbids.end())) {
                     /* When all used datablocks are postprocessed... */
-                    fin.insert(prev_oel);
+                    struct offload_action_key key = { (void *) prev_oel, -1, ELEM_OFFL_POSTPROC_FIN };
+                    elem_graph->add_offload_action(&key);
                     RTE_LOG(INFO, ELEM, "%s (%p) -> clear\n", prev_el->class_name(), prev_oel);
                     all_new_dbids.clear();
                     all_deleted_dbids.clear();

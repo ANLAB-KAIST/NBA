@@ -16,6 +16,8 @@
 #include <rte_malloc.h>
 #include <rte_mbuf.h>
 #include <rte_branch_prediction.h>
+#include <rte_hash.h>
+#include <rte_hash_crc.h>
 #ifdef USE_NVPROF
 #include <nvToolsExt.h>
 #endif
@@ -40,6 +42,18 @@ ElementGraph::ElementGraph(comp_thread_context *ctx)
     assert(ready_task_qlen <= ctx->num_taskpool_size);
     for (int i = 0; i < NBA_MAX_COPROCESSOR_TYPES; i++)
         ready_tasks[i].init(ready_task_qlen, ctx->loc.node_id);
+
+    struct rte_hash_parameters hparams;
+    char namebuf[RTE_HASH_NAMESIZE];
+    sprintf(namebuf, "elemgraph@%u.%u:offl_actions", ctx->loc.node_id, ctx->loc.local_thread_idx);
+    hparams.name = namebuf;
+    hparams.entries = 64;
+    hparams.key_len = sizeof(struct offload_action_key);
+    hparams.hash_func = rte_hash_crc;
+    hparams.hash_func_init_val = 0;
+    hparams.socket_id = ctx->loc.node_id;
+    offl_actions = rte_hash_create(&hparams);
+    assert(offl_actions != nullptr);
 }
 
 void ElementGraph::flush_offloaded_tasks()
@@ -88,6 +102,7 @@ void ElementGraph::flush_offloaded_tasks()
                     //size_t total_num_pkts = 0;
                     for (PacketBatch *batch : task->batches) {
                         //total_num_pkts = batch->count;
+                        // TODO: change below to use bulk API.
                         if (batch->datablock_states == nullptr) {
                             /* This should always succeed. */
                             assert(0 == rte_mempool_get(ctx->dbstate_pool,
@@ -110,7 +125,6 @@ void ElementGraph::flush_offloaded_tasks()
             if (task->state == TASK_PREPARED) {
                 /* Enqueue the offload task. */
                 int ret = rte_ring_enqueue(ctx->offload_input_queues[dev_idx], (void*) task);
-                //if (ret == -ENOBUFS) {
                 if (ret == -EDQUOT) {
                     ready_tasks[dev_idx].pop_front();
                     break;
@@ -120,7 +134,6 @@ void ElementGraph::flush_offloaded_tasks()
                     ready_tasks[dev_idx].pop_front();
                     ev_async_send(ctx->coproc_ctx->loop, ctx->offload_devices->at(dev_idx)->input_watcher);
                     if (ctx->inspector) ctx->inspector->dev_sent_batch_count[0] += task->batches.size();
-                    //if (ret == -EDQUOT) break;
                 }
                 #ifdef USE_NVPROF
                 nvtxRangePop();
@@ -615,14 +628,17 @@ void ElementGraph::flush_tasks()
     return;
 }
 
+void ElementGraph::add_offload_action(struct offload_action_key *key)
+{
+    assert(offl_actions != nullptr);
+    assert(rte_hash_add_key(offl_actions, key) >= 0);
+}
+
 bool ElementGraph::check_preproc(OffloadableElement *oel, int dbid)
 {
 #ifdef NBA_REUSE_DATABLOCKS
-    auto key = make_pair(oel, dbid);
-    auto it = offl_actions.find(key);
-    if (it != offl_actions.end() && 0 != (offl_actions[key] & ELEM_OFFL_PREPROC))
-        return true;
-    return false;
+    struct offload_action_key key = { (void *) oel, dbid, ELEM_OFFL_PREPROC };
+    return (rte_hash_lookup(offl_actions, &key) >= 0);
 #else
     return true;
 #endif
@@ -631,11 +647,8 @@ bool ElementGraph::check_preproc(OffloadableElement *oel, int dbid)
 bool ElementGraph::check_postproc(OffloadableElement *oel, int dbid)
 {
 #ifdef NBA_REUSE_DATABLOCKS
-    auto key = make_pair(oel, dbid);
-    auto it = offl_actions.find(key);
-    if (it != offl_actions.end() && 0 != (offl_actions[key] & ELEM_OFFL_POSTPROC))
-        return true;
-    return false;
+    struct offload_action_key key = { (void *) oel, dbid, ELEM_OFFL_POSTPROC };
+    return (rte_hash_lookup(offl_actions, &key) >= 0);
 #else
     return true;
 #endif
@@ -644,10 +657,8 @@ bool ElementGraph::check_postproc(OffloadableElement *oel, int dbid)
 bool ElementGraph::check_postproc_all(OffloadableElement *oel)
 {
 #ifdef NBA_REUSE_DATABLOCKS
-    auto it = offl_fin.find(oel);
-    if (it != offl_fin.end())
-        return true;
-    return false;
+    struct offload_action_key key = { (void *) oel, -1, ELEM_OFFL_POSTPROC_FIN };
+    return (rte_hash_lookup(offl_actions, &key) >= 0);
 #else
     return true;
 #endif

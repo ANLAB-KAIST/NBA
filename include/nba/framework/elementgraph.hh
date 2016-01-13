@@ -10,6 +10,8 @@
 #include <vector>
 #include <map>
 
+struct rte_hash;
+
 namespace nba {
 
 #define ROOT_ELEMENT (nullptr)
@@ -24,6 +26,12 @@ enum ElementOffloadingActions : int {
 class Element;
 class OffloadTask;
 class PacketBatch;
+
+struct offload_action_key {
+    void *elemptr;
+    int dbid;
+    int action;
+};
 
 class ElementGraph {
 public:
@@ -61,6 +69,7 @@ public:
     /* Start processing with the given batch and the entry point. */
     void feed_input(int entry_point_idx, PacketBatch *batch, uint64_t loop_count);
 
+    void add_offload_action(struct offload_action_key *key);
     bool check_preproc(OffloadableElement *oel, int dbid);
     bool check_postproc(OffloadableElement *oel, int dbid);
     bool check_postproc_all(OffloadableElement *oel);
@@ -125,16 +134,13 @@ private:
     void process_batch(PacketBatch *batch);
     void process_offload_task(OffloadTask *otask);
 
-    std::map<std::pair<OffloadableElement*, int>, int> offl_actions;
-    std::set<OffloadableElement*> offl_fin;
+    struct rte_hash *offl_actions;
 
     /* The entry point of packet processing pipeline (graph). */
     SchedulableElement *input_elem;
 
     friend int OffloadableElement::offload(ElementGraph *mother, OffloadTask *otask, int input_port);
     friend int OffloadableElement::offload(ElementGraph *mother, PacketBatch *in_batch, int input_port);
-    friend void comp_thread_context::build_element_graph(const char *config);
-
 };
 
 }
