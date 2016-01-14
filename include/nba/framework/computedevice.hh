@@ -104,10 +104,10 @@ public:
     struct ev_async *input_watcher;
     AsyncSemaphore available_sema;
 
-protected:
     const unsigned node_id;
     const unsigned device_id;
     const size_t num_contexts;
+protected:
     std::vector<ComputeContext *> contexts;
     Lock _lock;
 

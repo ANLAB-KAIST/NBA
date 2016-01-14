@@ -1,5 +1,7 @@
 #include <nba/core/intrinsic.hh>
 #include <nba/engines/cuda/computecontext.hh>
+#include <rte_memzone.h>
+#include <unistd.h>
 
 using namespace std;
 using namespace nba;
@@ -10,27 +12,38 @@ struct cuda_event_context {
     void *user_arg;
 };
 
-CUDAComputeContext::CUDAComputeContext(unsigned ctx_id, ComputeDevice *mother_device)
- : ComputeContext(ctx_id, mother_device), checkbits_d(NULL), checkbits_h(NULL),
-   num_kernel_args(0)
+#define IO_BASE_SIZE (4 * 1024 * 1024)
+#undef USE_PHYS_CONT_MEMORY // performance degraded :(
+
+CUDAComputeContext::CUDAComputeContext(unsigned ctx_id, ComputeDevice *mother)
+ : ComputeContext(ctx_id, mother), checkbits_d(NULL), checkbits_h(NULL),
+   mz(reserve_memory(mother)), num_kernel_args(0)
    /* NOTE: Write-combined memory degrades performance to half... */
 {
     type_name = "cuda";
-    size_t io_base_size = 4 * 1024 * 1024; // TODO: read from config
+    size_t io_base_size = ALIGN_CEIL(IO_BASE_SIZE, getpagesize()); // TODO: read from config
     cutilSafeCall(cudaStreamCreateWithFlags(&_stream, cudaStreamNonBlocking));
     io_base_ring.init(NBA_MAX_IO_BASES, node_id, io_base_ring_buf);
     for (unsigned i = 0; i < NBA_MAX_IO_BASES; i++) {
         io_base_ring.push_back(i);
         _cuda_mempool_in[i].init(io_base_size);
         _cuda_mempool_out[i].init(io_base_size);
-        _cpu_mempool_in[i].init_with_flags(io_base_size, cudaHostAllocPortable);
-        _cpu_mempool_out[i].init_with_flags(io_base_size, cudaHostAllocPortable);
+        #ifdef USE_PHYS_CONT_MEMORY
+        void *base;
+        base = (void *) ((uintptr_t) mz->addr + i * io_base_size);
+        _cpu_mempool_in[i].init_with_flags(io_base_size, base, 0);
+        base = (void *) ((uintptr_t) mz->addr + i * io_base_size + NBA_MAX_IO_BASES * io_base_size);
+        _cpu_mempool_out[i].init_with_flags(io_base_size, base, 0);
+        #else
+        _cpu_mempool_in[i].init_with_flags(io_base_size, nullptr, cudaHostAllocPortable);
+        _cpu_mempool_out[i].init_with_flags(io_base_size, nullptr, cudaHostAllocPortable);
+        #endif
     }
     {
         void *t;
-        cutilSafeCall(cudaMalloc((void **) &t, 64));
+        cutilSafeCall(cudaMalloc((void **) &t, CACHE_LINE_SIZE));
         dummy_dev_buf.ptr = t;
-        cutilSafeCall(cudaHostAlloc((void **) &t, 64, cudaHostAllocPortable));
+        cutilSafeCall(cudaHostAlloc((void **) &t, CACHE_LINE_SIZE, cudaHostAllocPortable));
         dummy_host_buf = t;
     }
     cutilSafeCall(cudaHostAlloc((void **) &checkbits_h, MAX_BLOCKS, cudaHostAllocMapped));
@@ -38,6 +51,22 @@ CUDAComputeContext::CUDAComputeContext(unsigned ctx_id, ComputeDevice *mother_de
     assert(checkbits_h != NULL);
     assert(checkbits_d != NULL);
     memset(checkbits_h, 0, MAX_BLOCKS);
+}
+
+const struct rte_memzone *CUDAComputeContext::reserve_memory(ComputeDevice *mother)
+{
+#ifdef USE_PHYS_CONT_MEMORY
+    char namebuf[RTE_MEMZONE_NAMESIZE];
+    size_t io_base_size = ALIGN_CEIL(IO_BASE_SIZE, getpagesize());
+    snprintf(namebuf, RTE_MEMZONE_NAMESIZE, "cuda.io.%d:%d", mother->device_id, ctx_id);
+    const struct rte_memzone *_mz = rte_memzone_reserve(namebuf, 2 * io_base_size * NBA_MAX_IO_BASES,
+                                                        mother->node_id,
+                                                        RTE_MEMZONE_2MB | RTE_MEMZONE_SIZE_HINT_ONLY);
+    assert(_mz != nullptr);
+    return _mz;
+#else
+    return nullptr;
+#endif
 }
 
 CUDAComputeContext::~CUDAComputeContext()
@@ -49,6 +78,8 @@ CUDAComputeContext::~CUDAComputeContext()
         _cpu_mempool_in[i].destroy();
         _cpu_mempool_out[i].destroy();
     }
+    if (mz != nullptr)
+        rte_memzone_free(mz);
     cutilSafeCall(cudaFreeHost(checkbits_h));
 }
 

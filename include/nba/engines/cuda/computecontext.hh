@@ -12,6 +12,8 @@
 #include <nba/engines/cuda/mempool.hh>
 #include <nba/engines/cuda/utils.hh>
 
+struct rte_memzone;
+
 #define CUDA_MAX_KERNEL_ARGS    (16)
 
 namespace nba
@@ -91,6 +93,9 @@ private:
     CUDAMemoryPool _cuda_mempool_out[NBA_MAX_IO_BASES];
     CPUMemoryPool _cpu_mempool_in[NBA_MAX_IO_BASES];
     CPUMemoryPool _cpu_mempool_out[NBA_MAX_IO_BASES];
+
+    const struct rte_memzone *reserve_memory(ComputeDevice *mother);
+    const struct rte_memzone *mz;
 
     void *dummy_host_buf;
     memory_t dummy_dev_buf;

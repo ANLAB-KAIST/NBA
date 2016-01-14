@@ -813,9 +813,9 @@ int io_loop(void *arg)
     /* The IO thread runs in polling mode. */
     while (likely(!ctx->loop_broken)) {
         unsigned total_recv_cnt = 0;
-        #ifdef NBA_CPU_MICROBENCH
+        #ifdef NBA_CPU_MICROBENCH/*{{{*/
         PAPI_start(ctx->papi_evset_rx);
-        #endif
+        #endif/*}}}*/
         for (i = 0; i < ctx->num_hw_rx_queues; i++) {
 #ifdef NBA_RANDOM_PORT_ACCESS /*{{{*/
             /* Shuffle the RX queue list. */
@@ -939,14 +939,14 @@ int io_loop(void *arg)
 
         } // end of rxq scanning
         assert(total_recv_cnt <= NBA_MAX_IO_BATCH_SIZE * ctx->num_hw_rx_queues);
-        #ifdef NBA_CPU_MICROBENCH
+        #ifdef NBA_CPU_MICROBENCH/*{{{*/
         {
             long long ctr[5];
             PAPI_stop(ctx->papi_evset_rx, ctr);
             for (int i = 0; i < 5; i++)
                 ctx->papi_ctr_rx[i] += ctr[i];
         }
-        #endif
+        #endif/*}}}*/
 
         if (ctx->mode == IO_EMUL) {/*{{{*/
             while (!rte_ring_empty(ctx->drop_queue)) {
@@ -970,14 +970,14 @@ int io_loop(void *arg)
         /* Scan and execute schedulable elements. */
         ctx->comp_ctx->elem_graph->scan_schedulable_elements(loop_count);
 
-        #ifdef NBA_CPU_MICROBENCH
+        #ifdef NBA_CPU_MICROBENCH/*{{{*/
         {
             long long ctr[5];
             PAPI_stop(ctx->papi_evset_comp, ctr);
             for (int i = 0; i < 5; i++)
                 ctx->papi_ctr_comp[i] += ctr[i];
         }
-        #endif
+        #endif/*}}}*/
 
         while (!rte_ring_empty(ctx->new_packet_request_ring))/*{{{*/
         {
@@ -1013,9 +1013,9 @@ int io_loop(void *arg)
 
         /* Process received packets. */
         print_ratelimit("# received pkts from all rxq", total_recv_cnt, 10000);
-        #ifdef NBA_CPU_MICROBENCH
+        #ifdef NBA_CPU_MICROBENCH/*{{{*/
         PAPI_start(ctx->papi_evset_comp);
-        #endif
+        #endif/*}}}*/
         unsigned comp_batch_size = ctx->comp_ctx->num_combatch_size;
         for (unsigned pidx = 0; pidx < total_recv_cnt; pidx += comp_batch_size) {
             comp_process_batch(ctx, &pkts[pidx], RTE_MIN(comp_batch_size, total_recv_cnt - pidx), loop_count);

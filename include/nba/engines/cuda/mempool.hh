@@ -55,7 +55,7 @@ private:
 class CPUMemoryPool : public MemoryPool
 {
 public:
-    CPUMemoryPool(int cuda_flags = 0) : MemoryPool(), base(NULL), flags(cuda_flags)
+    CPUMemoryPool(int cuda_flags = 0) : MemoryPool(), base(NULL), flags(cuda_flags), use_external(false)
     {
     }
 
@@ -72,11 +72,16 @@ public:
         return true;
     }
 
-    bool init_with_flags(unsigned long size, int flags)
+    bool init_with_flags(unsigned long size, void *ext_ptr, int flags)
     {
         this->max_size = size;
-        cutilSafeCall(cudaHostAlloc((void **) &base, size,
-                      flags));
+        if (ext_ptr != nullptr) {
+            base = ext_ptr;
+            use_external = true;
+        } else {
+            cutilSafeCall(cudaHostAlloc((void **) &base, size,
+                          flags));
+        }
         return true;
     }
 
@@ -91,7 +96,7 @@ public:
 
     void destroy()
     {
-        if (base != NULL)
+        if (base != NULL && !use_external)
             cudaFreeHost(base);
     }
 
@@ -103,6 +108,7 @@ public:
 protected:
     void *base;
     int flags;
+    bool use_external;
 };
 
 }
