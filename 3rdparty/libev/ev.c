@@ -3604,7 +3604,8 @@ ev_run (EV_P_ int flags)
 
         ECB_MEMORY_FENCE; /* make sure pipe_write_wanted is visible before we check for potential skips */
 
-        if (expect_true (!(flags & EVRUN_NOWAIT || idleall || !activecnt || pipe_write_skipped)))
+        //if (expect_true (!(flags & EVRUN_NOWAIT || idleall || !activecnt || pipe_write_skipped)))
+        if (!(flags & EVRUN_NOWAIT || idleall || !activecnt || pipe_write_skipped))
           {
             waittime = MAX_BLOCKTIME;
 

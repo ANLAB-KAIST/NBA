@@ -58,8 +58,7 @@ public:
     void notify_completion();
 
 public:
-    /* Initialized during execute(). */
-    struct resource_param res;
+    struct resource_param res; /* Initialized during execute(). */
     uint64_t offload_start;
     double offload_cost;
     size_t num_pkts;
@@ -80,7 +79,7 @@ public:
     OffloadableElement* elem;
     int dbid_h2d[NBA_MAX_DATABLOCKS];
 
-    struct datablock_kernel_arg *dbarray_h;
+    struct datablock_kernel_arg **dbarray_h;
     memory_t dbarray_d;
 
     struct ev_async *completion_watcher __cache_aligned;

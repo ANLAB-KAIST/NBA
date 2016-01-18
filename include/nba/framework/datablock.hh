@@ -79,7 +79,7 @@ struct item_size_info {
         uint16_t size;
         uint16_t sizes[NBA_MAX_COMP_BATCH_SIZE * 12];
     };
-    uint16_t offsets[NBA_MAX_COMP_BATCH_SIZE * 12];
+    uint32_t offsets[NBA_MAX_COMP_BATCH_SIZE * 12];
 };
 #else
 struct item_size_info {
@@ -87,14 +87,16 @@ struct item_size_info {
         uint16_t size;
         uint16_t sizes[NBA_MAX_COMP_BATCH_SIZE * 96];
     };
-    uint16_t offsets[NBA_MAX_COMP_BATCH_SIZE * 96];
+    uint32_t offsets[NBA_MAX_COMP_BATCH_SIZE * 96];
 };
 #endif
 
-/** Datablock tracking struct.
+/**
+ * Datablock tracking struct.
  *
- * It resides in PacketBatch as a static array, and keeps track of the
- * status of data blocks attached to the batch.
+ * It contains information required to reuse device buffers that are
+ * already copied to the device.  It resides in PacketBatch as a static
+ * array.
  */
 struct datablock_tracker {
     void *host_in_ptr;
@@ -105,30 +107,38 @@ struct datablock_tracker {
     size_t in_count;
     size_t out_size;
     size_t out_count;
-    //struct item_size_info exact_item_sizes;
     struct item_size_info *aligned_item_sizes_h;
     memory_t aligned_item_sizes_d;
 };
 
-/* NOTE: The alignment of this struct should match with CUDA. */
+/**
+ * Datablock batch info struct.
+ *
+ * It contains item offset/size information for variable-length datablocks.
+ *
+ * NOTE: The alignment of this struct should match with CUDA.
+ */
+struct datablock_batch_info {
+    void *buffer_bases_in;
+    void *buffer_bases_out;
+    uint32_t item_count_in;
+    uint32_t item_count_out;
+    uint16_t *item_sizes_in;
+    uint16_t *item_sizes_out;
+    uint32_t *item_offsets_in;
+    uint32_t *item_offsets_out;
+}; // __cuda_aligned
+
+/**
+ * Kernel argument spec for datablocks.
+ */
 struct datablock_kernel_arg {
     uint32_t total_item_count_in;
     uint32_t total_item_count_out;
-    void *buffer_bases_in[NBA_MAX_COPROC_PPDEPTH];
-    void *buffer_bases_out[NBA_MAX_COPROC_PPDEPTH];
-    uint32_t item_count_in[NBA_MAX_COPROC_PPDEPTH];
-    uint32_t item_count_out[NBA_MAX_COPROC_PPDEPTH];
-    union {
-        uint16_t item_size_in;
-        uint16_t *item_sizes_in[NBA_MAX_COPROC_PPDEPTH];
-    };
-    union {
-        uint16_t item_size_out;
-        uint16_t *item_sizes_out[NBA_MAX_COPROC_PPDEPTH];
-    };
-    uint16_t *item_offsets_in[NBA_MAX_COPROC_PPDEPTH];
-    uint16_t *item_offsets_out[NBA_MAX_COPROC_PPDEPTH];
-}; // __attribute__((aligned(8)));
+    uint16_t item_size_in;  // for fixed-size cases
+    uint16_t item_size_out; // for fixed-size cases
+    struct datablock_batch_info batches[0];
+}; // __cuda_aligned
 
 
 /** Datablock information class.
@@ -165,7 +175,7 @@ public:
     void preprocess(PacketBatch *batch, void *host_ptr);
     void postprocess(OffloadableElement *elem, int input_port, PacketBatch *batch, void *host_ptr);
 
-    /* Below methods arre used only when ROI type is USER_PREPROC/USER_POSTPROC. */
+    /* Below methods are used only when ROI type is USER_PREPROC/USER_POSTPROC. */
     virtual void calculate_read_buffer_size(PacketBatch *batch, size_t &out_bytes, size_t &out_count)
     { out_bytes = 0; out_count = 0; }
     virtual void calculate_write_buffer_size(PacketBatch *batch, size_t &out_bytes, size_t &out_count)

@@ -9,23 +9,23 @@
 
 #include <nba/framework/config.hh>
 
+struct datablock_batch_info {
+    void *buffer_bases_in;
+    void *buffer_bases_out;
+    uint32_t item_count_in;
+    uint32_t item_count_out;
+    uint16_t *item_sizes_in;
+    uint16_t *item_sizes_out;
+    uint32_t *item_offsets_in;
+    uint32_t *item_offsets_out;
+}; // __cuda_aligned
+
 struct datablock_kernel_arg {
     uint32_t total_item_count_in;
     uint32_t total_item_count_out;
-    void *buffer_bases_in[NBA_MAX_COPROC_PPDEPTH];
-    void *buffer_bases_out[NBA_MAX_COPROC_PPDEPTH];
-    uint32_t item_count_in[NBA_MAX_COPROC_PPDEPTH];
-    uint32_t item_count_out[NBA_MAX_COPROC_PPDEPTH];
-    union {
-        uint16_t item_size_in;
-        uint16_t *item_sizes_in[NBA_MAX_COPROC_PPDEPTH];
-    };
-    union {
-        uint16_t item_size_out;
-        uint16_t *item_sizes_out[NBA_MAX_COPROC_PPDEPTH];
-    };
-    uint16_t *item_offsets_in[NBA_MAX_COPROC_PPDEPTH];
-    uint16_t *item_offsets_out[NBA_MAX_COPROC_PPDEPTH];
-};
+    uint16_t item_size_in;  // for fixed-size cases
+    uint16_t item_size_out; // for fixed-size cases
+    struct datablock_batch_info batches[0];
+}; // __cuda_aligned
 
 #endif

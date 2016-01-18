@@ -181,8 +181,8 @@ void DataBlock::preprocess(PacketBatch *batch, void *host_in_buffer) {
     case READ_PARTIAL_PACKET: {
         void *invalid_value = this->get_invalid_value();
         FOR_EACH_PACKET_ALL_PREFETCH(batch, 4u) {
-            size_t aligned_elemsz = t->aligned_item_sizes_h->size;
-            size_t offset         = t->aligned_item_sizes_h->size * pkt_idx;
+            uint16_t aligned_elemsz = t->aligned_item_sizes_h->size;
+            uint32_t offset         = t->aligned_item_sizes_h->size * pkt_idx;
             if (IS_PACKET_INVALID(batch, pkt_idx)) {
                 if (invalid_value != nullptr) {
                     rte_memcpy((char *) host_in_buffer + offset, invalid_value, aligned_elemsz);

@@ -46,6 +46,7 @@ public:
     /* Inserts the given batch/offloadtask to the internal task queue.
      * This does not execute the pipeline; call flush_tasks() for that. */
     void enqueue_batch(PacketBatch *batch, Element *start_elem, int input_port = 0);
+    void enqueue_offload_task(OffloadTask *otask, OffloadableElement *start_elem, int input_port = 0);
     void enqueue_offload_task(OffloadTask *otask, Element *start_elem, int input_port = 0);
 
     /* Tries to run all pending computation tasks. */

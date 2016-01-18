@@ -42,7 +42,8 @@ ElementGraph::ElementGraph(comp_thread_context *ctx)
 #ifdef NBA_REUSE_DATABLOCKS
     struct rte_hash_parameters hparams;
     char namebuf[RTE_HASH_NAMESIZE];
-    sprintf(namebuf, "elemgraph@%u.%u:offl_actions", ctx->loc.node_id, ctx->loc.local_thread_idx);
+    snprintf(namebuf, RTE_HASH_NAMESIZE, "elemgraph@%u.%u:offl_actions",
+             ctx->loc.node_id, ctx->loc.local_thread_idx);
     hparams.name = namebuf;
     hparams.entries = 64;
     hparams.key_len = sizeof(struct offload_action_key);
@@ -97,12 +98,16 @@ void ElementGraph::send_offload_task_to_device(OffloadTask *task)
                 bidx ++;
             }
         }
-        task->offload_start = 0;
 
         /* Allocate the host-device IO buffer pool. */
-        if (task->io_base == INVALID_IO_BASE)
+        while (task->io_base == INVALID_IO_BASE) {
             task->io_base = cctx->alloc_io_base();
-        assert(task->io_base != INVALID_IO_BASE);
+            if (task->io_base == INVALID_IO_BASE) {
+                /* If not available now, wait. */
+                ev_run(ctx->io_ctx->loop, 0);
+            }
+            if (unlikely(ctx->io_ctx->loop_broken)) return;
+        }
 
         /* Calculate required buffer sizes, allocate them, and initialize them.
          * The mother buffer is statically allocated on start-up and here we
@@ -212,6 +217,15 @@ void ElementGraph::enqueue_batch(PacketBatch *batch, Element *start_elem, int in
     batch->tracker.element = start_elem;
     batch->tracker.input_port = input_port;
     queue.push_back(Task::to_task(batch));
+}
+
+void ElementGraph::enqueue_offload_task(OffloadTask *otask, OffloadableElement *start_elem, int input_port)
+{
+    assert(start_elem != nullptr);
+    otask->elem = start_elem;
+    otask->tracker.element = start_elem;
+    otask->tracker.input_port = input_port;
+    queue.push_back(Task::to_task(otask));
 }
 
 void ElementGraph::enqueue_offload_task(OffloadTask *otask, Element *start_elem, int input_port)

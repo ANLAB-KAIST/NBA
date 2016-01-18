@@ -143,7 +143,7 @@ __device__ uint64_t ntohll(uint64_t val)
 }
 
 __global__ void ipv6_route_lookup_cuda(
-        struct datablock_kernel_arg *datablocks,
+        struct datablock_kernel_arg **datablocks,
         uint32_t count, uint16_t *batch_ids, uint16_t *item_ids,
         uint8_t *checkbits_d,
         Item** __restrict__ tables_d,
@@ -154,10 +154,10 @@ __global__ void ipv6_route_lookup_cuda(
     if (idx < count) {
         uint16_t batch_idx = batch_ids[idx];
         uint16_t item_idx  = item_ids[idx];
-        struct datablock_kernel_arg *db_dest_addrs = &datablocks[dbid_ipv6_dest_addrs_d];
-        struct datablock_kernel_arg *db_results    = &datablocks[dbid_ipv6_lookup_results_d];
-        struct _cu_uint128_t daddr = ((struct _cu_uint128_t*) db_dest_addrs->buffer_bases_in[batch_idx])[item_idx];
-        uint16_t *lookup_result = &((uint16_t *) db_results->buffer_bases_out[batch_idx])[item_idx];
+        struct datablock_kernel_arg *db_dest_addrs = datablocks[dbid_ipv6_dest_addrs_d];
+        struct datablock_kernel_arg *db_results    = datablocks[dbid_ipv6_lookup_results_d];
+        struct _cu_uint128_t daddr = ((struct _cu_uint128_t*) db_dest_addrs->batches[batch_idx].buffer_bases_in)[item_idx];
+        uint16_t *lookup_result = &((uint16_t *) db_results->batches[batch_idx].buffer_bases_out)[item_idx];
 
         // NOTE: On FERMI devices, using shared memory to store just 128
         //   pointers is not necessary since they have on-chip L1

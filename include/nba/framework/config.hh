@@ -47,7 +47,7 @@
 
 #define NBA_MAX_TASKPOOL_SIZE       (2048u)
 #define NBA_MAX_BATCHPOOL_SIZE      (2048u)
-#define NBA_MAX_IO_BASES            (17)
+#define NBA_MAX_IO_BASES            (1)
 
 #define NBA_MAX_ANNOTATION_SET_SIZE         (7)
 #define NBA_MAX_NODELOCALSTORAGE_ENTRIES    (16)

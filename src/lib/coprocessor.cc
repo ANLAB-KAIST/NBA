@@ -165,7 +165,7 @@ void *coproc_loop(void *arg)
     ctx->task_done_queue   = new FixedRing<OffloadTask *, nullptr>(256, ctx->loc.node_id);
 
     /* Initialize the event loop. */
-    ctx->loop = ev_loop_new(EVFLAG_AUTO);
+    ctx->loop = ev_loop_new(EVFLAG_AUTO | EVFLAG_NOSIGMASK);
     ctx->loop_broken = false;
     ev_set_userdata(ctx->loop, ctx);
 

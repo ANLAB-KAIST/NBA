@@ -134,6 +134,22 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
         /* Run postprocessing handlers. */
         task->postprocess();
 
+        if (ctx->elem_graph->check_postproc_all(task->elem)) {
+            /* Reset all datablock trackers. */
+            for (PacketBatch *batch : task->batches) {
+                if (batch->datablock_states != nullptr) {
+                    struct datablock_tracker *t = batch->datablock_states;
+                    t->host_in_ptr = nullptr;
+                    t->host_out_ptr = nullptr;
+                    rte_mempool_put(ctx->dbstate_pool, (void *) t);
+                    batch->datablock_states = nullptr;
+                }
+            }
+            /* Release per-task io_base. */
+            task->cctx->clear_io_buffers(task->io_base);
+            ev_break(ctx->io_ctx->loop, EVBREAK_ALL);
+        }
+
         /* Update statistics. */
         uint64_t task_cycles = now - task->offload_start;
         float time_spent = (float) task_cycles / rte_get_tsc_hz();

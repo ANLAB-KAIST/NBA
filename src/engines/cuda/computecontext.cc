@@ -12,7 +12,7 @@ struct cuda_event_context {
     void *user_arg;
 };
 
-#define IO_BASE_SIZE (4 * 1024 * 1024)
+#define IO_BASE_SIZE (16 * 1024 * 1024)
 #undef USE_PHYS_CONT_MEMORY // performance degraded :(
 
 CUDAComputeContext::CUDAComputeContext(unsigned ctx_id, ComputeDevice *mother)
