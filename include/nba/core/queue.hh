@@ -6,39 +6,44 @@
 
 #include <rte_malloc.h>
 
-
-template<class T, T const default_value, size_t max_size>
+template<typename T, T const default_value, size_t max_size>
 class FixedArray;
 
-template<class T, T const default_value, size_t max_size>
+template<typename T, T const default_value, size_t max_size>
 class FixedArrayIterator
 {
+    using ContainerType = FixedArray<T, default_value, max_size>;
+
+    const ContainerType* const _c;
+    unsigned _pos;
+
 public:
-    FixedArrayIterator(const FixedArray<T, default_value, max_size>* p_array, unsigned pos)
-    : _pos(pos), _p_array(p_array)
+    FixedArrayIterator(const ContainerType* const c, unsigned pos)
+    : _c(c), _pos(pos)
     { }
 
-    bool operator!= (const FixedArrayIterator<T, default_value, max_size> &other) const
+    bool operator!= (const FixedArrayIterator& other) const
     {
         return _pos != other._pos;
     }
 
-    T operator*() const;
-
-    const FixedArrayIterator<T, default_value, max_size>& operator++ ()
+    const FixedArrayIterator& operator++ ()
     {
         ++ _pos;
         return *this;
     }
 
-private:
-    unsigned _pos;
-    const FixedArray<T, default_value, max_size> *_p_array;
+    T operator* () const
+    {
+        return _c->get(_pos);
+    }
 };
 
-template<class T, T const default_value, size_t max_size>
+template<typename T, T const default_value, size_t max_size>
 class FixedArray
 {
+    using IterType = FixedArrayIterator<T, default_value, max_size>;
+
 public:
     FixedArray() : count(0)
     {
@@ -76,14 +81,14 @@ public:
         return at(i);
     }
 
-    FixedArrayIterator<T, default_value, max_size> begin() const
+    IterType begin() const
     {
-        return FixedArrayIterator<T, default_value, max_size>(this, 0);
+        return IterType(this, 0);
     }
 
-    FixedArrayIterator<T, default_value, max_size> end() const
+    IterType end() const
     {
-        return FixedArrayIterator<T, default_value, max_size>(this, size());
+        return IterType(this, size());
     }
 
     bool empty() const
@@ -101,18 +106,17 @@ private:
     T values[max_size];
 };
 
-template<class T, T const default_value, size_t max_size>
-T FixedArrayIterator<T, default_value, max_size>::operator* () const
-{
-    return _p_array->get(_pos);
-}
-
 template<class T, T const default_value>
 class FixedRing;
 
 template<class T, T const default_value>
 class FixedRingIterator
 {
+    using ContainerType = FixedRing<T, default_value>;
+
+    const ContainerType *_p_ring;
+    unsigned _pos;
+
 public:
     /* This class is to support ranged iteration in C++11.
      * Note that iteration is not thread-safe.
@@ -125,31 +129,32 @@ public:
      *       printf("%p\n", p);
      *   }
      */
-    FixedRingIterator(const FixedRing<T, default_value>* p_ring, unsigned pos)
-    : _pos(pos), _p_ring(p_ring)
+    FixedRingIterator(const ContainerType* const p_ring, unsigned pos)
+    : _p_ring(p_ring), _pos(pos)
     { }
 
-    bool operator!= (const FixedRingIterator<T, default_value> &other) const
+    bool operator!= (const FixedRingIterator& other) const
     {
         return _pos != other._pos;
     }
 
-    T operator*() const;
-
-    const FixedRingIterator<T, default_value>& operator++ ()
+    const FixedRingIterator& operator++ ()
     {
         ++ _pos;
         return *this;
     }
 
-private:
-    unsigned _pos;
-    const FixedRing<T, default_value> *_p_ring;
+    T operator* () const
+    {
+        return _p_ring->get(_pos);
+    }
 };
 
 template<class T, T const default_value>
 class FixedRing
 {
+    using IterType = FixedRingIterator<T, default_value>;
+
 public:
     FixedRing()
         : v_(nullptr), push_idx(0), pop_idx(0), count(0), max_size(0)
@@ -222,14 +227,14 @@ public:
         return at(i);
     }
 
-    FixedRingIterator<T, default_value> begin() const
+    IterType begin() const
     {
-        return FixedRingIterator<T, default_value>(this, 0);
+        return IterType(this, 0);
     }
 
-    FixedRingIterator<T, default_value> end() const
+    IterType end() const
     {
-        return FixedRingIterator<T, default_value>(this, size());
+        return IterType(this, size());
     }
 
     void pop_front()
@@ -258,12 +263,6 @@ private:
     size_t count;
     size_t max_size;
 };
-
-template<class T, T const default_value>
-T FixedRingIterator<T, default_value>::operator* () const
-{
-    return _p_ring->get(_pos);
-}
 
 
 #endif

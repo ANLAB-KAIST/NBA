@@ -9,6 +9,7 @@
 #include <nba/framework/offloadtask.hh>
 #include <nba/element/packetbatch.hh>
 #include <nba/core/logging.hh>
+#include <nba/core/enumerate.hh>
 #include <nba/core/timing.hh>
 #include <cassert>
 #include <rte_cycles.h>
@@ -89,14 +90,13 @@ void ElementGraph::send_offload_task_to_device(OffloadTask *task)
          * it is okay to check only the first batch. */
         size_t num_batches = task->batches.size();
         if (task->batches[0]->datablock_states == nullptr) {
-            void *dbstates[num_batches];
+            struct datablock_tracker *dbstates[num_batches];
             int bidx = 0;
-            assert(0 == rte_mempool_get_bulk(ctx->dbstate_pool, (void **) &dbstates,
+            assert(0 == rte_mempool_get_bulk(ctx->dbstate_pool,
+                                             (void **) &dbstates,
                                              num_batches));
-            for (PacketBatch *batch : task->batches) {
-                batch->datablock_states = (struct datablock_tracker *) dbstates[bidx];
-                bidx ++;
-            }
+            for (auto&& p : enumerate(task->batches))
+                (p.second)->datablock_states = dbstates[p.first];
         }
 
         /* Allocate the host-device IO buffer pool. */
@@ -223,7 +223,7 @@ void ElementGraph::enqueue_offload_task(OffloadTask *otask, OffloadableElement *
 {
     assert(start_elem != nullptr);
     otask->elem = start_elem;
-    otask->tracker.element = start_elem;
+    otask->tracker.element = (Element *) start_elem;
     otask->tracker.input_port = input_port;
     queue.push_back(Task::to_task(otask));
 }
@@ -242,6 +242,7 @@ void ElementGraph::process_batch(PacketBatch *batch)
     Element *current_elem = batch->tracker.element;
     int input_port = batch->tracker.input_port;
     int batch_disposition = CONTINUE_TO_PROCESS;
+    // FIXME: enqueue_offload_task()에서 push_front() 하면 아래 줄에서 segfault
     int64_t lb_decision = anno_get(&batch->banno, NBA_BANNO_LB_DECISION);
     uint64_t now = rdtscp();  // The starting timestamp of the current element.
 
@@ -703,8 +704,8 @@ int ElementGraph::link_element(Element *to_elem, int input_port,
 {
     if (from_elem != NULL) {
         bool found = false;
-        for (unsigned i = 0; i < elements.size(); i++) {
-            if (from_elem == elements[i]) {
+        for (auto el : elements) {
+            if (from_elem == el) {
                 found = true;
                 break;
             }

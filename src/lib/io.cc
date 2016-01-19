@@ -161,14 +161,14 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
 
         /* Enqueue batches for later processing. */
         uint64_t total_batch_size = 0;
-        for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++)
-            total_batch_size += task->batches[b]->count;
+        for (PacketBatch *batch : task->batches)
+            total_batch_size += batch->count;
         #ifdef NBA_REUSE_DATABLOCKS
         if (ctx->elem_graph->check_next_offloadable(task->elem)) {
-            for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++) {
-                task->batches[b]->compute_time += (uint64_t)
+            for (PacketBatch *batch : task->batches) {
+                batch->compute_time += (uint64_t)
                         ((float) task_cycles / total_batch_size
-                         - ((float) task->batches[b]->delay_time / task->batches[b]->count));
+                         - ((float) batch->delay_time / batch->count));
             }
             /* Rewind the state so that it gets "prepared" by ElemGraph.
              * (e.g., update datablock list used by next element) */
