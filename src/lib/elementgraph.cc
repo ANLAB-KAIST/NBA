@@ -91,7 +91,6 @@ void ElementGraph::send_offload_task_to_device(OffloadTask *task)
         size_t num_batches = task->batches.size();
         if (task->batches[0]->datablock_states == nullptr) {
             struct datablock_tracker *dbstates[num_batches];
-            int bidx = 0;
             assert(0 == rte_mempool_get_bulk(ctx->dbstate_pool,
                                              (void **) &dbstates,
                                              num_batches));

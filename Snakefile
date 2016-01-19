@@ -92,8 +92,7 @@ SUPPRESSED_CC_WARNINGS = (
 CFLAGS         = '-march=native -O2 -g -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude'
 if os.getenv('DEBUG', 0):
     CFLAGS     = '-march=native -Og -g3 -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude -DDEBUG'
-#LIBS           = '-ltcmalloc_minimal -lnuma -lpthread -lpcre -lrt'
-LIBS           = '-lnuma -lpthread -lpcre -lrt'
+LIBS           = '-lnuma -pthread -lpcre -lrt'
 if USE_CUDA:        CFLAGS += ' -DUSE_CUDA'
 if USE_PHI:         CFLAGS += ' -DUSE_PHI'
 if USE_OPENSSL_EVP: CFLAGS += ' -DUSE_OPENSSL_EVP'
@@ -231,6 +230,18 @@ _clean_cmds = '\n'.join(['rm -rf build bin/main `find . -path "lib/*_map.hh"`']
                         + [lib.clean_cmd for lib in THIRD_PARTY_LIBS])
 rule clean:
     shell: _clean_cmds
+
+_test_cases, = glob_wildcards('tests/test_{case}.cc')
+
+rule test:
+    input: expand('tests/test_{case}', case=_test_cases)
+
+for case in _test_cases:
+    includes = [f for f in compilelib.get_includes(fmt('tests/test_{case}.cc'), 'include')]
+    rule:
+        input: fmt('tests/test_{case}.cc'), includes
+        output: fmt('tests/test_{case}')
+        shell: '{CXX} {CXXFLAGS} -o {output} {input[0]} {LIBS}'
 
 for srcfile in SOURCE_FILES:
     # We generate build rules dynamically depending on the actual header
