@@ -92,7 +92,7 @@ SUPPRESSED_CC_WARNINGS = (
 CFLAGS         = '-march=native -O2 -g -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude'
 if os.getenv('DEBUG', 0):
     CFLAGS     = '-march=native -Og -g3 -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude -DDEBUG'
-LIBS           = '-lnuma -pthread -lpcre -lrt'
+LIBS           = '-pthread -lpcre -lrt'
 if USE_CUDA:        CFLAGS += ' -DUSE_CUDA'
 if USE_PHI:         CFLAGS += ' -DUSE_PHI'
 if USE_OPENSSL_EVP: CFLAGS += ' -DUSE_OPENSSL_EVP'
@@ -197,7 +197,7 @@ LIBS          += ' -L{DPDK_PATH}/lib' \
                  + ' -Wl,--no-whole-archive'
 
 # Other dependencies
-LIBS += ' -ldl'
+LIBS += ' -lnuma -ldl'
 
 # Expand variables
 CFLAGS = fmt(CFLAGS)
@@ -217,7 +217,7 @@ logger.set_level(logging.INFO)
 
 # Build rules
 rule main:
-    input: OBJ_FILES + [lib.target for lib in THIRD_PARTY_LIBS]
+    input: OBJ_FILES, [lib.target for lib in THIRD_PARTY_LIBS]
     output: 'bin/main'
     shell: '{CXX} -o {output} -Wl,--whole-archive {OBJ_FILES} -Wl,--no-whole-archive {LIBS}'
 
@@ -232,17 +232,35 @@ rule clean:
     shell: _clean_cmds
 
 _test_cases, = glob_wildcards('tests/test_{case}.cc')
+TEST_LIBS = '-lgtest_main -lgtest'
+MAINLESS_OBJ_FILES = OBJ_FILES.copy()
+MAINLESS_OBJ_FILES.remove('build/src/main.o')
 
-rule test:
+rule cleantest:
+    shell: 'rm -rf build/tests tests/test_all'
+
+rule test:  # build only individual tests
     input: expand('tests/test_{case}', case=_test_cases)
+
+rule testall:  # build a unified test suite
+    input:
+        testobjs=expand(joinpath(OBJ_DIR, 'tests/test_{case}.o'), case=_test_cases),
+        objs=MAINLESS_OBJ_FILES,
+        libs=[lib.target for lib in THIRD_PARTY_LIBS]
+    output: 'tests/test_all'
+    shell: '{CXX} {CXXFLAGS} -o {output} {input.testobjs} -Wl,--whole-archive {input.objs} -Wl,--no-whole-archive {TEST_LIBS} {LIBS}'
 
 for case in _test_cases:
     includes = [f for f in compilelib.get_includes(fmt('tests/test_{case}.cc'), 'include')]
     requires = [joinpath(OBJ_DIR, f) for f in compilelib.get_requires(fmt('tests/test_{case}.cc'), 'src')]
-    rule:
+    rule:  # for individual tests
         input: fmt('tests/test_{case}.cc'), includes, req=requires
         output: fmt('tests/test_{case}')
-        shell: '{CXX} {CXXFLAGS} -o {output} {input[0]} {input.req} {LIBS}'
+        shell: '{CXX} {CXXFLAGS} -o {output} {input[0]} {input.req} {TEST_LIBS} {LIBS}'
+    rule:  # for unified test suite
+        input: fmt('tests/test_{case}.cc'), includes
+        output: joinpath(OBJ_DIR, fmt('tests/test_{case}.o'))
+        shell: '{CXX} {CXXFLAGS} -o {output} -c {input[0]}'
 
 for srcfile in SOURCE_FILES:
     # We generate build rules dynamically depending on the actual header

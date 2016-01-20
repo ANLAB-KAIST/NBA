@@ -6,8 +6,4 @@
 
 using namespace nba;
 
-int main() {
-    return 0;
-}
-
 // vim: ts=8 sts=4 sw=4 et
