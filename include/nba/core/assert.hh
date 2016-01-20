@@ -4,9 +4,12 @@
 #include <cstdio>
 #include <cstdlib>
 
+// Define an empty namespace for binaries with macro-only headers.
+namespace nba { }
+
 #define test_assert(cond, msg) {\
     if (!(cond)) { \
-        fprintf(stderr, "Assertion failure: %s, %s\n", #cond, msg); \
+        fprintf(stderr, "Assertion failure (Line %d): %s, %s\n", __LINE__, #cond, msg); \
         exit(1); \
     } \
 }
