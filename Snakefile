@@ -240,9 +240,9 @@ for case in _test_cases:
     includes = [f for f in compilelib.get_includes(fmt('tests/test_{case}.cc'), 'include')]
     requires = [joinpath(OBJ_DIR, f) for f in compilelib.get_requires(fmt('tests/test_{case}.cc'), 'src')]
     rule:
-        input: fmt('tests/test_{case}.cc'), includes, requires
+        input: fmt('tests/test_{case}.cc'), includes, req=requires
         output: fmt('tests/test_{case}')
-        shell: '{CXX} {CXXFLAGS} -o {output} {input[0]} {input[2]} {LIBS}'
+        shell: '{CXX} {CXXFLAGS} -o {output} {input[0]} {input.req} {LIBS}'
 
 for srcfile in SOURCE_FILES:
     # We generate build rules dynamically depending on the actual header
