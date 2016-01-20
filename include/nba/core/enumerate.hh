@@ -3,6 +3,7 @@
 #ifndef __NBA_CORE_ENUM_HH__
 #define __NBA_CORE_ENUM_HH__
 
+#include <cstddef>
 #include <vector>
 #include <typeinfo>
 #include <utility>
