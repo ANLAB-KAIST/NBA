@@ -82,8 +82,8 @@ def _find_deps_with_regex(srcfile, base_dir, regexs, visited=None):
         pass
     return results
 
-_rx_included_local_header = re.compile(r'^#include "(.+\.(h|hh))"')
-_rx_included_nba_header = re.compile(r'#include <(nba/.+\.(h|hh))>')
+_rx_included_local_header = re.compile(r'^#include\s*"(.+\.(h|hh))"')
+_rx_included_nba_header = re.compile(r'^#include\s*<(nba/.+\.(h|hh))>')
 def get_includes(srcfile, nba_include_dir):
     '''
     Gets a list of included local header files from the given source file.
@@ -95,8 +95,8 @@ def get_includes(srcfile, nba_include_dir):
     )
     return _find_deps_with_regex(srcfile, nba_include_dir, regexs)
 
-_rx_required_obj_sig = re.compile(r'#require <(.+\.o)>')
-def get_requires(srcfile, nba_src_dir, visited=None):
+_rx_required_obj_sig = re.compile(r'^#require\s*<(.+\.o)>')
+def get_requires(srcfile, nba_src_dir):
     '''
     Gets a list of dependent object files from the given source file.
     (e.g., #require <lib/xxx.o>)
