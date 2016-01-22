@@ -2,18 +2,19 @@
 #define __NBA_QUEUE_HH__
 
 #include <cassert>
+#include <cstddef>
 #include <nba/core/intrinsic.hh>
 #include <rte_malloc.h>
 
 namespace nba {
 
-template<typename T, T const default_value, size_t max_size>
+template<typename T, size_t max_size>
 class FixedArray;
 
-template<typename T, T const default_value, size_t max_size>
+template<typename T, size_t max_size>
 class FixedArrayIterator
 {
-    using ContainerType = FixedArray<T, default_value, max_size>;
+    using ContainerType = FixedArray<T, max_size>;
 
     const ContainerType* const _c;
     unsigned _pos;
@@ -40,10 +41,14 @@ public:
     }
 };
 
-template<typename T, T const default_value, size_t max_size>
+template<typename T, size_t max_size>
 class FixedArray
 {
-    using IterType = FixedArrayIterator<T, default_value, max_size>;
+    using IterType = FixedArrayIterator<T, max_size>;
+
+private:
+    size_t count;
+    T values[max_size];
 
 public:
     FixedArray() : count(0)
@@ -67,8 +72,9 @@ public:
 
     T at(unsigned i) const
     {
-        if (i >= count)
-            return default_value;
+        #ifdef DEBUG
+        assert(i < count);
+        #endif
         return values[i];
     }
 
@@ -97,14 +103,15 @@ public:
         return count == 0;
     }
 
+    bool full() const
+    {
+        return count == max_size;
+    }
+
     size_t size() const
     {
         return count;
     }
-
-private:
-    size_t count;
-    T values[max_size];
 };
 
 template<class T>
@@ -246,6 +253,11 @@ public:
     bool empty() const
     {
         return (push_idx == pop_idx) && (count == 0);
+    }
+
+    bool full() const
+    {
+        return (count == max_size);
     }
 
     size_t size() const

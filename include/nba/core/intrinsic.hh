@@ -2,6 +2,8 @@
 #define __NBA_INTRINSIC_HH__
 
 #include <rte_memory.h>
+#include <type_traits>
+
 #ifdef RTE_CACHE_LINE_SIZE
 #  define CACHE_LINE_SIZE RTE_CACHE_LINE_SIZE
 #else
@@ -22,6 +24,7 @@ namespace nba {
 template<typename T>
 static inline T bitselect(int cond, T trueval, T falseval)
 {
+    static_assert(std::is_integral<T>::value, "Integer type required.");
     int cmp[2] = {0, -1};
     return ((trueval) & cmp[cond]) | ((falseval) & ~cmp[cond]);
 }
@@ -89,3 +92,5 @@ static inline uint64_t rdtscp(void)
 }
 
 #endif
+
+// vim: ts=8 sts=4 sw=4 et

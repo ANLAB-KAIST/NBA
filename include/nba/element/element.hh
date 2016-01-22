@@ -127,8 +127,8 @@ private:
     uint64_t branch_miss = 0;
     uint64_t branch_count[NBA_MAX_ELEM_NEXTS];
 
-    FixedArray<Element*, nullptr, NBA_MAX_ELEM_NEXTS> next_elems;
-    FixedArray<int, -1, NBA_MAX_ELEM_NEXTS> next_connected_inputs;
+    FixedArray<Element*, NBA_MAX_ELEM_NEXTS> next_elems;
+    FixedArray<int, NBA_MAX_ELEM_NEXTS> next_connected_inputs;
     OutputPort outputs[NBA_MAX_ELEM_NEXTS];
 
     uint16_t output_counts[NBA_MAX_ELEM_NEXTS];

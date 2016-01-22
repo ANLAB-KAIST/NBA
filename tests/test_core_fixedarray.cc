@@ -8,15 +8,12 @@ using namespace std;
 using namespace nba;
 
 TEST(CoreFixedArrayTest, Initialization) {
-    FixedArray<int, -1, 3> A;
+    FixedArray<int,  3> A;
     A.push_back(1);
     EXPECT_EQ(1, A[0]);
-    EXPECT_EQ(-1, A[1]);
-    EXPECT_EQ(-1, A[2]);
     A.push_back(2);
     EXPECT_EQ(1, A[0]);
     EXPECT_EQ(2, A[1]);
-    EXPECT_EQ(-1, A[2]);
     A.push_back(3);
     EXPECT_EQ(1, A[0]);
     EXPECT_EQ(2, A[1]);
