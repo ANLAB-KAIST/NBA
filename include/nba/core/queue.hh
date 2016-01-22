@@ -6,6 +6,8 @@
 
 #include <rte_malloc.h>
 
+namespace nba {
+
 template<typename T, T const default_value, size_t max_size>
 class FixedArray;
 
@@ -157,20 +159,20 @@ class FixedRing
 
 public:
     FixedRing()
-        : v_(nullptr), push_idx(0), pop_idx(0), count(0), max_size(0)
+        : v_(nullptr), is_external(false), push_idx(0), pop_idx(0), count(0), max_size(0)
     {
         /* Default constructor. You must explicitly call init() to use the instance. */
     }
 
     FixedRing(size_t max_size, int numa_node = 0, T *xmem = nullptr)
-        : v_(nullptr), push_idx(0), pop_idx(0), count(0), max_size(max_size)
+        : v_(nullptr), is_external(false), push_idx(0), pop_idx(0), count(0), max_size(max_size)
     {
         init(max_size, numa_node, xmem);
     }
 
     virtual ~FixedRing()
     {
-        if (v_ != nullptr)
+        if (v_ != nullptr && !is_external)
             rte_free(v_);
     }
 
@@ -181,8 +183,10 @@ public:
         this->max_size = max_size;
         if (xmem == nullptr) {
             v_ = (T*) rte_malloc_socket("fixedring", sizeof(T) * max_size, 64, numa_node);
+            is_external = false;
         } else {
             v_ = xmem;
+            is_external = true;
         }
         assert(v_ != nullptr);
     }
@@ -198,8 +202,9 @@ public:
     void push_front(T t)
     {
         assert(count < max_size);
-        v_[pop_idx - 1] = t;
-        pop_idx = (pop_idx - 1) % max_size;
+        size_t new_pop_idx = (max_size + pop_idx - 1) % max_size;
+        v_[new_pop_idx] = t;
+        pop_idx = new_pop_idx;
         count ++;
     }
 
@@ -258,12 +263,14 @@ public:
 
 private:
     T *v_;
+    bool is_external;
     size_t push_idx;
     size_t pop_idx;
     size_t count;
     size_t max_size;
 };
 
+} /* endns(nba) */
 
 #endif
 // vim: ts=8 sts=4 sw=4 et
