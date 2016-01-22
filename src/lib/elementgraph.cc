@@ -224,7 +224,7 @@ void ElementGraph::enqueue_offload_task(OffloadTask *otask, OffloadableElement *
     otask->elem = start_elem;
     otask->tracker.element = (Element *) start_elem;
     otask->tracker.input_port = input_port;
-    queue.push_back(Task::to_task(otask));
+    queue.push_front(Task::to_task(otask));
 }
 
 void ElementGraph::enqueue_offload_task(OffloadTask *otask, Element *start_elem, int input_port)
@@ -233,7 +233,7 @@ void ElementGraph::enqueue_offload_task(OffloadTask *otask, Element *start_elem,
     otask->elem = dynamic_cast<OffloadableElement*>(start_elem);
     otask->tracker.element = start_elem;
     otask->tracker.input_port = input_port;
-    queue.push_back(Task::to_task(otask));
+    queue.push_front(Task::to_task(otask));
 }
 
 void ElementGraph::process_batch(PacketBatch *batch)
@@ -241,7 +241,6 @@ void ElementGraph::process_batch(PacketBatch *batch)
     Element *current_elem = batch->tracker.element;
     int input_port = batch->tracker.input_port;
     int batch_disposition = CONTINUE_TO_PROCESS;
-    // FIXME: enqueue_offload_task()에서 push_front() 하면 아래 줄에서 segfault
     int64_t lb_decision = anno_get(&batch->banno, NBA_BANNO_LB_DECISION);
     uint64_t now = rdtscp();  // The starting timestamp of the current element.
 
