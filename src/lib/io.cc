@@ -737,9 +737,7 @@ int io_loop(void *arg)
     ctx->comp_ctx->packet_pool = packet_create_mempool(128, ctx->loc.node_id, ctx->loc.core_id);
     assert(ctx->comp_ctx->packet_pool != nullptr);
 
-    ctx->comp_ctx->inspector = (SystemInspector *) rte_malloc_socket(nullptr, sizeof(SystemInspector),
-                                                                     CACHE_LINE_SIZE, ctx->loc.node_id);
-    new (ctx->comp_ctx->inspector) SystemInspector();
+    NEW(ctx->loc.node_id, ctx->comp_ctx->inspector, SystemInspector);
 
     /* Register the offload completion event. */
     if (ctx->comp_ctx->coproc_ctx != nullptr) {
