@@ -26,7 +26,7 @@ public:
     int get_type() const { return SchedulableElement::get_type() | PerBatchElement::get_type(); }
 
     int initialize() {
-        queue = new FixedRing<PacketBatch*, nullptr>(max_size, ctx->loc.node_id);
+        queue = new FixedRing<PacketBatch*>(max_size, ctx->loc.node_id);
         return 0;
     };
     int initialize_global() { return 0; };
@@ -61,7 +61,7 @@ public:
 
 private:
     size_t max_size;
-    FixedRing<PacketBatch*, nullptr> *queue;
+    FixedRing<PacketBatch*> *queue;
 };
 
 EXPORT_ELEMENT(Queue);

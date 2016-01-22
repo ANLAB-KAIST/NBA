@@ -66,7 +66,7 @@ void ElementGraph::send_offload_task_to_device(OffloadTask *task)
     /* Start offloading! */
     // TODO: create multiple cctx_list and access them via dev_idx for hetero-device systems.
     const int dev_idx = 0;
-    ComputeContext *cctx = ctx->cctx_list.front();
+    ComputeContext *cctx = ctx->cctx_list->front();
     assert(cctx != nullptr);
     #ifdef USE_NVPROF
     nvtxRangePush("offl_prepare");
@@ -726,7 +726,7 @@ int ElementGraph::validate()
     return 0;
 }
 
-const FixedRing<Element*, nullptr>& ElementGraph::get_elements() const
+const FixedRing<Element*>& ElementGraph::get_elements() const
 {
     return elements;
 }

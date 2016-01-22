@@ -103,8 +103,7 @@ private:
     size_t num_kernel_args;
     struct kernel_arg kernel_args[CUDA_MAX_KERNEL_ARGS];
 
-    FixedRing<unsigned, 0> io_base_ring;
-    unsigned io_base_ring_buf[NBA_MAX_IO_BASES];
+    FixedRing<unsigned> *io_base_ring;
 };
 
 }

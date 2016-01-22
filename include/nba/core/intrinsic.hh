@@ -11,6 +11,11 @@
 
 #define ALIGN_CEIL(x,a) (((x)+(a)-1)&~((a)-1))
 
+#define NEW(node_id, ptr, cls, ...) { \
+    (ptr) = (cls*) rte_malloc_socket(nullptr, sizeof(cls), CACHE_LINE_SIZE, node_id); \
+    new (ptr) cls(__VA_ARGS__); \
+}
+
 namespace nba {
 
 template<typename T>

@@ -9,7 +9,8 @@ DummyComputeContext::DummyComputeContext(unsigned ctx_id, ComputeDevice *mother_
 {
     type_name = "dummy";
     size_t io_base_size = 5 * 1024 * 1024; // TODO: read from config
-    io_base_ring.init(NBA_MAX_IO_BASES, node_id, io_base_ring_buf);
+    NEW(node_id, io_base_ring, FixedRing<unsigned>,
+        NBA_MAX_IO_BASES, node_id);
     for (unsigned i = 0; i < NBA_MAX_IO_BASES; i++) {
         _dev_mempool_in[i].init(io_base_size);
         _dev_mempool_out[i].init(io_base_size);
@@ -30,9 +31,9 @@ DummyComputeContext::~DummyComputeContext()
 
 io_base_t DummyComputeContext::alloc_io_base()
 {
-    if (io_base_ring.empty()) return INVALID_IO_BASE;
-    unsigned i = io_base_ring.front();
-    io_base_ring.pop_front();
+    if (io_base_ring->empty()) return INVALID_IO_BASE;
+    unsigned i = io_base_ring->front();
+    io_base_ring->pop_front();
     return (io_base_t) i;
 }
 
@@ -90,7 +91,7 @@ void DummyComputeContext::clear_io_buffers(io_base_t io_base)
     _cpu_mempool_out[i].reset();
     _dev_mempool_in[i].reset();
     _dev_mempool_out[i].reset();
-    io_base_ring.push_back(i);
+    io_base_ring->push_back(i);
 }
 
 int DummyComputeContext::enqueue_memwrite_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size)

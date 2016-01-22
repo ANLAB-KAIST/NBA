@@ -92,7 +92,7 @@ public:
     /**
      * Returns the list of all elements.
      */
-    const FixedRing<Element*, nullptr>& get_elements() const;
+    const FixedRing<Element*>& get_elements() const;
 
     /**
      * Free a packet batch.
@@ -106,20 +106,20 @@ private:
     /**
      * Used to book-keep element objects.
      */
-    FixedRing<Element *, nullptr> elements;
+    FixedRing<Element *> elements;
 
     /**
      * Book-keepers to avoid dynamic_cast and runtime type checks.
      */
-    FixedRing<SchedulableElement *, nullptr> sched_elements;
-    FixedRing<OffloadableElement *, nullptr> offl_elements;
+    FixedRing<SchedulableElement *> sched_elements;
+    FixedRing<OffloadableElement *> offl_elements;
 
     /**
      * Used to pass context objects when calling element handlers.
      */
     comp_thread_context *ctx;
 
-    FixedRing<void *, nullptr> queue;
+    FixedRing<void *> queue;
 
     /* Executes the element graph for the given batch and free it after
      * processing.  Internally it manages a queue to handle diverged paths

@@ -256,16 +256,16 @@ int OffloadableElement::offload(ElementGraph *mother, PacketBatch *batch, int in
 
 int OffloadableElement::enqueue_batch(PacketBatch *batch)
 {
-    finished_batches.push_back(batch);
+    finished_batches->push_back(batch);
     return 0;
 }
 
 int OffloadableElement::dispatch(uint64_t loop_count, PacketBatch*& out_batch, uint64_t &next_delay)
 {
     /* Retrieve out_batch from the internal completion_queue. */
-    if (finished_batches.size() > 0) {
-        out_batch = finished_batches.front();
-        finished_batches.pop_front();
+    if (finished_batches->size() > 0) {
+        out_batch = finished_batches->front();
+        finished_batches->pop_front();
     } else {
         out_batch = nullptr;
     }

@@ -18,7 +18,8 @@ namespace nba {
 
 class LoadBalanceThruput : public SchedulableElement, PerBatchElement {
 public:
-    LoadBalanceThruput() : SchedulableElement(), PerBatchElement(), direction(0), thruput_history()
+    LoadBalanceThruput() : SchedulableElement(), PerBatchElement(),
+                           direction(0), thruput_history(nullptr)
     { }
 
     virtual ~LoadBalanceThruput()
@@ -38,7 +39,8 @@ public:
         rte_atomic64_set(&cpu_ratio, 1000);
         rte_atomic64_set(&update_count, 0);
 
-        thruput_history.init(3, ctx->loc.node_id);
+        NEW(ctx->loc.node_id, thruput_history, FixedRing<uint64_t>,
+            3, ctx->loc.node_id);
         last_count = 0;
         last_thruput = 0;
         last_cpu_ratio_update = 0.1;
@@ -166,7 +168,7 @@ private:
     double last_thruput;
 
     uint64_t last_direction_changed;
-    FixedRing<uint64_t, 0> thruput_history;
+    FixedRing<uint64_t> *thruput_history;
 
     static rte_atomic64_t cpu_ratio __rte_cache_aligned;
     static rte_atomic64_t update_flag;

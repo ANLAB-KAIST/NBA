@@ -755,18 +755,20 @@ int main(int argc, char **argv)
                         ctx->datablock_registry[dbid]->set_id(dbid);
                         RTE_LOG(DEBUG, MAIN, "  [%u] %s\n", dbid, ctx->datablock_registry[dbid]->name());
                     }
-                    new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NBA_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
+                    NEW(ctx->loc.node_id, ctx->cctx_list, FixedRing<ComputeContext *>,
+                        2 * NBA_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
                     for (unsigned k = 0, k_max = system_params["COPROC_CTX_PER_COMPTHREAD"]; k < k_max; k++) {
                         ComputeContext *cctx = nullptr;
                         cctx = device->get_available_context();
                         assert(cctx != nullptr);
                         assert(cctx->state == ComputeContext::READY);
-                        ctx->cctx_list.push_back(cctx);
+                        ctx->cctx_list->push_back(cctx);
                     }
                 }
             } else {
-                new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NBA_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
-                assert(ctx->cctx_list.empty());
+                NEW(ctx->loc.node_id, ctx->cctx_list, FixedRing<ComputeContext *>,
+                    2 * NBA_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
+                assert(ctx->cctx_list->empty());
                 ctx->task_completion_queue = NULL;
                 ctx->task_completion_watcher = NULL;
                 ctx->coproc_ctx = NULL;

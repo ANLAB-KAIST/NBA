@@ -224,7 +224,8 @@ public:
             };
             offload_compute_handlers.insert({{"dummy", ch},});
         }
-        finished_batches.init(MAX_FINBATCH_QLEN, -1, finished_batches_arrbuf);
+        NEW(0, finished_batches, FixedRing<PacketBatch*>,
+            MAX_FINBATCH_QLEN, finished_batches_arrbuf);
         memset(tasks, 0, sizeof(OffloadTask *) * NBA_MAX_COPROCESSOR_TYPES);
     }
     virtual ~OffloadableElement() {}
@@ -256,7 +257,7 @@ public:
 
 private:
     OffloadTask *tasks[NBA_MAX_COPROCESSOR_TYPES];
-    FixedRing<PacketBatch*, nullptr> finished_batches;
+    FixedRing<PacketBatch*> *finished_batches;
     PacketBatch *finished_batches_arrbuf[MAX_FINBATCH_QLEN];
     void dummy_compute_handler(ComputeContext *ctx, struct resource_param *res);
 };
