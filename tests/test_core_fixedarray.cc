@@ -18,6 +18,7 @@ TEST(CoreFixedArrayTest, Initialization) {
     EXPECT_EQ(1, A[0]);
     EXPECT_EQ(2, A[1]);
     EXPECT_EQ(3, A[2]);
+    EXPECT_TRUE(A.full());
 }
 
 TEST(CoreFixedRingTest, PushBack) {
@@ -35,6 +36,7 @@ TEST(CoreFixedRingTest, PushBack) {
     A.push_back(3);
     EXPECT_EQ(1, A.front());
     EXPECT_EQ(3, A.size());
+    EXPECT_TRUE(A.full());
 }
 
 TEST(CoreFixedRingTest, PushFront) {
@@ -52,6 +54,7 @@ TEST(CoreFixedRingTest, PushFront) {
     B.push_front(3);
     EXPECT_EQ(3, B.front());
     EXPECT_EQ(3, B.size());
+    EXPECT_TRUE(B.full());
     int correctB[] = {3, 2, 1};
     for (auto&& p : enumerate(B))
         EXPECT_EQ(correctB[p.first], p.second);
@@ -67,6 +70,7 @@ TEST(CoreFixedRingTest, MixedPushBackFront) {
     C.push_front(3);
     EXPECT_EQ(3, C.size());
     EXPECT_FALSE(C.empty());
+    EXPECT_TRUE(C.full());
     int correctC[] = {3, 1, 2};
     for (auto&& p : enumerate(C))
         EXPECT_EQ(correctC[p.first], p.second);
