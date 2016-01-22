@@ -11,6 +11,10 @@ using namespace nba;
 
 typedef ShiftedInt<uint16_t, 4> TestInt;
 
+TEST(CoreShiftedIntTest, ClassSize) {
+    EXPECT_EQ(sizeof(TestInt), sizeof(uint16_t));
+}
+
 TEST(CoreShiftedIntTest, Precision_Create) {
     EXPECT_THROW(TestInt(1), PrecisionLossException);
     EXPECT_THROW(TestInt(1164032), PrecisionLossException);
