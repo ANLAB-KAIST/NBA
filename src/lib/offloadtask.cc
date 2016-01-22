@@ -235,10 +235,10 @@ bool OffloadTask::copy_h2d()
                 dbarg_h->batches[b].item_sizes_out = (uint16_t *)
                         ((char *) t->aligned_item_sizes_d.ptr
                          + (uintptr_t) offsetof(struct item_size_info, sizes));
-                dbarg_h->batches[b].item_offsets_in = (ShiftedInt<uint16_t, 2> *)
+                dbarg_h->batches[b].item_offsets_in = (dev_offset_t *)
                         ((char *) t->aligned_item_sizes_d.ptr
                          + (uintptr_t) offsetof(struct item_size_info, offsets));
-                dbarg_h->batches[b].item_offsets_out = (ShiftedInt<uint16_t, 2> *)
+                dbarg_h->batches[b].item_offsets_out = (dev_offset_t *)
                         ((char *) t->aligned_item_sizes_d.ptr
                          + (uintptr_t) offsetof(struct item_size_info, offsets));
             } else {

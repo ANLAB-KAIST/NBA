@@ -194,6 +194,10 @@ private:
     }
 };
 
+// Changing this to ShiftedInt<uint32_t, 0> or uint32_t exactly
+// reproduces the performance drop when we first changed offset types.
+typedef ShiftedInt<uint16_t, 2> dev_offset_t;
+
 } /* endns(nba) */
 
 #endif /* __NBA_CORE_SHIFTEDINT_HH__ */

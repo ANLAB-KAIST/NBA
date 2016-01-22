@@ -80,7 +80,7 @@ struct item_size_info {
         uint16_t size;
         uint16_t sizes[NBA_MAX_COMP_BATCH_SIZE * 12];
     };
-    ShiftedInt<uint16_t, 2>[NBA_MAX_COMP_BATCH_SIZE * 12];
+    dev_offset_t offsets[NBA_MAX_COMP_BATCH_SIZE * 12];
 };
 #else
 struct item_size_info {
@@ -88,7 +88,7 @@ struct item_size_info {
         uint16_t size;
         uint16_t sizes[NBA_MAX_COMP_BATCH_SIZE * 96];
     };
-    ShiftedInt<uint16_t, 2> offsets[NBA_MAX_COMP_BATCH_SIZE * 96];
+    dev_offset_t offsets[NBA_MAX_COMP_BATCH_SIZE * 96];
 };
 #endif
 
@@ -126,8 +126,8 @@ struct datablock_batch_info {
     uint32_t item_count_out;
     uint16_t *item_sizes_in;
     uint16_t *item_sizes_out;
-    ShiftedInt<uint16_t, 2> *item_offsets_in;
-    ShiftedInt<uint16_t, 2> *item_offsets_out;
+    dev_offset_t *item_offsets_in;
+    dev_offset_t *item_offsets_out;
 }; // __cuda_aligned
 
 /**

@@ -18,8 +18,8 @@ struct datablock_batch_info {
     uint32_t item_count_out;
     uint16_t *item_sizes_in;
     uint16_t *item_sizes_out;
-    nba::ShiftedInt<uint16_t, 2> *item_offsets_in;
-    nba::ShiftedInt<uint16_t, 2> *item_offsets_out;
+    nba::dev_offset_t *item_offsets_in;
+    nba::dev_offset_t *item_offsets_out;
 }; // __cuda_aligned
 
 struct datablock_kernel_arg {
