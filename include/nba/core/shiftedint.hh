@@ -78,7 +78,7 @@ private:
 	}
 
 	template<typename InputInt>
-	const ShiftedInt operator+ (const InputInt& v) {
+	const ShiftedInt operator+ (const InputInt& v) const {
 		static_assert(std::is_integral<InputInt>::value, "Integer type required.");
 #ifdef DEBUG
 		if(v > ((LARGE_INT)std::numeric_limits<Int>::max() << Shift))
@@ -103,7 +103,7 @@ private:
 	}
 
 	template<typename InputInt>
-	const ShiftedInt operator* (const InputInt& v) {
+	const ShiftedInt operator* (const InputInt& v) const {
 		static_assert(std::is_integral<InputInt>::value, "Integer type required.");
 #ifdef DEBUG
 		if(v > ((LARGE_INT)std::numeric_limits<Int>::max() << Shift))
@@ -149,7 +149,7 @@ private:
 		return *this;
 	}
 
-	const ShiftedInt operator+ (const ShiftedInt& v) {
+	const ShiftedInt operator+ (const ShiftedInt& v) const {
 		ShiftedInt ret(*this);
 		ret.shifted_value += v.shifted_value;
 		return ret;
@@ -161,7 +161,7 @@ private:
 		return *this;
 	}
 
-	const ShiftedInt operator* (const ShiftedInt& v) {
+	const ShiftedInt operator* (const ShiftedInt& v) const {
 		ShiftedInt ret(*this);
 		ret.shifted_value *= v.shifted_value;
 		ret.shifted_value <<= Shift;
