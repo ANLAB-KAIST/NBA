@@ -1252,7 +1252,7 @@ __global__ void computeHMAC_SHA1_3(
         const struct datablock_kernel_arg *db_flow_ids     = datablocks[dbid_flow_ids_d];
 
         const uint8_t *enc_payload_base = (uint8_t *) db_enc_payloads->batches[batch_idx].buffer_bases_in;
-        const uintptr_t offset = (uintptr_t) db_enc_payloads->batches[batch_idx].item_offsets_in[item_idx];
+        const uintptr_t offset = (uintptr_t) db_enc_payloads->batches[batch_idx].item_offsets_in[item_idx].as_value<uintptr_t>();
         const uintptr_t length = (uintptr_t) db_enc_payloads->batches[batch_idx].item_sizes_in[item_idx];
         if (enc_payload_base != NULL && offset != 0 && length != 0) {
             const uint64_t flow_id = ((uint64_t *) db_flow_ids->batches[batch_idx].buffer_bases_in)[item_idx];
@@ -1277,4 +1277,4 @@ void *nba::ipsec_hsha1_encryption_get_cuda_kernel() {
     return reinterpret_cast<void *> (computeHMAC_SHA1_3);
 }
 
-// vim: ts=8 sts=4 sw=4 et
+// vim: ts=8 sts=4 sw=4 et tw=150

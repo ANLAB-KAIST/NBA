@@ -7,6 +7,15 @@
 #include <cassert>
 #include <exception>
 
+#ifndef __CUDACC__
+#ifndef __host__
+#define __host__
+#endif
+#ifndef __device__
+#define __device__
+#endif
+#endif
+
 namespace nba {
 
 #ifdef DEBUG
@@ -28,7 +37,7 @@ template<typename Int, unsigned Shift>
 class ShiftedInt
 {
 private:
-    typedef __uint128_t LARGE_INT;
+    typedef uint64_t LARGE_INT;
     static_assert(std::is_integral<Int>::value, "Integer type required.");
 
     Int shifted_value;
@@ -177,7 +186,7 @@ private:
     }
 
     template<typename ReturnInt>
-    ReturnInt as_value() {
+    __host__ __device__ inline ReturnInt as_value() const {
         static_assert(std::numeric_limits<ReturnInt>::max()
                 >= ((LARGE_INT)std::numeric_limits<Int>::max() << Shift),
                 "return type is not large enough.");

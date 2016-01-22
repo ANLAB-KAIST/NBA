@@ -202,7 +202,7 @@ void DataBlock::preprocess(PacketBatch *batch, void *host_in_buffer) {
             if (IS_PACKET_INVALID(batch, pkt_idx))
                 continue;
             size_t aligned_elemsz = t->aligned_item_sizes_h->sizes[pkt_idx];
-            size_t offset         = t->aligned_item_sizes_h->offsets[pkt_idx];
+            size_t offset         = t->aligned_item_sizes_h->offsets[pkt_idx].as_value<size_t>();
             rte_memcpy((char*) host_in_buffer + offset,
                        rte_pktmbuf_mtod(batch->packets[pkt_idx], char*) + read_roi.offset,
                        aligned_elemsz);
@@ -250,7 +250,7 @@ void DataBlock::postprocess(OffloadableElement *elem, int input_port, PacketBatc
                                               t->aligned_item_sizes_h->sizes[pkt_idx]);
             size_t offset = bitselect<size_t>(write_roi.type == WRITE_PARTIAL_PACKET,
                                               t->aligned_item_sizes_h->size * pkt_idx,
-                                              t->aligned_item_sizes_h->offsets[pkt_idx]);
+                                              t->aligned_item_sizes_h->offsets[pkt_idx].as_value<size_t>());
             rte_memcpy(rte_pktmbuf_mtod(batch->packets[pkt_idx], char*) + write_roi.offset,
                        (char*) host_out_ptr + offset,
                        elemsz);

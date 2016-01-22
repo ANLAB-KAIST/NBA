@@ -712,7 +712,7 @@ __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
                                                   [item_idx];
     const int pkt_idx         = cur_block_info.pkt_idx;
     const int block_idx_local = cur_block_info.block_idx;
-    const uintptr_t offset = (uintptr_t) db_enc_payloads->batches[batch_idx].item_offsets_in[pkt_idx];
+    const uintptr_t offset = (uintptr_t) db_enc_payloads->batches[batch_idx].item_offsets_in[pkt_idx].as_value<uintptr_t>();
     const uintptr_t length = (uintptr_t) db_enc_payloads->batches[batch_idx].item_sizes_in[pkt_idx];
 
     if (cur_block_info.magic == 85739 && pkt_idx < 64 && offset != 0 && length != 0) {
@@ -792,4 +792,4 @@ void *nba::ipsec_aes_encryption_get_cuda_kernel() {
     return reinterpret_cast<void *> (AES_ctr_encrypt_chunk_SharedMem_5);
 }
 
-// vim: ts=8 sts=4 sw=4 et
+// vim: ts=8 sts=4 sw=4 et tw=150

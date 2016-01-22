@@ -10,6 +10,7 @@
 #include <nba/engines/cuda/computedevice.hh>
 #include <nba/engines/cuda/computecontext.hh>
 #endif
+#include <nba/core/shiftedint.hh> // should come after cuda headers
 #include <tuple>
 #include <ev.h>
 #include <rte_memcpy.h>
@@ -234,10 +235,10 @@ bool OffloadTask::copy_h2d()
                 dbarg_h->batches[b].item_sizes_out = (uint16_t *)
                         ((char *) t->aligned_item_sizes_d.ptr
                          + (uintptr_t) offsetof(struct item_size_info, sizes));
-                dbarg_h->batches[b].item_offsets_in = (uint32_t *)
+                dbarg_h->batches[b].item_offsets_in = (ShiftedInt<uint16_t, 2> *)
                         ((char *) t->aligned_item_sizes_d.ptr
                          + (uintptr_t) offsetof(struct item_size_info, offsets));
-                dbarg_h->batches[b].item_offsets_out = (uint32_t *)
+                dbarg_h->batches[b].item_offsets_out = (ShiftedInt<uint16_t, 2> *)
                         ((char *) t->aligned_item_sizes_d.ptr
                          + (uintptr_t) offsetof(struct item_size_info, offsets));
             } else {

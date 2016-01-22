@@ -109,7 +109,7 @@ if v: CFLAGS += ' -DNBA_RANDOM_PORT_ACCESS'
 # NVIDIA CUDA configurations
 if USE_CUDA:
     CUDA_ARCHS    = compilelib.get_cuda_arch()
-    NVCFLAGS      = '-O2 -g -std=c++11 --use_fast_math -Iinclude -I/usr/local/cuda/include'
+    NVCFLAGS      = '-O2 -g -std=c++11 --use_fast_math --expt-relaxed-constexpr -Iinclude -I/usr/local/cuda/include'
     CFLAGS       += ' -I/usr/local/cuda/include'
     LIBS         += ' -L/usr/local/cuda/lib64 -lcudart' #' -lnvidia-ml'
     print(CUDA_ARCHS)
