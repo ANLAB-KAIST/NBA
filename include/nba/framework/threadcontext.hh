@@ -165,7 +165,7 @@ public:
     struct rte_mempool *packet_pool;
     ElementGraph *elem_graph;
     SystemInspector *inspector;
-    FixedRing<ComputeContext *, nullptr> cctx_list;
+    FixedRing<ComputeContext *> *cctx_list;
     PacketBatch *input_batch;
     DataBlock *datablock_registry[NBA_MAX_DATABLOCKS];
 
@@ -208,8 +208,8 @@ struct coproc_thread_context {
     ComputeDevice *device;
 
     struct ev_async *task_d2h_watcher;
-    FixedRing<OffloadTask *, nullptr> *d2h_pending_queue;
-    FixedRing<OffloadTask *, nullptr> *task_done_queue;
+    FixedRing<OffloadTask *> *d2h_pending_queue;
+    FixedRing<OffloadTask *> *task_done_queue;
     struct ev_async *task_done_watcher;
 
     char _reserved2[64]; // to prevent false-sharing

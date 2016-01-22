@@ -673,7 +673,7 @@ int main(int argc, char **argv)
         NodeLocalStorage *nls[NBA_MAX_NODES];
         unsigned per_node_counts[NBA_MAX_NODES];
         for (unsigned j = 0; j < NBA_MAX_NODES; j++) {
-            nls[j] = NULL;
+            nls[j] = nullptr;
             per_node_counts[j] = 0;
         }
 
@@ -683,21 +683,18 @@ int main(int argc, char **argv)
             struct comp_thread_conf &conf = *it;
             unsigned node_id = numa_node_of_cpu(conf.core_id);
 
-            if (nls[node_id] == NULL) {
-                nls[node_id] = (NodeLocalStorage *) rte_malloc_socket(NULL, sizeof(NodeLocalStorage), CACHE_LINE_SIZE, node_id);
-                new (nls[node_id]) NodeLocalStorage(node_id);
+            if (nls[node_id] == nullptr) {
+                NEW(node_id, nls[node_id], NodeLocalStorage, node_id);
             }
-
-            comp_thread_context *ctx = (comp_thread_context *) rte_malloc_socket(
-                    "comp_thread_conf", sizeof(*ctx), CACHE_LINE_SIZE, node_id);
-            new (ctx) comp_thread_context();
+            comp_thread_context *ctx = nullptr;
+            NEW(node_id, ctx, comp_thread_context);
 
             ctx->loc.core_id = conf.core_id;
             ctx->loc.local_thread_idx = per_node_counts[node_id]++;
             ctx->loc.node_id = node_id;
 
-            ctx->terminate_watcher = (struct ev_async *) rte_malloc_socket(NULL, sizeof(struct ev_async), CACHE_LINE_SIZE, node_id);
-            ev_async_init(ctx->terminate_watcher, NULL);
+            ctx->terminate_watcher = (struct ev_async *) rte_malloc_socket(nullptr, sizeof(struct ev_async), CACHE_LINE_SIZE, node_id);
+            ev_async_init(ctx->terminate_watcher, nullptr);
             computation_threads[i].terminate_watcher = ctx->terminate_watcher;
             computation_threads[i].comp_ctx = ctx;
             ctx->thread_init_barrier = comp_init_barrier;
@@ -710,23 +707,18 @@ int main(int argc, char **argv)
             ctx->num_tx_ports = num_ports;
             ctx->num_nodes = num_nodes;
 
-            ctx->io_ctx = NULL;
-            ctx->coproc_ctx = NULL;
+            ctx->io_ctx = nullptr;
+            ctx->coproc_ctx = nullptr;
             ctx->ready_flag = &ready_flag;
             ctx->ready_cond = &ready_cond;
             ctx->elemgraph_lock = elemgraph_lock;
             ctx->node_local_storage = nls[node_id];
-            ctx->elem_graph = (ElementGraph *) rte_malloc_socket(NULL, sizeof(ElementGraph), CACHE_LINE_SIZE, node_id);
-            new (ctx->elem_graph) ElementGraph(ctx);
-            ctx->inspector = NULL;
+            NEW(node_id, ctx->elem_graph, ElementGraph, ctx);
+            ctx->inspector = nullptr;
 
             // TODO: extend to multiple devices
-            ctx->named_offload_devices = (unordered_map<string, ComputeDevice *> *)
-                    rte_malloc_socket(NULL, sizeof(unordered_map<string, ComputeDevice *>), CACHE_LINE_SIZE, node_id);
-            new (ctx->named_offload_devices) unordered_map<string, ComputeDevice *>();
-            ctx->offload_devices = (vector<ComputeDevice *> *)
-                    rte_malloc_socket(NULL, sizeof(vector<ComputeDevice *>), CACHE_LINE_SIZE, node_id);
-            new (ctx->offload_devices) vector<ComputeDevice *>();
+            NEW(node_id, ctx->named_offload_devices, TARG(unordered_map<string, ComputeDevice*>));
+            NEW(node_id, ctx->offload_devices, vector<ComputeDevice*>);
             if (num_coproc_threads > 0) {
                 struct coproc_thread_context *coproc_ctx = (coproc_thread_context *) queue_privs[conf.taskinq_idx];
                 if (coproc_ctx == nullptr) {
@@ -755,18 +747,20 @@ int main(int argc, char **argv)
                         ctx->datablock_registry[dbid]->set_id(dbid);
                         RTE_LOG(DEBUG, MAIN, "  [%u] %s\n", dbid, ctx->datablock_registry[dbid]->name());
                     }
-                    new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NBA_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
+                    NEW(ctx->loc.node_id, ctx->cctx_list, FixedRing<ComputeContext *>,
+                        2 * NBA_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
                     for (unsigned k = 0, k_max = system_params["COPROC_CTX_PER_COMPTHREAD"]; k < k_max; k++) {
                         ComputeContext *cctx = nullptr;
                         cctx = device->get_available_context();
                         assert(cctx != nullptr);
                         assert(cctx->state == ComputeContext::READY);
-                        ctx->cctx_list.push_back(cctx);
+                        ctx->cctx_list->push_back(cctx);
                     }
                 }
             } else {
-                new (&ctx->cctx_list) FixedRing<ComputeContext *, nullptr>(2 * NBA_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
-                assert(ctx->cctx_list.empty());
+                NEW(ctx->loc.node_id, ctx->cctx_list, FixedRing<ComputeContext *>,
+                    2 * NBA_MAX_COPROCESSOR_TYPES, ctx->loc.node_id);
+                assert(ctx->cctx_list->empty());
                 ctx->task_completion_queue = NULL;
                 ctx->task_completion_watcher = NULL;
                 ctx->coproc_ctx = NULL;
@@ -885,9 +879,7 @@ int main(int argc, char **argv)
             init_done_flags[node_id] = (bool *) rte_malloc_socket("io_ctx.initflag", sizeof(bool),
                                                                   CACHE_LINE_SIZE, node_id);
             *init_done_flags[node_id] = false;
-            init_conds[node_id] = (CondVar *) rte_malloc_socket("io_ctx.condvar", sizeof(CondVar),
-                                                                CACHE_LINE_SIZE, node_id);
-            new (init_conds[node_id]) CondVar();
+            NEW(node_id, init_conds[node_id], CondVar);
         }
         unsigned per_node_counts[NBA_MAX_NODES] = {0,};
 
@@ -913,14 +905,12 @@ int main(int argc, char **argv)
             assert(ctx->node_master_ctx != nullptr);
 
             ctx->comp_ctx = NULL;
-            ctx->block = (CondVar *) rte_malloc_socket(NULL, sizeof(CondVar), CACHE_LINE_SIZE, node_id);
-            new (ctx->block) CondVar();
+            NEW(node_id, ctx->block, CondVar);
             ctx->is_block = false;
             ctx->terminate_watcher = (struct ev_async *) rte_malloc_socket(NULL, sizeof(struct ev_async),
                                                                            CACHE_LINE_SIZE, node_id);
             ev_async_init(ctx->terminate_watcher, NULL);
-            ctx->io_lock = (Lock *) rte_malloc_socket(NULL, sizeof(Lock), CACHE_LINE_SIZE, node_id);
-            new (ctx->io_lock) Lock();
+            NEW(node_id, ctx->io_lock, Lock);
             ctx->init_cond = init_conds[node_id];
             ctx->init_done = init_done_flags[node_id];
             ctx->node_stat = node_stats[node_id];

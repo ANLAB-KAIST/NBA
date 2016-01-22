@@ -37,7 +37,7 @@ public:
     OffloadTask();
     virtual ~OffloadTask();
 
-    FixedArray<int, -1, NBA_MAX_DATABLOCKS> datablocks;
+    FixedArray<int, NBA_MAX_DATABLOCKS> datablocks;
 
     /* Executed in worker threads. */
     void prepare_read_buffer();
@@ -74,8 +74,8 @@ public:
     ComputeContext *cctx;
     io_base_t io_base;
     ElementGraph *elemgraph;
-    FixedArray<PacketBatch*, nullptr, NBA_MAX_COPROC_PPDEPTH> batches;
-    FixedArray<int, -1, NBA_MAX_COPROC_PPDEPTH> input_ports;
+    FixedArray<PacketBatch*, NBA_MAX_COPROC_PPDEPTH> batches;
+    FixedArray<int, NBA_MAX_COPROC_PPDEPTH> input_ports;
     OffloadableElement* elem;
     int dbid_h2d[NBA_MAX_DATABLOCKS];
 

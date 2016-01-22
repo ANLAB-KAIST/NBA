@@ -71,8 +71,7 @@ private:
     DummyCPUMemoryPool _cpu_mempool_in[NBA_MAX_IO_BASES];
     DummyCPUMemoryPool _cpu_mempool_out[NBA_MAX_IO_BASES];
 
-    FixedRing<unsigned, 0> io_base_ring;
-    unsigned io_base_ring_buf[NBA_MAX_IO_BASES];
+    FixedRing<unsigned> *io_base_ring;
 };
 
 }

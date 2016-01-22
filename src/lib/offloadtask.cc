@@ -1,4 +1,5 @@
 #include <nba/core/intrinsic.hh>
+#include <nba/core/enumerate.hh>
 #include <nba/framework/logging.hh>
 #include <nba/framework/datablock.hh>
 #include <nba/framework/elementgraph.hh>
@@ -217,8 +218,9 @@ bool OffloadTask::copy_h2d()
         dbarg_h->total_item_count_in  = 0;
         dbarg_h->total_item_count_out = 0;
 
-        int b = 0;
-        for (PacketBatch *batch : batches) {
+        for (auto&& p : enumerate(batches)) {
+            size_t b = p.first;
+            PacketBatch *&batch = p.second;
             assert(batch->datablock_states != nullptr);
             struct datablock_tracker *t = &batch->datablock_states[dbid];
 
@@ -253,7 +255,6 @@ bool OffloadTask::copy_h2d()
             dbarg_h->batches[b].buffer_bases_out = t->dev_out_ptr.ptr; // FIXME: generalize to CL?
             dbarg_h->batches[b].item_count_out   = t->out_count;
             dbarg_h->total_item_count_out       += t->out_count;
-            b++;
         } /* endfor(batches) */
     } /* endfor(dbid) */
     return true;

@@ -127,8 +127,8 @@ private:
     uint64_t branch_miss = 0;
     uint64_t branch_count[NBA_MAX_ELEM_NEXTS];
 
-    FixedArray<Element*, nullptr, NBA_MAX_ELEM_NEXTS> next_elems;
-    FixedArray<int, -1, NBA_MAX_ELEM_NEXTS> next_connected_inputs;
+    FixedArray<Element*, NBA_MAX_ELEM_NEXTS> next_elems;
+    FixedArray<int, NBA_MAX_ELEM_NEXTS> next_connected_inputs;
     OutputPort outputs[NBA_MAX_ELEM_NEXTS];
 
     uint16_t output_counts[NBA_MAX_ELEM_NEXTS];
@@ -224,7 +224,8 @@ public:
             };
             offload_compute_handlers.insert({{"dummy", ch},});
         }
-        finished_batches.init(MAX_FINBATCH_QLEN, -1, finished_batches_arrbuf);
+        NEW(0, finished_batches, FixedRing<PacketBatch*>,
+            MAX_FINBATCH_QLEN, finished_batches_arrbuf);
         memset(tasks, 0, sizeof(OffloadTask *) * NBA_MAX_COPROCESSOR_TYPES);
     }
     virtual ~OffloadableElement() {}
@@ -256,7 +257,7 @@ public:
 
 private:
     OffloadTask *tasks[NBA_MAX_COPROCESSOR_TYPES];
-    FixedRing<PacketBatch*, nullptr> finished_batches;
+    FixedRing<PacketBatch*> *finished_batches;
     PacketBatch *finished_batches_arrbuf[MAX_FINBATCH_QLEN];
     void dummy_compute_handler(ComputeContext *ctx, struct resource_param *res);
 };
