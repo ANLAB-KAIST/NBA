@@ -11,6 +11,8 @@
 #include <cstdint>
 #include <cstddef>
 
+namespace nba { }
+
 namespace L
 {
 

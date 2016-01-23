@@ -75,6 +75,10 @@ ELEMENT_HEADER_FILES = [s for s in compilelib.find_all(['elements'], r'^.+\.(h|h
 # List of object files
 OBJ_DIR   = 'build'
 OBJ_FILES = [joinpath(OBJ_DIR, o) for o in map(lambda s: re.sub(r'^(.+)\.(c|cc|cpp|cu)$', r'\1.o', s), SOURCE_FILES)]
+GTEST_MAIN_OBJ = 'build/src/lib/gtest/gtest_main.o'
+GTEST_FUSED_OBJ = 'build/src/lib/gtest/gtest-all.o'
+OBJ_FILES.remove(GTEST_MAIN_OBJ)
+OBJ_FILES.remove(GTEST_FUSED_OBJ)
 
 # Common configurations
 CXXSTD = version()
@@ -232,12 +236,14 @@ rule clean:
     shell: _clean_cmds
 
 _test_cases, = glob_wildcards('tests/test_{case}.cc')
-TEST_LIBS = '-lgtest_main -lgtest'
-MAINLESS_OBJ_FILES = OBJ_FILES.copy()
-MAINLESS_OBJ_FILES.remove('build/src/main.o')
+TEST_OBJ_FILES = OBJ_FILES.copy()
+TEST_OBJ_FILES.append(GTEST_MAIN_OBJ)
+TEST_OBJ_FILES.append(GTEST_FUSED_OBJ)
+TEST_OBJ_FILES.remove('build/src/main.o')
 
 rule cleantest:
-    shell: 'rm -rf build/tests tests/test_all'
+    shell: 'rm -rf build/tests tests/test_all ' \
+           + ' '.join(joinpath('tests', 'test_' + f.replace('.cc', '')) for f in _test_cases)
 
 rule test:  # build only individual tests
     input: expand('tests/test_{case}', case=_test_cases)
@@ -245,18 +251,18 @@ rule test:  # build only individual tests
 rule testall:  # build a unified test suite
     input:
         testobjs=expand(joinpath(OBJ_DIR, 'tests/test_{case}.o'), case=_test_cases),
-        objs=MAINLESS_OBJ_FILES,
+        objs=TEST_OBJ_FILES,
         libs=[lib.target for lib in THIRD_PARTY_LIBS]
     output: 'tests/test_all'
-    shell: '{CXX} {CXXFLAGS} -o {output} {input.testobjs} -Wl,--whole-archive {input.objs} -Wl,--no-whole-archive {TEST_LIBS} {LIBS}'
+    shell: '{CXX} {CXXFLAGS} -o {output} {input.testobjs} -Wl,--whole-archive {input.objs} -Wl,--no-whole-archive {LIBS}'
 
 for case in _test_cases:
     includes = [f for f in compilelib.get_includes(fmt('tests/test_{case}.cc'), 'include')]
     requires = [joinpath(OBJ_DIR, f) for f in compilelib.get_requires(fmt('tests/test_{case}.cc'), 'src')]
     rule:  # for individual tests
-        input: fmt('tests/test_{case}.cc'), includes, req=requires
+        input: fmt('tests/test_{case}.cc'), includes, GTEST_FUSED_OBJ, GTEST_MAIN_OBJ, req=requires
         output: fmt('tests/test_{case}')
-        shell: '{CXX} {CXXFLAGS} -o {output} {input[0]} {input.req} {TEST_LIBS} {LIBS}'
+        shell: '{CXX} {CXXFLAGS} -o {output} {input[0]} {input.req} {GTEST_FUSED_OBJ} {GTEST_MAIN_OBJ} {LIBS}'
     rule:  # for unified test suite
         input: fmt('tests/test_{case}.cc'), includes
         output: joinpath(OBJ_DIR, fmt('tests/test_{case}.o'))
