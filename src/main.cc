@@ -1029,13 +1029,15 @@ static void handle_signal(int) {
     if (threading::is_thread_equal(main_thread_id, threading::self())) {
         RTE_LOG(NOTICE, MAIN, "terminating...\n");
 
-        for (i = 0; i < num_coproc_threads; i++)
-            ev_async_send(coprocessor_threads[i].coproc_ctx->loop, coprocessor_threads[i].terminate_watcher);
-
-        for (i = 0; i < num_io_threads; i++)
-            ev_async_send(io_threads[i].io_ctx->loop, io_threads[i].terminate_watcher);
-        for (i = 0; i < num_coproc_threads; i++)
-            pthread_join(coprocessor_threads[i].tid, NULL);
+        for (i = 0; i < num_coproc_threads; i++) {
+            ev_async_send(coprocessor_threads[i].coproc_ctx->loop,
+                          coprocessor_threads[i].terminate_watcher);
+        }
+        for (i = 0; i < num_io_threads; i++) {
+            ev_async_send(io_threads[i].io_ctx->loop,
+                          io_threads[i].terminate_watcher);
+            ev_break(io_threads[i].io_ctx->loop, EVBREAK_ALL);
+        }
         rte_eal_mp_wait_lcore();
 
         /* Set the terminated flag. */
