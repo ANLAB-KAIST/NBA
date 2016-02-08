@@ -57,6 +57,8 @@
 #define NBA_OQ                      (true)  // Use output-queuing semantics when possible.
 #undef NBA_CPU_MICROBENCH                  // Enable support for PAPI library for microbenchmarks.
 
+#undef NBA_IPFWD_RR_NODE_LOCAL
+
 #define NBA_REUSE_DATABLOCKS
 
 /* If you change below, update HANDLE_ALL_PORTS macro in lib/element.hh as well!! */

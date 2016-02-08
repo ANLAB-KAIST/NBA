@@ -33,7 +33,7 @@ __device__ uint32_t ntohl(uint32_t n)
 /* The GPU kernel. */
 __global__ void ipv4_route_lookup_cuda(
         struct datablock_kernel_arg **datablocks,
-        uint32_t count, uint16_t *batch_ids, uint16_t *item_ids,
+        uint32_t count, uint8_t *batch_ids, uint16_t *item_ids,
         uint8_t *checkbits_d,
         uint16_t* __restrict__ TBL24_d,
         uint16_t* __restrict__ TBLlong_d)

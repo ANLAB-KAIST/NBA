@@ -681,7 +681,7 @@ __device__ void AES_encrypt_cu_optimized(const uint8_t *in, uint8_t *out,
 
 __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
         struct datablock_kernel_arg **datablocks,
-        uint32_t count, uint16_t *batch_ids, uint16_t *item_ids,
+        uint32_t count, uint8_t *batch_ids, uint16_t *item_ids,
         uint8_t *checkbits_d,
         struct aes_sa_entry* flow_info
         )
@@ -695,7 +695,7 @@ __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < count && count != 0) {
 
-    const uint16_t batch_idx = batch_ids[idx];
+    const uint8_t batch_idx = batch_ids[idx];
     const uint16_t item_idx  = item_ids[idx];
 
     const struct datablock_kernel_arg *db_enc_payloads    = datablocks[dbid_enc_payloads_d];

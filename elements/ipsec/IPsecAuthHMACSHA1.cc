@@ -51,7 +51,7 @@ int IPsecAuthHMACSHA1::initialize()
     h_key_array = (struct hmac_sa_entry *) ctx->node_local_storage->get_alloc("h_hmac_key_array");
 
     /* Get device pointer from the node local storage. */
-    d_key_array_ptr = ((struct hmac_sa_entry **)ctx->node_local_storage->get_alloc("d_hmac_key_array_ptr"))[0];
+    d_key_array_ptr = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_hmac_key_array_ptr");
 
     if (hmac_sa_entry_array != NULL) {
         free(hmac_sa_entry_array);
@@ -111,7 +111,7 @@ int IPsecAuthHMACSHA1::initialize_per_node()
     rte_memcpy(temp_array, hmac_sa_entry_array, size);
 
     /* Storage for pointer, which points hmac key array in device */
-    ctx->node_local_storage->alloc("d_hmac_key_array_ptr", sizeof(void *));
+    ctx->node_local_storage->alloc("d_hmac_key_array_ptr", sizeof(dev_mem_t));
 
     return 0;
 }
@@ -177,24 +177,24 @@ int IPsecAuthHMACSHA1::process(int input_port, Packet *pkt)
 void IPsecAuthHMACSHA1::cuda_init_handler(ComputeDevice *device)
 {
     // Put key array content to device space.
-    long key_array_size = sizeof(struct hmac_sa_entry) * num_tunnels;
+    size_t key_array_size = sizeof(struct hmac_sa_entry) * num_tunnels;
     h_key_array = (struct hmac_sa_entry *) ctx->node_local_storage->get_alloc("h_hmac_key_array");
-    memory_t key_array_in_device = /*(struct hmac_sa_entry *)*/ device->alloc_device_buffer(key_array_size, 0);
-    device->memwrite(h_key_array, key_array_in_device, 0, key_array_size);
+    dev_mem_t key_array_in_device = device->alloc_device_buffer(key_array_size);
+    device->memwrite({ h_key_array }, key_array_in_device, 0, key_array_size);
 
     // Store the device pointer for per-thread instances.
-    void *p = ctx->node_local_storage->get_alloc("d_hmac_key_array_ptr");
-    ((memory_t *) p)[0] = key_array_in_device;
+    dev_mem_t *p = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_hmac_key_array_ptr");
+    *p = key_array_in_device;
 }
 
 void IPsecAuthHMACSHA1::cuda_compute_handler(ComputeContext *cctx,
                                              struct resource_param *res)
 {
     struct kernel_arg arg;
-    arg = {(void *) &d_key_array_ptr, sizeof(void *), alignof(void *)};
+    arg = {(void *) &d_key_array_ptr->ptr, sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
 
-    kernel_t kern;
+    dev_kernel_t kern;
     kern.ptr = ipsec_hsha1_encryption_get_cuda_kernel();
     cctx->enqueue_kernel_launch(kern, res);
 }

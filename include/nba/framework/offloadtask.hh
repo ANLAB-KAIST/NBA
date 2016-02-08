@@ -79,8 +79,8 @@ public:
     OffloadableElement* elem;
     int dbid_h2d[NBA_MAX_DATABLOCKS];
 
-    struct datablock_kernel_arg **dbarray_h;
-    memory_t dbarray_d;
+    host_mem_t dbarray_h;
+    dev_mem_t dbarray_d;
 
     struct ev_async *completion_watcher __cache_aligned;
     struct rte_ring *completion_queue __cache_aligned;
@@ -89,15 +89,11 @@ public:
 private:
     friend class OffloadableElement;
 
-    void *host_write_begin;
-    void *host_read_begin;
-    memory_t dev_write_begin;
-    memory_t dev_read_begin;
-    size_t input_alloc_size_begin;
-    size_t output_alloc_size_begin;
+    size_t input_begin;
+    size_t output_begin;
 
-    size_t last_input_size;
-    size_t last_output_size;
+    size_t last_input_size;   // for debugging
+    size_t last_output_size;  // for debugging
 };
 
 }

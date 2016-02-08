@@ -101,11 +101,11 @@ void ElementGraph::send_offload_task_to_device(OffloadTask *task)
         /* Allocate the host-device IO buffer pool. */
         while (task->io_base == INVALID_IO_BASE) {
             task->io_base = cctx->alloc_io_base();
+            if (unlikely(ctx->io_ctx->loop_broken)) return;
             if (task->io_base == INVALID_IO_BASE) {
                 /* If not available now, wait. */
                 ev_run(ctx->io_ctx->loop, 0);
             }
-            if (unlikely(ctx->io_ctx->loop_broken)) return;
         }
 
         /* Calculate required buffer sizes, allocate them, and initialize them.

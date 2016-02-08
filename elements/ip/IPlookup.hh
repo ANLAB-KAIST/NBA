@@ -83,8 +83,8 @@ protected:
 
     uint16_t *TBL24_h;
     uint16_t *TBLlong_h;
-    memory_t *TBL24_d;
-    memory_t *TBLlong_d;
+    dev_mem_t *TBL24_d;
+    dev_mem_t *TBLlong_d;
 };
 
 EXPORT_ELEMENT(IPlookup);

@@ -100,16 +100,17 @@ struct item_size_info {
  * array.
  */
 struct datablock_tracker {
-    void *host_in_ptr;
-    memory_t dev_in_ptr;
-    void *host_out_ptr;
-    memory_t dev_out_ptr;
+    host_mem_t host_in_ptr;
+    dev_mem_t dev_in_ptr;
+    host_mem_t host_out_ptr;
+    dev_mem_t dev_out_ptr;
     size_t in_size;
     size_t in_count;
     size_t out_size;
     size_t out_count;
-    struct item_size_info *aligned_item_sizes_h;
-    memory_t aligned_item_sizes_d;
+    struct item_size_info *aligned_item_sizes;
+    host_mem_t aligned_item_sizes_h;
+    dev_mem_t aligned_item_sizes_d;
 };
 
 /**

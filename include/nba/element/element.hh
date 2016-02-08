@@ -243,7 +243,7 @@ public:
 
     /** Returns the list of supported devices for offloading. */
     virtual void get_supported_devices(std::vector<std::string> &device_names) const = 0;
-    //virtual size_t get_desired_workgroup_size(const char *device_name) const = 0;
+    virtual size_t get_desired_workgroup_size(const char *device_name) const = 0;
     virtual int get_offload_item_counter_dbid() const = 0;
     virtual size_t get_used_datablocks(int *datablock_ids) = 0;
     //virtual void get_datablocks(std::vector<int> &datablock_ids){get_used_datablocks(datablock_ids);}; //TODO fill here...

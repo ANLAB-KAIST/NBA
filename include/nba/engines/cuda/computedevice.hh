@@ -25,12 +25,12 @@ public:
 
     int get_spec(struct compute_device_spec *spec);
     int get_utilization(struct compute_device_util *util);
-    void *alloc_host_buffer(size_t size, int flags);
-    memory_t alloc_device_buffer(size_t size, int flags);
-    void free_host_buffer(void *ptr);
-    void free_device_buffer(memory_t ptr);
-    void memwrite(void *host_buf, memory_t dev_buf, size_t offset, size_t size);
-    void memread(void *host_buf, memory_t dev_buf, size_t offset, size_t size);
+    host_mem_t alloc_host_buffer(size_t size, int flags);
+    dev_mem_t alloc_device_buffer(size_t size, int flags);
+    void free_host_buffer(host_mem_t ptr);
+    void free_device_buffer(dev_mem_t ptr);
+    void memwrite(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size);
+    void memread(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size);
 
 private:
     ComputeContext *_get_available_context();

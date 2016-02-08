@@ -95,7 +95,7 @@ static void comp_task_init(struct rte_mempool *mp, void *arg, void *obj, unsigne
     new (t) OffloadTask();
 }
 
-static void comp_prepare_cb(struct ev_loop *loop, struct ev_prepare *watcher, int revents)
+static void comp_prepare_cb(struct ev_loop *loop, struct ev_check *watcher, int revents)
 {
     /* This routine is called when ev_run() is about to block.
      * (i.e., there is no outstanding events)
@@ -139,8 +139,6 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
             for (PacketBatch *batch : task->batches) {
                 if (batch->datablock_states != nullptr) {
                     struct datablock_tracker *t = batch->datablock_states;
-                    t->host_in_ptr = nullptr;
-                    t->host_out_ptr = nullptr;
                     rte_mempool_put(ctx->dbstate_pool, (void *) t);
                     batch->datablock_states = nullptr;
                 }
@@ -747,10 +745,10 @@ int io_loop(void *arg)
     }
 
     /* Register per-iteration check event. */
-    ctx->comp_ctx->prepare_watcher = (struct ev_prepare *) rte_malloc_socket(nullptr, sizeof(struct ev_prepare),
+    ctx->comp_ctx->check_watcher = (struct ev_check *) rte_malloc_socket(nullptr, sizeof(struct ev_check),
                                                                          CACHE_LINE_SIZE, ctx->loc.node_id);
-    ev_prepare_init(ctx->comp_ctx->prepare_watcher, comp_prepare_cb);
-    ev_prepare_start(ctx->loop, ctx->comp_ctx->prepare_watcher);
+    ev_check_init(ctx->comp_ctx->check_watcher, comp_prepare_cb);
+    ev_check_start(ctx->loop, ctx->comp_ctx->check_watcher);
 
     /* ==== END_OF_COMP ====*/
 

@@ -1239,13 +1239,13 @@ __global__ void computeHMAC_SHA1_2(char* buf, char* keys, uint32_t *offsets,
 
 __global__ void computeHMAC_SHA1_3(
         struct datablock_kernel_arg **datablocks,
-        uint32_t count, uint16_t *batch_ids, uint16_t *item_ids,
+        uint32_t count, uint8_t *batch_ids, uint16_t *item_ids,
         uint8_t *checkbits_d,
         struct hmac_sa_entry *hmac_key_array)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < count && count != 0) {
-        const uint16_t batch_idx = batch_ids[idx];
+        const uint8_t batch_idx = batch_ids[idx];
         const uint16_t item_idx  = item_ids[idx];
         assert(item_idx < 64);
         const struct datablock_kernel_arg *db_enc_payloads = datablocks[dbid_enc_payloads_d];

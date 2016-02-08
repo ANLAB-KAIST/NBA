@@ -36,13 +36,15 @@ public:
 
     virtual io_base_t alloc_io_base() = 0;
     virtual int alloc_input_buffer(io_base_t io_base, size_t size,
-                                   void **host_ptr, memory_t *dev_mem) = 0;
+                                   host_mem_t &hbuf, dev_mem_t &dbuf) = 0;
     virtual int alloc_output_buffer(io_base_t io_base, size_t size,
-                                    void **host_ptr, memory_t *dev_mem) = 0;
-    virtual void get_input_current_pos(io_base_t io_base,
-                                       void **host_ptr, memory_t *dev_mem) const = 0;
-    virtual void get_output_current_pos(io_base_t io_base,
-                                        void **host_ptr, memory_t *dev_mem) const = 0;
+                                    host_mem_t &hbuf, dev_mem_t &dbuf) = 0;
+    virtual void map_input_buffer(io_base_t io_base, size_t offset, size_t len,
+                                  host_mem_t &hbuf, dev_mem_t &dbuf) const = 0;
+    virtual void map_output_buffer(io_base_t io_base, size_t offset, size_t len,
+                                   host_mem_t &hbuf, dev_mem_t &dbuf) const = 0;
+    virtual void *unwrap_host_buffer(const host_mem_t hbuf) const = 0;
+    virtual void *unwrap_device_buffer(const dev_mem_t dbuf) const = 0;
     virtual size_t get_input_size(io_base_t io_base) const = 0;
     virtual size_t get_output_size(io_base_t io_base) const = 0;
     virtual void clear_io_buffers(io_base_t io_base) = 0;
@@ -50,11 +52,15 @@ public:
     virtual void clear_kernel_args() = 0;
     virtual void push_kernel_arg(struct kernel_arg &arg) = 0;
 
-    /* All functions must be implemented as non-blocking. */
-    virtual int enqueue_memwrite_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size) = 0;
-    virtual int enqueue_memread_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size) = 0;
-    virtual int enqueue_kernel_launch(kernel_t kernel, struct resource_param *res) = 0;
-    virtual int enqueue_event_callback(void (*func_ptr)(ComputeContext *ctx, void *user_arg), void *user_arg) = 0;
+    /* All methods below must be implemented using non-blocking APIs provided
+     * by device runtimes. */
+    virtual int enqueue_memwrite_op(const host_mem_t host_buf, const dev_mem_t dev_buf,
+                                    size_t offset, size_t size) = 0;
+    virtual int enqueue_memread_op(const host_mem_t host_buf, const dev_mem_t dev_buf,
+                                   size_t offset, size_t size) = 0;
+    virtual int enqueue_kernel_launch(dev_kernel_t kernel, struct resource_param *res) = 0;
+    virtual int enqueue_event_callback(void (*func_ptr)(ComputeContext *ctx, void *user_arg),
+                                       void *user_arg) = 0;
 
     virtual uint8_t *get_device_checkbits() = 0;
     virtual uint8_t *get_host_checkbits() = 0;

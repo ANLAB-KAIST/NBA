@@ -60,6 +60,7 @@ static void coproc_task_input_cb(struct ev_loop *loop, struct ev_async *watcher,
         task->coproc_ctx = ctx;
         task->copy_h2d();
         task->execute();
+        //task->cctx->sync(); // for DEBUG
         /* We separate d2h copy step since CUDA implicitly synchronizes
          * kernel executions. See more details at:
          * http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#implicit-synchronization */
@@ -88,8 +89,8 @@ static void coproc_task_d2h_cb(struct ev_loop *loop, struct ev_async *watcher, i
         OffloadTask *task = ctx->d2h_pending_queue->front();
         ctx->d2h_pending_queue->pop_front();
         if (task->poll_kernel_finished()) {
-            //task->cctx->sync();
             task->copy_d2h();
+            //task->cctx->sync(); // for DEBUG
             ctx->task_done_queue->push_back(task);
             if (ctx->task_done_queue->size() >= NBA_MAX_KERNEL_OVERLAP || !ev_is_pending(ctx->task_input_watcher))
                 ev_feed_event(loop, ctx->task_done_watcher, EV_ASYNC);

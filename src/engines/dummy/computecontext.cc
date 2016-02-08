@@ -12,20 +12,24 @@ DummyComputeContext::DummyComputeContext(unsigned ctx_id, ComputeDevice *mother_
     NEW(node_id, io_base_ring, FixedRing<unsigned>,
         NBA_MAX_IO_BASES, node_id);
     for (unsigned i = 0; i < NBA_MAX_IO_BASES; i++) {
-        _dev_mempool_in[i].init(io_base_size);
-        _dev_mempool_out[i].init(io_base_size);
-        _cpu_mempool_in[i].init(io_base_size);
-        _cpu_mempool_out[i].init(io_base_size);
+        NEW(node_id, _dev_mempool_in[i], DummyCPUMemoryPool, io_base_size, CACHE_LINE_SIZE);
+        NEW(node_id, _dev_mempool_out[i], DummyCPUMemoryPool, io_base_size, CACHE_LINE_SIZE);
+        NEW(node_id, _cpu_mempool_in[i], DummyCPUMemoryPool, io_base_size, CACHE_LINE_SIZE);
+        NEW(node_id, _cpu_mempool_out[i], DummyCPUMemoryPool, io_base_size, CACHE_LINE_SIZE);
+        _dev_mempool_in[i]->init();
+        _dev_mempool_out[i]->init();
+        _cpu_mempool_in[i]->init();
+        _cpu_mempool_out[i]->init();
     }
 }
 
 DummyComputeContext::~DummyComputeContext()
 {
     for (unsigned i = 0; i < NBA_MAX_IO_BASES; i++) {
-        _dev_mempool_in[i].destroy();
-        _dev_mempool_out[i].destroy();
-        _cpu_mempool_in[i].destroy();
-        _cpu_mempool_out[i].destroy();
+        _dev_mempool_in[i]->destroy();
+        _dev_mempool_out[i]->destroy();
+        _cpu_mempool_in[i]->destroy();
+        _cpu_mempool_out[i]->destroy();
     }
 }
 
@@ -37,79 +41,97 @@ io_base_t DummyComputeContext::alloc_io_base()
     return (io_base_t) i;
 }
 
-
-void DummyComputeContext::get_input_current_pos(io_base_t io_base, void **host_ptr, memory_t *dev_mem) const
+int DummyComputeContext::alloc_input_buffer(io_base_t io_base, size_t size,
+                                            host_mem_t &host_ptr, dev_mem_t &dev_ptr)
 {
     unsigned i = io_base;
-    *host_ptr = (char*)_cpu_mempool_in[i].get_base_ptr() + (uintptr_t)_cpu_mempool_in[i].get_alloc_size();
-    dev_mem->ptr = (char*)_dev_mempool_in[i].get_base_ptr() + (uintptr_t)_dev_mempool_in[i].get_alloc_size();
+    assert(0 == _cpu_mempool_in[i]->alloc(size, host_ptr.ptr));
+    assert(0 == _dev_mempool_in[i]->alloc(size, dev_ptr.ptr));
+    return 0;
 }
 
-void DummyComputeContext::get_output_current_pos(io_base_t io_base, void **host_ptr, memory_t *dev_mem) const
+int DummyComputeContext::alloc_output_buffer(io_base_t io_base, size_t size,
+                                             host_mem_t &host_ptr, dev_mem_t &dev_ptr)
 {
     unsigned i = io_base;
-    *host_ptr = (char*)_cpu_mempool_out[i].get_base_ptr() + (uintptr_t)_cpu_mempool_out[i].get_alloc_size();
-    dev_mem->ptr = (char*)_dev_mempool_out[i].get_base_ptr() + (uintptr_t)_dev_mempool_out[i].get_alloc_size();
+    assert(0 == _cpu_mempool_out[i]->alloc(size, host_ptr.ptr));
+    assert(0 == _dev_mempool_out[i]->alloc(size, dev_ptr.ptr));
+    return 0;
+}
+
+void DummyComputeContext::map_input_buffer(io_base_t io_base, size_t offset, size_t len,
+                                           host_mem_t &hbuf, dev_mem_t &dbuf) const
+{
+    unsigned i = io_base;
+    hbuf.ptr = (void *) ((uintptr_t) _cpu_mempool_in[i]->get_base_ptr() + offset);
+    dbuf.ptr = (void *) ((uintptr_t) _cpu_mempool_in[i]->get_base_ptr() + offset);
+    // len is ignored.
+}
+
+void DummyComputeContext::map_output_buffer(io_base_t io_base, size_t offset, size_t len,
+                                            host_mem_t &hbuf, dev_mem_t &dbuf) const
+{
+    unsigned i = io_base;
+    hbuf.ptr = (void *) ((uintptr_t)_cpu_mempool_out[i]->get_base_ptr() + offset);
+    dbuf.ptr = (void *) ((uintptr_t)_cpu_mempool_out[i]->get_base_ptr() + offset);
+    // len is ignored.
+}
+
+void *DummyComputeContext::unwrap_host_buffer(const host_mem_t hbuf) const
+{
+    return hbuf.ptr;
+}
+
+void *DummyComputeContext::unwrap_device_buffer(const dev_mem_t dbuf) const
+{
+    return dbuf.ptr;
 }
 
 size_t DummyComputeContext::get_input_size(io_base_t io_base) const
 {
     unsigned i = io_base;
-    return _cpu_mempool_in[i].get_alloc_size();
+    return _cpu_mempool_in[i]->get_alloc_size();
 }
 
 size_t DummyComputeContext::get_output_size(io_base_t io_base) const
 {
     unsigned i = io_base;
-    return _cpu_mempool_out[i].get_alloc_size();
-}
-
-int DummyComputeContext::alloc_input_buffer(io_base_t io_base, size_t size, void **host_ptr, memory_t *dev_mem)
-{
-    unsigned i = io_base;
-    *host_ptr = _cpu_mempool_in[i].alloc(size);
-    assert(*host_ptr != nullptr);
-    dev_mem->ptr = _dev_mempool_in[i].alloc(size);
-    assert(dev_mem->ptr != nullptr);
-    return 0;
-}
-
-int DummyComputeContext::alloc_output_buffer(io_base_t io_base, size_t size, void **host_ptr, memory_t *dev_mem)
-{
-    unsigned i = io_base;
-    *host_ptr = _cpu_mempool_out[i].alloc(size);
-    assert(*host_ptr != nullptr);
-    dev_mem->ptr = _dev_mempool_out[i].alloc(size);
-    assert(dev_mem->ptr != nullptr);
-    return 0;
+    return _cpu_mempool_out[i]->get_alloc_size();
 }
 
 void DummyComputeContext::clear_io_buffers(io_base_t io_base)
 {
     unsigned i = io_base;
-    _cpu_mempool_in[i].reset();
-    _cpu_mempool_out[i].reset();
-    _dev_mempool_in[i].reset();
-    _dev_mempool_out[i].reset();
+    _cpu_mempool_in[i]->reset();
+    _cpu_mempool_out[i]->reset();
+    _dev_mempool_in[i]->reset();
+    _dev_mempool_out[i]->reset();
     io_base_ring->push_back(i);
 }
 
-int DummyComputeContext::enqueue_memwrite_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size)
+int DummyComputeContext::enqueue_memwrite_op(const host_mem_t host_buf,
+                                             const dev_mem_t dev_buf,
+                                             size_t offset, size_t size)
 {
     return 0;
 }
 
-int DummyComputeContext::enqueue_memread_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size)
+int DummyComputeContext::enqueue_memread_op(const host_mem_t host_buf,
+                                            const dev_mem_t dev_buf,
+                                            size_t offset, size_t size)
 {
     return 0;
 }
 
-int DummyComputeContext::enqueue_kernel_launch(kernel_t kernel, struct resource_param *res)
+int DummyComputeContext::enqueue_kernel_launch(dev_kernel_t kernel,
+                                               struct resource_param *res)
 {
     return 0;
 }
 
-int DummyComputeContext::enqueue_event_callback(void (*func_ptr)(ComputeContext *ctx, void *user_arg), void *user_arg)
+int DummyComputeContext::enqueue_event_callback(
+        void (*func_ptr)(ComputeContext *ctx, void *user_arg),
+        void *user_arg)
 {
     func_ptr(this, user_arg);
     return 0;

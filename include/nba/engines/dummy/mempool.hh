@@ -7,39 +7,46 @@
 
 namespace nba {
 
-class DummyCPUMemoryPool : public MemoryPool
+class DummyCPUMemoryPool : public MemoryPool<void *>
 {
 public:
-    DummyCPUMemoryPool() : MemoryPool(), base(NULL)
-    {
-    }
+    DummyCPUMemoryPool()
+        : MemoryPool(), base(nullptr)
+    { }
+
+    DummyCPUMemoryPool(size_t max_size)
+        : MemoryPool(max_size), base(nullptr)
+    { }
+
+    DummyCPUMemoryPool(size_t max_size, size_t align)
+        : MemoryPool(max_size, align), base(nullptr)
+    { }
 
     virtual ~DummyCPUMemoryPool()
     {
         destroy();
     }
 
-    virtual bool init(unsigned long size)
+    bool init()
     {
-        this->max_size = size;
-        base = malloc(size);
+        base = malloc(max_size);
         return true;
     }
 
-    void *alloc(size_t size)
+    int alloc(size_t size, void *&ptr)
     {
         size_t offset;
         int ret = _alloc(size, &offset);
         if (ret == 0)
-            return (void *) ((uint8_t *) base + offset);
-        return NULL;
+            ptr = (void *) ((uint8_t *) base + offset);
+        return ret;
     }
 
     void destroy()
     {
-        if (base != NULL) {
+        if (base != nullptr) {
             free(base);
-            base = NULL;
+            base = nullptr;
         }
     }
 
@@ -48,7 +55,7 @@ public:
         return base;
     }
 
-protected:
+private:
     void *base;
 };
 

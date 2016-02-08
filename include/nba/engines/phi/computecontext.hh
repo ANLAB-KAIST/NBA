@@ -41,16 +41,6 @@ public:
     int enqueue_kernel_launch(kernel_t kernel, struct resource_param *res);
     int enqueue_event_callback(void (*func_ptr)(ComputeContext *ctx, void *user_arg), void *user_arg);
 
-    void *get_stream()
-    {
-        // TODO: implement
-        return NULL;
-    }
-    //cudaStream_t get_stream()
-    //{
-    //  return _stream;
-    //}
-
     void sync()
     {
         clFinish(clqueue);
@@ -94,10 +84,8 @@ private:
     cl_command_queue clqueue;
     cl_event clev;
     cl_event clev_marker;
-    PhiMemoryPool *dev_mempool_in;
-    PhiMemoryPool *dev_mempool_out;
-    CPUMemoryPool *cpu_mempool_in;
-    CPUMemoryPool *cpu_mempool_out;
+    CLMemoryPool *_mempool_in[NBA_MAX_IO_BASES];
+    CLMemoryPool *_mempool_out[NBA_MAX_IO_BASES];
 
     size_t num_kernel_args;
     struct kernel_arg kernel_args[CUDA_MAX_KERNEL_ARGS];
