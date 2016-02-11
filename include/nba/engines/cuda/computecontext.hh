@@ -62,7 +62,8 @@ public:
         cudaError_t ret = cudaStreamQuery(_stream);
         if (ret == cudaErrorNotReady)
             return false;
-        assert(ret == cudaSuccess);
+        // ignore non-cudaSuccess results...
+        // (may happend on termination)
         return true;
     }
 

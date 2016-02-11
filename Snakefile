@@ -74,6 +74,7 @@ ELEMENT_HEADER_FILES = [s for s in compilelib.find_all(['elements'], r'^.+\.(h|h
 
 # List of object files
 OBJ_DIR   = 'build'
+os.makedirs('build', exist_ok=True)
 OBJ_FILES = [joinpath(OBJ_DIR, o) for o in map(lambda s: re.sub(r'^(.+)\.(c|cc|cpp|cu)$', r'\1.o', s), SOURCE_FILES)]
 GTEST_MAIN_OBJ = 'build/src/lib/gtest/gtest_main.o'
 GTEST_FUSED_OBJ = 'build/src/lib/gtest/gtest-all.o'
@@ -112,13 +113,14 @@ if v: CFLAGS += ' -DNBA_RANDOM_PORT_ACCESS'
 
 # NVIDIA CUDA configurations
 if USE_CUDA:
+    os.makedirs('build/nvcc-temp', exist_ok=True)
     CUDA_ARCHS    = compilelib.get_cuda_arch()
-    NVCFLAGS      = '-O2 -g -std=c++11 --use_fast_math --expt-relaxed-constexpr -Iinclude -I/usr/local/cuda/include'
+    NVCFLAGS      = '-O2 -lineinfo -g -std=c++11 --keep --keep-dir build/nvcc-temp --use_fast_math --expt-relaxed-constexpr -Iinclude -I/usr/local/cuda/include'
     CFLAGS       += ' -I/usr/local/cuda/include'
     LIBS         += ' -L/usr/local/cuda/lib64 -lcudart' #' -lnvidia-ml'
     print(CUDA_ARCHS)
     if os.getenv('DEBUG', 0):
-        NVCFLAGS  = '-O0 --device-debug -g -G -std=c++11 --use_fast_math -Iinclude -I/usr/local/cuda/include --ptxas-options=-v'
+        NVCFLAGS  = '-O0 -lineinfo -G -g -std=c++11 --keep --keep-dir build/nvcc-temp --use_fast_math --expt-relaxed-constexpr -Iinclude -I/usr/local/cuda/include --ptxas-options=-v'
     if len(CUDA_ARCHS) == 0:
         NVCFLAGS += ' -DMP_USE_64BIT=0' \
                   + ' -gencode arch=compute_10,code=sm_10' \

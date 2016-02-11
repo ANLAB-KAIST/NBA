@@ -48,10 +48,10 @@ int IPsecAuthHMACSHA1::initialize()
     h_sa_table = (unordered_map<struct ipaddr_pair, int> *)ctx->node_local_storage->get_alloc("h_hmac_sa_table");
 
     /* Storage for host hmac key array */
-    h_key_array = (struct hmac_sa_entry *) ctx->node_local_storage->get_alloc("h_hmac_key_array");
+    h_flows = (struct hmac_sa_entry *) ctx->node_local_storage->get_alloc("h_hmac_flows");
 
     /* Get device pointer from the node local storage. */
-    d_key_array_ptr = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_hmac_key_array_ptr");
+    d_flows_ptr = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_hmac_flows_ptr");
 
     if (hmac_sa_entry_array != NULL) {
         free(hmac_sa_entry_array);
@@ -105,13 +105,13 @@ int IPsecAuthHMACSHA1::initialize_per_node()
 
     /* Storage for host hmac key array */
     size = sizeof(struct hmac_sa_entry) * num_tunnels;
-    ctx->node_local_storage->alloc("h_hmac_key_array", size);
-    temp_array = (struct hmac_sa_entry *) ctx->node_local_storage->get_alloc("h_hmac_key_array");
+    ctx->node_local_storage->alloc("h_hmac_flows", size);
+    temp_array = (struct hmac_sa_entry *) ctx->node_local_storage->get_alloc("h_hmac_flows");
     assert(hmac_sa_entry_array != NULL);
     rte_memcpy(temp_array, hmac_sa_entry_array, size);
 
     /* Storage for pointer, which points hmac key array in device */
-    ctx->node_local_storage->alloc("d_hmac_key_array_ptr", sizeof(dev_mem_t));
+    ctx->node_local_storage->alloc("d_hmac_flows_ptr", sizeof(dev_mem_t));
 
     return 0;
 }
@@ -151,7 +151,7 @@ int IPsecAuthHMACSHA1::process(int input_port, Packet *pkt)
 
     uint8_t *hmac_key;
     if (likely(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID))) {
-        sa_entry = &h_key_array[anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)];
+        sa_entry = &h_flows[anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)];
         hmac_key = sa_entry->hmac_key;
 
         rte_memcpy(hmac_buf + 64, payload_out, payload_len);
@@ -177,21 +177,21 @@ int IPsecAuthHMACSHA1::process(int input_port, Packet *pkt)
 void IPsecAuthHMACSHA1::cuda_init_handler(ComputeDevice *device)
 {
     // Put key array content to device space.
-    size_t key_array_size = sizeof(struct hmac_sa_entry) * num_tunnels;
-    h_key_array = (struct hmac_sa_entry *) ctx->node_local_storage->get_alloc("h_hmac_key_array");
-    dev_mem_t key_array_in_device = device->alloc_device_buffer(key_array_size);
-    device->memwrite({ h_key_array }, key_array_in_device, 0, key_array_size);
+    size_t flows_size = sizeof(struct hmac_sa_entry) * num_tunnels;
+    h_flows = (struct hmac_sa_entry *) ctx->node_local_storage->get_alloc("h_hmac_flows");
+    dev_mem_t flows_in_device = device->alloc_device_buffer(flows_size);
+    device->memwrite({ h_flows }, flows_in_device, 0, flows_size);
 
     // Store the device pointer for per-thread instances.
-    dev_mem_t *p = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_hmac_key_array_ptr");
-    *p = key_array_in_device;
+    dev_mem_t *p = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_hmac_flows_ptr");
+    *p = flows_in_device;
 }
 
 void IPsecAuthHMACSHA1::cuda_compute_handler(ComputeContext *cctx,
                                              struct resource_param *res)
 {
     struct kernel_arg arg;
-    arg = {(void *) &d_key_array_ptr->ptr, sizeof(void *), alignof(void *)};
+    arg = {(void *) &d_flows_ptr->ptr, sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
 
     dev_kernel_t kern;

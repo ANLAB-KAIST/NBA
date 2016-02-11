@@ -60,8 +60,8 @@ protected:
     int dummy_index;
 
     std::unordered_map<struct ipaddr_pair, int> *h_sa_table; // tunnel lookup is done in CPU only. No need for GPU ptr.
-    struct hmac_sa_entry *h_key_array = nullptr;       // used in CPU.
-    dev_mem_t *d_key_array_ptr;   // points to the device buffer.
+    struct hmac_sa_entry *h_flows = nullptr;       // used in CPU.
+    dev_mem_t *d_flows_ptr;   // points to the device buffer.
 
 private:
     const int idx_pkt_offset = 0;

@@ -1254,21 +1254,21 @@ __global__ void computeHMAC_SHA1_3(
         const uint8_t *enc_payload_base = (uint8_t *) db_enc_payloads->batches[batch_idx].buffer_bases_in;
         const uintptr_t offset = (uintptr_t) db_enc_payloads->batches[batch_idx].item_offsets_in[item_idx].as_value<uintptr_t>();
         const uintptr_t length = (uintptr_t) db_enc_payloads->batches[batch_idx].item_sizes_in[item_idx];
-        if (enc_payload_base != NULL && offset != 0 && length != 0) {
+        if (enc_payload_base != NULL && length != 0) {
             const uint64_t flow_id = ((uint64_t *) db_flow_ids->batches[batch_idx].buffer_bases_in)[item_idx];
-            if (flow_id != 65536 && flow_id < 1024) {
-                //assert(flow_id < 1024);
+            if (flow_id != 65536) {
+                assert(flow_id < 1024);
                 const char *hmac_key = (char *) hmac_key_array[flow_id].hmac_key;
                 HMAC_SHA1((uint32_t *) (enc_payload_base + offset),
                           (uint32_t *) (enc_payload_base + offset + length),
                           length, hmac_key);
             }
         }
-    }
 
-    __syncthreads();
-    if (threadIdx.x == 0 && checkbits_d != NULL)
-        checkbits_d[blockIdx.x] = 1;
+        __syncthreads();
+        if (threadIdx.x == 0 && checkbits_d != NULL)
+            checkbits_d[blockIdx.x] = 1;
+    } // endif(valid-idx)
 }
 
 }

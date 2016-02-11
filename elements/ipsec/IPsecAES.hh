@@ -61,8 +61,8 @@ protected:
 
     /* Per-thread pointers, which points to the node local storage variables. */
     std::unordered_map<struct ipaddr_pair, int> *h_sa_table; // tunnel lookup is done in CPU only. No need for GPU ptr.
-    struct aes_sa_entry *h_key_array = nullptr; // used in CPU.
-    dev_mem_t *d_key_array_ptr;
+    struct aes_sa_entry *h_flows = nullptr; // used in CPU.
+    dev_mem_t *d_flows_ptr;
 };
 
 EXPORT_ELEMENT(IPsecAES);

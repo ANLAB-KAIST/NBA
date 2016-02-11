@@ -683,7 +683,7 @@ __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
         struct datablock_kernel_arg **datablocks,
         uint32_t count, uint8_t *batch_ids, uint16_t *item_ids,
         uint8_t *checkbits_d,
-        struct aes_sa_entry* flow_info
+        struct aes_sa_entry* flows
         )
 {
     __shared__ uint32_t shared_Te0[256];
@@ -696,24 +696,23 @@ __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
     if (idx < count && count != 0) {
 
     const uint8_t batch_idx = batch_ids[idx];
-    const uint16_t item_idx  = item_ids[idx];
+    const uint16_t item_idx = item_ids[idx];
 
     const struct datablock_kernel_arg *db_enc_payloads    = datablocks[dbid_enc_payloads_d];
-    const struct datablock_kernel_arg *db_iv              = datablocks[dbid_iv_d];
-    const struct datablock_kernel_arg *db_flow_ids        = datablocks[dbid_flow_ids_d];
-    const struct datablock_kernel_arg *db_aes_block_info  = datablocks[dbid_aes_block_info_d];
+    const struct datablock_kernel_arg *const db_flow_ids        = datablocks[dbid_flow_ids_d];
+    const struct datablock_kernel_arg *const db_iv              = datablocks[dbid_iv_d];
+    const struct datablock_kernel_arg *const db_aes_block_info  = datablocks[dbid_aes_block_info_d];
 
-    assert(batch_idx < 32);
     assert(item_idx < db_aes_block_info->batches[batch_idx].item_count_in);
 
     uint64_t flow_id = 65536;
-    const struct aes_block_info cur_block_info = ((struct aes_block_info *)
+    const struct aes_block_info &cur_block_info = ((struct aes_block_info *)
                                                    db_aes_block_info->batches[batch_idx].buffer_bases_in)
                                                   [item_idx];
     const int pkt_idx         = cur_block_info.pkt_idx;
     const int block_idx_local = cur_block_info.block_idx;
-    const uintptr_t offset = (uintptr_t) db_enc_payloads->batches[batch_idx].item_offsets_in[pkt_idx].as_value<uintptr_t>();
-    const uintptr_t length = (uintptr_t) db_enc_payloads->batches[batch_idx].item_sizes_in[pkt_idx];
+    const uintptr_t offset = (uintptr_t) db_enc_payloads->batches[batch_idx].item_offsets_in[item_idx].as_value<uintptr_t>();
+    const uintptr_t length = (uintptr_t) db_enc_payloads->batches[batch_idx].item_sizes_in[item_idx];
 
     if (cur_block_info.magic == 85739 && pkt_idx < 64 && offset != 0 && length != 0) {
         flow_id = ((uint64_t *) db_flow_ids->batches[batch_idx].buffer_bases_in)[pkt_idx];
@@ -721,71 +720,63 @@ __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
             assert(flow_id < 1024);
     }
 
-    /* Step 1. */
-    uint4 iv = {0,0,0,0};
-    uint4 ecounter = {0,0,0,0};
-    uint8_t *aes_key = NULL;
-    uint8_t *enc_payload = NULL;
+    /* Step 2. (marginal) */
+    for (int i = 0; i * blockDim.x < 256; i++) {
+        int index = threadIdx.x + blockDim.x * i;
+        if (index < 256) {
+            shared_Te0[index] = Te0_ConstMem[index];
+            shared_Te1[index] = Te1_ConstMem[index];
+            shared_Te2[index] = Te2_ConstMem[index];
+            shared_Te3[index] = Te3_ConstMem[index];
+        }
+    }
 
-    if (flow_id != 65536 && flow_id < 1024 && pkt_idx < 64) {
-
-        aes_key = flow_info[flow_id].aes_key;
-        iv = ((uint4 *) db_iv->batches[batch_idx].buffer_bases_in)[pkt_idx];
-
-        if (offset != 0 && length != 0) {
-
-            enc_payload = ((uint8_t *) db_enc_payloads->batches[batch_idx].buffer_bases_in) + offset;
-
-            /* Step 2. (marginal) */
-            for (int i = 0; i * blockDim.x < 256; i++) {
-                int index = threadIdx.x + blockDim.x * i;
-                if (index < 256) {
-                    shared_Te0[index] = Te0_ConstMem[index];
-                    shared_Te1[index] = Te1_ConstMem[index];
-                    shared_Te2[index] = Te2_ConstMem[index];
-                    shared_Te3[index] = Te3_ConstMem[index];
-                }
-            }
-
-            for (int i = 0; i * blockDim.x < 10; i++) {
-                int index = threadIdx.x + blockDim.x * i;
-                if (index < 10) {
-                    shared_Rcon[index] = rcon[index];
-                }
-            }
+    for (int i = 0; i * blockDim.x < 10; i++) {
+        int index = threadIdx.x + blockDim.x * i;
+        if (index < 10) {
+            shared_Rcon[index] = rcon[index];
         }
     }
 
     __syncthreads();
 
-    if (flow_id != 65536 && flow_id < 1024 && pkt_idx < 64 && enc_payload != NULL && aes_key != NULL) {
+    if (flow_id != 65536) {
+        assert(pkt_idx < 64);
+        assert(length != 0);
+
+        const uint8_t *const aes_key = flows[flow_id].aes_key;
+        uint8_t *iv = ((uint8_t *) db_iv->batches[batch_idx].buffer_bases_in
+                       + (uintptr_t) (16 * pkt_idx));
+        const uint8_t *enc_payload = ((uint8_t *) db_enc_payloads->batches[batch_idx].buffer_bases_in) + offset;
+        uint4 ecounter = {0,0,0,0};
+
+        assert(enc_payload != NULL);
 
         /* Step 3: Update the IV counters. */
-        AES_ctr128_inc((unsigned char*) &iv, block_idx_local);
+        AES_ctr128_inc(iv, block_idx_local);
 
         /* Step 4: Encrypt the counter (this is the bottleneck) */
-        AES_encrypt_cu_optimized((uint8_t*) &iv, (uint8_t *) &ecounter,
+        AES_encrypt_cu_optimized(iv, (uint8_t *) &ecounter,
                 aes_key, shared_Te0, shared_Te1, shared_Te2,
                 shared_Te3, shared_Rcon);
-        //AES_encrypt_cu_optimized((uint8_t*) &iv, (uint8_t *) &ecounter,
+        //AES_encrypt_cu_optimized(iv, (uint8_t *) &ecounter,
         //        aes_key, Te0_ConstMem, Te1_ConstMem, Te2_ConstMem,
         //        Te3_ConstMem, rcon);
 
         /* Step 5: XOR the plain text (in-place). */
         uint4 *in_blk = (uint4 *) &enc_payload[block_idx_local * AES_BLOCK_SIZE];
-        assert((uint8_t*)in_blk + AES_BLOCK_SIZE <=
-               enc_payload + db_enc_payloads->batches[batch_idx].item_sizes_in[pkt_idx]);
+        assert((uint8_t*)in_blk + AES_BLOCK_SIZE <= enc_payload + length);
         (*in_blk).x = ecounter.x ^ (*in_blk).x;
         (*in_blk).y = ecounter.y ^ (*in_blk).y;
         (*in_blk).z = ecounter.z ^ (*in_blk).z;
         (*in_blk).w = ecounter.w ^ (*in_blk).w;
     }
 
-    } /* endif (idx < total_count) */
-
     __syncthreads();
     if (threadIdx.x == 0 && checkbits_d != NULL)
         checkbits_d[blockIdx.x] = 1;
+
+    } // endif(valid-idx)
 }
 
 void *nba::ipsec_aes_encryption_get_cuda_kernel() {
