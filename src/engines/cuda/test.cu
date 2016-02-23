@@ -1,5 +1,6 @@
 #include <nba/engines/cuda/test.hh>
 #include <nba/core/shiftedint.hh>
+#include <nba/framework/datablock_shared.hh>
 
 using namespace std;
 using namespace nba;
@@ -23,10 +24,21 @@ __global__ void shiftedint_value_check
     *raw_v = v->as_value<uint64_t>();
 }
 
+__global__ void dbarg_size_check(size_t *sizes, size_t *offsets)
+{
+    sizes[0] = sizeof(struct datablock_kernel_arg);
+    offsets[0] = offsetof(struct datablock_kernel_arg, batches);
+    sizes[1] = sizeof(struct datablock_batch_info);
+    offsets[1] = offsetof(struct datablock_batch_info, item_offsets_in);
+}
+
 void *nba::get_test_kernel_shiftedint_size_check()
 { return reinterpret_cast<void *> (shiftedint_size_check); }
 
 void *nba::get_test_kernel_shiftedint_value_check()
 { return reinterpret_cast<void *> (shiftedint_value_check); }
+
+void *nba::get_test_kernel_dbarg_size_check()
+{ return reinterpret_cast<void *> (dbarg_size_check); }
 
 // vim: ts=8 sts=4 sw=4 et

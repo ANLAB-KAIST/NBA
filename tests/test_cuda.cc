@@ -44,12 +44,12 @@ TEST(CUDAStructTest, ShfitedIntSizeCheck) {
     ASSERT_NE(nullptr, output_d);
     size_t output_h = 0;
     void *raw_args[1] = { &output_d };
-    EXPECT_EQ(cudaSuccess, cudaLaunchKernel(k, dim3(1), dim3(1), raw_args, 0, 0));
-    EXPECT_EQ(cudaSuccess, cudaMemcpy(&output_h, output_d, sizeof(size_t), cudaMemcpyDeviceToHost));
+    ASSERT_EQ(cudaSuccess, cudaLaunchKernel(k, dim3(1), dim3(1), raw_args, 0, 0));
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(&output_h, output_d, sizeof(size_t), cudaMemcpyDeviceToHost));
     EXPECT_EQ(sizeof(nba::dev_offset_t), 2);
     EXPECT_EQ(sizeof(nba::dev_offset_t), output_h);
-    EXPECT_EQ(cudaSuccess, cudaFree(output_d));
-    EXPECT_EQ(cudaSuccess, cudaDeviceSynchronize());
+    ASSERT_EQ(cudaSuccess, cudaFree(output_d));
+    ASSERT_EQ(cudaSuccess, cudaDeviceSynchronize());
 }
 
 TEST(CUDAStructTest, ShfitedIntValueCheck) {
@@ -64,14 +64,38 @@ TEST(CUDAStructTest, ShfitedIntValueCheck) {
     EXPECT_EQ(165320, input_h.as_value<uint64_t>());
     size_t output_h = 0;
     void *raw_args[2] = { &input_d, &output_d };
-    EXPECT_EQ(cudaSuccess, cudaMemcpy(input_d, &input_h, sizeof(nba::dev_offset_t), cudaMemcpyHostToDevice));
-    EXPECT_EQ(cudaSuccess, cudaLaunchKernel(k, dim3(1), dim3(1), raw_args, 0, 0));
-    EXPECT_EQ(cudaSuccess, cudaMemcpy(&output_h, output_d, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(input_d, &input_h, sizeof(nba::dev_offset_t), cudaMemcpyHostToDevice));
+    ASSERT_EQ(cudaSuccess, cudaLaunchKernel(k, dim3(1), dim3(1), raw_args, 0, 0));
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(&output_h, output_d, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     EXPECT_EQ(165320, output_h);
-    EXPECT_EQ(cudaSuccess, cudaFree(input_d));
-    EXPECT_EQ(cudaSuccess, cudaFree(output_d));
-    EXPECT_EQ(cudaSuccess, cudaDeviceSynchronize());
+    ASSERT_EQ(cudaSuccess, cudaFree(input_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(output_d));
+    ASSERT_EQ(cudaSuccess, cudaDeviceSynchronize());
 }
+
+TEST(CUDAStructTest, DatablockArgSizeAlignCheck) {
+    void *k = get_test_kernel_dbarg_size_check();
+    void *output_sizes_d;
+    void *output_offsets_d;
+    ASSERT_EQ(cudaSuccess, cudaMalloc(&output_sizes_d, sizeof(size_t) * 2));
+    ASSERT_NE(nullptr, output_sizes_d);
+    ASSERT_EQ(cudaSuccess, cudaMalloc(&output_offsets_d, sizeof(size_t) * 2));
+    ASSERT_NE(nullptr, output_offsets_d);
+    size_t output_sizes_h[2] = { 0, 0 };
+    size_t output_offsets_h[2] = { 0, 0 };
+    void *raw_args[2] = { &output_sizes_d, &output_offsets_d };
+    ASSERT_EQ(cudaSuccess, cudaLaunchKernel(k, dim3(1), dim3(1), raw_args, 0, 0));
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(&output_sizes_h, output_sizes_d, sizeof(size_t) * 2, cudaMemcpyDeviceToHost));
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(&output_offsets_h, output_offsets_d, sizeof(size_t) * 2, cudaMemcpyDeviceToHost));
+    EXPECT_EQ(sizeof(struct datablock_kernel_arg), output_sizes_h[0]);
+    EXPECT_EQ(offsetof(struct datablock_kernel_arg, batches), output_offsets_h[0]);
+    EXPECT_EQ(sizeof(struct datablock_batch_info), output_sizes_h[1]);
+    EXPECT_EQ(offsetof(struct datablock_batch_info, item_offsets_in), output_offsets_h[1]);
+    ASSERT_EQ(cudaSuccess, cudaFree(output_sizes_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(output_offsets_d));
+    ASSERT_EQ(cudaSuccess, cudaDeviceSynchronize());
+}
+
 
 #else
 

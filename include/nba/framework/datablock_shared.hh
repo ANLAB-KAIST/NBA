@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <nba/core/shiftedint.hh>
 
-struct datablock_batch_info {
+struct alignas(8) datablock_batch_info {
     void *buffer_bases_in;
     void *buffer_bases_out;
     uint32_t item_count_in;
@@ -18,14 +18,14 @@ struct datablock_batch_info {
     uint16_t *item_sizes_out;
     nba::dev_offset_t *item_offsets_in;
     nba::dev_offset_t *item_offsets_out;
-}; // __cuda_aligned
+};
 
-struct datablock_kernel_arg {
+struct alignas(8) datablock_kernel_arg {
     uint32_t total_item_count_in;
     uint32_t total_item_count_out;
     uint16_t item_size_in;  // for fixed-size cases
     uint16_t item_size_out; // for fixed-size cases
     struct datablock_batch_info batches[0];
-}; // __cuda_aligned
+};
 
 #endif
