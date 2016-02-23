@@ -8,7 +8,6 @@
 
 #include <cstdint>
 #include <nba/core/shiftedint.hh>
-#include <nba/framework/config.hh>
 
 struct datablock_batch_info {
     void *buffer_bases_in;
