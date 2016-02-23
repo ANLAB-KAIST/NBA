@@ -4,6 +4,7 @@
 #include <nba/framework/config.hh>
 #include <nba/framework/computecontext.hh>
 #include <nba/core/shiftedint.hh> // should come after cuda headers
+#include <nba/framework/datablock_shared.hh>
 #include <vector>
 #include <string>
 #include <tuple>
@@ -112,35 +113,6 @@ struct datablock_tracker {
     host_mem_t aligned_item_sizes_h;
     dev_mem_t aligned_item_sizes_d;
 };
-
-/**
- * Datablock batch info struct.
- *
- * It contains item offset/size information for variable-length datablocks.
- *
- * NOTE: The alignment of this struct should match with CUDA.
- */
-struct datablock_batch_info {
-    void *buffer_bases_in;
-    void *buffer_bases_out;
-    uint32_t item_count_in;
-    uint32_t item_count_out;
-    uint16_t *item_sizes_in;
-    uint16_t *item_sizes_out;
-    dev_offset_t *item_offsets_in;
-    dev_offset_t *item_offsets_out;
-}; // __cuda_aligned
-
-/**
- * Kernel argument spec for datablocks.
- */
-struct datablock_kernel_arg {
-    uint32_t total_item_count_in;
-    uint32_t total_item_count_out;
-    uint16_t item_size_in;  // for fixed-size cases
-    uint16_t item_size_out; // for fixed-size cases
-    struct datablock_batch_info batches[0];
-}; // __cuda_aligned
 
 
 /** Datablock information class.

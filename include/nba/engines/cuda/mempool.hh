@@ -13,15 +13,15 @@ namespace nba {
 class CUDAMemoryPool : public MemoryPool<dev_mem_t>
 {
 public:
-    CUDAMemoryPool()
+    explicit CUDAMemoryPool()
         : MemoryPool(), base(nullptr)
     { }
 
-    CUDAMemoryPool(size_t max_size)
+    explicit CUDAMemoryPool(size_t max_size)
         : MemoryPool(max_size), base(nullptr)
     { }
 
-    CUDAMemoryPool(size_t max_size, size_t align)
+    explicit CUDAMemoryPool(size_t max_size, size_t align)
         : MemoryPool(max_size, align), base(nullptr)
     { }
 
@@ -63,15 +63,15 @@ private:
 class CPUMemoryPool : public MemoryPool<host_mem_t>
 {
 public:
-    CPUMemoryPool(int cuda_flags = 0)
+    explicit CPUMemoryPool(int cuda_flags)
         : MemoryPool(), base(nullptr), flags(cuda_flags), use_external(false)
     { }
 
-    CPUMemoryPool(size_t max_size, int cuda_flags = 0)
+    explicit CPUMemoryPool(size_t max_size, int cuda_flags)
         : MemoryPool(max_size), base(nullptr), flags(cuda_flags), use_external(false)
     { }
 
-    CPUMemoryPool(size_t max_size, size_t align, int cuda_flags = 0)
+    explicit CPUMemoryPool(size_t max_size, size_t align, int cuda_flags)
         : MemoryPool(max_size, align), base(nullptr), flags(cuda_flags), use_external(false)
     { }
 

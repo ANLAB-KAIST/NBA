@@ -15,8 +15,7 @@
 
 #define IGNORED_IP 0xFFffFFffu
 
-/* Compatibility definitions. */
-#include <nba/engines/cuda/compat.hh>
+#include <nba/framework/datablock_shared.hh>
 
 extern "C" {
 

@@ -11,8 +11,7 @@
 #include <openssl/aes.h>
 #include <openssl/md5.h>
 
-/* Compatibility definitions. */
-#include <nba/engines/cuda/compat.hh>
+#include <nba/framework/datablock_shared.hh>
 
 /* The index is given by the order in get_used_datablocks(). */
 #define dbid_enc_payloads_d   (0)

@@ -8,7 +8,7 @@
 
 #include "util_jhash.h"
 #include "util_hash_table.hh"
-#include <nba/engines/cuda/compat.hh>
+#include <nba/framework/datablock_shared.hh>
 
 using namespace nba;
 

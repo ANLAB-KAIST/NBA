@@ -1,9 +1,8 @@
-#ifndef __NBA_ENGINES_CUDA_COMPAT_HH__
-#define __NBA_ENGINES_CUDA_COMPAT_HH__
+#ifndef __NBA_DATABLOCK_SHARED_HH__
+#define __NBA_DATABLOCK_SHARED_HH__
 
 /*
- * This header is included by .cu sources.
- * We put only relevant data structures here for use in CUDA codes.
+ * This header is included by both .cc/.cu sources.
  * Note that the nvcc should support C++11 (CUDA v6.5 or higher).
  */
 
