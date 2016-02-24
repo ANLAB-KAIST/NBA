@@ -95,6 +95,7 @@ def get_includes(srcfile, nba_include_dir):
     )
     return _find_deps_with_regex(srcfile, nba_include_dir, regexs)
 
+_rx_required_local_obj_sig = re.compile(r'^#require\s*"(.+\.o)"')
 _rx_required_obj_sig = re.compile(r'^#require\s*<(.+\.o)>')
 def get_requires(srcfile, nba_src_dir):
     '''
@@ -102,6 +103,7 @@ def get_requires(srcfile, nba_src_dir):
     (e.g., #require <lib/xxx.o>)
     '''
     regexs = (
+        (_rx_required_local_obj_sig, True),
         (_rx_required_obj_sig, False),
     )
     return _find_deps_with_regex(srcfile, nba_src_dir, regexs)
