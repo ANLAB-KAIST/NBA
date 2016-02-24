@@ -47,7 +47,7 @@ int nba::ipv4route::load_rib_from_file(
         uint32_t addr = ntohl(inet_addr(str_addr));
         uint16_t len = atoi(str_len);
 
-        add_route(tables, addr, len, rand() % 65536);
+        add_route(tables, addr, len, rand() % 65532 + 1);
     }
     fclose(fp);
     return 0;

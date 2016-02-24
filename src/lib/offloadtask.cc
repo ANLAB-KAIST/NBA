@@ -131,6 +131,7 @@ void OffloadTask::prepare_read_buffer()
                 for (PacketBatch *batch : batches) {
                     struct datablock_tracker *t = &batch->datablock_states[dbid];
                     tie(t->in_size, t->in_count) = db->calc_read_buffer_size(batch);
+                    // Now aligned_item_sizes has valid values.
                     if (t->in_size > 0 && t->in_count > 0) {
                         cctx->alloc_input_buffer(io_base, t->in_size,
                                                  t->host_in_ptr, t->dev_in_ptr);

@@ -97,10 +97,6 @@ TEST_P(IPLookupCUDAMatchTest, SinglePacket) {
                              ntohl(inet_addr(ip1)), &cpu_results[0]);
     ipv4route::direct_lookup(tbl24_h, tbllong_h,
                              ntohl(inet_addr(ip2)), &cpu_results[1]);
-    printf("converted ipaddr 1: 0x%08x\n", ntohl(inet_addr(ip1)));
-    printf("result 1: 0x%04x\n", cpu_results[0]);
-    printf("converted ipaddr 2: 0x%08x\n", ntohl(inet_addr(ip2)));
-    printf("result 2: 0x%04x\n", cpu_results[1]);
     EXPECT_NE(0, cpu_results[0]);
     EXPECT_NE(0, cpu_results[1]);
 
@@ -193,7 +189,7 @@ TEST_P(IPLookupCUDAMatchTest, SinglePacket) {
         &checkbits_d,
         &tbl24_d, &tbllong_d
     };
-    ASSERT_EQ(cudaSuccess, cudaLaunchKernel(k, dim3(num_batches), dim3(256),
+    ASSERT_EQ(cudaSuccess, cudaLaunchKernel(k, dim3(1), dim3(256),
               raw_args, 1024, 0));
     ASSERT_EQ(cudaSuccess, cudaDeviceSynchronize());
     ASSERT_EQ(cudaSuccess, cudaMemcpy(output_buffer, output_buffer_d,
@@ -209,6 +205,13 @@ TEST_P(IPLookupCUDAMatchTest, SinglePacket) {
     free(datablocks[1]);
     free(input_buffer);
     free(output_buffer);
+    ASSERT_EQ(cudaSuccess, cudaFree(input_buffer_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(output_buffer_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(batch_ids_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(item_ids_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(db_ipv4_dest_addrs_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(db_ipv4_lookup_results_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(datablocks_d));
 }
 
 TEST_P(IPLookupCUDAMatchTest, Batch) {
