@@ -115,12 +115,14 @@ if v: CFLAGS += ' -DNBA_RANDOM_PORT_ACCESS'
 if USE_CUDA:
     os.makedirs('build/nvcc-temp', exist_ok=True)
     CUDA_ARCHS    = compilelib.get_cuda_arch()
-    NVCFLAGS      = '-O2 -lineinfo -g -std=c++11 --keep --keep-dir build/nvcc-temp --use_fast_math --expt-relaxed-constexpr -Iinclude -I/usr/local/cuda/include'
     CFLAGS       += ' -I/usr/local/cuda/include'
     LIBS         += ' -L/usr/local/cuda/lib64 -lcudart' #' -lnvidia-ml'
     print(CUDA_ARCHS)
-    if os.getenv('DEBUG', 0):
-        NVCFLAGS  = '-O0 -lineinfo -G -g -std=c++11 --keep --keep-dir build/nvcc-temp --use_fast_math --expt-relaxed-constexpr -Iinclude -I/usr/local/cuda/include --ptxas-options=-v'
+    if os.getenv('DEBUG', 0) or os.getenv('DEBUG_CUDA', 0):
+        NVCFLAGS  = '-O0 -lineinfo -G -g' #' --ptxas-options=-v'
+    else:
+        NVCFLAGS  = '-O2 -lineinfo -g'
+    NVCFLAGS     += ' -std=c++11 --keep --keep-dir build/nvcc-temp --use_fast_math --expt-relaxed-constexpr -Iinclude -I/usr/local/cuda/include'
     if len(CUDA_ARCHS) == 0:
         NVCFLAGS += ' -DMP_USE_64BIT=0' \
                   + ' -gencode arch=compute_10,code=sm_10' \
