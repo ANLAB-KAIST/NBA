@@ -35,7 +35,8 @@ TEST_P(CUDADeviceTest, NoopKernel) {
     ASSERT_EQ(cudaSuccess, cudaDeviceReset());
 }
 
-INSTANTIATE_TEST_CASE_P(PerDeviceDeviceTests, CUDADeviceTest, ::testing::Values(0, getNumCUDADevices() - 1));
+INSTANTIATE_TEST_CASE_P(PerDeviceDeviceTests, CUDADeviceTest,
+                        ::testing::Values(0, getNumCUDADevices() - 1));
 
 
 class CUDAStructTest : public ::testing::TestWithParam<int> {
@@ -108,7 +109,8 @@ TEST_P(CUDAStructTest, DatablockArgSizeAlignCheck) {
     ASSERT_EQ(cudaSuccess, cudaDeviceSynchronize());
 }
 
-INSTANTIATE_TEST_CASE_P(PerDeviceStructTests, CUDAStructTest, ::testing::Values(0, getNumCUDADevices() - 1));
+INSTANTIATE_TEST_CASE_P(PerDeviceStructTests, CUDAStructTest,
+                        ::testing::Values(0, getNumCUDADevices() - 1));
 
 #else
 
