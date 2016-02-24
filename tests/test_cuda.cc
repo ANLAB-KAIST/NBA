@@ -13,23 +13,35 @@ using namespace nba;
 
 #ifdef USE_CUDA
 
-TEST(CUDADeviceTest, Initialization) {
-    ASSERT_EQ(cudaSuccess, cudaSetDevice(0));
+static int getNumCUDADevices() {
+    int count;
+    cudaGetDeviceCount(&count);
+    return count;
+}
+
+class CUDADeviceTest : public ::testing::TestWithParam<int> {
+};
+
+TEST_P(CUDADeviceTest, Initialization) {
+    ASSERT_EQ(cudaSuccess, cudaSetDevice(GetParam()));
     ASSERT_EQ(cudaSuccess, cudaDeviceReset());
 }
 
-TEST(CUDADeviceTest, NoopKernel) {
-    ASSERT_EQ(cudaSuccess, cudaSetDevice(0));
+TEST_P(CUDADeviceTest, NoopKernel) {
+    ASSERT_EQ(cudaSuccess, cudaSetDevice(GetParam()));
     void *k = get_test_kernel_noop();
     EXPECT_EQ(cudaSuccess, cudaLaunchKernel(k, dim3(1), dim3(1), nullptr, 0, 0));
     EXPECT_EQ(cudaSuccess, cudaDeviceSynchronize());
     ASSERT_EQ(cudaSuccess, cudaDeviceReset());
 }
 
-class CUDAStructTest : public ::testing::Test {
+INSTANTIATE_TEST_CASE_P(PerDeviceDeviceTests, CUDADeviceTest, ::testing::Values(0, getNumCUDADevices() - 1));
+
+
+class CUDAStructTest : public ::testing::TestWithParam<int> {
 protected:
     virtual void SetUp() {
-        cudaSetDevice(0);
+        cudaSetDevice(GetParam());
     }
 
     virtual void TearDown() {
@@ -37,7 +49,7 @@ protected:
     }
 };
 
-TEST(CUDAStructTest, ShfitedIntSizeCheck) {
+TEST_P(CUDAStructTest, ShfitedIntSizeCheck) {
     void *k = get_test_kernel_shiftedint_size_check();
     void *output_d;
     ASSERT_EQ(cudaSuccess, cudaMalloc(&output_d, sizeof(size_t)));
@@ -52,7 +64,7 @@ TEST(CUDAStructTest, ShfitedIntSizeCheck) {
     ASSERT_EQ(cudaSuccess, cudaDeviceSynchronize());
 }
 
-TEST(CUDAStructTest, ShfitedIntValueCheck) {
+TEST_P(CUDAStructTest, ShfitedIntValueCheck) {
     void *k = get_test_kernel_shiftedint_value_check();
     void *input_d;
     void *output_d;
@@ -73,7 +85,7 @@ TEST(CUDAStructTest, ShfitedIntValueCheck) {
     ASSERT_EQ(cudaSuccess, cudaDeviceSynchronize());
 }
 
-TEST(CUDAStructTest, DatablockArgSizeAlignCheck) {
+TEST_P(CUDAStructTest, DatablockArgSizeAlignCheck) {
     void *k = get_test_kernel_dbarg_size_check();
     void *output_sizes_d;
     void *output_offsets_d;
@@ -96,6 +108,7 @@ TEST(CUDAStructTest, DatablockArgSizeAlignCheck) {
     ASSERT_EQ(cudaSuccess, cudaDeviceSynchronize());
 }
 
+INSTANTIATE_TEST_CASE_P(PerDeviceStructTests, CUDAStructTest, ::testing::Values(0, getNumCUDADevices() - 1));
 
 #else
 
