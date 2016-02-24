@@ -40,8 +40,8 @@ __global__ void ipv4_route_lookup_cuda(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (idx < count) {
-        uint16_t batch_idx = batch_ids[idx];
-        uint16_t item_idx  = item_ids[idx];
+        uint8_t batch_idx = batch_ids[idx];
+        uint16_t item_idx = item_ids[idx];
         struct datablock_kernel_arg *db_dest_addrs = datablocks[dbid_ipv4_dest_addrs_d];
         struct datablock_kernel_arg *db_results    = datablocks[dbid_ipv4_lookup_results_d];
         uint32_t daddr = ((uint32_t*) db_dest_addrs->batches[batch_idx].buffer_bases_in)[item_idx];

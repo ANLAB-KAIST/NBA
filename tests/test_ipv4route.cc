@@ -1,4 +1,6 @@
 #include <cstdint>
+#include <cstdlib>
+#include <cstdio>
 #ifdef USE_CUDA
 #include <cuda_runtime.h>
 #endif
@@ -54,6 +56,7 @@ class IPLookupCUDAMatchTest : public ::testing::TestWithParam<int> {
 protected:
     virtual void SetUp() {
         cudaSetDevice(GetParam());
+        srand(0);  // for deterministic nexthop results
         ipv4route::load_rib_from_file(tables, "configs/routing_info.txt");
         tbl24_h   = (uint16_t *) malloc(sizeof(uint16_t)
                                         * ipv4route::get_TBL24_size());
@@ -87,7 +90,7 @@ protected:
     void *tbllong_d;
 };
 
-TEST_P(IPLookupCUDAMatchTest, SinglePacket) {
+TEST_P(IPLookupCUDAMatchTest, SingleBatch) {
     void *k = ipv4_route_lookup_get_cuda_kernel();
     const char *ip1 = "118.223.0.3";
     const char *ip2 = "58.29.89.55";
@@ -100,8 +103,9 @@ TEST_P(IPLookupCUDAMatchTest, SinglePacket) {
     EXPECT_NE(0, cpu_results[0]);
     EXPECT_NE(0, cpu_results[1]);
 
-    const size_t num_batches = 1;
-    const size_t num_pkts    = 2;
+    const uint32_t num_batches = 1;
+    const uint32_t num_pkts    = 2;
+    const uint32_t count       = num_batches * num_pkts;
 
     struct datablock_kernel_arg *datablocks[2];
     const size_t db_arg_size = sizeof(struct datablock_kernel_arg)
@@ -122,8 +126,8 @@ TEST_P(IPLookupCUDAMatchTest, SinglePacket) {
     uint16_t *output_buffer = (uint16_t *) malloc(output_size);
     ASSERT_NE(nullptr, input_buffer);
     ASSERT_NE(nullptr, output_buffer);
-    input_buffer[0] = (uint32_t) ntohl(inet_addr(ip1));
-    input_buffer[1] = (uint32_t) ntohl(inet_addr(ip2));
+    input_buffer[0] = (uint32_t) inet_addr(ip1); // ntohl is done inside kernels
+    input_buffer[1] = (uint32_t) inet_addr(ip2);
     output_buffer[0] = 0;
     output_buffer[1] = 0;
     void *input_buffer_d = nullptr;
@@ -167,13 +171,13 @@ TEST_P(IPLookupCUDAMatchTest, SinglePacket) {
                                       db_arg_size, cudaMemcpyHostToDevice));
     void *dbarray_h[2] = { db_ipv4_dest_addrs_d, db_ipv4_lookup_results_d };
     void *dbarray_d = nullptr;
-    uint8_t batch_ids[num_batches] = { 0 };
-    uint16_t item_ids[num_pkts]    = { 0, 1 };
+    uint8_t batch_ids[count] = { 0, 0 };
+    uint16_t item_ids[count] = { 0, 1 };
     void *batch_ids_d = nullptr;
     void *item_ids_d  = nullptr;
     ASSERT_EQ(cudaSuccess, cudaMalloc(&dbarray_d, sizeof(void*) * 2));
-    ASSERT_EQ(cudaSuccess, cudaMalloc(&batch_ids_d, sizeof(uint8_t) * num_batches));
-    ASSERT_EQ(cudaSuccess, cudaMalloc(&item_ids_d, sizeof(uint16_t) * num_pkts));
+    ASSERT_EQ(cudaSuccess, cudaMalloc(&batch_ids_d, sizeof(uint8_t) * count));
+    ASSERT_EQ(cudaSuccess, cudaMalloc(&item_ids_d, sizeof(uint16_t) * count));
     ASSERT_NE(nullptr, dbarray_d);
     ASSERT_NE(nullptr, batch_ids_d);
     ASSERT_NE(nullptr, item_ids_d);
@@ -181,10 +185,10 @@ TEST_P(IPLookupCUDAMatchTest, SinglePacket) {
                                       sizeof(void*) * 2,
                                       cudaMemcpyHostToDevice));
     ASSERT_EQ(cudaSuccess, cudaMemcpy(batch_ids_d, batch_ids,
-                                      sizeof(uint8_t) * num_batches,
+                                      sizeof(uint8_t) * count,
                                       cudaMemcpyHostToDevice));
-    ASSERT_EQ(cudaSuccess, cudaMemcpy(item_ids_d, batch_ids,
-                                      sizeof(uint16_t) * num_pkts,
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(item_ids_d, item_ids,
+                                      sizeof(uint16_t) * count,
                                       cudaMemcpyHostToDevice));
     void *checkbits_d = nullptr;
 
@@ -220,7 +224,7 @@ TEST_P(IPLookupCUDAMatchTest, SinglePacket) {
     ASSERT_EQ(cudaSuccess, cudaFree(dbarray_d));
 }
 
-TEST_P(IPLookupCUDAMatchTest, Batch) {
+TEST_P(IPLookupCUDAMatchTest, MultipleBatches) {
     void *k = ipv4_route_lookup_get_cuda_kernel();
     ASSERT_EQ(cudaSuccess, cudaDeviceSynchronize());
 }
