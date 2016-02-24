@@ -1,7 +1,3 @@
-#include "IPlookup.hh"
-#ifdef USE_CUDA
-#include "IPlookup_kernel.hh"
-#endif
 #include <nba/core/offloadtypes.hh>
 #include <nba/framework/threadcontext.hh>
 #include <nba/framework/computedevice.hh>
@@ -9,21 +5,23 @@
 #include <nba/element/annotation.hh>
 #include <nba/element/nodelocalstorage.hh>
 #include <cstdio>
-#include <cstdlib>
 #include <cassert>
-#include <cerrno>
-#include <rte_ether.h>
 #include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
+#include <rte_ether.h>
+#include <rte_ip.h>
+#include "ip_route_core.hh"
+#include "IPlookup.hh"
+#ifdef USE_CUDA
+#include "IPlookup_kernel.hh"
+#endif
 
 using namespace std;
 using namespace nba;
 
-static unordered_map<uint32_t, uint16_t> pPrefixTable[33];
-static unsigned int current_TBLlong = 0;
-
-IPlookup::IPlookup(): OffloadableElement()
+IPlookup::IPlookup() : OffloadableElement(),
+    num_tx_ports(0), rr_port(0),
+    p_rwlock_TBL24(nullptr), p_rwlock_TBLlong(nullptr), tables(),
+    TBL24_h(nullptr), TBLlong_h(nullptr), TBL24_d{nullptr}, TBLlong_d{nullptr}
 {
     #ifdef USE_CUDA
     auto ch = [this](ComputeContext *ctx, struct resource_param *res) { this->cuda_compute_handler(ctx, res); };
@@ -50,23 +48,23 @@ int IPlookup::initialize_global()
     const char *filename = "configs/routing_info.txt";  // TODO: remove it or change it to configuration..
     printf("element::IPlookup: Loading the routing table entries from %s\n", filename);
 
-    ipv4_load_rib_from_file(filename);
-    current_TBLlong = 0;
-
+    ipv4route::load_rib_from_file(tables, filename);
     return 0;
 }
 
 int IPlookup::initialize_per_node()
 {
     /* Storage for routing table. */
-    ctx->node_local_storage->alloc("TBL24", sizeof(uint16_t) * ipv4_get_TBL24_size());
-    ctx->node_local_storage->alloc("TBLlong", sizeof(uint16_t) * ipv4_get_TBLlong_size());
+    ctx->node_local_storage->alloc("TBL24", sizeof(uint16_t) * ipv4route::get_TBL24_size());
+    ctx->node_local_storage->alloc("TBLlong", sizeof(uint16_t) * ipv4route::get_TBLlong_size());
     /* Storage for device pointers. */
     ctx->node_local_storage->alloc("TBL24_dev_ptr", sizeof(dev_mem_t));
     ctx->node_local_storage->alloc("TBLlong_dev_ptr", sizeof(dev_mem_t));
 
     printf("element::IPlookup: Initializing FIB from the global RIB for NUMA node %d...\n", node_idx);
-    ipv4_build_fib();
+    ipv4route::build_direct_fib(tables,
+        (uint16_t *) ctx->node_local_storage->get_alloc("TBL24"),
+        (uint16_t *) ctx->node_local_storage->get_alloc("TBLlong"));
 
     return 0;
 }
@@ -102,11 +100,11 @@ int IPlookup::configure(comp_thread_context *ctx, std::vector<std::string> &args
 int IPlookup::process(int input_port, Packet *pkt)
 {
     struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
-    struct iphdr *iph   = (struct iphdr *)(ethh + 1);
-    uint32_t dest_addr = ntohl(iph->daddr);
+    struct ipv4_hdr *iph   = (struct ipv4_hdr *)(ethh + 1);
+    uint32_t dest_addr = ntohl(iph->dst_addr);
     uint16_t lookup_result = 0xffff;
 
-    ipv4_route_lookup(dest_addr, &lookup_result);
+    ipv4route::direct_lookup(TBL24_h, TBLlong_h, dest_addr, &lookup_result);
     if (lookup_result == 0xffff) {
         /* Could not find destination. Use the second output for "error" packets. */
         pkt->kill();
@@ -163,8 +161,8 @@ size_t IPlookup::get_desired_workgroup_size(const char *device_name) const
 void IPlookup::cuda_init_handler(ComputeDevice *device)
 {
     /* Store the device pointers for per-thread element instances. */
-    size_t TBL24_alloc_size   = sizeof(uint16_t) * ipv4_get_TBL24_size();
-    size_t TBLlong_alloc_size = sizeof(uint16_t) * ipv4_get_TBLlong_size();
+    size_t TBL24_alloc_size   = sizeof(uint16_t) * ipv4route::get_TBL24_size();
+    size_t TBLlong_alloc_size = sizeof(uint16_t) * ipv4route::get_TBLlong_size();
     // As it is before initialize() is called, we need to get the pointers
     // from the node-local storage by ourselves here.
     uint16_t *_TBL24_h = nullptr;
@@ -196,115 +194,5 @@ void IPlookup::cuda_compute_handler(ComputeContext *cctx,
     cctx->enqueue_kernel_launch(kern, res);
 }
 #endif
-
-int IPlookup::ipv4_route_add(uint32_t addr, uint16_t len, uint16_t nexthop)
-{
-    pPrefixTable[len][addr] = nexthop;
-    return 0;
-}
-
-int IPlookup::ipv4_route_del(uint32_t addr, uint16_t len)
-{
-    pPrefixTable[len].erase(addr);
-    return 0;
-}
-
-int IPlookup::ipv4_load_rib_from_file(const char* filename)
-{
-    FILE *fp;
-    char buf[256];
-
-    fp = fopen(filename, "r");
-    if (fp == NULL) {
-        getcwd(buf, 256);
-        printf("NBA: IpCPULookup element: error during opening file \'%s\' from \'%s\'.: %s\n", filename, buf, strerror(errno));
-    }
-    assert(fp != NULL);
-
-    while (fgets(buf, 256, fp)) {
-        char *str_addr = strtok(buf, "/");
-        char *str_len = strtok(NULL, "\n");
-        assert(str_len != NULL);
-
-        uint32_t addr = ntohl(inet_addr(str_addr));
-        uint16_t len = atoi(str_len);
-
-        ipv4_route_add(addr, len, rand() % 65536);
-    }
-
-    fclose(fp);
-
-    return 0;
-}
-
-int IPlookup::ipv4_build_fib()
-{
-    uint16_t *_TBL24    = (uint16_t *) ctx->node_local_storage->get_alloc("TBL24");
-    uint16_t *_TBLlong  = (uint16_t *) ctx->node_local_storage->get_alloc("TBLlong");
-
-    // ipv4_build_fib() is called for each node sequencially, before comp thread starts.
-    // No rwlock protection is needed.
-    memset(_TBL24, 0, TBL24_SIZE * sizeof(uint16_t));
-    memset(_TBLlong, 0, TBLLONG_SIZE * sizeof(uint16_t));
-
-    for (unsigned i = 0; i <= 24; i++) {
-        for (auto it = pPrefixTable[i].begin(); it != pPrefixTable[i].end(); it++) {
-            uint32_t addr = (*it).first;
-            uint16_t dest = (uint16_t)(0xffffu & (uint64_t)(*it).second);
-            uint32_t start = addr >> 8;
-            uint32_t end = start + (0x1u << (24 - i));
-            for (unsigned k = start; k < end; k++)
-                _TBL24[k] = dest;
-        }
-    }
-
-    for (unsigned i = 25; i <= 32; i++) {
-        for (auto it = pPrefixTable[i].begin(); it != pPrefixTable[i].end(); it++) {
-            uint32_t addr = (*it).first;
-            uint16_t dest = (uint16_t)(0x0000ffff & (uint64_t)(*it).second);
-            uint16_t dest24 = _TBL24[addr >> 8];
-            if (((uint16_t)dest24 & 0x8000u) == 0) {
-                uint32_t start = current_TBLlong + (addr & 0x000000ff);
-                uint32_t end = start + (0x00000001u << (32 - i));
-
-                for (unsigned j = current_TBLlong; j <= current_TBLlong + 256; j++)
-                {
-                    if (j < start || j >= end)
-                        _TBLlong[j] = dest24;
-                    else
-                        _TBLlong[j] = dest;
-                }
-                _TBL24[addr >> 8]  = (uint16_t)(current_TBLlong >> 8) | 0x8000u;
-                current_TBLlong += 256;
-                assert(current_TBLlong <= TBLLONG_SIZE);
-            } else {
-                uint32_t start = ((uint32_t)dest24 & 0x7fffu) * 256 + (addr & 0x000000ff);
-                uint32_t end = start + (0x00000001u << (32 - i));
-
-                for (unsigned j = start; j < end; j++)
-                    _TBLlong[j] = dest;
-            }
-        }
-    }
-    return 0;
-}
-
-void IPlookup::ipv4_route_lookup(uint32_t ip, uint16_t *dest)
-{
-    uint16_t temp_dest;
-
-    // TODO: make an interface to set these locks to be
-    // automatically handled by process_batch() method.
-    //rte_rwlock_read_lock(p_rwlock_TBL24);
-    temp_dest = TBL24_h[ip >> 8];
-
-    if (temp_dest & 0x8000u) {
-        int index2 = (((uint32_t)(temp_dest & 0x7fff)) << 8) + (ip & 0xff);
-        temp_dest = TBLlong_h[index2];
-    }
-    //rte_rwlock_read_unlock(p_rwlock_TBL24);
-
-    *dest = temp_dest;
-}
 
 // vim: ts=8 sts=4 sw=4 et
