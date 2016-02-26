@@ -43,11 +43,6 @@ vector<struct queue_conf> queue_confs;
 unordered_map<void*, int> queue_idx_map;
 
 bool dummy_device __rte_cache_aligned;
-bool emulate_io __rte_cache_aligned;
-int emulated_packet_size __rte_cache_aligned;
-int emulated_ip_version __rte_cache_aligned;
-int emulated_num_fixed_flows __rte_cache_aligned;
-size_t num_emulated_ifaces __rte_cache_aligned;
 
 static PyStructSequence_Field netdevice_fields[] = {
     {"device_id", "The device ID used by the underlying IO library."},
@@ -97,108 +92,55 @@ static PyObject*
 nba_get_netdevices(PyObject *self, PyObject *args)
 {
     PyObject *plist;
-    if (emulate_io) {
-        plist = PyList_New(num_emulated_ifaces);
-        assert(plist != NULL);
-        int num_nodes = numa_num_configured_nodes();
-        int cur_node = 0;
-        unsigned n = 0;
-        assert(num_emulated_ifaces == 1 || num_emulated_ifaces % num_nodes == 0);
+    unsigned cnt = rte_eth_dev_count();
+    plist = PyList_New(cnt);
+    assert(plist != NULL);
 
-        for (unsigned i = 0; i < num_emulated_ifaces; i++) {
-            char tempbuf[64];
-            PyObject *pnamedtuple = PyStructSequence_New(&netdevice_type);
-            assert(pnamedtuple != NULL);
+    for (unsigned i = 0; i < cnt; i++) {
+        struct ether_addr macaddr;
+        struct rte_eth_dev_info dev_info;
+        char tempbuf[64];
+        rte_eth_dev_info_get((uint8_t) i, &dev_info);
+        rte_eth_macaddr_get((uint8_t) i, &macaddr);
 
-            PyObject *pdevid = PyLong_FromLong(i);
-            PyStructSequence_SetItem(pnamedtuple, 0, pdevid);
+        PyObject *pnamedtuple = PyStructSequence_New(&netdevice_type);
+        assert(pnamedtuple != NULL);
 
-            PyObject *pname = PyUnicode_FromString("emul_io");
-            PyStructSequence_SetItem(pnamedtuple, 1, pname);
+        PyObject *pdevid = PyLong_FromLong(i);
+        PyStructSequence_SetItem(pnamedtuple, 0, pdevid);
 
-            PyOS_snprintf(tempbuf, 64, "xxxx:00:%02x.0", i);
-            PyObject *pbusaddr = PyUnicode_FromString(tempbuf);
-            PyStructSequence_SetItem(pnamedtuple, 2, pbusaddr);
+        PyObject *pname = PyUnicode_FromString(dev_info.driver_name);
+        PyStructSequence_SetItem(pnamedtuple, 1, pname);
 
-            /* The first least significant bit should be 0 (unicast).
-             * The second lsb should be 1 (locally administered).
-             * "NBA" in ASCII translates to 0x4e, 0x42, 0x41,
-             * and 0x4e in binary is 0b01001110.  It conforms
-             * with the rule. :) */
-            PyOS_snprintf(tempbuf, 64, "4e:42:41:00:00:%02X", i + 1);
-            PyObject *pmacaddr = PyUnicode_FromString(tempbuf);
-            PyStructSequence_SetItem(pnamedtuple, 3, pmacaddr);
+        if(dev_info.pci_dev)
+            PyOS_snprintf(tempbuf, 64, "%04x:%02x:%02x.%u",
+                      dev_info.pci_dev->addr.domain,
+                      dev_info.pci_dev->addr.bus,
+                      dev_info.pci_dev->addr.devid,
+                      dev_info.pci_dev->addr.function);
+        else
+            PyOS_snprintf(tempbuf, 64, "vdev:%d", i);
+        PyObject *pbusaddr = PyUnicode_FromString(tempbuf);
+        PyStructSequence_SetItem(pnamedtuple, 2, pbusaddr);
 
-            if (num_emulated_ifaces > 1 && n == num_emulated_ifaces / num_nodes) {
-                cur_node ++;
-                n = 0;
-            }
-            PyObject *pnum = PyLong_FromLong(cur_node);
-            PyStructSequence_SetItem(pnamedtuple, 4, pnum);
-            n++;
+        PyOS_snprintf(tempbuf, 64, "%02X:%02X:%02X:%02X:%02X:%02X",
+                      macaddr.addr_bytes[0], macaddr.addr_bytes[1], macaddr.addr_bytes[2],
+                      macaddr.addr_bytes[3], macaddr.addr_bytes[4], macaddr.addr_bytes[5]);
+        PyObject *pmacaddr = PyUnicode_FromString(tempbuf);
+        PyStructSequence_SetItem(pnamedtuple, 3, pmacaddr);
 
-            pnum = PyLong_FromLong(1024L);
-            PyStructSequence_SetItem(pnamedtuple, 5, pnum);
-            pnum = PyLong_FromLong(1514L);
-            PyStructSequence_SetItem(pnamedtuple, 6, pnum);
-            pnum = PyLong_FromLong(128L);
-            PyStructSequence_SetItem(pnamedtuple, 7, pnum);
-            pnum = PyLong_FromLong(128L);
-            PyStructSequence_SetItem(pnamedtuple, 8, pnum);
+        PyObject *pnum = PyLong_FromLong((long) rte_eth_dev_socket_id(i));
+        PyStructSequence_SetItem(pnamedtuple, 4, pnum);
+        pnum = PyLong_FromLong((long) dev_info.min_rx_bufsize);
+        PyStructSequence_SetItem(pnamedtuple, 5, pnum);
+        pnum = PyLong_FromLong((long) dev_info.max_rx_pktlen);
+        PyStructSequence_SetItem(pnamedtuple, 6, pnum);
+        pnum = PyLong_FromLong((long) dev_info.max_rx_queues);
+        PyStructSequence_SetItem(pnamedtuple, 7, pnum);
+        pnum = PyLong_FromLong((long) dev_info.max_tx_queues);
+        PyStructSequence_SetItem(pnamedtuple, 8, pnum);
 
-            PyList_SetItem(plist, i, pnamedtuple);
-        }
-    } else {
-        unsigned cnt = rte_eth_dev_count();
-        plist = PyList_New(cnt);
-        assert(plist != NULL);
-
-        for (unsigned i = 0; i < cnt; i++) {
-            struct ether_addr macaddr;
-            struct rte_eth_dev_info dev_info;
-            char tempbuf[64];
-            rte_eth_dev_info_get((uint8_t) i, &dev_info);
-            rte_eth_macaddr_get((uint8_t) i, &macaddr);
-
-            PyObject *pnamedtuple = PyStructSequence_New(&netdevice_type);
-            assert(pnamedtuple != NULL);
-
-            PyObject *pdevid = PyLong_FromLong(i);
-            PyStructSequence_SetItem(pnamedtuple, 0, pdevid);
-
-            PyObject *pname = PyUnicode_FromString(dev_info.driver_name);
-            PyStructSequence_SetItem(pnamedtuple, 1, pname);
-
-            if(dev_info.pci_dev)
-            	PyOS_snprintf(tempbuf, 64, "%04x:%02x:%02x.%u",
-                          dev_info.pci_dev->addr.domain,
-                          dev_info.pci_dev->addr.bus,
-                          dev_info.pci_dev->addr.devid,
-                          dev_info.pci_dev->addr.function);
-            else
-            	PyOS_snprintf(tempbuf, 64, "vdev:%d", i);
-            PyObject *pbusaddr = PyUnicode_FromString(tempbuf);
-            PyStructSequence_SetItem(pnamedtuple, 2, pbusaddr);
-
-            PyOS_snprintf(tempbuf, 64, "%02X:%02X:%02X:%02X:%02X:%02X",
-                          macaddr.addr_bytes[0], macaddr.addr_bytes[1], macaddr.addr_bytes[2],
-                          macaddr.addr_bytes[3], macaddr.addr_bytes[4], macaddr.addr_bytes[5]);
-            PyObject *pmacaddr = PyUnicode_FromString(tempbuf);
-            PyStructSequence_SetItem(pnamedtuple, 3, pmacaddr);
-
-            PyObject *pnum = PyLong_FromLong((long) rte_eth_dev_socket_id(i));
-            PyStructSequence_SetItem(pnamedtuple, 4, pnum);
-            pnum = PyLong_FromLong((long) dev_info.min_rx_bufsize);
-            PyStructSequence_SetItem(pnamedtuple, 5, pnum);
-            pnum = PyLong_FromLong((long) dev_info.max_rx_pktlen);
-            PyStructSequence_SetItem(pnamedtuple, 6, pnum);
-            pnum = PyLong_FromLong((long) dev_info.max_rx_queues);
-            PyStructSequence_SetItem(pnamedtuple, 7, pnum);
-            pnum = PyLong_FromLong((long) dev_info.max_tx_queues);
-            PyStructSequence_SetItem(pnamedtuple, 8, pnum);
-
-            PyList_SetItem(plist, i, pnamedtuple);
-        }
+        PyList_SetItem(plist, i, pnamedtuple);
     }
     return plist;
 }
@@ -489,9 +431,6 @@ PyInit_nba(void)
     Py_INCREF(pbool);
     PyModule_AddObject(mod, "ht_degree", pdeg);
     PyModule_AddObject(mod, "ht_enabled", pbool);
-    pbool = emulate_io ? Py_True : Py_False;
-    Py_INCREF(pbool);
-    PyModule_AddObject(mod, "emulate_io", pbool);
     return mod;
 }
 
@@ -624,8 +563,6 @@ bool load_config(const char *pyfilename)
         } else {
             assert(0); // invalid queue template name
         }
-        if (emulate_io)
-            conf.mode = IO_EMUL;
         Py_DECREF(p_mode);
 
         conf.swrxq_idx = -1;

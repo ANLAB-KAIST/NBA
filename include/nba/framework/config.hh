@@ -71,7 +71,6 @@ enum io_thread_mode {
     IO_ECHOBACK = 1,
     IO_RR = 2,
     IO_RXONLY = 3,
-    IO_EMUL = 4,
 };
 
 enum queue_template {
@@ -126,11 +125,6 @@ extern std::vector<struct queue_conf> queue_confs;
  * the initialization code of io/comp/coproc threads. */
 extern std::unordered_map<void*, int> queue_idx_map;
 extern bool dummy_device;
-extern bool emulate_io;
-extern int emulated_packet_size;
-extern int emulated_ip_version;
-extern int emulated_num_fixed_flows;
-extern size_t num_emulated_ifaces;
 
 bool load_config(const char* pyfilename);
 int get_ht_degree(void);
