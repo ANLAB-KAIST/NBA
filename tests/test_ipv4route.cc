@@ -6,9 +6,13 @@
 #endif
 #include <nba/framework/datablock.hh>
 #include <nba/framework/datablock_shared.hh>
+#include <nba/element/annotation.hh>
+#include <nba/element/packet.hh>
+#include <nba/element/packetbatch.hh>
 #include <gtest/gtest.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <rte_mbuf.h>
 #include "../elements/ip/ip_route_core.hh"
 #include "../elements/ip/IPlookup_kernel.hh"
 #include "../elements/ip/IPv4Datablocks.hh"
@@ -27,7 +31,7 @@ TEST(IPLookupTest, Loading) {
     ipv4route::load_rib_from_file(tables, "configs/routing_info.txt");
     size_t num_entries = 0;
     for (int i = 0; i <= 32; i++) {
-        printf("table[%d] size: %lu\n", i, tables[i].size());
+        //printf("table[%d] size: %lu\n", i, tables[i].size());
         num_entries += tables[i].size();
     }
     EXPECT_EQ(282797, num_entries) << "All entries (lines) should exist.";
@@ -92,14 +96,13 @@ protected:
 
 TEST_P(IPLookupCUDAMatchTest, SingleBatch) {
     void *k = ipv4_route_lookup_get_cuda_kernel();
-    const char *ip1 = "118.223.0.3";
-    const char *ip2 = "58.29.89.55";
+    const char *dest_addrs[2] = { "118.223.0.3", "58.29.89.55" };
     uint16_t cpu_results[2] = { 0, 0 };
 
     ipv4route::direct_lookup(tbl24_h, tbllong_h,
-                             ntohl(inet_addr(ip1)), &cpu_results[0]);
+                             ntohl(inet_addr(dest_addrs[0])), &cpu_results[0]);
     ipv4route::direct_lookup(tbl24_h, tbllong_h,
-                             ntohl(inet_addr(ip2)), &cpu_results[1]);
+                             ntohl(inet_addr(dest_addrs[1])), &cpu_results[1]);
     EXPECT_NE(0, cpu_results[0]);
     EXPECT_NE(0, cpu_results[1]);
 
@@ -126,8 +129,8 @@ TEST_P(IPLookupCUDAMatchTest, SingleBatch) {
     uint16_t *output_buffer = (uint16_t *) malloc(output_size);
     ASSERT_NE(nullptr, input_buffer);
     ASSERT_NE(nullptr, output_buffer);
-    input_buffer[0] = (uint32_t) inet_addr(ip1); // ntohl is done inside kernels
-    input_buffer[1] = (uint32_t) inet_addr(ip2);
+    input_buffer[0] = (uint32_t) inet_addr(dest_addrs[0]); // ntohl is done inside kernels
+    input_buffer[1] = (uint32_t) inet_addr(dest_addrs[1]);
     output_buffer[0] = 0;
     output_buffer[1] = 0;
     void *input_buffer_d = nullptr;
@@ -158,8 +161,8 @@ TEST_P(IPLookupCUDAMatchTest, SingleBatch) {
     datablocks[1]->item_size_out = sizeof(uint16_t);
     datablocks[1]->batches[0].buffer_bases_in  = nullptr;
     datablocks[1]->batches[0].buffer_bases_out = output_buffer_d;
-    datablocks[1]->batches[0].item_count_in  = num_pkts;
-    datablocks[1]->batches[0].item_count_out = 0;
+    datablocks[1]->batches[0].item_count_in  = 0;
+    datablocks[1]->batches[0].item_count_out = num_pkts;
     datablocks[1]->batches[0].item_sizes_in  = nullptr;
     datablocks[1]->batches[0].item_sizes_out = nullptr;
     datablocks[1]->batches[0].item_offsets_in  = nullptr;
@@ -224,8 +227,68 @@ TEST_P(IPLookupCUDAMatchTest, SingleBatch) {
     ASSERT_EQ(cudaSuccess, cudaFree(dbarray_d));
 }
 
-TEST_P(IPLookupCUDAMatchTest, MultipleBatches) {
+TEST_P(IPLookupCUDAMatchTest, SingleBatchWithDatablock) {
     void *k = ipv4_route_lookup_get_cuda_kernel();
+    const size_t num_pkts = 2;
+    const size_t pkt_size = 64;
+    const char *dest_addrs[2] = { "118.223.0.3", "58.29.89.55" };
+
+    PacketBatch *batch = new PacketBatch();
+    batch->count = num_pkts;
+    INIT_BATCH_MASK(batch);
+    batch->banno.bitmask = 0;
+    anno_set(&batch->banno, NBA_BANNO_LB_DECISION, -1);
+    #if NBA_BATCHING_SCHEME == NBA_BATCHING_LINKEDLIST
+    batch->first_idx = 0;
+    batch->last_idx = batch->count - 1;
+    batch->slot_count = batch->count;
+    Packet *prev_pkt = nullptr;
+    #endif
+    for (unsigned pkt_idx = 0; pkt_idx < num_pkts; pkt_idx++) {
+        batch->packets[pkt_idx] = (struct rte_mbuf *) malloc(pkt_size);
+    }
+    FOR_EACH_PACKET_ALL_INIT_PREFETCH(batch, 8u) {
+        ASSERT_LT(pkt_idx, num_pkts);
+        ASSERT_NE(nullptr, batch->packets[pkt_idx]);
+        batch->packets[pkt_idx]->nb_segs = 1;
+        batch->packets[pkt_idx]->buf_addr = (void *) ((uintptr_t) batch->packets[pkt_idx] + sizeof(struct rte_mbuf));
+        batch->packets[pkt_idx]->data_off = RTE_PKTMBUF_HEADROOM;
+        batch->packets[pkt_idx]->port = 0;
+        batch->packets[pkt_idx]->pkt_len = pkt_size;
+        batch->packets[pkt_idx]->data_len = pkt_size;
+        printf("----\n");
+        printf("batch pkt (mbuf) = %p\n", batch->packets[pkt_idx]);
+        printf("buf_addr = %p\n", batch->packets[pkt_idx]->buf_addr);
+        printf("buf_addr + sizeof(Packet) = %p\n", (uintptr_t) batch->packets[pkt_idx]->buf_addr + sizeof(Packet));
+        printf("buf_addr + headroom = %p\n", (uintptr_t) batch->packets[pkt_idx]->buf_addr + RTE_PKTMBUF_HEADROOM);
+        printf("mtod = %p\n", rte_pktmbuf_mtod(batch->packets[pkt_idx], char*));
+
+        Packet *pkt = Packet::from_base_nocheck(batch->packets[pkt_idx]);
+        printf("Packet = %p\n", pkt);
+        new (pkt) Packet(batch, batch->packets[pkt_idx]);
+        #if NBA_BATCHING_SCHEME == NBA_BATCHING_LINKEDLIST
+        if (prev_pkt != nullptr) {
+            prev_pkt->next_idx = pkt_idx;
+            pkt->prev_idx = pkt_idx - 1;
+        }
+        prev_pkt = pkt;
+        #endif
+        //memset(pkt->data(), 0, pkt_size);
+        //pkt->anno.bitmask = 0;
+        //anno_set(&pkt->anno, NBA_ANNO_IFACE_IN,
+        //         batch->packets[pkt_idx]->port);
+        //anno_set(&pkt->anno, NBA_ANNO_TIMESTAMP, 1234);
+        //anno_set(&pkt->anno, NBA_ANNO_BATCH_ID, 10000);
+
+        // Copy the destination IP addresses
+        uint32_t daddr = (uint32_t) inet_addr(dest_addrs[pkt_idx]);
+        //memcpy(pkt->data() + 14 + 16, &daddr, 4);
+    } END_FOR_ALL_INIT_PREFETCH;
+
+    for (unsigned pkt_idx = 0; pkt_idx < num_pkts; pkt_idx++) {
+        free(batch->packets[pkt_idx]);
+    }
+    delete batch;
     ASSERT_EQ(cudaSuccess, cudaDeviceSynchronize());
 }
 

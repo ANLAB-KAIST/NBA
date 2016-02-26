@@ -78,12 +78,14 @@ int IPsecESPencap::process(int input_port, Packet *pkt)
     if (likely(sa_item != sa_table.end())) {
         sa_entry = sa_item->second;
         anno_set(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID, sa_entry->entry_idx);
+        assert(sa_entry->entry_idx < 1024u);
     } else {
         // FIXME: this is to encrypt all traffic regardless sa_entry lookup results.
         //        (just for worst-case performance tests)
         unsigned f = (tunnel_counter ++) % num_tunnels;
         sa_entry = sa_table_linear[f];
         anno_set(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID, f);
+        assert(f < 1024u);
     }
 
     int ip_len = ntohs(iph->tot_len);

@@ -519,7 +519,7 @@ int io_loop(void *arg)
     char temp[1024];
     int ret;
 
-    /* Packet builder initialization for emulation mode. */
+    /* Initialize random for randomized port access order. */
     random32_func_t random32 = bind(uniform_int_distribution<uint32_t>{}, mt19937());
 
     /* IO thread initialization */
