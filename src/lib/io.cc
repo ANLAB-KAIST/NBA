@@ -366,7 +366,7 @@ static void io_node_stat_cb(struct ev_loop *loop, struct ev_async *watcher, int 
             total.port_stats[j].num_sent_bytes = rte_atomic64_read(&node_stat->port_stats[j].num_sent_bytes);
             total.port_stats[j].num_invalid_pkts = rte_atomic64_read(&node_stat->port_stats[j].num_invalid_pkts);
             total.port_stats[j].num_sw_drop_pkts = rte_atomic64_read(&node_stat->port_stats[j].num_sw_drop_pkts);
-            if (!emulate_io && (unsigned) info.pci_dev->numa_node == ctx->loc.node_id) {
+            if (!emulate_io && (unsigned) rte_eth_dev_socket_id(j) == ctx->loc.node_id) {
                 rte_eth_stats_get((uint8_t) j, &s);
                 total.port_stats[j].num_rx_drop_pkts = s.ierrors;
             } else {

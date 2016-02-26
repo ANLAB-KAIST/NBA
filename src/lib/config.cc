@@ -169,11 +169,14 @@ nba_get_netdevices(PyObject *self, PyObject *args)
             PyObject *pname = PyUnicode_FromString(dev_info.driver_name);
             PyStructSequence_SetItem(pnamedtuple, 1, pname);
 
-            PyOS_snprintf(tempbuf, 64, "%04x:%02x:%02x.%u",
+            if(dev_info.pci_dev)
+            	PyOS_snprintf(tempbuf, 64, "%04x:%02x:%02x.%u",
                           dev_info.pci_dev->addr.domain,
                           dev_info.pci_dev->addr.bus,
                           dev_info.pci_dev->addr.devid,
                           dev_info.pci_dev->addr.function);
+            else
+            	PyOS_snprintf(tempbuf, 64, "vdev:%d", i);
             PyObject *pbusaddr = PyUnicode_FromString(tempbuf);
             PyStructSequence_SetItem(pnamedtuple, 2, pbusaddr);
 
@@ -183,7 +186,7 @@ nba_get_netdevices(PyObject *self, PyObject *args)
             PyObject *pmacaddr = PyUnicode_FromString(tempbuf);
             PyStructSequence_SetItem(pnamedtuple, 3, pmacaddr);
 
-            PyObject *pnum = PyLong_FromLong((long) dev_info.pci_dev->numa_node);
+            PyObject *pnum = PyLong_FromLong((long) rte_eth_dev_socket_id(i));
             PyStructSequence_SetItem(pnamedtuple, 4, pnum);
             pnum = PyLong_FromLong((long) dev_info.min_rx_bufsize);
             PyStructSequence_SetItem(pnamedtuple, 5, pnum);

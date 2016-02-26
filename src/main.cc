@@ -416,7 +416,7 @@ int main(int argc, char **argv)
             rte_eth_macaddr_get(port_idx, &macaddr);
 
             /* Initialize memory pool, rxq, txq rings. */
-            unsigned node_idx = dev_info.pci_dev->numa_node;
+            unsigned node_idx = rte_eth_dev_socket_id(port_idx);
             if (is_numa_disabled)
                 node_idx = 0;
             unsigned port_per_node = node_ports[node_idx].num_rx_ports;
