@@ -14,7 +14,7 @@ for node_id, cpus in enumerate(node_cpus):
 system_params = {
     'IO_BATCH_SIZE': 64,
     'COMP_BATCH_SIZE': 64,
-    'COPROC_PPDEPTH': 32,
+    'COPROC_PPDEPTH': 3 if nba.emulate_io else 32,
 }
 print("# logical cores: {0}, # physical cores {1} (hyperthreading {2})".format(
     nba.num_logical_cores, nba.num_physical_cores,
