@@ -215,6 +215,8 @@ public:
 
 } __rte_cache_aligned;
 
+static_assert(sizeof(struct Packet) <= RTE_PKTMBUF_HEADROOM, "struct Packet must fit in headroom.");
+
 struct rte_mempool *packet_create_mempool(size_t size, int node_id, int core_id);
 
 }
