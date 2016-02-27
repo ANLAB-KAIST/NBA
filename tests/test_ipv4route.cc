@@ -231,9 +231,18 @@ TEST_P(IPLookupCUDAMatchTest, SingleBatch) {
 
 TEST_P(IPLookupCUDAMatchTest, SingleBatchWithDatablock) {
     void *k = ipv4_route_lookup_get_cuda_kernel();
+    const uint32_t num_batches = 1;
     const size_t num_pkts = 2;
     const size_t pkt_size = 64;
     const char *dest_addrs[num_pkts] = { "118.223.0.3", "58.29.89.55" };
+    uint16_t cpu_results[2] = { 0, 0 };
+
+    ipv4route::direct_lookup(tbl24_h, tbllong_h,
+                             ntohl(inet_addr(dest_addrs[0])), &cpu_results[0]);
+    ipv4route::direct_lookup(tbl24_h, tbllong_h,
+                             ntohl(inet_addr(dest_addrs[1])), &cpu_results[1]);
+    EXPECT_NE(0, cpu_results[0]);
+    EXPECT_NE(0, cpu_results[1]);
 
     PacketBatch *batch = nba::testing::create_batch(num_pkts, pkt_size,
         [&](size_t pkt_idx, struct Packet *pkt) {
@@ -242,7 +251,157 @@ TEST_P(IPLookupCUDAMatchTest, SingleBatchWithDatablock) {
             memcpy(pkt->data() + 14 + 16, &daddr, 4);
         });
     ASSERT_NE(nullptr, batch);
+
+    DataBlock *datablock_registry[NBA_MAX_DATABLOCKS];
+    memset(datablock_registry, 0, sizeof(DataBlock*) * NBA_MAX_DATABLOCKS);
+    for (unsigned dbid = 0; dbid < num_datablocks; dbid++) {
+        datablock_registry[dbid] = (datablock_ctors[dbid])();
+        datablock_registry[dbid]->set_id(dbid);
+    }
+    DataBlock *db_daddrs = datablock_registry[dbid_ipv4_dest_addrs];
+    DataBlock *db_result = datablock_registry[dbid_ipv4_lookup_results];
+    ASSERT_NE(nullptr, db_daddrs);
+    ASSERT_NE(nullptr, db_result);
+
+    batch->datablock_states = new struct datablock_tracker[num_datablocks];
+    batch->datablock_states->aligned_item_sizes_h.ptr = malloc(sizeof(uint64_t));
+    batch->datablock_states->aligned_item_sizes = (struct item_size_info *)
+            batch->datablock_states->aligned_item_sizes_h.ptr;
+    ASSERT_NE(nullptr, batch->datablock_states->aligned_item_sizes);
+    ASSERT_EQ(cudaSuccess, cudaMalloc(&batch->datablock_states->aligned_item_sizes_d.ptr, sizeof(uint64_t)));
+
+    size_t in_size = 0;
+    size_t in_count = 0;
+    struct read_roi_info rri;
+    db_daddrs->get_read_roi(&rri);
+    tie(in_size, in_count) = db_daddrs->calc_read_buffer_size(batch);
+    ASSERT_EQ(2, in_count);
+    ASSERT_EQ(rri.length * in_count, in_size);
+    ASSERT_EQ(sizeof(uint32_t) * num_pkts, in_size);
+
+    size_t out_size = 0;
+    size_t out_count = 0;
+    struct write_roi_info wri;
+    db_result->get_write_roi(&wri);
+    tie(out_size, out_count) = db_result->calc_write_buffer_size(batch);
+    ASSERT_EQ(2, out_count);
+    ASSERT_EQ(wri.length * out_count, out_size);
+    ASSERT_EQ(sizeof(uint16_t) * num_pkts, out_size);
+
+    struct datablock_kernel_arg *datablocks[2];
+    const size_t db_arg_size = sizeof(struct datablock_kernel_arg)
+                               + sizeof(struct datablock_batch_info) * num_batches;
+    datablocks[0] = (struct datablock_kernel_arg *) malloc(db_arg_size);
+    datablocks[1] = (struct datablock_kernel_arg *) malloc(db_arg_size);
+
+    void *db_ipv4_dest_addrs_d     = nullptr;
+    void *db_ipv4_lookup_results_d = nullptr;
+    ASSERT_EQ(cudaSuccess, cudaMalloc(&db_ipv4_dest_addrs_d, db_arg_size));
+    ASSERT_EQ(cudaSuccess, cudaMalloc(&db_ipv4_lookup_results_d, db_arg_size));
+    ASSERT_NE(nullptr, db_ipv4_dest_addrs_d);
+    ASSERT_NE(nullptr, db_ipv4_lookup_results_d);
+
+    uint32_t *input_buffer  = (uint32_t *) malloc(in_size);
+    uint16_t *output_buffer = (uint16_t *) malloc(out_size);
+    ASSERT_NE(nullptr, input_buffer);
+    ASSERT_NE(nullptr, output_buffer);
+    input_buffer[0] = (uint32_t) inet_addr(dest_addrs[0]); // ntohl is done inside kernels
+    input_buffer[1] = (uint32_t) inet_addr(dest_addrs[1]);
+    output_buffer[0] = 0;
+    output_buffer[1] = 0;
+    void *input_buffer_d = nullptr;
+    void *output_buffer_d = nullptr;
+    ASSERT_EQ(cudaSuccess, cudaMalloc(&input_buffer_d, in_size));
+    ASSERT_EQ(cudaSuccess, cudaMalloc(&output_buffer_d, out_size));
+    ASSERT_NE(nullptr, input_buffer_d);
+    ASSERT_NE(nullptr, output_buffer_d);
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(input_buffer_d, input_buffer,
+                                      in_size, cudaMemcpyHostToDevice));
+
+    datablocks[0]->total_item_count_in  = in_count;
+    datablocks[0]->total_item_count_out = 0;
+    datablocks[0]->item_size_in  = rri.length;
+    datablocks[0]->item_size_out = 0;
+    datablocks[0]->batches[0].buffer_bases_in  = input_buffer_d;
+    datablocks[0]->batches[0].buffer_bases_out = nullptr;
+    datablocks[0]->batches[0].item_count_in  = in_count;
+    datablocks[0]->batches[0].item_count_out = 0;
+    datablocks[0]->batches[0].item_sizes_in  = nullptr;
+    datablocks[0]->batches[0].item_sizes_out = nullptr;
+    datablocks[0]->batches[0].item_offsets_in  = nullptr;
+    datablocks[0]->batches[0].item_offsets_out = nullptr;
+
+    datablocks[1]->total_item_count_in  = 0;
+    datablocks[1]->total_item_count_out = out_count;
+    datablocks[1]->item_size_in  = 0;
+    datablocks[1]->item_size_out = wri.length;
+    datablocks[1]->batches[0].buffer_bases_in  = nullptr;
+    datablocks[1]->batches[0].buffer_bases_out = output_buffer_d;
+    datablocks[1]->batches[0].item_count_in  = 0;
+    datablocks[1]->batches[0].item_count_out = out_count;
+    datablocks[1]->batches[0].item_sizes_in  = nullptr;
+    datablocks[1]->batches[0].item_sizes_out = nullptr;
+    datablocks[1]->batches[0].item_offsets_in  = nullptr;
+    datablocks[1]->batches[0].item_offsets_out = nullptr;
+
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(db_ipv4_dest_addrs_d, datablocks[0],
+                                      db_arg_size, cudaMemcpyHostToDevice));
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(db_ipv4_lookup_results_d, datablocks[1],
+                                      db_arg_size, cudaMemcpyHostToDevice));
+    void *dbarray_h[2] = { db_ipv4_dest_addrs_d, db_ipv4_lookup_results_d };
+    void *dbarray_d = nullptr;
+    uint8_t batch_ids[num_pkts] = { 0, 0 };
+    uint16_t item_ids[num_pkts] = { 0, 1 };
+    void *batch_ids_d = nullptr;
+    void *item_ids_d  = nullptr;
+    ASSERT_EQ(cudaSuccess, cudaMalloc(&dbarray_d, sizeof(void*) * 2));
+    ASSERT_EQ(cudaSuccess, cudaMalloc(&batch_ids_d, sizeof(uint8_t) * num_pkts));
+    ASSERT_EQ(cudaSuccess, cudaMalloc(&item_ids_d, sizeof(uint16_t) * num_pkts));
+    ASSERT_NE(nullptr, dbarray_d);
+    ASSERT_NE(nullptr, batch_ids_d);
+    ASSERT_NE(nullptr, item_ids_d);
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(dbarray_d, dbarray_h,
+                                      sizeof(void*) * 2,
+                                      cudaMemcpyHostToDevice));
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(batch_ids_d, batch_ids,
+                                      sizeof(uint8_t) * in_count,
+                                      cudaMemcpyHostToDevice));
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(item_ids_d, item_ids,
+                                      sizeof(uint16_t) * in_count,
+                                      cudaMemcpyHostToDevice));
+    void *checkbits_d = nullptr;
+
+    void *raw_args[7] = {
+        &dbarray_d,
+        (void *) &num_pkts,
+        &batch_ids_d, &item_ids_d,
+        &checkbits_d,
+        &tbl24_d, &tbllong_d
+    };
+    ASSERT_EQ(cudaSuccess, cudaLaunchKernel(k, dim3(1), dim3(256),
+              raw_args, 1024, 0));
     ASSERT_EQ(cudaSuccess, cudaDeviceSynchronize());
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(output_buffer, output_buffer_d,
+                                      out_size, cudaMemcpyDeviceToHost));
+    ASSERT_EQ(cudaSuccess, cudaDeviceSynchronize());
+
+    EXPECT_NE(0, output_buffer[0]);
+    EXPECT_NE(0, output_buffer[1]);
+    EXPECT_EQ(cpu_results[0], output_buffer[0]);
+    EXPECT_EQ(cpu_results[1], output_buffer[1]);
+
+    free(datablocks[0]);
+    free(datablocks[1]);
+    free(input_buffer);
+    free(output_buffer);
+    ASSERT_EQ(cudaSuccess, cudaFree(input_buffer_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(output_buffer_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(batch_ids_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(item_ids_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(db_ipv4_dest_addrs_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(db_ipv4_lookup_results_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(dbarray_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(batch->datablock_states->aligned_item_sizes_d.ptr));
     nba::testing::free_batch(batch);
 }
 

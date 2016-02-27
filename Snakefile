@@ -94,10 +94,13 @@ SUPPRESSED_CC_WARNINGS = (
     'unused-result',
     'unused-parameter',
 )
-CFLAGS         = '-march=native -O2 -g -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude'
+CFLAGS      = '-march=native -O2 -g -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude'
 if os.getenv('DEBUG', 0):
-    CFLAGS     = '-march=native -Og -g3 -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude -DDEBUG'
-LIBS           = '-pthread -lpcre -lrt'
+    CFLAGS  = '-march=native -Og -g3 -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude -DDEBUG'
+if os.getenv('TESTING', 0):
+    CFLAGS += ' -DTESTING'
+
+LIBS = '-pthread -lpcre -lrt'
 if USE_CUDA:        CFLAGS += ' -DUSE_CUDA'
 if USE_PHI:         CFLAGS += ' -DUSE_PHI'
 if USE_OPENSSL_EVP: CFLAGS += ' -DUSE_OPENSSL_EVP'
@@ -267,11 +270,11 @@ for case in _test_cases:
     rule:  # for individual tests
         input: fmt('tests/test_{case}.cc'), includes, GTEST_FUSED_OBJ, GTEST_MAIN_OBJ, req=requires
         output: fmt('tests/test_{case}')
-        shell: '{CXX} {CXXFLAGS} -o {output} {input[0]} {input.req} {GTEST_FUSED_OBJ} {GTEST_MAIN_OBJ} {LIBS}'
+        shell: '{CXX} {CXXFLAGS} -DTESTING -o {output} {input[0]} {input.req} {GTEST_FUSED_OBJ} {GTEST_MAIN_OBJ} {LIBS}'
     rule:  # for unified test suite
         input: fmt('tests/test_{case}.cc'), includes
         output: joinpath(OBJ_DIR, fmt('tests/test_{case}.o'))
-        shell: '{CXX} {CXXFLAGS} -o {output} -c {input[0]}'
+        shell: '{CXX} {CXXFLAGS} -DTESTING -o {output} -c {input[0]}'
 
 for srcfile in SOURCE_FILES:
     # We generate build rules dynamically depending on the actual header

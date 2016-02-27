@@ -1,7 +1,6 @@
 #include <cassert>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <rte_mbuf.h>
 #include <nba/framework/test_utils.hh>
 #include <nba/element/annotation.hh>
 #include <nba/element/packet.hh>
@@ -62,6 +61,11 @@ PacketBatch *nba::testing::create_batch
 
 void nba::testing::free_batch(PacketBatch *batch)
 {
+    if (batch->datablock_states != nullptr) {
+        if (batch->datablock_states->aligned_item_sizes_h.ptr != nullptr)
+            free(batch->datablock_states->aligned_item_sizes_h.ptr);
+        delete batch->datablock_states;
+    }
     for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx++) {
         free(batch->packets[pkt_idx]);
     }

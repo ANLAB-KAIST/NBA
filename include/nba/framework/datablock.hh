@@ -74,16 +74,6 @@ struct write_roi_info {
     int align;
 };
 
-#ifdef NBA_NO_HUGE
-/* WARNING: you should use minimum packet sizes for IPsec. */
-struct item_size_info {
-    union {
-        uint16_t size;
-        uint16_t sizes[NBA_MAX_COMP_BATCH_SIZE * 12];
-    };
-    dev_offset_t offsets[NBA_MAX_COMP_BATCH_SIZE * 12];
-};
-#else
 struct item_size_info {
     union {
         uint16_t size;
@@ -91,7 +81,6 @@ struct item_size_info {
     };
     dev_offset_t offsets[NBA_MAX_COMP_BATCH_SIZE * 96];
 };
-#endif
 
 /**
  * Datablock tracking struct.
