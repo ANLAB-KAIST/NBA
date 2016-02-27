@@ -1,6 +1,7 @@
 #include <cassert>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <rte_mbuf.h>
 #include <nba/framework/test_utils.hh>
 #include <nba/element/annotation.hh>
 #include <nba/element/packet.hh>
@@ -32,7 +33,8 @@ PacketBatch *nba::testing::create_batch
         assert(pkt_idx < num_pkts);
         assert(nullptr != batch->packets[pkt_idx]);
         batch->packets[pkt_idx]->nb_segs = 1;
-        batch->packets[pkt_idx]->buf_addr = (void *) ((uintptr_t) batch->packets[pkt_idx] + sizeof(struct rte_mbuf));
+        batch->packets[pkt_idx]->buf_addr = (void *) ((uintptr_t) batch->packets[pkt_idx]
+                                                      + sizeof(struct rte_mbuf));
         batch->packets[pkt_idx]->data_off = RTE_PKTMBUF_HEADROOM;
         batch->packets[pkt_idx]->port = 0;
         batch->packets[pkt_idx]->pkt_len = pkt_size;
