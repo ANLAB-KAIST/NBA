@@ -6,14 +6,20 @@
 #endif
 #include <nba/framework/datablock.hh>
 #include <nba/framework/datablock_shared.hh>
+#include <nba/element/annotation.hh>
+#include <nba/element/packet.hh>
+#include <nba/element/packetbatch.hh>
+#include <nba/framework/test_utils.hh>
 #include <gtest/gtest.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <rte_mbuf.h>
 #include "../elements/ip/ip_route_core.hh"
 #include "../elements/ip/IPlookup_kernel.hh"
 #include "../elements/ip/IPv4Datablocks.hh"
 #if 0
 #require <lib/datablock.o>
+#require <lib/test_utils.o>
 #require "../elements/ip/ip_route_core.o"
 #require "../elements/ip/IPlookup_kernel.o"
 #require "../elements/ip/IPv4Datablocks.o"
@@ -27,7 +33,7 @@ TEST(IPLookupTest, Loading) {
     ipv4route::load_rib_from_file(tables, "configs/routing_info.txt");
     size_t num_entries = 0;
     for (int i = 0; i <= 32; i++) {
-        printf("table[%d] size: %lu\n", i, tables[i].size());
+        //printf("table[%d] size: %lu\n", i, tables[i].size());
         num_entries += tables[i].size();
     }
     EXPECT_EQ(282797, num_entries) << "All entries (lines) should exist.";
@@ -92,14 +98,13 @@ protected:
 
 TEST_P(IPLookupCUDAMatchTest, SingleBatch) {
     void *k = ipv4_route_lookup_get_cuda_kernel();
-    const char *ip1 = "118.223.0.3";
-    const char *ip2 = "58.29.89.55";
+    const char *dest_addrs[2] = { "118.223.0.3", "58.29.89.55" };
     uint16_t cpu_results[2] = { 0, 0 };
 
     ipv4route::direct_lookup(tbl24_h, tbllong_h,
-                             ntohl(inet_addr(ip1)), &cpu_results[0]);
+                             ntohl(inet_addr(dest_addrs[0])), &cpu_results[0]);
     ipv4route::direct_lookup(tbl24_h, tbllong_h,
-                             ntohl(inet_addr(ip2)), &cpu_results[1]);
+                             ntohl(inet_addr(dest_addrs[1])), &cpu_results[1]);
     EXPECT_NE(0, cpu_results[0]);
     EXPECT_NE(0, cpu_results[1]);
 
@@ -126,8 +131,8 @@ TEST_P(IPLookupCUDAMatchTest, SingleBatch) {
     uint16_t *output_buffer = (uint16_t *) malloc(output_size);
     ASSERT_NE(nullptr, input_buffer);
     ASSERT_NE(nullptr, output_buffer);
-    input_buffer[0] = (uint32_t) inet_addr(ip1); // ntohl is done inside kernels
-    input_buffer[1] = (uint32_t) inet_addr(ip2);
+    input_buffer[0] = (uint32_t) inet_addr(dest_addrs[0]); // ntohl is done inside kernels
+    input_buffer[1] = (uint32_t) inet_addr(dest_addrs[1]);
     output_buffer[0] = 0;
     output_buffer[1] = 0;
     void *input_buffer_d = nullptr;
@@ -158,8 +163,8 @@ TEST_P(IPLookupCUDAMatchTest, SingleBatch) {
     datablocks[1]->item_size_out = sizeof(uint16_t);
     datablocks[1]->batches[0].buffer_bases_in  = nullptr;
     datablocks[1]->batches[0].buffer_bases_out = output_buffer_d;
-    datablocks[1]->batches[0].item_count_in  = num_pkts;
-    datablocks[1]->batches[0].item_count_out = 0;
+    datablocks[1]->batches[0].item_count_in  = 0;
+    datablocks[1]->batches[0].item_count_out = num_pkts;
     datablocks[1]->batches[0].item_sizes_in  = nullptr;
     datablocks[1]->batches[0].item_sizes_out = nullptr;
     datablocks[1]->batches[0].item_offsets_in  = nullptr;
@@ -224,9 +229,21 @@ TEST_P(IPLookupCUDAMatchTest, SingleBatch) {
     ASSERT_EQ(cudaSuccess, cudaFree(dbarray_d));
 }
 
-TEST_P(IPLookupCUDAMatchTest, MultipleBatches) {
+TEST_P(IPLookupCUDAMatchTest, SingleBatchWithDatablock) {
     void *k = ipv4_route_lookup_get_cuda_kernel();
+    const size_t num_pkts = 2;
+    const size_t pkt_size = 64;
+    const char *dest_addrs[num_pkts] = { "118.223.0.3", "58.29.89.55" };
+
+    PacketBatch *batch = nba::testing::create_batch(num_pkts, pkt_size,
+        [&](size_t pkt_idx, struct Packet *pkt) {
+            // Copy the destination IP addresses
+            uint32_t daddr = (uint32_t) inet_addr(dest_addrs[pkt_idx]);
+            memcpy(pkt->data() + 14 + 16, &daddr, 4);
+        });
+    ASSERT_NE(nullptr, batch);
     ASSERT_EQ(cudaSuccess, cudaDeviceSynchronize());
+    nba::testing::free_batch(batch);
 }
 
 INSTANTIATE_TEST_CASE_P(PerDeviceIPLookupCUDAMatchTests, IPLookupCUDAMatchTest,
