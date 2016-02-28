@@ -96,7 +96,7 @@ SUPPRESSED_CC_WARNINGS = (
 )
 CFLAGS      = '-march=native -O2 -g -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude'
 if os.getenv('DEBUG', 0):
-    CFLAGS  = '-march=native -Og -g3 -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude -DDEBUG'
+    CFLAGS  = '-march=native -O0 -g3 -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude -DDEBUG'
 if os.getenv('TESTING', 0):
     CFLAGS += ' -DTESTING'
 
