@@ -305,10 +305,10 @@ TEST_P(IPLookupCUDAMatchTest, SingleBatchWithDatablock) {
     uint16_t *output_buffer = (uint16_t *) malloc(out_size);
     ASSERT_NE(nullptr, input_buffer);
     ASSERT_NE(nullptr, output_buffer);
-    input_buffer[0] = (uint32_t) inet_addr(dest_addrs[0]); // ntohl is done inside kernels
-    input_buffer[1] = (uint32_t) inet_addr(dest_addrs[1]);
-    output_buffer[0] = 0;
-    output_buffer[1] = 0;
+    db_daddrs->preprocess(batch, input_buffer);
+    for (unsigned i = 0; i < in_count; i++)
+        ASSERT_EQ((uint32_t) inet_addr(dest_addrs[i]), input_buffer[i]);
+    memset(output_buffer, 0, sizeof(uint16_t) * out_count);
     void *input_buffer_d = nullptr;
     void *output_buffer_d = nullptr;
     ASSERT_EQ(cudaSuccess, cudaMalloc(&input_buffer_d, in_size));
@@ -384,6 +384,9 @@ TEST_P(IPLookupCUDAMatchTest, SingleBatchWithDatablock) {
     ASSERT_EQ(cudaSuccess, cudaMemcpy(output_buffer, output_buffer_d,
                                       out_size, cudaMemcpyDeviceToHost));
     ASSERT_EQ(cudaSuccess, cudaDeviceSynchronize());
+
+    // We skip postprocessing since it has no actual elements here.
+    batch->tracker.has_results = true;
 
     EXPECT_NE(0, output_buffer[0]);
     EXPECT_NE(0, output_buffer[1]);
