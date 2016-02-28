@@ -387,11 +387,10 @@ TEST_P(IPLookupCUDAMatchTest, SingleBatchWithDatablock) {
 
     // We skip postprocessing since it has no actual elements here.
     batch->tracker.has_results = true;
-
-    EXPECT_NE(0, output_buffer[0]);
-    EXPECT_NE(0, output_buffer[1]);
-    EXPECT_EQ(cpu_results[0], output_buffer[0]);
-    EXPECT_EQ(cpu_results[1], output_buffer[1]);
+    for (unsigned o = 0; o < out_count; o++) {
+        EXPECT_NE(0, output_buffer[o]);
+        EXPECT_EQ(cpu_results[o], output_buffer[o]);
+    }
 
     free(datablocks[0]);
     free(datablocks[1]);
