@@ -487,18 +487,18 @@ __constant__ __device__ uint8_t Td4_ConstMem[256] = { 0x52U, 0x09U, 0x6aU,
 //# define _PUTU32(ct, st) { (ct)[0] = (uint8_t)((st) >> 24); (ct)[1] = (uint8_t)((st) >> 16); (ct)[2] = (uint8_t)((st) >>  8); (ct)[3] = (uint8_t)(st); }
 //#define _GETU32(pt) ((( (*((uint32_t*)(pt))) &0x000000ffU)<<24) ^ (((*((uint32_t*)(pt)))&0x0000ff00U)<<8) ^ (((*((uint32_t*)(pt)))&0x00ff0000U)>>8) ^ (((*((uint32_t*)(pt)))&0xff000000U)>>24))
 
-__device__ uint32_t _GETU32(const uint8_t *pt) {
+__device__ static uint32_t _GETU32(const uint8_t *pt) {
     uint32_t i = *((uint32_t*) pt);
     return ((i & 0x000000ffU) << 24) ^ ((i & 0x0000ff00U) << 8)
             ^ ((i & 0x00ff0000U) >> 8) ^ ((i & 0xff000000U) >> 24);
 }
 
-__device__ void _PUTU32(uint8_t *ct, uint32_t st) {
+__device__ static void _PUTU32(uint8_t *ct, uint32_t st) {
     *((uint32_t*) ct) = ((st >> 24) ^ (((st << 8) >> 24) << 8)
             ^ (((st << 16) >> 24) << 16) ^ (st << 24));
 }
 
-__device__ void _next_rk(uint32_t* rk, const int round, const uint32_t Te0[],
+__device__ static void _next_rk(uint32_t* rk, const int round, const uint32_t Te0[],
         const uint32_t Te1[], const uint32_t Te2[], const uint32_t Te3[],
         const uint32_t rcon[]) {
     uint32_t temp;
@@ -517,7 +517,7 @@ __device__ void _next_rk(uint32_t* rk, const int round, const uint32_t Te0[],
 /* increment counter (128-bit int) by the given amount                  */
 /*----------------------------------------------------------------------*/
 
-__device__ void AES_ctr128_inc(unsigned char *counter, int inc) {
+__device__ static void AES_ctr128_inc(unsigned char *counter, int inc) {
     /* convert counter to big endian format */
     uint32_t c[4];
     c[0] = _GETU32(counter + 12);
@@ -537,7 +537,7 @@ __device__ void AES_ctr128_inc(unsigned char *counter, int inc) {
     _PUTU32(counter + 0, c[3]);
 }
 
-__device__ void AES_encrypt_cu_optimized(const uint8_t *in, uint8_t *out,
+__device__ static void AES_encrypt_cu_optimized(const uint8_t *in, uint8_t *out,
         const uint8_t * __restrict__ key, const uint32_t Te0[], const uint32_t Te1[],
         const uint32_t Te2[], const uint32_t Te3[], const uint32_t rcon[]) {
     //const uint32_t *rk;

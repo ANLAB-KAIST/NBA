@@ -17,7 +17,7 @@ extern "C" {
 
 //__global__ uint32_t d_pad_buffer[16 * 2 * MAX_CHUNK_SIZE * MAX_GROUP_SIZE];
 
-__device__ uint32_t swap(uint32_t v) {
+__device__ static uint32_t swap(uint32_t v) {
     return ((v & 0x000000ffU) << 24) | ((v & 0x0000ff00U) << 8)
             | ((v & 0x00ff0000U) >> 8) | ((v & 0xff000000U) >> 24);
 }
@@ -32,7 +32,7 @@ typedef struct hash_digest {
 
 #define HMAC
 
-__inline__ __device__ void getBlock(char* buf, int offset, int len, uint32_t* dest)
+__inline__ __device__ static void getBlock(char* buf, int offset, int len, uint32_t* dest)
 {
     uint32_t *tmp;
     unsigned int tempbuf[16];
@@ -153,7 +153,7 @@ __inline__ __device__ void getBlock(char* buf, int offset, int len, uint32_t* de
     }
 }
 
-__device__ void computeSHA1Block(char* in, uint32_t* w, int offset, int len,
+__device__ static void computeSHA1Block(char* in, uint32_t* w, int offset, int len,
         hash_digest_t &h) {
     uint32_t a = h.h1;
     uint32_t b = h.h2;
@@ -1135,7 +1135,7 @@ __device__ void computeSHA1Block(char* in, uint32_t* w, int offset, int len,
  some how *pad = *pad++ ^ *key++
  was optimized and does not work correctly in GPU oTL.
  */
-__device__ void xorpads(uint32_t *pad, const uint32_t* key) {
+__device__ static void xorpads(uint32_t *pad, const uint32_t* key) {
 #pragma unroll 16
     for (int i = 0; i < 16; i++)
         *(pad + i) = *(pad + i) ^ *(key + i);
@@ -1156,7 +1156,7 @@ uint32_t ipad[16] =
 // out: start pointer of the data where hsha1 signature will be recorded.
 // length: length of the data to be authenticated by hsha1.
 // key: hmac key.
-__device__ void HMAC_SHA1(uint32_t *in, uint32_t *out, uint32_t length,
+__device__ static void HMAC_SHA1(uint32_t *in, uint32_t *out, uint32_t length,
         const char *key) {
     uint32_t w_register[16];
 
