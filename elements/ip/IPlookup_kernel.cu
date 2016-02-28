@@ -23,7 +23,7 @@ extern "C" {
 #define dbid_ipv4_dest_addrs_d     (0)
 #define dbid_ipv4_lookup_results_d (1)
 
-__device__ uint32_t ntohl(uint32_t n)
+__device__ static uint32_t ntohl(uint32_t n)
 {
     return ((n & 0xff000000) >> 24) | ((n & 0x00ff0000) >> 8) | \
            ((n & 0x0000ff00) << 8)  | ((n & 0x000000ff) << 24);

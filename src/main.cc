@@ -931,10 +931,11 @@ int main(int argc, char **argv)
 
     /* Since we set CALL_MASTER, this function blocks until the master
      * finishes. (master = io_loop[0:0@0]) */
+    _exit_cond.lock();
     rte_eal_mp_remote_launch(nba::thread_wrapper, &col, CALL_MASTER);
 
     /* Wait until the spawned threads are finished. */
-    _exit_cond.lock();
+
     while (!_terminated) {
         _exit_cond.wait();
     }
