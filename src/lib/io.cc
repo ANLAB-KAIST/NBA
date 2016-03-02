@@ -355,6 +355,7 @@ static void io_node_stat_cb(struct ev_loop *loop, struct ev_async *watcher, int 
     if (rte_atomic16_cmpset((volatile uint16_t *) &ctx->node_master_flag->cnt, node_stat->num_threads, 0)) {
         unsigned j;
         struct io_thread_stat total;
+        memset(&total, 0, sizeof(struct io_thread_stat));
         struct io_thread_stat *last_total = &node_stat->last_total;
         struct rte_eth_stats s;
         for (j = 0; j < node_stat->num_ports; j++) {
