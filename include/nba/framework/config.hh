@@ -49,7 +49,6 @@
 #define NBA_MAX_BATCHPOOL_SIZE      (2048u)
 #define NBA_MAX_IO_BASES            (1)
 
-#define NBA_MAX_ANNOTATION_SET_SIZE         (7)
 #define NBA_MAX_NODELOCALSTORAGE_ENTRIES    (16)
 #define NBA_MAX_KERNEL_OVERLAP      (8)
 #define NBA_MAX_DATABLOCKS          (12)    // If too large (e.g., 64), batch_pool can not be allocated.
