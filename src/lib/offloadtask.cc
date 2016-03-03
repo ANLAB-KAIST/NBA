@@ -48,7 +48,7 @@ OffloadTask::~OffloadTask()
 {
 }
 
-#ifdef DEBUG
+#ifdef DEBUG_OFFLOAD
 #define _debug_print_inb(tag, batch, dbid) { \
     size_t end = cctx->get_input_size(io_base); \
     size_t len = end - last_input_size; \

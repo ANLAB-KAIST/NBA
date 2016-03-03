@@ -710,10 +710,10 @@ __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
                                                   [item_idx];
     const int pkt_idx         = cur_block_info.pkt_idx;
     const int block_idx_local = cur_block_info.block_idx;
-    const uintptr_t offset = (uintptr_t) db_enc_payloads->batches[batch_idx].item_offsets_in[item_idx].as_value<uintptr_t>();
-    const uintptr_t length = (uintptr_t) db_enc_payloads->batches[batch_idx].item_sizes_in[item_idx];
+    const uintptr_t offset = (uintptr_t) db_enc_payloads->batches[batch_idx].item_offsets_in[pkt_idx].as_value<uintptr_t>();
+    const uintptr_t length = (uintptr_t) db_enc_payloads->batches[batch_idx].item_sizes_in[pkt_idx];
 
-    if (cur_block_info.magic == 85739 && pkt_idx < 64 && offset != 0 && length != 0) {
+    if (cur_block_info.magic == 85739 && pkt_idx < 64 && length != 0) {
         flow_id = ((uint64_t *) db_flow_ids->batches[batch_idx].buffer_bases_in)[pkt_idx];
         if (flow_id != 65536)
             assert(flow_id < 1024);
@@ -739,9 +739,9 @@ __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
 
     __syncthreads();
 
-    if (flow_id != 65536) {
+    if (flow_id != 65536 && length != 0) {
+        assert(flow_id < 1024);
         assert(pkt_idx < 64);
-        assert(length != 0);
 
         const uint8_t *const aes_key = flows[flow_id].aes_key;
         uint8_t *iv = ((uint8_t *) db_iv->batches[batch_idx].buffer_bases_in
