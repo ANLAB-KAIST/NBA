@@ -14,15 +14,21 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <rte_mbuf.h>
+#ifdef USE_CUDA
 #include "../elements/ip/ip_route_core.hh"
 #include "../elements/ip/IPlookup_kernel.hh"
+#endif
 #include "../elements/ip/IPv4Datablocks.hh"
-#if 0
+/*
 #require <lib/datablock.o>
 #require <lib/test_utils.o>
 #require "../elements/ip/ip_route_core.o"
-#require "../elements/ip/IPlookup_kernel.o"
 #require "../elements/ip/IPv4Datablocks.o"
+*/
+#ifdef USE_CUDA
+/*
+#require "../elements/ip/IPlookup_kernel.o"
+*/
 #endif
 
 using namespace std;
