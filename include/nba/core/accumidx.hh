@@ -4,14 +4,24 @@
 #include <nba/core/errors.hh>
 #include <type_traits>
 
+#ifndef __CUDACC__
+#ifndef __host__
+#define __host__
+#endif
+#ifndef __device__
+#define __device__
+#endif
+#endif
+
 namespace nba {
 
 template<typename T>
-static inline nba::error_t get_accum_idx(const T *group_counts,
-                                         const T num_groups,
-                                         const T global_idx,
-                                         T &group_idx,
-                                         T &item_idx)
+__host__ __device__ static inline nba::error_t get_accum_idx(
+    const T *group_counts,
+    const T num_groups,
+    const T global_idx,
+    T &group_idx,
+    T &item_idx)
 {
     static_assert(std::is_integral<T>::value, "Integer type required.");
     T sum = 0;

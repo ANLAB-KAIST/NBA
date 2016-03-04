@@ -27,7 +27,7 @@ public:
     virtual ~CUDAComputeContext();
 
     io_base_t alloc_io_base();
-    int alloc_input_buffer(io_base_t io_base, size_t size, 
+    int alloc_input_buffer(io_base_t io_base, size_t size,
                            host_mem_t &host_ptr, dev_mem_t &dev_ptr);
     int alloc_output_buffer(io_base_t io_base, size_t size,
                             host_mem_t &host_ptr, dev_mem_t &dev_ptr);

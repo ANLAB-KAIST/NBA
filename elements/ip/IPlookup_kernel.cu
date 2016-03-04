@@ -10,6 +10,8 @@
 
 // includes, project
 #include <cuda.h>
+#include <nba/core/errors.hh>
+#include <nba/core/accumidx.hh>
 #include <nba/engines/cuda/utils.hh>
 #include "IPlookup_kernel.hh"
 
@@ -23,7 +25,7 @@ extern "C" {
 #define dbid_ipv4_dest_addrs_d     (0)
 #define dbid_ipv4_lookup_results_d (1)
 
-__device__ static uint32_t ntohl(uint32_t n)
+__device__ static inline uint32_t ntohl(uint32_t n)
 {
     return ((n & 0xff000000) >> 24) | ((n & 0x00ff0000) >> 8) | \
            ((n & 0x0000ff00) << 8)  | ((n & 0x000000ff) << 24);
@@ -32,16 +34,17 @@ __device__ static uint32_t ntohl(uint32_t n)
 /* The GPU kernel. */
 __global__ void ipv4_route_lookup_cuda(
         struct datablock_kernel_arg **datablocks,
-        uint32_t count, uint8_t *batch_ids, uint16_t *item_ids,
+        uint32_t count, uint32_t *item_counts, uint32_t num_batches,
         uint8_t *checkbits_d,
         uint16_t* __restrict__ TBL24_d,
         uint16_t* __restrict__ TBLlong_d)
 {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    uint32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (idx < count) {
-        uint8_t batch_idx = batch_ids[idx];
-        uint16_t item_idx = item_ids[idx];
+        uint32_t batch_idx, item_idx;
+        assert(nba::NBA_SUCCESS == nba::get_accum_idx(item_counts, num_batches,
+                                                      idx, batch_idx, item_idx));
         struct datablock_kernel_arg *db_dest_addrs = datablocks[dbid_ipv4_dest_addrs_d];
         struct datablock_kernel_arg *db_results    = datablocks[dbid_ipv4_lookup_results_d];
         uint32_t daddr = ((uint32_t*) db_dest_addrs->batches[batch_idx].buffer_bases_in)[item_idx];

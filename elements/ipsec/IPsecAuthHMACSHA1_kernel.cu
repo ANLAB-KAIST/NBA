@@ -1,11 +1,12 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <assert.h>
+#include <cstdint>
+#include <cassert>
+#include <cuda.h>
 #include <nba/engines/cuda/utils.hh>
+#include <nba/core/errors.hh>
+#include <nba/core/accumidx.hh>
+#include <nba/framework/datablock_shared.hh>
 
 #include "IPsecAuthHMACSHA1_kernel.hh"
-
-#include <nba/framework/datablock_shared.hh>
 
 /* The index is given by the order in get_used_datablocks(). */
 #define dbid_enc_payloads_d (0)
@@ -1238,15 +1239,17 @@ __global__ void computeHMAC_SHA1_2(char* buf, char* keys, uint32_t *offsets,
 
 __global__ void computeHMAC_SHA1_3(
         struct datablock_kernel_arg **datablocks,
-        uint32_t count, uint8_t *batch_ids, uint16_t *item_ids,
+        uint32_t count, uint32_t *item_counts, uint32_t num_batches,
         uint8_t *checkbits_d,
         struct hmac_sa_entry *hmac_key_array)
 {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    uint32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < count && count != 0) {
-        const uint8_t batch_idx = batch_ids[idx];
-        const uint16_t item_idx  = item_ids[idx];
-        assert(item_idx < 64);
+        uint32_t batch_idx, item_idx;
+        nba::error_t err;
+        err = nba::get_accum_idx(item_counts, num_batches, idx, batch_idx, item_idx);
+        assert(err == nba::NBA_SUCCESS);
+
         const struct datablock_kernel_arg *db_enc_payloads = datablocks[dbid_enc_payloads_d];
         const struct datablock_kernel_arg *db_flow_ids     = datablocks[dbid_flow_ids_d];
 

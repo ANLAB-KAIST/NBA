@@ -4,6 +4,8 @@
 
 #include <cuda.h>
 #include <nba/engines/cuda/utils.hh>
+#include <nba/core/errors.hh>
+#include <nba/core/accumidx.hh>
 #include "LookupIP6Route_kernel.hh"
 
 #include "util_jhash.h"
@@ -144,16 +146,17 @@ __device__ static uint64_t ntohll(uint64_t val)
 
 __global__ void ipv6_route_lookup_cuda(
         struct datablock_kernel_arg **datablocks,
-        uint32_t count, uint8_t *batch_ids, uint16_t *item_ids,
+        uint32_t count, uint32_t *item_counts, uint32_t num_batches,
         uint8_t *checkbits_d,
         Item** __restrict__ tables_d,
         size_t* __restrict__ table_sizes_d)
 {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    uint32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (idx < count) {
-        uint8_t batch_idx = batch_ids[idx];
-        uint16_t item_idx  = item_ids[idx];
+        uint32_t batch_idx, item_idx;
+        assert(nba::NBA_SUCCESS == nba::get_accum_idx(item_counts, num_batches,
+                                                      idx, batch_idx, item_idx));
         struct datablock_kernel_arg *db_dest_addrs = datablocks[dbid_ipv6_dest_addrs_d];
         struct datablock_kernel_arg *db_results    = datablocks[dbid_ipv6_lookup_results_d];
         struct _cu_uint128_t daddr = ((struct _cu_uint128_t*) db_dest_addrs->batches[batch_idx].buffer_bases_in)[item_idx];

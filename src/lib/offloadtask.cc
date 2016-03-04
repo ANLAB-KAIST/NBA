@@ -279,10 +279,8 @@ void OffloadTask::execute()
     int dbid = elem->get_offload_item_counter_dbid();
     DataBlock *db = comp_ctx->datablock_registry[dbid];
 
-    host_mem_t batch_ids_h;
-    dev_mem_t batch_ids_d;
-    host_mem_t item_ids_h;
-    dev_mem_t item_ids_d;
+    host_mem_t item_counts_h;
+    dev_mem_t item_counts_d;
 
     for (PacketBatch *batch : batches) {
         struct datablock_tracker *t = &batch->datablock_states[dbid];
@@ -291,28 +289,17 @@ void OffloadTask::execute()
 
     if (all_item_count > 0) {
 
-        cctx->alloc_input_buffer(io_base, sizeof(uint16_t) * all_item_count,
-                                 batch_ids_h, batch_ids_d);
-        _debug_print_inb("execute.batch_ids", nullptr, 0);
-        cctx->alloc_input_buffer(io_base, sizeof(uint16_t) * all_item_count,
-                                 item_ids_h, item_ids_d);
-        _debug_print_inb("execute.item_ids", nullptr, 0);
-        uint8_t *batch_ids = (uint8_t *) cctx->unwrap_host_buffer(batch_ids_h);
-        uint16_t *item_ids  = (uint16_t *) cctx->unwrap_host_buffer(item_ids_h);
+        cctx->alloc_input_buffer(io_base, sizeof(uint32_t) * batches.size(),
+                                 item_counts_h, item_counts_d);
+        _debug_print_inb("execute.item_counts", nullptr, 0);
+        uint32_t *item_counts = (uint32_t *) cctx->unwrap_host_buffer(item_counts_h);
+        uint32_t num_batches = batches.size();
         res.num_workitems = all_item_count;
         res.num_threads_per_workgroup = elem->get_desired_workgroup_size(cctx->type_name.c_str());
         res.num_workgroups = (all_item_count + res.num_threads_per_workgroup - 1)
                              / res.num_threads_per_workgroup;
-        uint8_t batch_id = 0;
-        unsigned global_idx = 0;
-        for (PacketBatch *batch : batches) {
-            struct datablock_tracker *t = &batch->datablock_states[dbid];
-            for (unsigned item_id = 0; item_id < t->in_count; item_id ++) {
-                batch_ids[global_idx] = batch_id;
-                item_ids[global_idx]  = item_id;
-                global_idx ++;
-            }
-            batch_id ++;
+        for (auto&& pair : enumerate(batches)) {
+            item_counts[pair.first] = (pair.second)->datablock_states[dbid].in_count;
         }
 
         size_t total_input_size = cctx->get_input_size(io_base) - input_begin;
@@ -345,12 +332,11 @@ void OffloadTask::execute()
         arg = {(void *) &all_item_count, sizeof(uint32_t), alignof(uint32_t)};
         cctx->push_kernel_arg(arg);
 
-        ptr_args[1] = cctx->unwrap_device_buffer(batch_ids_d);
+        ptr_args[1] = cctx->unwrap_device_buffer(item_counts_d);
         arg = {&ptr_args[1], sizeof(void *), alignof(void *)};
         cctx->push_kernel_arg(arg);
 
-        ptr_args[2] = cctx->unwrap_device_buffer(item_ids_d);
-        arg = {&ptr_args[2], sizeof(void *), alignof(void *)};
+        arg = {(void *) &num_batches, sizeof(uint32_t), alignof(uint32_t)};
         cctx->push_kernel_arg(arg);
 
         arg = {(void *) &checkbits_d, sizeof(void *), alignof(void *)};

@@ -1,17 +1,15 @@
-
+#include <cstdint>
+#include <cassert>
 #include <cuda.h>
 #include <nba/engines/cuda/utils.hh>
+#include <nba/core/errors.hh>
+#include <nba/core/accumidx.hh>
+#include <nba/framework/datablock_shared.hh>
+
 #include "IPsecAES_kernel.hh"
-
-#include <stdint.h>
-
-#include <assert.h>
-#include <stdio.h>
 
 #include <openssl/aes.h>
 #include <openssl/md5.h>
-
-#include <nba/framework/datablock_shared.hh>
 
 /* The index is given by the order in get_used_datablocks(). */
 #define dbid_enc_payloads_d   (0)
@@ -680,7 +678,7 @@ __device__ static void AES_encrypt_cu_optimized(const uint8_t *in, uint8_t *out,
 
 __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
         struct datablock_kernel_arg **datablocks,
-        uint32_t count, uint8_t *batch_ids, uint16_t *item_ids,
+        uint32_t count, uint32_t *item_counts, uint32_t num_batches,
         uint8_t *checkbits_d,
         struct aes_sa_entry* flows
         )
@@ -691,11 +689,13 @@ __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
     __shared__ uint32_t shared_Te3[256];
     __shared__ uint32_t shared_Rcon[10];
 
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    uint32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < count && count != 0) {
 
-    const uint8_t batch_idx = batch_ids[idx];
-    const uint16_t item_idx = item_ids[idx];
+    uint32_t batch_idx, item_idx;
+    nba::error_t err;
+    err = nba::get_accum_idx(item_counts, num_batches, idx, batch_idx, item_idx);
+    assert(err == nba::NBA_SUCCESS);
 
     const struct datablock_kernel_arg *db_enc_payloads    = datablocks[dbid_enc_payloads_d];
     const struct datablock_kernel_arg *const db_flow_ids        = datablocks[dbid_flow_ids_d];

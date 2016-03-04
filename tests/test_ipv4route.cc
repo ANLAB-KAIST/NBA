@@ -182,31 +182,24 @@ TEST_P(IPLookupCUDAMatchTest, SingleBatch) {
                                       db_arg_size, cudaMemcpyHostToDevice));
     void *dbarray_h[2] = { db_ipv4_dest_addrs_d, db_ipv4_lookup_results_d };
     void *dbarray_d = nullptr;
-    uint8_t batch_ids[count] = { 0, 0 };
-    uint16_t item_ids[count] = { 0, 1 };
-    void *batch_ids_d = nullptr;
-    void *item_ids_d  = nullptr;
+    uint32_t item_counts[num_batches] = { num_pkts };
+    void *item_counts_d = nullptr;
     ASSERT_EQ(cudaSuccess, cudaMalloc(&dbarray_d, sizeof(void*) * 2));
-    ASSERT_EQ(cudaSuccess, cudaMalloc(&batch_ids_d, sizeof(uint8_t) * count));
-    ASSERT_EQ(cudaSuccess, cudaMalloc(&item_ids_d, sizeof(uint16_t) * count));
+    ASSERT_EQ(cudaSuccess, cudaMalloc(&item_counts_d, sizeof(uint32_t) * count));
     ASSERT_NE(nullptr, dbarray_d);
-    ASSERT_NE(nullptr, batch_ids_d);
-    ASSERT_NE(nullptr, item_ids_d);
+    ASSERT_NE(nullptr, item_counts_d);
     ASSERT_EQ(cudaSuccess, cudaMemcpy(dbarray_d, dbarray_h,
                                       sizeof(void*) * 2,
                                       cudaMemcpyHostToDevice));
-    ASSERT_EQ(cudaSuccess, cudaMemcpy(batch_ids_d, batch_ids,
-                                      sizeof(uint8_t) * count,
-                                      cudaMemcpyHostToDevice));
-    ASSERT_EQ(cudaSuccess, cudaMemcpy(item_ids_d, item_ids,
-                                      sizeof(uint16_t) * count,
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(item_counts_d, item_counts,
+                                      sizeof(uint32_t) * num_batches,
                                       cudaMemcpyHostToDevice));
     void *checkbits_d = nullptr;
 
     void *raw_args[7] = {
         &dbarray_d,
         (void *) &num_pkts,
-        &batch_ids_d, &item_ids_d,
+        &item_counts_d, (void *) &num_batches,
         &checkbits_d,
         &tbl24_d, &tbllong_d
     };
@@ -228,8 +221,7 @@ TEST_P(IPLookupCUDAMatchTest, SingleBatch) {
     free(output_buffer);
     ASSERT_EQ(cudaSuccess, cudaFree(input_buffer_d));
     ASSERT_EQ(cudaSuccess, cudaFree(output_buffer_d));
-    ASSERT_EQ(cudaSuccess, cudaFree(batch_ids_d));
-    ASSERT_EQ(cudaSuccess, cudaFree(item_ids_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(item_counts_d));
     ASSERT_EQ(cudaSuccess, cudaFree(db_ipv4_dest_addrs_d));
     ASSERT_EQ(cudaSuccess, cudaFree(db_ipv4_lookup_results_d));
     ASSERT_EQ(cudaSuccess, cudaFree(dbarray_d));
@@ -356,31 +348,24 @@ TEST_P(IPLookupCUDAMatchTest, SingleBatchWithDatablock) {
                                       db_arg_size, cudaMemcpyHostToDevice));
     void *dbarray_h[2] = { db_ipv4_dest_addrs_d, db_ipv4_lookup_results_d };
     void *dbarray_d = nullptr;
-    uint8_t batch_ids[num_pkts] = { 0, 0 };
-    uint16_t item_ids[num_pkts] = { 0, 1 };
-    void *batch_ids_d = nullptr;
-    void *item_ids_d  = nullptr;
+    uint32_t item_counts[num_batches] = { num_pkts };
+    void *item_counts_d = nullptr;
     ASSERT_EQ(cudaSuccess, cudaMalloc(&dbarray_d, sizeof(void*) * 2));
-    ASSERT_EQ(cudaSuccess, cudaMalloc(&batch_ids_d, sizeof(uint8_t) * num_pkts));
-    ASSERT_EQ(cudaSuccess, cudaMalloc(&item_ids_d, sizeof(uint16_t) * num_pkts));
+    ASSERT_EQ(cudaSuccess, cudaMalloc(&item_counts_d, sizeof(uint32_t) * num_batches));
     ASSERT_NE(nullptr, dbarray_d);
-    ASSERT_NE(nullptr, batch_ids_d);
-    ASSERT_NE(nullptr, item_ids_d);
+    ASSERT_NE(nullptr, item_counts_d);
     ASSERT_EQ(cudaSuccess, cudaMemcpy(dbarray_d, dbarray_h,
                                       sizeof(void*) * 2,
                                       cudaMemcpyHostToDevice));
-    ASSERT_EQ(cudaSuccess, cudaMemcpy(batch_ids_d, batch_ids,
-                                      sizeof(uint8_t) * in_count,
-                                      cudaMemcpyHostToDevice));
-    ASSERT_EQ(cudaSuccess, cudaMemcpy(item_ids_d, item_ids,
-                                      sizeof(uint16_t) * in_count,
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(item_counts_d, item_counts,
+                                      sizeof(uint32_t) * num_batches,
                                       cudaMemcpyHostToDevice));
     void *checkbits_d = nullptr;
 
     void *raw_args[7] = {
         &dbarray_d,
         (void *) &num_pkts,
-        &batch_ids_d, &item_ids_d,
+        &item_counts_d, (void *) &num_batches,
         &checkbits_d,
         &tbl24_d, &tbllong_d
     };
@@ -404,8 +389,7 @@ TEST_P(IPLookupCUDAMatchTest, SingleBatchWithDatablock) {
     free(output_buffer);
     ASSERT_EQ(cudaSuccess, cudaFree(input_buffer_d));
     ASSERT_EQ(cudaSuccess, cudaFree(output_buffer_d));
-    ASSERT_EQ(cudaSuccess, cudaFree(batch_ids_d));
-    ASSERT_EQ(cudaSuccess, cudaFree(item_ids_d));
+    ASSERT_EQ(cudaSuccess, cudaFree(item_counts_d));
     ASSERT_EQ(cudaSuccess, cudaFree(db_ipv4_dest_addrs_d));
     ASSERT_EQ(cudaSuccess, cudaFree(db_ipv4_lookup_results_d));
     ASSERT_EQ(cudaSuccess, cudaFree(dbarray_d));
