@@ -215,8 +215,7 @@ bool OffloadTask::copy_h2d()
         cctx->alloc_input_buffer(io_base, dbarg_size, dbarg_h, dbarg_d);
         dbarg = (struct datablock_kernel_arg *) cctx->unwrap_host_buffer(dbarg_h);
         dbarray[dbid_d] = (struct datablock_kernel_arg *) cctx->unwrap_device_buffer(dbarg_d);
-        dbarg->total_item_count_in  = 0;
-        dbarg->total_item_count_out = 0;
+        dbarg->total_item_count  = 0;
 
         // NOTE: To use our "datablock kernel arg" data structures,
         //       the underlying kernel language must support generic
@@ -234,29 +233,30 @@ bool OffloadTask::copy_h2d()
                  * have different lengths. */
                 //assert(t->aligned_item_sizes_h != nullptr);
                 uintptr_t base_ptr = (uintptr_t) cctx->unwrap_device_buffer(t->aligned_item_sizes_d);
-                dbarg->batches[b].item_sizes_in  = (uint16_t *)
+                dbarg->batches[b].item_sizes  = (uint16_t *)
                         (base_ptr + offsetof(struct item_size_info, sizes));
-                dbarg->batches[b].item_sizes_out = (uint16_t *)
-                        (base_ptr + offsetof(struct item_size_info, sizes));
-                dbarg->batches[b].item_offsets_in = (dev_offset_t *)
-                        (base_ptr + offsetof(struct item_size_info, offsets));
-                dbarg->batches[b].item_offsets_out = (dev_offset_t *)
+                dbarg->batches[b].item_offsets = (dev_offset_t *)
                         (base_ptr + offsetof(struct item_size_info, offsets));
             } else {
                 /* Same for all batches.
                  * We assume the module developer knows the fixed length
                  * when writing device kernel codes. */
-                dbarg->item_size_in  = rri.length;
-                dbarg->item_size_out = wri.length;
-                dbarg->batches[b].item_offsets_in  = nullptr;
-                dbarg->batches[b].item_offsets_out = nullptr;
+                if (rri.type != READ_NONE)
+                    dbarg->item_size  = rri.length;
+                if (wri.type != WRITE_NONE)
+                    dbarg->item_size = wri.length;
+                dbarg->batches[b].item_offsets  = nullptr;
             }
-            dbarg->batches[b].buffer_bases_in = cctx->unwrap_device_buffer(t->dev_in_ptr);
-            dbarg->batches[b].item_count_in   = t->in_count;
-            dbarg->total_item_count_in       += t->in_count;
-            dbarg->batches[b].buffer_bases_out = cctx->unwrap_device_buffer(t->dev_out_ptr);
-            dbarg->batches[b].item_count_out   = t->out_count;
-            dbarg->total_item_count_out       += t->out_count;
+            if (rri.type != READ_NONE) {
+                dbarg->batches[b].buffer_bases = cctx->unwrap_device_buffer(t->dev_in_ptr);
+                dbarg->batches[b].item_count   = t->in_count;
+                dbarg->total_item_count       += t->in_count;
+            }
+            if (wri.type != WRITE_NONE) {
+                dbarg->batches[b].buffer_bases = cctx->unwrap_device_buffer(t->dev_out_ptr);
+                dbarg->batches[b].item_count   = t->out_count;
+                dbarg->total_item_count       += t->out_count;
+            }
         } /* endfor(batches) */
     } /* endfor(dbid) */
     return true;

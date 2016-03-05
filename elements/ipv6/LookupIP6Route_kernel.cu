@@ -156,8 +156,8 @@ __global__ void ipv6_route_lookup_cuda(
         uint16_t item_idx  = item_ids[idx];
         struct datablock_kernel_arg *db_dest_addrs = datablocks[dbid_ipv6_dest_addrs_d];
         struct datablock_kernel_arg *db_results    = datablocks[dbid_ipv6_lookup_results_d];
-        struct _cu_uint128_t daddr = ((struct _cu_uint128_t*) db_dest_addrs->batches[batch_idx].buffer_bases_in)[item_idx];
-        uint16_t *lookup_result = &((uint16_t *) db_results->batches[batch_idx].buffer_bases_out)[item_idx];
+        struct _cu_uint128_t daddr = ((struct _cu_uint128_t*) db_dest_addrs->batches[batch_idx].buffer_bases)[item_idx];
+        uint16_t *lookup_result = &((uint16_t *) db_results->batches[batch_idx].buffer_bases)[item_idx];
 
         // NOTE: On FERMI devices, using shared memory to store just 128
         //   pointers is not necessary since they have on-chip L1

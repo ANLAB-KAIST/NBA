@@ -1250,11 +1250,11 @@ __global__ void computeHMAC_SHA1_3(
         const struct datablock_kernel_arg *db_enc_payloads = datablocks[dbid_enc_payloads_d];
         const struct datablock_kernel_arg *db_flow_ids     = datablocks[dbid_flow_ids_d];
 
-        const uint8_t *enc_payload_base = (uint8_t *) db_enc_payloads->batches[batch_idx].buffer_bases_in;
-        const uintptr_t offset = (uintptr_t) db_enc_payloads->batches[batch_idx].item_offsets_in[item_idx].as_value<uintptr_t>();
-        const uintptr_t length = (uintptr_t) db_enc_payloads->batches[batch_idx].item_sizes_in[item_idx];
+        const uint8_t *enc_payload_base = (uint8_t *) db_enc_payloads->batches[batch_idx].buffer_bases;
+        const uintptr_t offset = (uintptr_t) db_enc_payloads->batches[batch_idx].item_offsets[item_idx].as_value<uintptr_t>();
+        const uintptr_t length = (uintptr_t) db_enc_payloads->batches[batch_idx].item_sizes[item_idx];
         if (enc_payload_base != NULL && length != 0) {
-            const uint64_t flow_id = ((uint64_t *) db_flow_ids->batches[batch_idx].buffer_bases_in)[item_idx];
+            const uint64_t flow_id = ((uint64_t *) db_flow_ids->batches[batch_idx].buffer_bases)[item_idx];
             if (flow_id != 65536) {
                 assert(flow_id < 1024);
                 const char *hmac_key = (char *) hmac_key_array[flow_id].hmac_key;
