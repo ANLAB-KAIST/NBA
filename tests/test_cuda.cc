@@ -103,7 +103,7 @@ TEST_P(CUDAStructTest, DatablockArgSizeAlignCheck) {
     EXPECT_EQ(sizeof(struct datablock_kernel_arg), output_sizes_h[0]);
     EXPECT_EQ(offsetof(struct datablock_kernel_arg, batches), output_offsets_h[0]);
     EXPECT_EQ(sizeof(struct datablock_batch_info), output_sizes_h[1]);
-    EXPECT_EQ(offsetof(struct datablock_batch_info, item_offsets_in), output_offsets_h[1]);
+    EXPECT_EQ(offsetof(struct datablock_batch_info, item_offsets), output_offsets_h[1]);
     ASSERT_EQ(cudaSuccess, cudaFree(output_sizes_d));
     ASSERT_EQ(cudaSuccess, cudaFree(output_offsets_d));
     ASSERT_EQ(cudaSuccess, cudaDeviceSynchronize());

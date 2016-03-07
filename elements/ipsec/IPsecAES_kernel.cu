@@ -702,19 +702,19 @@ __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
     const struct datablock_kernel_arg *const db_iv              = datablocks[dbid_iv_d];
     const struct datablock_kernel_arg *const db_aes_block_info  = datablocks[dbid_aes_block_info_d];
 
-    assert(item_idx < db_aes_block_info->batches[batch_idx].item_count_in);
+    assert(item_idx < db_aes_block_info->batches[batch_idx].item_count);
 
     uint64_t flow_id = 65536;
     const struct aes_block_info &cur_block_info = ((struct aes_block_info *)
-                                                   db_aes_block_info->batches[batch_idx].buffer_bases_in)
+                                                   db_aes_block_info->batches[batch_idx].buffer_bases)
                                                   [item_idx];
     const int pkt_idx         = cur_block_info.pkt_idx;
     const int block_idx_local = cur_block_info.block_idx;
-    const uintptr_t offset = (uintptr_t) db_enc_payloads->batches[batch_idx].item_offsets_in[pkt_idx].as_value<uintptr_t>();
-    const uintptr_t length = (uintptr_t) db_enc_payloads->batches[batch_idx].item_sizes_in[pkt_idx];
+    const uintptr_t offset = (uintptr_t) db_enc_payloads->batches[batch_idx].item_offsets[pkt_idx].as_value<uintptr_t>();
+    const uintptr_t length = (uintptr_t) db_enc_payloads->batches[batch_idx].item_sizes[pkt_idx];
 
     if (cur_block_info.magic == 85739 && pkt_idx < 64 && length != 0) {
-        flow_id = ((uint64_t *) db_flow_ids->batches[batch_idx].buffer_bases_in)[pkt_idx];
+        flow_id = ((uint64_t *) db_flow_ids->batches[batch_idx].buffer_bases)[pkt_idx];
         if (flow_id != 65536)
             assert(flow_id < 1024);
     }
@@ -744,9 +744,9 @@ __global__ void AES_ctr_encrypt_chunk_SharedMem_5(
         assert(pkt_idx < 64);
 
         const uint8_t *const aes_key = flows[flow_id].aes_key;
-        uint8_t *iv = ((uint8_t *) db_iv->batches[batch_idx].buffer_bases_in
+        uint8_t *iv = ((uint8_t *) db_iv->batches[batch_idx].buffer_bases
                        + (uintptr_t) (16 * pkt_idx));
-        const uint8_t *enc_payload = ((uint8_t *) db_enc_payloads->batches[batch_idx].buffer_bases_in) + offset;
+        const uint8_t *enc_payload = ((uint8_t *) db_enc_payloads->batches[batch_idx].buffer_bases) + offset;
         uint4 ecounter = {0,0,0,0};
 
         assert(enc_payload != NULL);

@@ -47,8 +47,8 @@ __global__ void ipv4_route_lookup_cuda(
                                                       idx, batch_idx, item_idx));
         struct datablock_kernel_arg *db_dest_addrs = datablocks[dbid_ipv4_dest_addrs_d];
         struct datablock_kernel_arg *db_results    = datablocks[dbid_ipv4_lookup_results_d];
-        uint32_t daddr = ((uint32_t*) db_dest_addrs->batches[batch_idx].buffer_bases_in)[item_idx];
-        uint16_t *lookup_result = &((uint16_t *)db_results->batches[batch_idx].buffer_bases_out)[item_idx];
+        uint32_t daddr = ((uint32_t*) db_dest_addrs->batches[batch_idx].buffer_bases)[item_idx];
+        uint16_t *lookup_result = &((uint16_t *)db_results->batches[batch_idx].buffer_bases)[item_idx];
 
         if (daddr == IGNORED_IP) {
             *lookup_result = 0;
