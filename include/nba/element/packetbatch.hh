@@ -3,6 +3,7 @@
 #include <nba/core/intrinsic.hh>
 #include <nba/framework/config.hh>
 #include <nba/framework/datablock.hh>
+#include <nba/framework/task.hh>
 #include <nba/element/annotation.hh>
 #include <cstdint>
 #include <cstring>
@@ -294,8 +295,7 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
 { \
     int _next_idx = batch->first_idx; \
     while (_next_idx != -1) { \
-        const unsigned pkt_idx = (unsigned) _next_idx; \
-        assert(pkt_idx < NBA_MAX_COMP_BATCH_SIZE);
+        const unsigned pkt_idx = (unsigned) _next_idx;
 #define END_FOR \
         /*printf("pkt = %p\n", batch->packets[pkt_idx]);*/ \
         _next_idx = Packet::from_base(batch->packets[pkt_idx])->next_idx; \
@@ -415,7 +415,7 @@ public:
           first_idx(-1), last_idx(-1), slot_count(0),
           #endif
           datablock_states(nullptr), recv_timestamp(0),
-          generation(0), batch_id(0), element(nullptr), input_port(0), has_results(false),
+          generation(0), batch_id(0),
           #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
           has_dropped(false),
           #endif
@@ -475,9 +475,7 @@ public:
     uint64_t recv_timestamp;
     uint64_t generation;
     uint64_t batch_id;
-    Element* element;
-    int input_port;
-    bool has_results;
+    struct task_tracker tracker;
     #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
     bool has_dropped;
     #endif

@@ -24,7 +24,7 @@ public:
     const char *port_count() const { return "1/1"; }
     int get_type() const { return SchedulableElement::get_type() | PerBatchElement::get_type(); }
 
-    int initialize() { 
+    int initialize() {
         /* Initialize random engines. */
         out_probs = std::vector<float>();
         uniform_dist = std::uniform_real_distribution<float>(0.0f, 1.0f);
@@ -85,7 +85,7 @@ public:
         }
         choice = idx;
         assert(choice >= 0);
-        anno_set(&batch->banno, NBA_BANNO_LB_DECISION, choice);
+        anno_set(&batch->banno, NBA_BANNO_LB_DECISION, choice - 1);
         return 0;
     }
 

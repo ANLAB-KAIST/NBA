@@ -177,7 +177,7 @@ if __name__ == '__main__':
 
     loop.close()
 
-    plot_thruput('app-thruput', all_thruput_records, args.element_config_to_use,
+    plot_thruput('apptput', all_thruput_records, args.element_config_to_use,
                  base_path='~/Dropbox/temp/plots/nba/',
                  combine_cpu_gpu=args.combine_cpu_gpu)
 

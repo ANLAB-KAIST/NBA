@@ -6,31 +6,12 @@
 #include <string>
 #include <unordered_map>
 #include <rte_rwlock.h>
+#include "ip_route_core.hh"
 #include "IPv4Datablocks.hh"
-
-#define TBL24_SIZE  ((1 << 24) + 1)
-#define TBLLONG_SIZE    ((1 << 24) + 1)
 
 namespace nba {
 
 class IPlookup : public OffloadableElement {
-protected:
-
-    /* RIB/FIB management methods. */
-    int ipv4_route_add(uint32_t addr, uint16_t len, uint16_t nexthop);
-    int ipv4_route_del(uint32_t addr, uint16_t len);
-
-    /** Builds RIB from a set of IPv4 prefixes in a file. */
-    int ipv4_load_rib_from_file(const char* filename);
-
-    /** Builds FIB from RIB, using DIR-24-8-BASIC scheme. */
-    int ipv4_build_fib();
-
-    int ipv4_get_TBL24_size() { return TBL24_SIZE; }
-    int ipv4_get_TBLlong_size() { return TBLLONG_SIZE; }
-
-    /** The CPU version implementation. */
-    void ipv4_route_lookup(uint32_t ip, uint16_t *dest);
 
 public:
     IPlookup();
@@ -77,14 +58,13 @@ public:
 protected:
     int num_tx_ports;       // Variable to store # of tx port from computation thread.
     unsigned int rr_port;   // Round-robin port #
-
     rte_rwlock_t *p_rwlock_TBL24;
     rte_rwlock_t *p_rwlock_TBLlong;
-
+    ipv4route::route_hash_t tables[33];
     uint16_t *TBL24_h;
     uint16_t *TBLlong_h;
-    memory_t *TBL24_d;
-    memory_t *TBLlong_d;
+    dev_mem_t *TBL24_d;
+    dev_mem_t *TBLlong_d;
 };
 
 EXPORT_ELEMENT(IPlookup);

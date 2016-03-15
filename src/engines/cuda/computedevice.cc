@@ -88,7 +88,7 @@ void CUDAComputeDevice::_return_context(ComputeContext *cctx)
     _ready_cond.unlock();
 }
 
-void *CUDAComputeDevice::alloc_host_buffer(size_t size, int flags)
+host_mem_t CUDAComputeDevice::alloc_host_buffer(size_t size, int flags)
 {
     void *ptr;
     int nvflags = 0;
@@ -97,37 +97,35 @@ void *CUDAComputeDevice::alloc_host_buffer(size_t size, int flags)
     nvflags |= (flags & HOST_WRITECOMBINED) ? cudaHostAllocWriteCombined : 0;
     cutilSafeCall(cudaHostAlloc(&ptr, size, nvflags));
     assert(ptr != NULL);
-    return ptr;
+    return { ptr };
 }
 
-memory_t CUDAComputeDevice::alloc_device_buffer(size_t size, int flags)
+dev_mem_t CUDAComputeDevice::alloc_device_buffer(size_t size, int flags)
 {
-    memory_t m;
     void *ptr;
     cutilSafeCall(cudaMalloc(&ptr, size));
     assert(ptr != NULL);
-    m.ptr = ptr;
-    return m;
+    return { ptr };
 }
 
-void CUDAComputeDevice::free_host_buffer(void *ptr)
+void CUDAComputeDevice::free_host_buffer(host_mem_t m)
 {
-    cutilSafeCall(cudaFreeHost(ptr));
+    cutilSafeCall(cudaFreeHost(m.ptr));
 }
 
-void CUDAComputeDevice::free_device_buffer(memory_t m)
+void CUDAComputeDevice::free_device_buffer(dev_mem_t m)
 {
     cutilSafeCall(cudaFree(m.ptr));
 }
 
-void CUDAComputeDevice::memwrite(void *host_buf, memory_t dev_buf, size_t offset, size_t size)
+void CUDAComputeDevice::memwrite(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size)
 {
-    cutilSafeCall(cudaMemcpy((uint8_t *) dev_buf.ptr + offset, host_buf, size, cudaMemcpyHostToDevice));
+    cutilSafeCall(cudaMemcpy((uint8_t *) dev_buf.ptr + offset, host_buf.ptr, size, cudaMemcpyHostToDevice));
 }
 
-void CUDAComputeDevice::memread(void *host_buf, memory_t dev_buf, size_t offset, size_t size)
+void CUDAComputeDevice::memread(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size)
 {
-    cutilSafeCall(cudaMemcpy(host_buf, (uint8_t *) dev_buf.ptr + offset, size, cudaMemcpyDeviceToHost));
+    cutilSafeCall(cudaMemcpy(host_buf.ptr, (uint8_t *) dev_buf.ptr + offset, size, cudaMemcpyDeviceToHost));
 }
 
 // vim: ts=8 sts=4 sw=4 et

@@ -4,17 +4,34 @@
 #include <nba/core/queue.hh>
 #include <nba/framework/computation.hh>
 #include <nba/framework/threadcontext.hh>
+#include <nba/framework/task.hh>
 #include <nba/element/element.hh>
 #include <nba/element/packetbatch.hh>
 #include <vector>
+#include <map>
+
+struct rte_hash;
 
 namespace nba {
 
 #define ROOT_ELEMENT (nullptr)
 
+enum ElementOffloadingActions : int {
+    ELEM_OFFL_NOTHING = 0,
+    ELEM_OFFL_PREPROC = 1,
+    ELEM_OFFL_POSTPROC = 2,
+    ELEM_OFFL_POSTPROC_FIN = 4,
+};
+
 class Element;
 class OffloadTask;
 class PacketBatch;
+
+struct offload_action_key {
+    void *elemptr;
+    int dbid;
+    int action;
+};
 
 class ElementGraph {
 public:
@@ -26,36 +43,36 @@ public:
         return elements.size();
     }
 
-    /* Executes the element graph for the given batch and free it after
-     * processing.  Internally it manages a queue to handle diverged paths
-     * with multiple batches to multipe outputs.
-     * When it needs to stop processing and wait for asynchronous events
-     * (e.g., completion of offloading or release of resources), it moves
-     * the batch to the delayed_batches queue. */
-    void run(PacketBatch *batch, Element *start_elem, int input_port = 0);
+    /* Inserts the given batch/offloadtask to the internal task queue.
+     * This does not execute the pipeline; call flush_tasks() for that. */
+    void enqueue_batch(PacketBatch *batch, Element *start_elem, int input_port = 0);
+    void enqueue_offload_task(OffloadTask *otask, OffloadableElement *start_elem, int input_port = 0);
+    void enqueue_offload_task(OffloadTask *otask, Element *start_elem, int input_port = 0);
 
-    /* Tries to execute all pending offloaded tasks.
-     * This method does not allocate/free any batches. */
-    void flush_offloaded_tasks();
+    /* Tries to run all pending computation tasks. */
+    void flush_tasks();
 
-    /* Tries to run all delayed batches. */
-    void flush_delayed_batches();
+    /* Scans and executes dispatch() handlers of schedulable elements.
+     * This implies scan_offloadable_elements() since offloadable elements
+     * inherits schedulable elements. */
+    void scan_schedulable_elements(uint64_t loop_count);
 
-    /**
-     * A special case on completion of offloading.
-     * It begins DFS-based element graph traversing from the given
-     * offloaded element, with all results already calculated in the
-     * coprocessor thread.
-     */
-    void enqueue_postproc_batch(PacketBatch *batch, Element *offloaded_elem,
-                                int input_port);
+    /* Scans and executes dispatch() handlers of offloadable elements.
+     * It is a shorthand version that ignores next_delay output arguments.
+     * This fetches the GPU-processed batches and feed them into the graph
+     * again. */
+    void scan_offloadable_elements(uint64_t loop_count);
 
-    /**
-     * Check if the given datablock (represented as a global ID) is reused
-     * after the given offloaded element in a same (linear?) path.
-     */
-    bool check_datablock_reuse(Element *offloaded_elem, int datablock_id);
+    /* Start processing with the given batch and the entry point. */
+    void feed_input(int entry_point_idx, PacketBatch *batch, uint64_t loop_count);
+
+    void add_offload_action(struct offload_action_key *key);
+    bool check_preproc(OffloadableElement *oel, int dbid);
+    bool check_postproc(OffloadableElement *oel, int dbid);
+    bool check_postproc_all(OffloadableElement *oel);
+
     bool check_next_offloadable(Element *offloaded_elem);
+    Element *get_first_next(Element *elem);
 
     /**
      * Add a new element instance to the graph.
@@ -65,9 +82,6 @@ public:
     int link_element(Element *to_elem, int input_port,
                      Element *from_elem, int output_port);
 
-    SchedulableElement *get_entry_point(int entry_point_idx = 0);
-
-
     /**
      * Validate the element graph.
      * Currently, this checks the writer-reader pairs of structured
@@ -76,15 +90,9 @@ public:
     int validate();
 
     /**
-     * Returns the list of schedulable elements.
-     * They are executed once on every polling iteration.
-     */
-    const FixedRing<SchedulableElement*, nullptr>& get_schedulable_elements() const;
-
-    /**
      * Returns the list of all elements.
      */
-    const FixedRing<Element*, nullptr>& get_elements() const;
+    const FixedRing<Element*>& get_elements() const;
 
     /**
      * Free a packet batch.
@@ -93,25 +101,40 @@ public:
 
     /* TODO: calculate from the actual graph */
     static const int num_max_outputs = NBA_MAX_ELEM_NEXTS;
-protected:
+
+private:
     /**
      * Used to book-keep element objects.
      */
-    FixedRing<Element*, nullptr> elements;
-    FixedRing<SchedulableElement*, nullptr> sched_elements;
+    FixedRing<Element *> elements;
+
+    /**
+     * Book-keepers to avoid dynamic_cast and runtime type checks.
+     */
+    FixedRing<SchedulableElement *> sched_elements;
+    FixedRing<OffloadableElement *> offl_elements;
 
     /**
      * Used to pass context objects when calling element handlers.
      */
     comp_thread_context *ctx;
 
-    FixedRing<PacketBatch *, nullptr> queue;
-    FixedRing<OffloadTask *, nullptr> ready_tasks[NBA_MAX_PROCESSOR_TYPES];
-    FixedRing<PacketBatch *, nullptr> delayed_batches;
+    FixedRing<void *> queue;
 
-private:
+    /* Executes the element graph for the given batch and free it after
+     * processing.  Internally it manages a queue to handle diverged paths
+     * with multiple batches to multipe outputs.
+     * When it needs to stop processing and wait for asynchronous events
+     * (e.g., completion of offloading or release of resources), it moves
+     * the batch to the delayed_batches queue. */
+    void process_batch(PacketBatch *batch);
+    void process_offload_task(OffloadTask *otask);
+    void send_offload_task_to_device(OffloadTask *task);
+
+    struct rte_hash *offl_actions;
+
+    /* The entry point of packet processing pipeline (graph). */
     SchedulableElement *input_elem;
-
 };
 
 }

@@ -10,13 +10,16 @@
 #define NBA_MAX_PORTS               (16)
 #define NBA_MAX_QUEUES_PER_PORT     (128)
 #define NBA_MAX_COPROCESSORS        (2)     // Max number of coprocessor devices
-#define NBA_MAX_PROCESSOR_TYPES     (2)     // Max number of device types (current: CPU and GPU)
+#define NBA_MAX_COPROCESSOR_TYPES   (1)     // Max number of coprocessor types
 
 #define NBA_BATCHING_TRADITIONAL    (0)
 #define NBA_BATCHING_CONTINUOUS     (1)
 #define NBA_BATCHING_BITVECTOR      (2)
 #define NBA_BATCHING_LINKEDLIST     (3)
-#define NBA_BATCHING_SCHEME         NBA_BATCHING_BITVECTOR
+
+#ifndef NBA_BATCHING_SCHEME
+#define NBA_BATCHING_SCHEME         NBA_BATCHING_TRADITIONAL
+#endif
 
 #define NBA_MAX_PACKET_SIZE         (2048)
 #ifdef NBA_NO_HUGE
@@ -47,14 +50,18 @@
 
 #define NBA_MAX_TASKPOOL_SIZE       (2048u)
 #define NBA_MAX_BATCHPOOL_SIZE      (2048u)
+#define NBA_MAX_IO_BASES            (1)
 
-#define NBA_MAX_ANNOTATION_SET_SIZE         (7)
 #define NBA_MAX_NODELOCALSTORAGE_ENTRIES    (16)
 #define NBA_MAX_KERNEL_OVERLAP      (8)
 #define NBA_MAX_DATABLOCKS          (12)    // If too large (e.g., 64), batch_pool can not be allocated.
 
 #define NBA_OQ                      (true)  // Use output-queuing semantics when possible.
 #undef NBA_CPU_MICROBENCH                  // Enable support for PAPI library for microbenchmarks.
+
+#undef NBA_IPFWD_RR_NODE_LOCAL
+
+#define NBA_REUSE_DATABLOCKS
 
 /* If you change below, update HANDLE_ALL_PORTS macro in lib/element.hh as well!! */
 #define NBA_MAX_ELEM_NEXTS (4)
@@ -66,7 +73,6 @@ enum io_thread_mode {
     IO_ECHOBACK = 1,
     IO_RR = 2,
     IO_RXONLY = 3,
-    IO_EMUL = 4,
 };
 
 enum queue_template {
@@ -121,11 +127,6 @@ extern std::vector<struct queue_conf> queue_confs;
  * the initialization code of io/comp/coproc threads. */
 extern std::unordered_map<void*, int> queue_idx_map;
 extern bool dummy_device;
-extern bool emulate_io;
-extern int emulated_packet_size;
-extern int emulated_ip_version;
-extern int emulated_num_fixed_flows;
-extern size_t num_emulated_ifaces;
 
 bool load_config(const char* pyfilename);
 int get_ht_degree(void);
@@ -137,13 +138,6 @@ int get_ht_degree(void);
 /* For microbenchmarks (see lib/io.cc) */
 //#define TEST_MINIMAL_L2FWD
 //#define TEST_RXONLY
-
-/* Inserts forced sleep when there is no packets received,
- * to reduce PCIe traffic.  The performance may increase or decrease
- * depending on the system configuration.
- * (see lib/io.cc)
- */
-//#define NBA_SLEEPY_IO
 
 #endif
 

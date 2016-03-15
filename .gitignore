@@ -44,3 +44,7 @@ __pycache__
 
 # Documentations
 docs/_build
+
+# Test cases
+tests/test_*
+!tests/test_*.cc

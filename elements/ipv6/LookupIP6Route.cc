@@ -51,17 +51,13 @@ LookupIP6Route::LookupIP6Route(): OffloadableElement()
     d_table_sizes = NULL;
 }
 
-int LookupIP6Route::initialize()
+int LookupIP6Route::configure(comp_thread_context *ctx, std::vector<std::string> &args)
 {
-    // Called after coproc threads are initialized.
-
-    /* Get routing table pointers from the node-local storage. */
-    _table_ptr = (RoutingTableV6*)ctx->node_local_storage->get_alloc("ipv6_table");
-    _rwlock_ptr = ctx->node_local_storage->get_rwlock("ipv6_table");
-
-    /* Get GPU device pointers from the node-local storage. */
-    d_tables      = ((memory_t **) ctx->node_local_storage->get_alloc("dev_tables"))[0];
-    d_table_sizes = ((memory_t **) ctx->node_local_storage->get_alloc("dev_table_sizes"))[0];
+    Element::configure(ctx, args);
+    num_tx_ports = ctx->num_tx_ports;
+    num_nodes = ctx->num_nodes;
+    node_idx = ctx->loc.node_id;
+    rr_port = 0;
     return 0;
 }
 
@@ -72,7 +68,6 @@ int LookupIP6Route::initialize_global()
     int count = 200000;
     _original_table.from_random(seed, count);
     _original_table.build();
-
     return 0;
 }
 
@@ -93,14 +88,17 @@ int LookupIP6Route::initialize_per_node()
     return 0;
 }
 
-int LookupIP6Route::configure(comp_thread_context *ctx, std::vector<std::string> &args)
+int LookupIP6Route::initialize()
 {
-    Element::configure(ctx, args);
-    num_tx_ports = ctx->num_tx_ports;
-    num_nodes = ctx->num_nodes;
-    node_idx = ctx->loc.node_id;
-    rr_port = 0;
+    // Called after coproc threads are initialized.
 
+    /* Get routing table pointers from the node-local storage. */
+    _table_ptr = (RoutingTableV6*)ctx->node_local_storage->get_alloc("ipv6_table");
+    _rwlock_ptr = ctx->node_local_storage->get_rwlock("ipv6_table");
+
+    /* Get GPU device pointers from the node-local storage. */
+    d_tables      = (dev_mem_t *) ctx->node_local_storage->get_alloc("dev_tables");
+    d_table_sizes = (dev_mem_t *) ctx->node_local_storage->get_alloc("dev_table_sizes");
     return 0;
 }
 
@@ -128,7 +126,13 @@ int LookupIP6Route::process(int input_port, Packet *pkt)
         return 0;
     }
 
-    rr_port = (rr_port + 1) % num_tx_ports;
+    #ifdef NBA_IPFWD_RR_NODE_LOCAL
+    unsigned iface_in = anno_get(&pkt->anno, NBA_ANNO_IFACE_IN);
+    unsigned n = (iface_in <= ((unsigned) num_tx_ports / 2) - 1) ? 0 : (num_tx_ports / 2);
+    rr_port = (rr_port + 1) % (num_tx_ports / 2) + n;
+    #else
+    rr_port = (rr_port + 1) % (num_tx_ports);
+    #endif
     anno_set(&pkt->anno, NBA_ANNO_IFACE_OUT, rr_port);
     output(0).push(pkt);
     return 0;
@@ -142,7 +146,13 @@ int LookupIP6Route::postproc(int input_port, void *custom_output, Packet *pkt)
         pkt->kill();
         return 0;
     }
-    rr_port = (rr_port + 1) % num_tx_ports;
+    #ifdef NBA_IPFWD_RR_NODE_LOCAL
+    unsigned iface_in = anno_get(&pkt->anno, NBA_ANNO_IFACE_IN);
+    unsigned n = (iface_in <= ((unsigned) num_tx_ports / 2) - 1) ? 0 : (num_tx_ports / 2);
+    rr_port = (rr_port + 1) % (num_tx_ports / 2) + n;
+    #else
+    rr_port = (rr_port + 1) % (num_tx_ports);
+    #endif
     anno_set(&pkt->anno, NBA_ANNO_IFACE_OUT, rr_port);
     output(0).push(pkt);
     return 0;
@@ -165,11 +175,11 @@ size_t LookupIP6Route::get_desired_workgroup_size(const char *device_name) const
 void LookupIP6Route::cuda_compute_handler(ComputeContext *cctx, struct resource_param *res)
 {
     struct kernel_arg arg;
-    arg = {(void *) &d_tables, sizeof(void *), alignof(void *)};
+    arg = {(void *) &d_tables->ptr, sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
-    arg = {(void *) &d_table_sizes, sizeof(void *), alignof(void *)};
+    arg = {(void *) &d_table_sizes->ptr, sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
-    kernel_t kern;
+    dev_kernel_t kern;
     kern.ptr = ipv6_route_lookup_get_cuda_kernel();
     cctx->enqueue_kernel_launch(kern, res);
 }
@@ -177,27 +187,27 @@ void LookupIP6Route::cuda_compute_handler(ComputeContext *cctx, struct resource_
 void LookupIP6Route::cuda_init_handler(ComputeDevice *device)
 {
     size_t table_sizes[128];
-    memory_t table_ptrs_in_d[128];
+    void *table_ptrs_in_d[128];
 
-    memory_t new_d_tables      = /*(Item **)*/ device->alloc_device_buffer(sizeof(memory_t *)*128, HOST_TO_DEVICE);
-    memory_t new_d_table_sizes = /*(size_t *)*/ device->alloc_device_buffer(sizeof(size_t)*128, HOST_TO_DEVICE);
+    /* Store the device pointers for per-thread instances. */
+    d_tables      = (dev_mem_t *) ctx->node_local_storage->get_alloc("dev_tables");
+    d_table_sizes = (dev_mem_t *) ctx->node_local_storage->get_alloc("dev_table_sizes");
+    *d_tables      = device->alloc_device_buffer(sizeof(void *) * 128);
+    *d_table_sizes = device->alloc_device_buffer(sizeof(size_t) * 128);
 
     /* table_ptrs_in_d keeps track of the temporary host-side references to tables in
      * the device for initialization and copy.
      * d_tables is the actual device buffer to store pointers in table_ptrs_in_d. */
     for (int i = 0; i < 128; i++) {
         table_sizes[i] = _original_table.m_Tables[i]->m_TableSize;
-        table_ptrs_in_d[i] = /*(Item *)*/ device->alloc_device_buffer(sizeof(Item) * table_sizes[i] * 2, HOST_TO_DEVICE);
-        device->memwrite(_original_table.m_Tables[i]->m_Table, table_ptrs_in_d[i], 0, sizeof(Item) * table_sizes[i] * 2);
+        size_t copy_size = sizeof(Item) * table_sizes[i] * 2;
+        table_ptrs_in_d[i] = device->alloc_device_buffer(copy_size).ptr;
+        device->memwrite({ _original_table.m_Tables[i]->m_Table }, {table_ptrs_in_d[i]},
+                         0, copy_size);
     }
-    device->memwrite(table_ptrs_in_d, new_d_tables, 0, sizeof(Item*) * 128);
-    device->memwrite(table_sizes, new_d_table_sizes, 0, sizeof(size_t) * 128);
+    device->memwrite({ table_ptrs_in_d }, *d_tables, 0, sizeof(void *) * 128);
+    device->memwrite({ table_sizes }, *d_table_sizes, 0, sizeof(size_t) * 128);
 
-    /* Store the device pointers for per-thread instances. */
-    d_tables      = (memory_t *) ctx->node_local_storage->get_alloc("dev_tables");
-    d_table_sizes = (memory_t *) ctx->node_local_storage->get_alloc("dev_table_sizes");
-    (d_tables)[0]      = new_d_tables;
-    (d_table_sizes)[0] = new_d_table_sizes;
 }
 #endif
 

@@ -63,8 +63,8 @@ private:
     rte_rwlock_t    *_rwlock_ptr;
 
     /* For offloaded methods */
-    memory_t *d_tables;
-    memory_t *d_table_sizes;
+    dev_mem_t *d_tables;
+    dev_mem_t *d_table_sizes;
 };
 
 EXPORT_ELEMENT(LookupIP6Route);

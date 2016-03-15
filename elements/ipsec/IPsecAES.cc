@@ -48,10 +48,10 @@ int IPsecAES::initialize()
     h_sa_table = (unordered_map<struct ipaddr_pair, int> *)ctx->node_local_storage->get_alloc("h_aes_sa_table");
 
     /* Storage for host aes key array */
-    h_key_array = (struct aes_sa_entry *) ctx->node_local_storage->get_alloc("h_aes_key_array");
+    h_flows = (struct aes_sa_entry *) ctx->node_local_storage->get_alloc("h_aes_flows");
 
     /* Get device pointer from the node local storage. */
-    d_key_array_ptr = ((memory_t *) ctx->node_local_storage->get_alloc("d_aes_key_array_ptr"))[0];
+    d_flows_ptr = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_aes_flows_ptr");
 
     if (aes_sa_entry_array != NULL) {
         free(aes_sa_entry_array);
@@ -80,8 +80,8 @@ int IPsecAES::initialize_global()
         entry->entry_idx = i;
         rte_memcpy(entry->aes_key, "1234123412341234", AES_BLOCK_SIZE);
 #ifdef USE_OPENSSL_EVP
-    // TODO: check if copying globally initialized evpctx works okay.
-    EVP_CIPHER_CTX_init(&entry->evpctx);
+        // TODO: check if copying globally initialized evpctx works okay.
+        EVP_CIPHER_CTX_init(&entry->evpctx);
         //if (EVP_EncryptInit(&entry->evpctx, EVP_aes_128_ctr(), entry->aes_key, esph->esp_iv) != 1)
         if (EVP_EncryptInit(&entry->evpctx, EVP_aes_128_ctr(), entry->aes_key, fake_iv) != 1)
             fprintf(stderr, "IPsecAES: EVP_EncryptInit() - %s\n", ERR_error_string(ERR_get_error(), NULL));
@@ -115,13 +115,13 @@ int IPsecAES::initialize_per_node()
 
     /* Storage for host aes key array */
     size = sizeof(struct aes_sa_entry) * num_tunnels;
-    ctx->node_local_storage->alloc("h_aes_key_array", size);
-    temp_array = (struct aes_sa_entry *) ctx->node_local_storage->get_alloc("h_aes_key_array");
+    ctx->node_local_storage->alloc("h_aes_flows", size);
+    temp_array = (struct aes_sa_entry *) ctx->node_local_storage->get_alloc("h_aes_flows");
     assert(aes_sa_entry_array != NULL);
     rte_memcpy(temp_array, aes_sa_entry_array, size);
 
     /* Storage for pointer, which points aes key array in device */
-    ctx->node_local_storage->alloc("d_aes_key_array_ptr", sizeof(memory_t));
+    ctx->node_local_storage->alloc("d_aes_flows_ptr", sizeof(dev_mem_t));
 
     return 0;
 }
@@ -156,7 +156,7 @@ int IPsecAES::process(int input_port, Packet *pkt)
     struct aes_sa_entry *sa_entry = NULL;
 
     if (likely(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID))) {
-        sa_entry = &h_key_array[anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)];
+        sa_entry = &h_flows[anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)];
         unsigned mode = 0;
 #ifdef USE_OPENSSL_EVP
         int cipher_body_len = 0;
@@ -182,30 +182,25 @@ int IPsecAES::process(int input_port, Packet *pkt)
 void IPsecAES::cuda_init_handler(ComputeDevice *device)
 {
     // Put key array content to device space.
-    long key_array_size = sizeof(struct aes_sa_entry) * num_tunnels;
-    h_key_array = (struct aes_sa_entry *) ctx->node_local_storage->get_alloc("h_aes_key_array");
-    memory_t key_array_in_device = device->alloc_device_buffer(key_array_size, 0);
-    device->memwrite(h_key_array, key_array_in_device, 0, key_array_size);
+    size_t flows_size = sizeof(struct aes_sa_entry) * num_tunnels;
+    h_flows = (struct aes_sa_entry *) ctx->node_local_storage->get_alloc("h_aes_flows");
+    dev_mem_t flows_in_device = device->alloc_device_buffer(flows_size);
+    device->memwrite({ h_flows }, flows_in_device, 0, flows_size);
 
     // Store the device pointer for per-thread instances.
-    memory_t *p = (memory_t *) ctx->node_local_storage->get_alloc("d_aes_key_array_ptr");
-    ((memory_t *) p)[0] = key_array_in_device;
+    dev_mem_t *p = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_aes_flows_ptr");
+    *p = flows_in_device;
 }
-#endif
 
-#ifdef USE_CUDA
 void IPsecAES::cuda_compute_handler(ComputeContext *cctx, struct resource_param *res)
 {
     struct kernel_arg arg;
-    arg = {(void *) &d_key_array_ptr.ptr, sizeof(void *), alignof(void *)};
+    arg = {(void *) &d_flows_ptr->ptr, sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
 
-    kernel_t kern;
+    dev_kernel_t kern;
     kern.ptr = ipsec_aes_encryption_get_cuda_kernel();
     cctx->enqueue_kernel_launch(kern, res);
-
-    // TODO: data-copy-opt
-    // ?->inc_dev_ver(dbid_ipsec_...);
 }
 #endif
 

@@ -1,12 +1,12 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <assert.h>
+#include <cstdint>
+#include <cassert>
+#include <cuda.h>
 #include <nba/engines/cuda/utils.hh>
+#include <nba/core/errors.hh>
+#include <nba/core/accumidx.hh>
+#include <nba/framework/datablock_shared.hh>
 
 #include "IPsecAuthHMACSHA1_kernel.hh"
-
-/* Compatibility definitions. */
-#include <nba/engines/cuda/compat.hh>
 
 /* The index is given by the order in get_used_datablocks(). */
 #define dbid_enc_payloads_d (0)
@@ -18,7 +18,7 @@ extern "C" {
 
 //__global__ uint32_t d_pad_buffer[16 * 2 * MAX_CHUNK_SIZE * MAX_GROUP_SIZE];
 
-__device__ uint32_t swap(uint32_t v) {
+__device__ static uint32_t swap(uint32_t v) {
     return ((v & 0x000000ffU) << 24) | ((v & 0x0000ff00U) << 8)
             | ((v & 0x00ff0000U) >> 8) | ((v & 0xff000000U) >> 24);
 }
@@ -33,7 +33,7 @@ typedef struct hash_digest {
 
 #define HMAC
 
-__inline__ __device__ void getBlock(char* buf, int offset, int len, uint32_t* dest)
+__inline__ __device__ static void getBlock(char* buf, int offset, int len, uint32_t* dest)
 {
     uint32_t *tmp;
     unsigned int tempbuf[16];
@@ -154,7 +154,7 @@ __inline__ __device__ void getBlock(char* buf, int offset, int len, uint32_t* de
     }
 }
 
-__device__ void computeSHA1Block(char* in, uint32_t* w, int offset, int len,
+__device__ static void computeSHA1Block(char* in, uint32_t* w, int offset, int len,
         hash_digest_t &h) {
     uint32_t a = h.h1;
     uint32_t b = h.h2;
@@ -1136,7 +1136,7 @@ __device__ void computeSHA1Block(char* in, uint32_t* w, int offset, int len,
  some how *pad = *pad++ ^ *key++
  was optimized and does not work correctly in GPU oTL.
  */
-__device__ void xorpads(uint32_t *pad, const uint32_t* key) {
+__device__ static void xorpads(uint32_t *pad, const uint32_t* key) {
 #pragma unroll 16
     for (int i = 0; i < 16; i++)
         *(pad + i) = *(pad + i) ^ *(key + i);
@@ -1157,7 +1157,7 @@ uint32_t ipad[16] =
 // out: start pointer of the data where hsha1 signature will be recorded.
 // length: length of the data to be authenticated by hsha1.
 // key: hmac key.
-__device__ void HMAC_SHA1(uint32_t *in, uint32_t *out, uint32_t length,
+__device__ static void HMAC_SHA1(uint32_t *in, uint32_t *out, uint32_t length,
         const char *key) {
     uint32_t w_register[16];
 
@@ -1238,37 +1238,39 @@ __global__ void computeHMAC_SHA1_2(char* buf, char* keys, uint32_t *offsets,
 #endif
 
 __global__ void computeHMAC_SHA1_3(
-        struct datablock_kernel_arg *datablocks,
-        uint32_t count, uint16_t *batch_ids, uint16_t *item_ids,
+        struct datablock_kernel_arg **datablocks,
+        uint32_t count, uint32_t *item_counts, uint32_t num_batches,
         uint8_t *checkbits_d,
         struct hmac_sa_entry *hmac_key_array)
 {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    uint32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < count && count != 0) {
-        const uint16_t batch_idx = batch_ids[idx];
-        const uint16_t item_idx  = item_ids[idx];
-        assert(item_idx < 64);
-        const struct datablock_kernel_arg *db_enc_payloads = &datablocks[dbid_enc_payloads_d];
-        const struct datablock_kernel_arg *db_flow_ids     = &datablocks[dbid_flow_ids_d];
+        uint32_t batch_idx, item_idx;
+        nba::error_t err;
+        err = nba::get_accum_idx(item_counts, num_batches, idx, batch_idx, item_idx);
+        assert(err == nba::NBA_SUCCESS);
 
-        const uint8_t *enc_payload_base = (uint8_t *) db_enc_payloads->buffer_bases_in[batch_idx];
-        const uintptr_t offset = (uintptr_t) db_enc_payloads->item_offsets_in[batch_idx][item_idx];
-        const uintptr_t length = (uintptr_t) db_enc_payloads->item_sizes_in[batch_idx][item_idx];
-        if (enc_payload_base != NULL && offset != 0 && length != 0) {
-            const uint64_t flow_id = ((uint64_t *) db_flow_ids->buffer_bases_in[batch_idx])[item_idx];
-            if (flow_id != 65536 && flow_id < 1024) {
-                //assert(flow_id < 1024);
+        const struct datablock_kernel_arg *db_enc_payloads = datablocks[dbid_enc_payloads_d];
+        const struct datablock_kernel_arg *db_flow_ids     = datablocks[dbid_flow_ids_d];
+
+        const uint8_t *enc_payload_base = (uint8_t *) db_enc_payloads->batches[batch_idx].buffer_bases;
+        const uintptr_t offset = (uintptr_t) db_enc_payloads->batches[batch_idx].item_offsets[item_idx].as_value<uintptr_t>();
+        const uintptr_t length = (uintptr_t) db_enc_payloads->batches[batch_idx].item_sizes[item_idx];
+        if (enc_payload_base != NULL && length != 0) {
+            const uint64_t flow_id = ((uint64_t *) db_flow_ids->batches[batch_idx].buffer_bases)[item_idx];
+            if (flow_id != 65536) {
+                assert(flow_id < 1024);
                 const char *hmac_key = (char *) hmac_key_array[flow_id].hmac_key;
                 HMAC_SHA1((uint32_t *) (enc_payload_base + offset),
                           (uint32_t *) (enc_payload_base + offset + length),
                           length, hmac_key);
             }
         }
-    }
 
-    __syncthreads();
-    if (threadIdx.x == 0 && checkbits_d != NULL)
-        checkbits_d[blockIdx.x] = 1;
+        __syncthreads();
+        if (threadIdx.x == 0 && checkbits_d != NULL)
+            checkbits_d[blockIdx.x] = 1;
+    } // endif(valid-idx)
 }
 
 }
@@ -1277,4 +1279,4 @@ void *nba::ipsec_hsha1_encryption_get_cuda_kernel() {
     return reinterpret_cast<void *> (computeHMAC_SHA1_3);
 }
 
-// vim: ts=8 sts=4 sw=4 et
+// vim: ts=8 sts=4 sw=4 et tw=150

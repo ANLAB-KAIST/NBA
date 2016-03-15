@@ -77,36 +77,34 @@ void DummyComputeDevice::_return_context(ComputeContext *cctx)
     _ready_cond.unlock();
 }
 
-void *DummyComputeDevice::alloc_host_buffer(size_t size, int flags)
+host_mem_t DummyComputeDevice::alloc_host_buffer(size_t size, int flags)
 {
-    return malloc(size);
+    return { malloc(size) };
 }
 
-memory_t DummyComputeDevice::alloc_device_buffer(size_t size, int flags)
+dev_mem_t DummyComputeDevice::alloc_device_buffer(size_t size, int flags)
 {
-    memory_t m;
-    m.ptr = malloc(size);
-    return m;
+    return { malloc(size) };
 }
 
-void DummyComputeDevice::free_host_buffer(void *ptr)
-{
-    free(ptr);
-}
-
-void DummyComputeDevice::free_device_buffer(memory_t m)
+void DummyComputeDevice::free_host_buffer(host_mem_t m)
 {
     free(m.ptr);
 }
 
-void DummyComputeDevice::memwrite(void *host_buf, memory_t dev_buf, size_t offset, size_t size)
+void DummyComputeDevice::free_device_buffer(dev_mem_t m)
 {
-    memcpy(((uint8_t *) dev_buf.ptr) + offset, host_buf, size);
+    free(m.ptr);
 }
 
-void DummyComputeDevice::memread(void *host_buf, memory_t dev_buf, size_t offset, size_t size)
+void DummyComputeDevice::memwrite(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size)
 {
-    memcpy(host_buf, ((uint8_t *) dev_buf.ptr) + offset, size);
+    memcpy(((uint8_t *) dev_buf.ptr) + offset, host_buf.ptr, size);
+}
+
+void DummyComputeDevice::memread(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size)
+{
+    memcpy(host_buf.ptr, ((uint8_t *) dev_buf.ptr) + offset, size);
 }
 
 // vim: ts=8 sts=4 sw=4 et

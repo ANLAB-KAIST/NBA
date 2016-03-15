@@ -8,6 +8,7 @@
 #include <nba/framework/threadcontext.hh>
 #include <nba/framework/computecontext.hh>
 #include <nba/framework/datablock.hh>
+#include <nba/framework/task.hh>
 #include <cstdint>
 #include <vector>
 #include <ev.h>
@@ -15,6 +16,16 @@
 #define NBA_MAX_OFFLOADED_PACKETS (NBA_MAX_COPROC_PPDEPTH * NBA_MAX_COMPBATCH_SIZE)
 
 namespace nba {
+
+enum TaskStates : int {
+    TASK_INITIALIZING = 0,
+    TASK_INITIALIZED = 1,
+    TASK_PREPARED = 2,
+    TASK_H2D_COPYING = 3,
+    TASK_EXECUTING = 4,
+    TASK_D2H_COPYING = 5,
+    TASK_FINISHED = 6
+};
 
 /* Forward declarations */
 class ElementGraph;
@@ -26,7 +37,7 @@ public:
     OffloadTask();
     virtual ~OffloadTask();
 
-    FixedArray<int, -1, NBA_MAX_DATABLOCKS> datablocks;
+    FixedArray<int, NBA_MAX_DATABLOCKS> datablocks;
 
     /* Executed in worker threads. */
     void prepare_read_buffer();
@@ -47,34 +58,46 @@ public:
     void notify_completion();
 
 public:
-    /* Initialized during execute(). */
-    struct resource_param res;
+    struct resource_param res; /* Initialized during execute(). */
     uint64_t offload_start;
     double offload_cost;
     size_t num_pkts;
     size_t num_bytes;
+    enum TaskStates state;
 
     /* Initialized by element graph. */
+    struct task_tracker tracker;
     int local_dev_idx;
     struct ev_loop *src_loop;
     comp_thread_context *comp_ctx;
     coproc_thread_context *coproc_ctx;
     ComputeContext *cctx;
+    io_base_t io_base;
     ElementGraph *elemgraph;
-    FixedArray<PacketBatch*, nullptr, NBA_MAX_COPROC_PPDEPTH> batches;
-    FixedArray<int, -1, NBA_MAX_COPROC_PPDEPTH> input_ports;
+    FixedArray<PacketBatch*, NBA_MAX_COPROC_PPDEPTH> batches;
+    FixedArray<int, NBA_MAX_COPROC_PPDEPTH> input_ports;
     OffloadableElement* elem;
     int dbid_h2d[NBA_MAX_DATABLOCKS];
 
-    struct datablock_kernel_arg *dbarray_h;
-    memory_t dbarray_d;
+    host_mem_t dbarray_h;
+    dev_mem_t dbarray_d;
 
     struct ev_async *completion_watcher __cache_aligned;
     struct rte_ring *completion_queue __cache_aligned;
+
+    uint64_t task_id; // for deubgging
+private:
+    friend class OffloadableElement;
+
+    size_t input_begin;
+    size_t output_begin;
+
+    size_t last_input_size;   // for debugging
+    size_t last_output_size;  // for debugging
 };
 
 }
 
-#endif
+#endif /* __NBA_OFFLOADTASK_HH__ */
 
 // vim: ts=8 sts=4 sw=4 et foldmethod=marker

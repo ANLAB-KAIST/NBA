@@ -3,98 +3,126 @@
 
 #include <nba/engines/cuda/utils.hh>
 #include <nba/core/mempool.hh>
+#include <nba/core/offloadtypes.hh>
 #include <cstdint>
 #include <cassert>
 #include <cuda.h>
 
 namespace nba {
 
-class CUDAMemoryPool : public MemoryPool
+class CUDAMemoryPool : public MemoryPool<dev_mem_t>
 {
 public:
-    CUDAMemoryPool() : MemoryPool(), base_(NULL)
-    {
-    }
+    explicit CUDAMemoryPool()
+        : MemoryPool(), base(nullptr)
+    { }
+
+    explicit CUDAMemoryPool(size_t max_size)
+        : MemoryPool(max_size), base(nullptr)
+    { }
+
+    explicit CUDAMemoryPool(size_t max_size, size_t align)
+        : MemoryPool(max_size, align), base(nullptr)
+    { }
 
     virtual ~CUDAMemoryPool()
     {
         destroy();
     }
 
-    virtual bool init(size_t max_size)
+    bool init()
     {
-        max_size_ = max_size;
-        cutilSafeCall(cudaMalloc((void **) &base_, max_size));
+        cutilSafeCall(cudaMalloc((void **) &base, max_size));
         return true;
     }
 
-    void *alloc(size_t size)
+    dev_mem_t get_base_ptr() const
+    {
+        return { base };
+    }
+
+    int alloc(size_t size, dev_mem_t &ptr)
     {
         size_t offset;
         int ret = _alloc(size, &offset);
         if (ret == 0)
-            return (void *) ((uint8_t *) base_ + (uintptr_t) offset);
-        return NULL;
+            ptr.ptr = (void *) ((uintptr_t) base + offset);
+        return ret;
     }
 
     void destroy()
     {
-        if (base_ != NULL)
-            cudaFree(base_);
-    }
-
-    void *get_base_ptr()
-    {
-        return base_;
+        if (base != NULL)
+            cudaFree(base);
     }
 
 private:
-    void *base_;
+    void *base;
 };
 
-class CPUMemoryPool : public MemoryPool
+class CPUMemoryPool : public MemoryPool<host_mem_t>
 {
 public:
-    CPUMemoryPool(int cuda_flags) : MemoryPool(), base_(NULL), flags_(cuda_flags)
-    {
-    }
+    explicit CPUMemoryPool(int cuda_flags)
+        : MemoryPool(), base(nullptr), flags(cuda_flags), use_external(false)
+    { }
+
+    explicit CPUMemoryPool(size_t max_size, int cuda_flags)
+        : MemoryPool(max_size), base(nullptr), flags(cuda_flags), use_external(false)
+    { }
+
+    explicit CPUMemoryPool(size_t max_size, size_t align, int cuda_flags)
+        : MemoryPool(max_size, align), base(nullptr), flags(cuda_flags), use_external(false)
+    { }
 
     virtual ~CPUMemoryPool()
     {
         destroy();
     }
 
-    virtual bool init(unsigned long size)
+    bool init()
     {
-        max_size_ = size;
-        cutilSafeCall(cudaHostAlloc((void **) &base_, size,
-                      flags_));
+        cutilSafeCall(cudaHostAlloc((void **) &base, max_size,
+                      this->flags));
         return true;
     }
 
-    void *alloc(size_t size)
+    bool init_with_flags(void *ext_ptr, int flags)
+    {
+        if (ext_ptr != nullptr) {
+            base = ext_ptr;
+            use_external = true;
+        } else {
+            cutilSafeCall(cudaHostAlloc((void **) &base, max_size,
+                          flags));
+        }
+        return true;
+    }
+
+    int alloc(size_t size, host_mem_t &m)
     {
         size_t offset;
         int ret = _alloc(size, &offset);
         if (ret == 0)
-            return (void *) ((uint8_t *) base_ + (uintptr_t) offset);
-        return NULL;
+            m.ptr = (void *) ((uintptr_t) base + offset);
+        return ret;
     }
 
     void destroy()
     {
-        if (base_ != NULL)
-            cudaFreeHost(base_);
+        if (base != NULL && !use_external)
+            cudaFreeHost(base);
     }
 
-    void *get_base_ptr()
+    host_mem_t get_base_ptr() const
     {
-        return base_;
+        return { base };
     }
 
-protected:
-    void *base_;
-    int flags_;
+private:
+    void *base;
+    int flags;
+    bool use_external;
 };
 
 }

@@ -13,6 +13,7 @@
 #include <nba/framework/io.hh>
 #include <nba/framework/threadcontext.hh>
 #include <nba/framework/datablock.hh>
+#include <nba/framework/task.hh>
 #include <nba/framework/offloadtask.hh>
 #include <nba/framework/loadbalancer.hh>
 #include <nba/framework/elementgraph.hh>
@@ -65,14 +66,6 @@ namespace nba {
 
 static thread_local uint64_t recv_batch_cnt = 0;
 
-#ifdef NBA_SLEEPY_IO
-struct rx_state {
-    uint16_t rx_length;
-    uint16_t rx_quick_sleep;
-    uint16_t rx_full_quick_sleep_count;
-};
-#endif
-
 #ifdef TEST_MINIMAL_L2FWD
 struct packet_batch {
     unsigned count;
@@ -87,7 +80,7 @@ typedef function<void(char*, int, int, random32_func_t)> packet_builder_func_t;
 /* ===== COMP ===== */
 static void comp_packetbatch_init(struct rte_mempool *mp, void *arg, void *obj, unsigned idx)
 {
-    PacketBatch *b = (PacketBatch*) obj;
+    PacketBatch *b = (PacketBatch *) obj;
     new (b) PacketBatch();
 }
 
@@ -102,13 +95,17 @@ static void comp_task_init(struct rte_mempool *mp, void *arg, void *obj, unsigne
     new (t) OffloadTask();
 }
 
-static inline void comp_check_delayed_operations(comp_thread_context *ctx)
+static void comp_prepare_cb(struct ev_loop *loop, struct ev_check *watcher, int revents)
 {
-    if (likely(!ctx->io_ctx->loop_broken)) {
-        ev_run(ctx->io_ctx->loop, EVRUN_NOWAIT);
-        ctx->elem_graph->flush_delayed_batches();
-        ctx->elem_graph->flush_offloaded_tasks();
-    }
+    /* This routine is called when ev_run() is about to block.
+     * (i.e., there is no outstanding events)
+     * Calling this there allows to check any pending tasks so that
+     * we could eventually release any resources such as batch objects
+     * and allow other routines waiting for their releases to continue. */
+    io_thread_context *io_ctx = (io_thread_context *) ev_userdata(loop);
+    comp_thread_context *ctx = io_ctx->comp_ctx;
+    ctx->elem_graph->flush_tasks();
+    ctx->elem_graph->scan_offloadable_elements(0);
 }
 
 static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_async *watcher, int revents)
@@ -137,6 +134,20 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
         /* Run postprocessing handlers. */
         task->postprocess();
 
+        if (ctx->elem_graph->check_postproc_all(task->elem)) {
+            /* Reset all datablock trackers. */
+            for (PacketBatch *batch : task->batches) {
+                if (batch->datablock_states != nullptr) {
+                    struct datablock_tracker *t = batch->datablock_states;
+                    rte_mempool_put(ctx->dbstate_pool, (void *) t);
+                    batch->datablock_states = nullptr;
+                }
+            }
+            /* Release per-task io_base. */
+            task->cctx->clear_io_buffers(task->io_base);
+            ev_break(ctx->io_ctx->loop, EVBREAK_ALL);
+        }
+
         /* Update statistics. */
         uint64_t task_cycles = now - task->offload_start;
         float time_spent = (float) task_cycles / rte_get_tsc_hz();
@@ -148,23 +159,42 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
 
         /* Enqueue batches for later processing. */
         uint64_t total_batch_size = 0;
-        for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++)
-            total_batch_size += task->batches[b]->count;
-        for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++) {
-            task->batches[b]->compute_time += (uint64_t) ((float) task_cycles / total_batch_size - ((float) task->batches[b]->delay_time / task->batches[b]->count));
-            ctx->elem_graph->enqueue_postproc_batch(task->batches[b], task->elem,
-                                                    task->input_ports[b]);
-        }
+        for (PacketBatch *batch : task->batches)
+            total_batch_size += batch->count;
+        #ifdef NBA_REUSE_DATABLOCKS
+        if (ctx->elem_graph->check_next_offloadable(task->elem)) {
+            for (PacketBatch *batch : task->batches) {
+                batch->compute_time += (uint64_t)
+                        ((float) task_cycles / total_batch_size
+                         - ((float) batch->delay_time / batch->count));
+            }
+            /* Rewind the state so that it gets "prepared" by ElemGraph.
+             * (e.g., update datablock list used by next element) */
+            task->state = TASK_INITIALIZED;
+            ctx->elem_graph->enqueue_offload_task(task,
+                                                  ctx->elem_graph->get_first_next(task->elem),
+                                                  0);
+            /* This task is reused. We keep them intact. */
+        } else {
+        #else
+        {
+        #endif
+            for (size_t b = 0, b_max = task->batches.size(); b < b_max; b ++) {
+                task->batches[b]->compute_time += (uint64_t)
+                        ((float) task_cycles / total_batch_size
+                         - ((float) task->batches[b]->delay_time / task->batches[b]->count));
+                task->elem->enqueue_batch(task->batches[b]);
+            }
 
-        /* Free the task object. */
-        task->cctx = nullptr;
-        task->~OffloadTask();
-        rte_mempool_put(ctx->task_pool, (void *) task);
+            /* Free the task object. */
+            task->cctx = nullptr;
+            task->~OffloadTask();
+            rte_mempool_put(ctx->task_pool, (void *) task);
+        }
 
         /* Free the resources used for this offload task. */
         cctx->currently_running_task = nullptr;
         cctx->state = ComputeContext::READY;
-        //ctx->cctx_list.push_back(cctx);
 
         #ifdef USE_NVPROF
         nvtxRangePop();
@@ -175,28 +205,28 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
     #endif
 }
 
-static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count, uint64_t loop_count)
+static size_t comp_process_batch(io_thread_context *ctx, void *pkts, size_t count, uint64_t loop_count)
 {
     assert(count <= ctx->comp_ctx->num_combatch_size);
-    if (count == 0) return;
+    if (count == 0) return 0;
     int ret;
-    PacketBatch *batch = NULL;
-    do {
+    PacketBatch *batch = nullptr;
+    while (true) {
         ret = rte_mempool_get(ctx->comp_ctx->batch_pool, (void **) &batch);
+        if (unlikely(ctx->loop_broken)) return 0;
         if (ret == -ENOENT) {
-            /* Try to free some batches by processing
-             * offload-completino events. */
-            if (unlikely(ctx->loop_broken))
-                break;
-            comp_check_delayed_operations(ctx->comp_ctx);
-        }
-    } while (ret == -ENOENT);
-    if (unlikely(ctx->loop_broken))
-        return;
+            /* Wait until some batches are freed. */
+            ev_run(ctx->loop, 0);
+        } else
+            break;
+    }
+
+    /* Okay, let's initialize a new packet batch. */
+    assert(batch != nullptr);
     new (batch) PacketBatch();
     memcpy((void **) &batch->packets[0], (void **) pkts, count * sizeof(void*));
     batch->banno.bitmask = 0;
-    anno_set(&batch->banno, NBA_BANNO_LB_DECISION, 0);
+    anno_set(&batch->banno, NBA_BANNO_LB_DECISION, -1);
 
     /* t is NOT the actual receive timestamp but a
      * "start-of-processing" timestamp.
@@ -239,19 +269,8 @@ static void comp_process_batch(io_thread_context *ctx, void *pkts, size_t count,
 
     /* Run the element graph's schedulable elements.
      * FIXME: allow multiple FromInput elements depending on the flow groups. */
-    SchedulableElement *input_elem = ctx->comp_ctx->elem_graph->get_entry_point(0);
-    PacketBatch *next_batch = nullptr;
-    assert(0 != (input_elem->get_type() & ELEMTYPE_INPUT));
-    ctx->comp_ctx->input_batch = batch;
-    uint64_t next_delay = 0;
-    ret = input_elem->dispatch(loop_count, next_batch, next_delay);
-    if (next_batch == nullptr) {
-        ctx->comp_ctx->elem_graph->free_batch(batch);
-    } else {
-        assert(next_batch == batch);
-        next_batch->has_results = true; // skip processing
-        ctx->comp_ctx->elem_graph->run(next_batch, input_elem, 0);
-    }
+    ctx->comp_ctx->elem_graph->feed_input(0, batch, loop_count);
+    return count;
 }
 /* ===== END_OF_COMP ===== */
 
@@ -336,6 +355,7 @@ static void io_node_stat_cb(struct ev_loop *loop, struct ev_async *watcher, int 
     if (rte_atomic16_cmpset((volatile uint16_t *) &ctx->node_master_flag->cnt, node_stat->num_threads, 0)) {
         unsigned j;
         struct io_thread_stat total;
+        memset(&total, 0, sizeof(struct io_thread_stat));
         struct io_thread_stat *last_total = &node_stat->last_total;
         struct rte_eth_stats s;
         for (j = 0; j < node_stat->num_ports; j++) {
@@ -347,11 +367,9 @@ static void io_node_stat_cb(struct ev_loop *loop, struct ev_async *watcher, int 
             total.port_stats[j].num_sent_bytes = rte_atomic64_read(&node_stat->port_stats[j].num_sent_bytes);
             total.port_stats[j].num_invalid_pkts = rte_atomic64_read(&node_stat->port_stats[j].num_invalid_pkts);
             total.port_stats[j].num_sw_drop_pkts = rte_atomic64_read(&node_stat->port_stats[j].num_sw_drop_pkts);
-            if (!emulate_io && (unsigned) info.pci_dev->numa_node == ctx->loc.node_id) {
+            if ((unsigned) rte_eth_dev_socket_id(j) == ctx->loc.node_id) {
                 rte_eth_stats_get((uint8_t) j, &s);
                 total.port_stats[j].num_rx_drop_pkts = s.ierrors;
-            } else {
-                total.port_stats[j].num_rx_drop_pkts = 0;
             }
             total.port_stats[j].num_tx_drop_pkts = rte_atomic64_read(&node_stat->port_stats[j].num_tx_drop_pkts);
         }
@@ -384,114 +402,6 @@ static void io_node_stat_cb(struct ev_loop *loop, struct ev_async *watcher, int 
     }
 }/*}}}*/
 
-static void io_build_packet(char *buf, int size, unsigned flow_idx, random32_func_t rand)/*{{{*/
-{
-    struct ether_hdr *eth;
-    struct ipv4_hdr *ip;
-    struct udp_hdr *udp;
-
-    /* Build an ethernet header */
-    eth = (struct ether_hdr *)buf;
-    eth->ether_type = rte_cpu_to_be_16(ETHER_TYPE_IPv4);
-
-    /* Note: eth->h_source and eth->h_dest are written at send_packets(). */
-
-    /* Build an IPv4 header. */
-    ip = (struct ipv4_hdr *)(buf + sizeof(*eth));
-
-    unsigned header_len = 5;
-    ip->version_ihl = (4 << 4) | header_len; // header length & version (we are LE!)
-    ip->type_of_service = 0;
-    ip->total_length = rte_cpu_to_be_16(size - sizeof(*eth));
-    ip->packet_id = 0;
-    ip->fragment_offset = 0;
-    ip->time_to_live = 3;
-    ip->next_proto_id = IPPROTO_UDP;
-    /* Currently we do not test source-routing. */
-    ip->src_addr = rte_cpu_to_be_32(0x0A000001);
-    /* Prevent generation of multicast packets, though its probability is very low. */
-    if (emulated_num_fixed_flows > 0) {
-        ip->dst_addr = rte_cpu_to_be_32(0x0A000000 | (flow_idx & 0x00FFFFFF));
-    } else {
-        ip->dst_addr = rte_cpu_to_be_32(rand());
-        unsigned char *daddr = (unsigned char*)(&ip->dst_addr);
-        daddr[0] = 0x0A;
-    }
-    ip->hdr_checksum = 0;
-    ip->hdr_checksum = ip_fast_csum(ip, header_len);
-
-    udp = (struct udp_hdr *)((char *)ip + sizeof(*ip));
-
-    /* For debugging, we fix the source port. */
-    udp->src_port = rte_cpu_to_be_16(9999);
-    if (emulated_num_fixed_flows > 0) {
-        udp->dst_port = rte_cpu_to_be_16(80);
-    } else {
-        udp->dst_port = rte_cpu_to_be_16((rand() >> 16) & 0xFFFF);
-    }
-
-    udp->dgram_len = rte_cpu_to_be_16(size - sizeof(*eth) - sizeof(*ip));
-    udp->dgram_cksum = 0;
-
-    /* For debugging, we fill the packet content with a magic number 0xf0. */
-    char *content = (char *)((char *)udp + sizeof(*udp));
-    memset(content, 0xf0, size - sizeof(*eth) - sizeof(*ip) - sizeof(*udp));
-    memset(content, 0xee, 1);  /* To indicate the beginning of packet content area. */
-}/*}}}*/
-
-static void io_build_packet_v6(char *buf, int size, unsigned flow_idx, random32_func_t rand)/*{{{*/
-{
-    struct ether_hdr *eth;
-    struct ipv6_hdr *ip;
-    struct udp_hdr *udp;
-
-    uint32_t rand_val;
-
-    /* Build an ethernet header. */
-    eth = (struct ether_hdr *)buf;
-    eth->ether_type = rte_cpu_to_be_16(ETHER_TYPE_IPv6);
-
-    /* Note: eth->h_source and eth->h_dest are written at send_packets(). */
-
-    /* Build an IPv6 header. */
-    ip = (struct ipv6_hdr *)(buf + sizeof(*eth));
-
-    ip->vtc_flow = (6 << 4);
-    ip->payload_len = rte_cpu_to_be_16(size - sizeof(*eth) - sizeof(*ip));
-    ip->hop_limits = 4;
-    ip->proto = IPPROTO_UDP;
-    /* Currently we do not test source-routing. */
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wstrict-aliasing"
-    ((uint32_t *) ip->src_addr)[0] = rte_cpu_to_be_32(0x0A000001);
-    ((uint32_t *) ip->src_addr)[1] = rte_cpu_to_be_32(0x00000000);
-    ((uint32_t *) ip->src_addr)[2] = rte_cpu_to_be_32(0x00000000);
-    ((uint32_t *) ip->src_addr)[3] = rte_cpu_to_be_32(0x00000000);
-    ((uint32_t *) ip->dst_addr)[0] = rte_cpu_to_be_32(rand());
-    ((uint32_t *) ip->dst_addr)[1] = rte_cpu_to_be_32(rand());
-    ((uint32_t *) ip->dst_addr)[2] = rte_cpu_to_be_32(rand());
-    ((uint32_t *) ip->dst_addr)[3] = rte_cpu_to_be_32(rand());
-    #pragma GCC diagnostic pop
-    /* Prevent generation of multicast packets. */
-    ip->dst_addr[0] = 0x0A;
-
-    // TODO: support fixed flows in IPv6 as well.
-
-    udp = (struct udp_hdr *)((char *)ip + sizeof(*ip));
-
-    rand_val = rand();
-    udp->src_port = rte_cpu_to_be_16(rand_val & 0xFFFF);
-    udp->dst_port = rte_cpu_to_be_16((rand_val >> 16) & 0xFFFF);
-
-    udp->dgram_len = rte_cpu_to_be_16(size - sizeof(*eth) - sizeof(*ip));
-    udp->dgram_cksum = 0;
-
-    /* For debugging, we fill the packet content with a magic number 0xf0. */
-    char *content = (char *)((char *)udp + sizeof(*udp));
-    memset(content, 0xf0, size - sizeof(*eth) - sizeof(*ip) - sizeof(*udp));
-    memset(content, 0xee, 1);  /* To indicate the beginning of packet content area. */
-}/*}}}*/
-
 static void io_terminate_cb(struct ev_loop *loop, struct ev_async *watcher, int revents)
 {
     struct io_thread_context *ctx = (struct io_thread_context *) ev_userdata(loop);
@@ -509,7 +419,7 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
     unsigned out_batches_cnt[NBA_MAX_PORTS];
     memset(out_batches_cnt, 0, sizeof(unsigned) * NBA_MAX_PORTS);
     uint64_t t = rdtscp();
-    int64_t proc_id = anno_get(&batch->banno, NBA_BANNO_LB_DECISION);  // adjust range to be positive
+    int64_t proc_id = anno_get(&batch->banno, NBA_BANNO_LB_DECISION) + 1; // adjust range to be positive
     ctx->comp_ctx->inspector->update_batch_proc_time(t - batch->recv_timestamp);
     ctx->comp_ctx->inspector->update_pkt_proc_cycles(batch->compute_time, proc_id);
 //#ifdef NBA_CPU_MICROBENCH
@@ -548,44 +458,36 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
             ctx->port_stats[o].num_sent_bytes += len;
         }
 
-        if (ctx->mode == IO_EMUL) {
-            /* Emulated TX always succeeds without drops. */
-            rte_mempool_put_bulk(ctx->emul_rx_packet_pool, (void **) pkts, count);
-            ctx->port_stats[o].num_sent_pkts += count;
-            ctx->global_tx_cnt += count;
-            ctx->port_stats[o].num_tx_drop_pkts += 0;
-        } else {
 #if NBA_OQ
-            /* To implement output-queuing, we need to drop when the TX NIC
-             * is congested.  This would not happen in high line rates such
-             * as 10 GbE because processing speed becomes the bottleneck,
-             * but it will be meaningful when we use low-speed NICs such as
-             * 1 GbE cards. */
-            unsigned txq = ctx->loc.global_thread_idx;
-            unsigned sent_cnt = rte_eth_tx_burst((uint8_t) o, txq, pkts, count);
-            for (unsigned k = sent_cnt; k < count; k++) {
-                struct rte_mbuf* cur_pkt = out_batches[o][k];
-                unsigned len = rte_pktmbuf_pkt_len(cur_pkt) + 24;
-                ctx->port_stats[o].num_sent_bytes -= len;
-                rte_pktmbuf_free(pkts[k]);
-            }
-            ctx->port_stats[o].num_sent_pkts += sent_cnt;
-            ctx->port_stats[o].num_tx_drop_pkts += (count - sent_cnt);
-            ctx->global_tx_cnt += sent_cnt;
-#else
-            /* Try to send all packets with retries. */
-            unsigned total_sent_cnt = 0;
-            do {
-                unsigned txq = ctx->loc.global_thread_idx;
-                unsigned sent_cnt = rte_eth_tx_burst((uint8_t) o, txq, &pkts[total_sent_cnt], count);
-                count -= sent_cnt;
-                total_sent_cnt += sent_cnt;
-                tx_tries ++;
-            } while (count > 0);
-            ctx->port_stats[o].num_sent_pkts += total_sent_cnt;
-            ctx->global_tx_cnt += total_sent_cnt;
-#endif
+        /* To implement output-queuing, we need to drop when the TX NIC
+         * is congested.  This would not happen in high line rates such
+         * as 10 GbE because processing speed becomes the bottleneck,
+         * but it will be meaningful when we use low-speed NICs such as
+         * 1 GbE cards. */
+        unsigned txq = ctx->loc.global_thread_idx;
+        unsigned sent_cnt = rte_eth_tx_burst((uint8_t) o, txq, pkts, count);
+        for (unsigned k = sent_cnt; k < count; k++) {
+            struct rte_mbuf* cur_pkt = out_batches[o][k];
+            unsigned len = rte_pktmbuf_pkt_len(cur_pkt) + 24;
+            ctx->port_stats[o].num_sent_bytes -= len;
+            rte_pktmbuf_free(pkts[k]);
         }
+        ctx->port_stats[o].num_sent_pkts += sent_cnt;
+        ctx->port_stats[o].num_tx_drop_pkts += (count - sent_cnt);
+        ctx->global_tx_cnt += sent_cnt;
+#else
+        /* Try to send all packets with retries. */
+        unsigned total_sent_cnt = 0;
+        do {
+            unsigned txq = ctx->loc.global_thread_idx;
+            unsigned sent_cnt = rte_eth_tx_burst((uint8_t) o, txq, &pkts[total_sent_cnt], count);
+            count -= sent_cnt;
+            total_sent_cnt += sent_cnt;
+            tx_tries ++;
+        } while (count > 0);
+        ctx->port_stats[o].num_sent_pkts += total_sent_cnt;
+        ctx->global_tx_cnt += total_sent_cnt;
+#endif
     }
 //#ifdef NBA_CPU_MICROBENCH
 //    {
@@ -618,10 +520,8 @@ int io_loop(void *arg)
     char temp[1024];
     int ret;
 
-    /* Packet builder initialization for emulation mode. */
+    /* Initialize random for randomized port access order. */
     random32_func_t random32 = bind(uniform_int_distribution<uint32_t>{}, mt19937());
-    packet_builder_func_t build_packet = (ctx->emul_ip_version == 4) ?
-                                         io_build_packet : io_build_packet_v6;
 
     /* IO thread initialization */
     assert((unsigned) numa_node_of_cpu(ctx->loc.core_id) == ctx->loc.node_id);
@@ -664,12 +564,7 @@ int io_loop(void *arg)
     /* Read TX-port MAC addresses. */
     for (i = 0; i < ctx->num_tx_ports; i++) {
         ctx->tx_ports[i].port_idx = i;
-        if (ctx->mode == IO_EMUL) {
-            struct ether_addr dummy_addr = {{0x4e, 0x42, 0x41, 0x00, 0x00, (uint8_t) i}};
-            ether_addr_copy(&dummy_addr, &ctx->tx_ports[i].addr);
-        } else {
-            rte_eth_macaddr_get(i, &ctx->tx_ports[i].addr);
-        }
+        rte_eth_macaddr_get(i, &ctx->tx_ports[i].addr);
     }
 
     /* Initialize the event loop. */
@@ -682,7 +577,7 @@ int io_loop(void *arg)
     snprintf(temp, RTE_MEMPOOL_NAMESIZE,
          "comp.batch.%u:%u@%u", ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
     ctx->comp_ctx->batch_pool = rte_mempool_create(temp, ctx->comp_ctx->num_batchpool_size + 1,
-                                                   sizeof(PacketBatch), 64,
+                                                   sizeof(PacketBatch), CACHE_LINE_SIZE,
                                                    0, nullptr, nullptr,
                                                    comp_packetbatch_init, nullptr,
                                                    ctx->loc.node_id, 0);
@@ -691,7 +586,7 @@ int io_loop(void *arg)
 
     snprintf(temp, RTE_MEMPOOL_NAMESIZE,
         "comp.dbstate.%u:%u@%u", ctx->loc.node_id, ctx->loc.local_thread_idx, ctx->loc.core_id);
-    size_t dbstate_pool_size = NBA_MAX_COPROC_PPDEPTH;
+    size_t dbstate_pool_size = NBA_MAX_COPROC_PPDEPTH * 16;
     size_t dbstate_item_size = sizeof(struct datablock_tracker) * NBA_MAX_DATABLOCKS;
     ctx->comp_ctx->dbstate_pool = rte_mempool_create(temp, dbstate_pool_size + 1,
                                                      dbstate_item_size, 32,
@@ -716,9 +611,7 @@ int io_loop(void *arg)
     ctx->comp_ctx->packet_pool = packet_create_mempool(128, ctx->loc.node_id, ctx->loc.core_id);
     assert(ctx->comp_ctx->packet_pool != nullptr);
 
-    ctx->comp_ctx->inspector = (SystemInspector *) rte_malloc_socket(NULL, sizeof(SystemInspector),
-                                                                     CACHE_LINE_SIZE, ctx->loc.node_id);
-    new (ctx->comp_ctx->inspector) SystemInspector();
+    NEW(ctx->loc.node_id, ctx->comp_ctx->inspector, SystemInspector);
 
     /* Register the offload completion event. */
     if (ctx->comp_ctx->coproc_ctx != nullptr) {
@@ -726,6 +619,13 @@ int io_loop(void *arg)
         // TODO: remove this event and just check the completion queue on every iteration.
         ev_async_start(ctx->loop, ctx->comp_ctx->task_completion_watcher);
     }
+
+    /* Register per-iteration check event. */
+    ctx->comp_ctx->check_watcher = (struct ev_check *) rte_malloc_socket(nullptr, sizeof(struct ev_check),
+                                                                         CACHE_LINE_SIZE, ctx->loc.node_id);
+    ev_check_init(ctx->comp_ctx->check_watcher, comp_prepare_cb);
+    ev_check_start(ctx->loop, ctx->comp_ctx->check_watcher);
+
     /* ==== END_OF_COMP ====*/
 
     /* Register the termination event. */
@@ -762,12 +662,6 @@ int io_loop(void *arg)
     ctx->stat_timer->repeat = 1.;
     ev_timer_again(ctx->loop, ctx->stat_timer);
 
-#ifdef NBA_SLEEPY_IO
-    struct rx_state *states = (struct rx_state *) rte_malloc_socket("rxstates",
-            sizeof(*states) * ctx->num_hw_rx_queues,
-            64, ctx->loc.node_id);
-    memset(states, 0, sizeof(*states) * ctx->num_hw_rx_queues);
-#endif
 #ifdef TEST_MINIMAL_L2FWD
     unsigned txq = (ctx->loc.node_id * (ctx->num_tx_ports / num_nodes)) + ctx->loc.local_thread_idx;
     struct packet_batch *batch = (struct packet_batch *) rte_malloc_socket("pktbatch",
@@ -787,19 +681,6 @@ int io_loop(void *arg)
     int num_random_packets = 4096;
     int rp = 0;
     char *random_packets[4096];
-    if (ctx->mode == IO_EMUL) {
-        /* Create random packets. */
-        if (emulated_num_fixed_flows > 0)
-            num_random_packets = RTE_MIN(emulated_num_fixed_flows, num_random_packets);
-        for (int i = 0; i < num_random_packets; i++) {
-            random_packets[i] = (char *) rte_zmalloc_socket("randpkt", ctx->emul_packet_size,
-                                                            CACHE_LINE_SIZE, ctx->loc.node_id);
-            assert(random_packets[i] != nullptr);
-            build_packet(random_packets[i], ctx->emul_packet_size, (emulated_num_fixed_flows == 0) ? 0 : i, random32);
-            struct ether_hdr *ethh = (struct ether_hdr *) random_packets[i];
-            eth_random_addr(&ethh->s_addr.addr_bytes[0]);
-        }
-    }
 
     // ctx->num_iobatch_size = 1; // FOR TESTING
     uint64_t loop_count = 0;
@@ -807,9 +688,9 @@ int io_loop(void *arg)
     /* The IO thread runs in polling mode. */
     while (likely(!ctx->loop_broken)) {
         unsigned total_recv_cnt = 0;
-        #ifdef NBA_CPU_MICROBENCH
+        #ifdef NBA_CPU_MICROBENCH/*{{{*/
         PAPI_start(ctx->papi_evset_rx);
-        #endif
+        #endif/*}}}*/
         for (i = 0; i < ctx->num_hw_rx_queues; i++) {
 #ifdef NBA_RANDOM_PORT_ACCESS /*{{{*/
             /* Shuffle the RX queue list. */
@@ -827,89 +708,8 @@ int io_loop(void *arg)
             unsigned recv_cnt = 0;
             unsigned sent_cnt = 0, invalid_cnt = 0;
 
-            if (ctx->mode == IO_EMUL) {/*{{{*/
-                ret = rte_mempool_get_bulk(ctx->emul_rx_packet_pool, (void **) &pkts[total_recv_cnt], ctx->num_iobatch_size);
-                if (ret == 0) {
-                    #define PREFETCH_MAX (4)
-                    #if PREFETCH_MAX
-                    for (signed p = 0; p < RTE_MIN(PREFETCH_MAX, ((signed)ctx->num_iobatch_size)); p++)
-                        rte_prefetch0((char * ) pkts[total_recv_cnt + p]->buf_addr + RTE_PKTMBUF_HEADROOM);
-                    #endif
-                    for (j = total_recv_cnt; j < total_recv_cnt + ctx->num_iobatch_size; j++) {
-                        pkts[j]->packet_type = 0;
-                        pkts[j]->data_off    = RTE_PKTMBUF_HEADROOM;
-                        rte_pktmbuf_pkt_len(pkts[j])  = ctx->emul_packet_size;
-                        rte_pktmbuf_data_len(pkts[j]) = ctx->emul_packet_size;
-                        pkts[j]->port    = port_idx;
-                        pkts[j]->nb_segs = 1;
-                        pkts[j]->next    = nullptr;
-                        rte_mbuf_refcnt_set(pkts[j], 1);
-
-                        /* Copy the content from pre-created random packets. */
-                        rte_memcpy(rte_pktmbuf_mtod(pkts[j], char *), random_packets[rp], ctx->emul_packet_size);
-
-                        struct ether_hdr *ethh = rte_pktmbuf_mtod(pkts[j], struct ether_hdr *);
-                        ether_addr_copy(&ctx->tx_ports[port_idx].addr, &ethh->d_addr);
-
-                        struct ipv4_hdr *iph = (struct ipv4_hdr *) (ethh + 1);
-                        assert(iph->time_to_live > 1);
-
-                        #if PREFETCH_MAX
-                        if (j + PREFETCH_MAX + 1 < total_recv_cnt + ctx->num_iobatch_size)
-                            rte_prefetch0((char * ) pkts[j + 1]->buf_addr + RTE_PKTMBUF_HEADROOM);
-                        #endif
-                        rp = (rp + 1) % num_random_packets;
-                    }
-                    #undef PREFETCH_MAX
-                    //printf("emulrxpktpool got %u / %u\n", ctx->num_iobatch_size, rte_mempool_count(ctx->emul_rx_packet_pool));
-                    recv_cnt = ctx->num_iobatch_size;
-                } else {
-                    /* If no emulated packets are available, break out the rxq scan loop.
-                     * (This corresponds to "idle" state with real traffic,
-                     * but for maximum-performance testing this case should not happen.) */
-                    printf("emulrxpktpool no?? %u\n", rte_mempool_count(ctx->emul_rx_packet_pool));
-                    assert(0);
-                    break;
-                }
-            } else {/*}}}*/
-#ifdef NBA_SLEEPY_IO /*{{{*/
-                struct rx_state *state = &states[i];
-                if ((state->rx_quick_sleep --) > 0) {
-                    pthread_yield();
-#  if !defined(TEST_RXONLY) && !defined(TEST_MINIMAL_L2FWD)
-                    goto __skip_rx;
-#  else
-                    continue;
-#  endif
-                }
-
-#  if !defined(TEST_RXONLY) && !defined(TEST_MINIMAL_L2FWD)
-                state->rx_length = rte_eth_rx_burst((uint8_t) port_idx, rxq,
-                                                    //pkts, RTE_MIN(free_cnt, ctx->num_iobatch_size));
-                                                    &pkts[total_recv_cnt], ctx->num_iobatch_size);
-#  else
-                state->rx_length = rte_eth_rx_burst((uint8_t) port_idx, rxq,
-                                                    &pkts[total_recv_cnt], ctx->num_iobatch_size);
-#  endif
-                state->rx_quick_sleep = (uint16_t) (ctx->num_iobatch_size - state->rx_length);
-                if (state->rx_length != 0) {
-                    /* We received some packets, and expect some more packets may arrive soon.
-                     * Reset the sleep amount. */
-                    state->rx_full_quick_sleep_count = 0;
-                } else {
-                    /* No packets. We need some sleep. Adjust how much to sleep. */
-                    if (state->rx_full_quick_sleep_count < ctx->num_iobatch_size)
-                        /* Increase sleep count if no return happens repeatedly. */
-                        state->rx_full_quick_sleep_count ++;
-                    state->rx_quick_sleep = (uint16_t) (state->rx_quick_sleep \
-                                                        * state->rx_full_quick_sleep_count);
-                }
-                recv_cnt = state->rx_length;
-#else /*}}}*/
-                recv_cnt = rte_eth_rx_burst((uint8_t) port_idx, rxq,
-                                             &pkts[total_recv_cnt], ctx->num_iobatch_size);
-#endif        /* endif NBA_SLEEPY_IO */
-            } /* endif IO_EMUL */
+            recv_cnt = rte_eth_rx_burst((uint8_t) port_idx, rxq,
+                                         &pkts[total_recv_cnt], ctx->num_iobatch_size);
 
 #if !defined(TEST_RXONLY) && !defined(TEST_MINIMAL_L2FWD)
             for(unsigned _k=0; _k<recv_cnt; _k++)
@@ -968,87 +768,35 @@ int io_loop(void *arg)
 
         } // end of rxq scanning
         assert(total_recv_cnt <= NBA_MAX_IO_BATCH_SIZE * ctx->num_hw_rx_queues);
-        #ifdef NBA_CPU_MICROBENCH
+        #ifdef NBA_CPU_MICROBENCH/*{{{*/
         {
             long long ctr[5];
             PAPI_stop(ctx->papi_evset_rx, ctr);
             for (int i = 0; i < 5; i++)
                 ctx->papi_ctr_rx[i] += ctr[i];
         }
-        #endif
+        #endif/*}}}*/
 
-        if (ctx->mode == IO_EMUL) {/*{{{*/
-            while (!rte_ring_empty(ctx->drop_queue)) {
-                int n = rte_ring_dequeue_burst(ctx->drop_queue, (void**) drop_pkts,
-                                               ctx->num_iobatch_size);
-                // TODO: add nullcheck?
-                rte_mempool_put_bulk(ctx->emul_rx_packet_pool, (void **) drop_pkts, n);
-                ctx->port_stats[0].num_sw_drop_pkts += n;
-            }
-        } else {/*}}}*/
-            while (!rte_ring_empty(ctx->drop_queue)) {
-                int n = rte_ring_dequeue_burst(ctx->drop_queue, (void**) drop_pkts,
-                                               ctx->num_iobatch_size);
-                for (int p = 0; p < n; p++)
-                    if (drop_pkts[p] != nullptr)
-                        rte_pktmbuf_free(drop_pkts[p]);
-                ctx->port_stats[0].num_sw_drop_pkts += n;
-            }
+        while (!rte_ring_empty(ctx->drop_queue)) {
+            int n = rte_ring_dequeue_burst(ctx->drop_queue, (void**) drop_pkts,
+                                           ctx->num_iobatch_size);
+            for (int p = 0; p < n; p++)
+                if (drop_pkts[p] != nullptr)
+                    rte_pktmbuf_free(drop_pkts[p]);
+            ctx->port_stats[0].num_sw_drop_pkts += n;
         }
 
-        /* Process received packets. */
-        print_ratelimit("# received pkts from all rxq", total_recv_cnt, 10000);
+        /* Scan and execute schedulable elements. */
+        ctx->comp_ctx->elem_graph->scan_schedulable_elements(loop_count);
 
-        ctx->comp_ctx->stop_task_batching = (total_recv_cnt == 0); // not used currently...
-        #ifdef NBA_CPU_MICROBENCH
-        PAPI_start(ctx->papi_evset_comp);
-        #endif
-
-        ctx->comp_ctx->elem_graph->flush_offloaded_tasks();
-        ctx->comp_ctx->elem_graph->flush_delayed_batches();
-        unsigned comp_batch_size = ctx->comp_ctx->num_combatch_size;
-        for (unsigned pidx = 0; pidx < total_recv_cnt; pidx += comp_batch_size) {
-            comp_process_batch(ctx, &pkts[pidx], RTE_MIN(comp_batch_size, total_recv_cnt - pidx), loop_count);
-        }
-
-        const auto &selems = ctx->comp_ctx->elem_graph->get_schedulable_elements();
-        for (SchedulableElement *selem : selems) {
-            PacketBatch *next_batch = nullptr;
-            if (0 == (selem->get_type() & ELEMTYPE_INPUT)) { // FromInput is executed in comp_process_batch() already.
-                while (true) {
-                    /* Try to "drain" internally stored batches. */
-                    if (selem->_last_delay == 0) {
-                        ret = selem->dispatch(loop_count, next_batch, selem->_last_delay);
-                        if (selem->_last_check_tick == 0)
-                            selem->_last_call_ts = get_usec();
-                        selem->_last_check_tick ++;
-                    } else if (selem->_last_check_tick > 100) { // rate-limit calls to clock_gettime()
-                        uint64_t now = get_usec();
-                        if (now >= selem->_last_call_ts + selem->_last_delay) {
-                            ret = selem->dispatch(loop_count, next_batch, selem->_last_delay);
-                            selem->_last_call_ts = now;
-                        }
-                        selem->_last_check_tick = 0;
-                    } else
-                        selem->_last_check_tick ++;
-                    if (next_batch != nullptr) {
-                        next_batch->has_results = true; // skip processing
-                        ctx->comp_ctx->elem_graph->run(next_batch, selem, 0);
-                    } else
-                        break;
-                };
-            }
-        }
-        #ifdef NBA_CPU_MICROBENCH
+        #ifdef NBA_CPU_MICROBENCH/*{{{*/
         {
             long long ctr[5];
             PAPI_stop(ctx->papi_evset_comp, ctr);
             for (int i = 0; i < 5; i++)
                 ctx->papi_ctr_comp[i] += ctr[i];
         }
-        #endif
-
-        loop_count ++;
+        #endif/*}}}*/
 
         while (!rte_ring_empty(ctx->new_packet_request_ring))/*{{{*/
         {
@@ -1064,27 +812,28 @@ int io_loop(void *arg)
             memcpy(rte_pktmbuf_mtod(pktbuf, void *), new_packet->buf, new_packet->len);
 
             unsigned txq = ctx->loc.global_thread_idx;
-            if (ctx->mode != IO_EMUL) {
-                if(0 == rte_eth_tx_burst(new_packet->out_port, txq, &pktbuf, 1)) {
-                    RTE_LOG(DEBUG, IO, "tx failed.\n");
-                    rte_pktmbuf_free(pktbuf);
-                    ctx->port_stats[new_packet->out_port].num_tx_drop_pkts++;
-                } else {
-                    ctx->port_stats[new_packet->out_port].num_sent_pkts++;
-                    ctx->port_stats[new_packet->out_port].num_sent_bytes += new_packet->len + 24;
-                }
-            } else {
-                rte_pktmbuf_free(pktbuf);
-                ctx->port_stats[new_packet->out_port].num_sent_pkts++;
-                ctx->port_stats[new_packet->out_port].num_sent_bytes += new_packet->len + 24;
-            }
+            rte_pktmbuf_free(pktbuf);
+            ctx->port_stats[new_packet->out_port].num_sent_pkts++;
+            ctx->port_stats[new_packet->out_port].num_sent_bytes += new_packet->len + 24;
 
             rte_mempool_put(ctx->new_packet_request_pool, new_packet);
         }/*}}}*/
 
+        /* Process received packets. */
+        print_ratelimit("# received pkts from all rxq", total_recv_cnt, 10000);
+        #ifdef NBA_CPU_MICROBENCH/*{{{*/
+        PAPI_start(ctx->papi_evset_comp);
+        #endif/*}}}*/
+        unsigned comp_batch_size = ctx->comp_ctx->num_combatch_size;
+        for (unsigned pidx = 0; pidx < total_recv_cnt; pidx += comp_batch_size) {
+            comp_process_batch(ctx, &pkts[pidx], RTE_MIN(comp_batch_size, total_recv_cnt - pidx), loop_count);
+        }
+
         /* The io event loop. */
         if (likely(!ctx->loop_broken))
             ev_run(ctx->loop, EVRUN_NOWAIT);
+
+        loop_count ++;
     }
     if (ctx->loc.local_thread_idx == 0) {
         ctx->init_cond->~CondVar();
