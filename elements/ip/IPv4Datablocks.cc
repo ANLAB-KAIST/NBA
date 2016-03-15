@@ -7,13 +7,21 @@ int dbid_ipv4_dest_addrs;
 int dbid_ipv4_lookup_results;
 
 static DataBlock* db_ipv4_dest_addrs_ctor (void) {
+    #ifdef TESTING
+    DataBlock *ptr = (DataBlock *) malloc(sizeof(IPv4DestAddrsDataBlock));
+    #else
     DataBlock *ptr = (DataBlock *) rte_malloc("datablock", sizeof(IPv4DestAddrsDataBlock), CACHE_LINE_SIZE);
+    #endif
     assert(ptr != nullptr);
     new (ptr) IPv4DestAddrsDataBlock();
     return ptr;
 };
 static DataBlock* db_ipv4_lookup_results_ctor (void) {
+    #ifdef TESTING
+    DataBlock *ptr = (DataBlock *) malloc(sizeof(IPv4LookupResultsDataBlock));
+    #else
     DataBlock *ptr = (DataBlock *) rte_malloc("datablock", sizeof(IPv4LookupResultsDataBlock), CACHE_LINE_SIZE);
+    #endif
     assert(ptr != nullptr);
     new (ptr) IPv4LookupResultsDataBlock();
     return ptr;

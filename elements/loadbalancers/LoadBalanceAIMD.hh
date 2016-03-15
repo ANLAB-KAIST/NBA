@@ -65,7 +65,7 @@ public:
         }
         choice = idx;
         assert(choice >= 0);
-        anno_set(&batch->banno, NBA_BANNO_LB_DECISION, choice);
+        anno_set(&batch->banno, NBA_BANNO_LB_DECISION, choice - 1);
         return 0;
     }
 

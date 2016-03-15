@@ -76,7 +76,12 @@ ELEMENT_HEADER_FILES = [s for s in compilelib.find_all(['elements'], r'^.+\.(h|h
 
 # List of object files
 OBJ_DIR   = 'build'
+os.makedirs('build', exist_ok=True)
 OBJ_FILES = [joinpath(OBJ_DIR, o) for o in map(lambda s: re.sub(r'^(.+)\.(c|cc|cpp|cu)$', r'\1.o', s), SOURCE_FILES)]
+GTEST_MAIN_OBJ = 'build/src/lib/gtest/gtest_main.o'
+GTEST_FUSED_OBJ = 'build/src/lib/gtest/gtest-all.o'
+OBJ_FILES.remove(GTEST_MAIN_OBJ)
+OBJ_FILES.remove(GTEST_FUSED_OBJ)
 
 # Common configurations
 CXXSTD = version()
@@ -91,11 +96,13 @@ SUPPRESSED_CC_WARNINGS = (
     'unused-result',
     'unused-parameter',
 )
-CFLAGS         = '-march=native -O2 -g -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude'
+CFLAGS      = '-march=native -O2 -g -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude'
 if os.getenv('DEBUG', 0):
-    CFLAGS     = '-march=native -Og -g3 -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude -DDEBUG'
-#LIBS           = '-ltcmalloc_minimal -lnuma -lpthread -lpcre -lrt'
-LIBS           = '-lnuma -lpthread -lpcre -lrt'
+    CFLAGS  = '-march=native -O0 -g3 -Wall -Wextra ' + ' '.join(map(lambda s: '-Wno-' + s, SUPPRESSED_CC_WARNINGS)) + ' -Iinclude -DDEBUG'
+if os.getenv('TESTING', 0):
+    CFLAGS += ' -DTESTING'
+
+LIBS = '-pthread -lpcre -lrt'
 if USE_CUDA:        CFLAGS += ' -DUSE_CUDA'
 if USE_PHI:         CFLAGS += ' -DUSE_PHI'
 if USE_OPENSSL_EVP: CFLAGS += ' -DUSE_OPENSSL_EVP'
@@ -112,13 +119,16 @@ if v: CFLAGS += ' -DNBA_RANDOM_PORT_ACCESS'
 
 # NVIDIA CUDA configurations
 if USE_CUDA:
+    os.makedirs('build/nvcc-temp', exist_ok=True)
     CUDA_ARCHS    = compilelib.get_cuda_arch()
-    NVCFLAGS      = '-O2 -g -std=c++11 --use_fast_math -Iinclude -I/usr/local/cuda/include'
     CFLAGS       += ' -I/usr/local/cuda/include'
     LIBS         += ' -L/usr/local/cuda/lib64 -lcudart' #' -lnvidia-ml'
     print(CUDA_ARCHS)
-    if os.getenv('DEBUG', 0):
-        NVCFLAGS  = '-O0 --device-debug -g -G -std=c++11 --use_fast_math -Iinclude -I/usr/local/cuda/include --ptxas-options=-v'
+    if os.getenv('DEBUG', 0) or os.getenv('DEBUG_CUDA', 0):
+        NVCFLAGS  = '-O0 -lineinfo -G -g' #' --ptxas-options=-v'
+    else:
+        NVCFLAGS  = '-O2 -lineinfo -g'
+    NVCFLAGS     += ' -std=c++11 --keep --keep-dir build/nvcc-temp --use_fast_math --expt-relaxed-constexpr -Iinclude -I/usr/local/cuda/include'
     if len(CUDA_ARCHS) == 0:
         NVCFLAGS += ' -DMP_USE_64BIT=0' \
                   + ' -gencode arch=compute_10,code=sm_10' \
@@ -160,7 +170,7 @@ LIBS          += ' -L{SSL_PATH}/lib -lcrypto'
 
 # Python configurations (assuming we use the same version of Python for Snakemake and configuration scripts)
 CFLAGS        += ' -I{0} -fwrapv'.format(sysconfig.get_path('include'))
-LIBS          += ' -L{0} -lpython{1}m {2} {3}'.format(sysconfig.get_path('stdlib'),
+LIBS          += ' -L{0} -lpython{1}m {2} {3}'.format(sysconfig.get_config_var('LIBDIR'),
                                                       '{0}.{1}'.format(sys.version_info.major, sys.version_info.minor),
                                                       sysconfig.get_config_var('LIBS'),
                                                       sysconfig.get_config_var('LINKFORSHARED'))
@@ -171,7 +181,9 @@ CFLAGS        += ' -I{CLICKPARSER_PATH}/include'
 LIBS          += ' -L{CLICKPARSER_PATH}/build -lclickparser'
 
 # libev configurations
-LIBS          += ' -lev'
+LIBEV_PREFIX = os.getenv('LIBEV_PATH', '/usr/local')
+CFLAGS       += ' -I{LIBEV_PREFIX}/include'
+LIBS         += ' -L{LIBEV_PREFIX}/lib -lev'
 
 # PAPI configurations
 LIBS          += ' -lpapi'
@@ -185,11 +197,12 @@ librte_pmds    = {
     'ixgbe': ['rte_pmd_ixgbe'],
     'mlx4':  ['rte_pmd_mlx4', 'rte_timer', 'ibverbs'],
     'mlnx_uio':  ['rte_pmd_mlnx_uio', 'rte_hash', 'rte_persistent'],
+    'void':  ['rte_pmd_void', 'rte_kvargs'],
     'null':  ['rte_pmd_null', 'rte_kvargs'],
 }
-librte_names   = ['ethdev', 'rte_eal', 'rte_cmdline', 'rte_sched',
-                  'rte_mbuf', 'rte_mempool', 'rte_ring']
-librte_names.extend(librte_pmds[PMD])
+librte_names   = {'ethdev', 'rte_eal', 'rte_cmdline', 'rte_sched',
+                  'rte_mbuf', 'rte_mempool', 'rte_ring', 'rte_hash'}
+librte_names.update(librte_pmds[PMD])
 CFLAGS        += ' -I{DPDK_PATH}/include'
 LIBS          += ' -L{DPDK_PATH}/lib' \
                  + ' -Wl,--whole-archive' \
@@ -199,7 +212,7 @@ LIBS          += ' -L{DPDK_PATH}/lib' \
                  + ' -Wl,--no-whole-archive'
 
 # Other dependencies
-LIBS += ' -ldl'
+LIBS += ' -lnuma -ldl'
 
 # Expand variables
 CFLAGS = fmt(CFLAGS)
@@ -219,7 +232,7 @@ logger.set_level(logging.INFO)
 
 # Build rules
 rule main:
-    input: OBJ_FILES + [lib.target for lib in THIRD_PARTY_LIBS]
+    input: OBJ_FILES, [lib.target for lib in THIRD_PARTY_LIBS]
     output: 'bin/main'
     shell: '{CXX} -o {output} -Wl,--whole-archive {OBJ_FILES} -Wl,--no-whole-archive {LIBS}'
 
@@ -232,6 +245,39 @@ _clean_cmds = '\n'.join(['rm -rf build bin/main `find . -path "lib/*_map.hh"`']
                         + [lib.clean_cmd for lib in THIRD_PARTY_LIBS])
 rule clean:
     shell: _clean_cmds
+
+_test_cases, = glob_wildcards('tests/test_{case}.cc')
+TEST_OBJ_FILES = OBJ_FILES.copy()
+TEST_OBJ_FILES.append(GTEST_MAIN_OBJ)
+TEST_OBJ_FILES.append(GTEST_FUSED_OBJ)
+TEST_OBJ_FILES.remove('build/src/main.o')
+
+rule cleantest:
+    shell: 'rm -rf build/tests tests/test_all ' \
+           + ' '.join(joinpath('tests', 'test_' + f.replace('.cc', '')) for f in _test_cases)
+
+rule test:  # build only individual tests
+    input: expand('tests/test_{case}', case=_test_cases)
+
+rule testall:  # build a unified test suite
+    input:
+        testobjs=expand(joinpath(OBJ_DIR, 'tests/test_{case}.o'), case=_test_cases),
+        objs=TEST_OBJ_FILES,
+        libs=[lib.target for lib in THIRD_PARTY_LIBS]
+    output: 'tests/test_all'
+    shell: '{CXX} {CXXFLAGS} -o {output} {input.testobjs} -Wl,--whole-archive {input.objs} -Wl,--no-whole-archive {LIBS}'
+
+for case in _test_cases:
+    includes = [f for f in compilelib.get_includes(fmt('tests/test_{case}.cc'), 'include')]
+    requires = [joinpath(OBJ_DIR, f) for f in compilelib.get_requires(fmt('tests/test_{case}.cc'), 'src')]
+    rule:  # for individual tests
+        input: fmt('tests/test_{case}.cc'), includes, GTEST_FUSED_OBJ, GTEST_MAIN_OBJ, req=requires
+        output: fmt('tests/test_{case}')
+        shell: '{CXX} {CXXFLAGS} -DTESTING -o {output} {input[0]} {input.req} {GTEST_FUSED_OBJ} {GTEST_MAIN_OBJ} {LIBS}'
+    rule:  # for unified test suite
+        input: fmt('tests/test_{case}.cc'), includes
+        output: joinpath(OBJ_DIR, fmt('tests/test_{case}.o'))
+        shell: '{CXX} {CXXFLAGS} -DTESTING -o {output} -c {input[0]}'
 
 for srcfile in SOURCE_FILES:
     # We generate build rules dynamically depending on the actual header

@@ -11,21 +11,25 @@
 #endif
 
 /* Common object types */
-typedef union memobj {
+typedef union {
     void *ptr;
     #ifdef USE_PHI
     cl_mem clmem;
     #endif
-} memory_t;
+} dev_mem_t;
 
-typedef union kernelobj {
+typedef union {
+    void *ptr;
+} host_mem_t;
+
+typedef union {
     void *ptr;
     #ifdef USE_PHI
     cl_kernel clkernel;
     #endif
-} kernel_t;
+} dev_kernel_t;
 
-typedef union eventobj {
+typedef union {
     void *ptr;
     #ifdef USE_CUDA
     cudaEvent_t cuev;
@@ -33,7 +37,7 @@ typedef union eventobj {
     #ifdef USE_PHI
     cl_event clev;
     #endif
-} event_t;
+} dev_event_t;
 
 struct resource_param {
     uint32_t num_workitems;
@@ -47,9 +51,10 @@ struct kernel_arg {
     size_t align;
 };
 
-enum io_direction_hint {
-    HOST_TO_DEVICE = 0,
-    DEVICE_TO_HOST = 1,
+enum io_direction_hint : int {
+    AGNOSTIC       = 0,
+    HOST_TO_DEVICE = 1,
+    DEVICE_TO_HOST = 2,
 };
 
 

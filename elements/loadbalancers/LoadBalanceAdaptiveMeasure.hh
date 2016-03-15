@@ -77,10 +77,10 @@ public:
         // }}}
 #endif
         // {{{ Deterministic load balancer
-        int decision = 0;
+        int decision = -1;
         rep ++;
         if (offload) { // GPU-mode
-            decision = 1;
+            decision = 0;
             if (rep >= rep_limit_gpu) { // Change to CPU-mode
                 if (local_cpu_ratio == 0)
                     rep_limit = 0; // only once for sampling!
@@ -90,7 +90,7 @@ public:
                 offload = false;
             }
         } else {       // CPU-mode
-            decision = 0;
+            decision = -1;
             if (rep >= rep_limit_cpu) { // Change to GPU-mode
                 rep_limit = rep_limit_gpu;
                 rep = 0;

@@ -91,23 +91,25 @@ public:
         return contexts;
     }
 
-    virtual void *alloc_host_buffer(size_t size, int flags) = 0;
-    virtual memory_t alloc_device_buffer(size_t size, int flags) = 0;
-    virtual void free_host_buffer(void *ptr) = 0;
-    virtual void free_device_buffer(memory_t ptr) = 0;
+    virtual host_mem_t alloc_host_buffer(size_t size, int flags) = 0;
+    virtual dev_mem_t alloc_device_buffer(size_t size, int flags = AGNOSTIC) = 0;
+    virtual void free_host_buffer(host_mem_t ptr) = 0;
+    virtual void free_device_buffer(dev_mem_t ptr) = 0;
 
     /* Synchronous versions */
-    virtual void memwrite(void *host_buf, memory_t dev_buf, size_t offset, size_t size) = 0;
-    virtual void memread(void *host_buf, memory_t dev_buf, size_t offset, size_t size) = 0;
+    virtual void memwrite(host_mem_t host_buf, dev_mem_t dev_buf,
+                          size_t offset, size_t size) = 0;
+    virtual void memread(host_mem_t host_buf, dev_mem_t dev_buf,
+                         size_t offset, size_t size) = 0;
 
     std::string type_name;
     struct ev_async *input_watcher;
     AsyncSemaphore available_sema;
 
-protected:
     const unsigned node_id;
     const unsigned device_id;
     const size_t num_contexts;
+protected:
     std::vector<ComputeContext *> contexts;
     Lock _lock;
 

@@ -10,12 +10,6 @@
 //----- not used in NBA currently. copied from the old NBA.
 namespace nba {
 
-enum {
-	CUDA_THREADS_PER_HSHA1_BLK = 32,
-	IP_ALIGNMENT_SIZE = 2 // Adjust start offset of ip header by shifting 2byte
-};
-//-----
-
 extern void *ipsec_hsha1_encryption_get_cuda_kernel();
 
 }

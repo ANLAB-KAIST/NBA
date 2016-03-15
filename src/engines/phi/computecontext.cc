@@ -1,6 +1,7 @@
 #include <nba/core/intrinsic.hh>
 #include <nba/engines/phi/computecontext.hh>
 #include <nba/engines/phi/computedevice.hh>
+#include <unistd.h>
 
 using namespace std;
 using namespace nba;
@@ -11,21 +12,31 @@ struct phi_event_context {
     void *user_arg;
 };
 
+#define IO_BASE_SIZE (16 * 1024 * 1024)
+#define IO_MEMPOOL_ALIGN (8)
+
 PhiComputeContext::PhiComputeContext(unsigned ctx_id, ComputeDevice *mother_device)
  : ComputeContext(ctx_id, mother_device)
 {
     type_name = "phi";
-    size_t mem_size = 8 * 1024 * 1024; // TODO: read from config
+    size_t io_base_size = ALIGN_CEIL(IO_BASE_SIZE, getpagesize());
     cl_int err_ret;
     PhiComputeDevice *modevice = (PhiComputeDevice *) mother_device;
     clqueue = clCreateCommandQueue(modevice->clctx, modevice->cldevid, 0, &err_ret);
     if (err_ret != CL_SUCCESS) {
         rte_panic("clCreateCommandQueue()@PhiComputeContext() failed\n");
     }
-    dev_mempool_in  = new PhiMemoryPool(modevice->clctx, clqueue, HOST_TO_DEVICE),
-    dev_mempool_out = new PhiMemoryPool(modevice->clctx, clqueue, DEVICE_TO_HOST),
-    cpu_mempool_in  = new CPUMemoryPool();
-    cpu_mempool_out = new CPUMemoryPool();
+    NEW(node_id, io_base_ring, FixedRing<unsigned>,
+        NBA_MAX_IO_BASES, node_id);
+    for (unsigned i = 0; i < NBA_MAX_IO_BASES; i++) {
+        io_base_ring->push_back(i);
+        NEW(node_id, _mempool_in[i], CLMemoryPool,
+            io_base_size, IO_MEMPOOL_ALIGN, modevice->clctx, clqueue, HOST_TO_DEVICE),
+        _mempool_in[i]->init();
+        NEW(node_id, _mempool_out[i], CLMemoryPool,
+            io_base_size, IO_MEMPOOL_ALIGN, modevice->clctx, clqueue, DEVICE_TO_HOST),
+        _mempool_out[i]->init();
+    }
     checkbits_d.clmem = clCreateBuffer(modevice->clctx, CL_MEM_READ_WRITE,
                                        MAX_BLOCKS, NULL, &err_ret);
     if (err_ret != CL_SUCCESS) {
@@ -42,51 +53,97 @@ PhiComputeContext::PhiComputeContext(unsigned ctx_id, ComputeDevice *mother_devi
 
 PhiComputeContext::~PhiComputeContext()
 {
+    for (unsigned i =0; i < NBA_MAX_IO_BASES; i++) {
+        _mempool_in[i]->destroy();
+        _mempool_out[i]->destroy();
+    }
     clReleaseCommandQueue(clqueue);
-    delete dev_mempool_in;
-    delete dev_mempool_out;
-    delete cpu_mempool_in;
-    delete cpu_mempool_out;
 }
 
-int PhiComputeContext::alloc_input_buffer(size_t size, void **host_ptr, memory_t *dev_mem)
+io_base_t PhiComputeContext::alloc_io_base()
 {
-    *host_ptr      = cpu_mempool_in->alloc(size);
-    dev_mem->clmem = dev_mempool_in->alloc(size);
+    if (io_base_ring->empty()) return INVALID_IO_BASE;
+    unsigned i = io_base_ring->front();
+    io_base_ring->pop_front();
+    return (io_base_t) i;
+}
+
+int PhiComputeContext::alloc_input_buffer(io_base_t io_base, size_t size,
+                                          host_mem_t &host_mem, dev_mem_t &dev_mem)
+{
+    unsigned i = io_base;
+    assert(0 == _mempool_in[i]->alloc(size, dev_mem));
+    assert(CL_SUCCESS == clGetMemObjectInfo(dev_mem.clmem, CL_MEM_HOST_PTR,
+                                            sizeof(void *), &host_mem.ptr, nullptr));
     return 0;
 }
 
-int PhiComputeContext::alloc_output_buffer(size_t size, void **host_ptr, memory_t *dev_mem)
+int PhiComputeContext::alloc_output_buffer(io_base_t io_base, size_t size,
+                                           host_mem_t &host_mem, dev_mem_t &dev_mem)
 {
-    *host_ptr      = cpu_mempool_in->alloc(size);
-    dev_mem->clmem = dev_mempool_in->alloc(size);
+    unsigned i = io_base;
+    assert(0 == _mempool_out[i]->alloc(size, dev_mem));
+    assert(CL_SUCCESS == clGetMemObjectInfo(dev_mem.clmem, CL_MEM_HOST_PTR,
+                                            sizeof(void *), &host_mem.ptr, nullptr));
     return 0;
 }
 
-void PhiComputeContext::clear_io_buffers()
+void PhiComputeContext::map_input_buffer(io_base_t io_base, size_t offset, size_t len,
+                                         host_mem_t &hbuf, dev_mem_t &dbuf) const
 {
-    cpu_mempool_in->reset();
-    cpu_mempool_out->reset();
-    dev_mempool_in->reset();
-    dev_mempool_out->reset();
+    unsigned i = io_base;
+    cl_mem base = _mempool_in[i]->get_base_ptr();
+    cl_int err;
+    cl_buffer_region region = { offset, len };
+    dbuf.clmem = clCreateSubBuffer(base, 0, CL_BUFFER_CREATE_TYPE_REGION, &region, &err);
+    assert(CL_SUCCESS == err);
+    assert(CL_SUCCESS == clGetMemObjectInfo(dbuf.clmem, CL_MEM_HOST_PTR,
+                                            sizeof(void *), &hbuf.ptr, nullptr));
 }
 
-void *PhiComputeContext::get_host_input_buffer_base()
+void PhiComputeContext::map_output_buffer(io_base_t io_base, size_t offset, size_t len,
+                                          host_mem_t &hbuf, dev_mem_t &dbuf) const
 {
-    return cpu_mempool_in->get_base_ptr();
+    unsigned i = io_base;
+    cl_mem base = _mempool_out[i]->get_base_ptr();
+    cl_int err;
+    cl_buffer_region region = { offset, len };
+    dbuf.clmem = clCreateSubBuffer(base, 0, CL_BUFFER_CREATE_TYPE_REGION, &region, &err);
+    assert(CL_SUCCESS == err);
+    assert(CL_SUCCESS == clGetMemObjectInfo(dbuf.clmem, CL_MEM_HOST_PTR,
+                                            sizeof(void *), &hbuf.ptr, nullptr));
 }
 
-memory_t PhiComputeContext::get_device_input_buffer_base()
+void *PhiComputeContext::unwrap_host_buffer(host_mem_t hbuf) const
 {
-    memory_t ret;
-    ret.clmem = clbuf;
-    return ret;
+    return hbuf.ptr;
 }
 
-size_t PhiComputeContext::get_total_input_buffer_size()
+void *PhiComputeContext::unwrap_device_buffer(dev_mem_t dbuf) const
 {
-    assert(cpu_mempool_in->get_alloc_size() == dev_mempool_in->get_alloc_size());
-    return cpu_mempool_in->get_alloc_size();
+    void *ptr = nullptr;
+    clGetMemObjectInfo(dbuf.clmem, CL_MEM_HOST_PTR, sizeof(void *), &ptr, nullptr);
+    return ptr;
+}
+
+size_t PhiComputeContext::get_input_size(io_base_t io_base) const
+{
+    unsigned i = io_base;
+    return _mempool_in[i]->get_alloc_size();
+}
+
+size_t PhiComputeContext::get_output_size(io_base_t io_base) const
+{
+    unsigned i = io_base;
+    return _mempool_out[i]->get_alloc_size();
+}
+
+void PhiComputeContext::clear_io_buffers(io_base_t io_base)
+{
+    unsigned i = io_base;
+    _mempool_in[i]->reset();
+    _mempool_out[i]->reset();
+    io_base_ring->push_back(i);
 }
 
 void PhiComputeContext::clear_kernel_args()
@@ -100,17 +157,17 @@ void PhiComputeContext::push_kernel_arg(struct kernel_arg &arg)
     kernel_args[num_kernel_args ++] = arg;  /* Copied to the array. */
 }
 
-int PhiComputeContext::enqueue_memwrite_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size)
+int PhiComputeContext::enqueue_memwrite_op(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size)
 {
-    return (int) clEnqueueWriteBuffer(clqueue, dev_buf.clmem, CL_FALSE, offset, size, host_buf, 0, NULL, &clev);
+    return (int) clEnqueueWriteBuffer(clqueue, dev_buf.clmem, CL_FALSE, offset, size, host_buf.ptr, 0, NULL, &clev);
 }
 
-int PhiComputeContext::enqueue_memread_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size)
+int PhiComputeContext::enqueue_memread_op(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size)
 {
-    return (int) clEnqueueReadBuffer(clqueue, dev_buf.clmem, CL_FALSE, offset, size, host_buf, 0, NULL, &clev);
+    return (int) clEnqueueReadBuffer(clqueue, dev_buf.clmem, CL_FALSE, offset, size, host_buf.ptr, 0, NULL, &clev);
 }
 
-int PhiComputeContext::enqueue_kernel_launch(kernel_t kernel, struct resource_param *res)
+int PhiComputeContext::enqueue_kernel_launch(dev_kernel_t kernel, struct resource_param *res)
 {
     for (unsigned i = 0; i < num_kernel_args; i++) {
         phiSafeCall(clSetKernelArg(kernel.clkernel, 6 + i, kernel_args[i].size, kernel_args[i].ptr));

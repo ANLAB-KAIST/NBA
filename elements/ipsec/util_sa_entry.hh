@@ -9,14 +9,14 @@ enum {
     HMAC_KEY_SIZE = 64,
 };
 
-struct aes_block_info {
+struct alignas(8) aes_block_info {
     int pkt_idx;
     int block_idx;
     int pkt_offset;
     int magic;
 };
 
-struct aes_sa_entry {
+struct alignas(8) aes_sa_entry {
     // Below two variables have same value.
     uint8_t aes_key[AES_BLOCK_SIZE];    // Used in CUDA encryption.
     AES_KEY aes_key_t;                  // Prepared for AES library function.
@@ -24,12 +24,12 @@ struct aes_sa_entry {
     int entry_idx;                      // Index of current flow: value for verification.
 };
 
-struct hmac_sa_entry {
+struct alignas(8) hmac_sa_entry {
     uint8_t hmac_key[HMAC_KEY_SIZE];
     int entry_idx;
 };
 
-struct hmac_aes_sa_entry {
+struct alignas(8) hmac_aes_sa_entry {
     // Below two variables have same value.
     uint8_t aes_key[AES_BLOCK_SIZE];    // Used in CUDA encryption.
     AES_KEY aes_key_t;                  // Prepared for AES library function.

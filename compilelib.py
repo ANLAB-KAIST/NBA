@@ -62,40 +62,51 @@ def find_all(dirlist, filepattern):
                 results.append(joinpath(root, fname))
     return results
 
-_rx_included_local_header = re.compile(r'"(.+\.(h|hh))"')
-_rx_included_nba_header = re.compile(r'<(nba/.+\.(h|hh))>')
-def get_includes(srcfile, nba_include_dir, dynamic_inputs=None, visited=None):
-    '''
-    Gets a list of included local header files from the given source file.
-    (e.g., #include <nba/xxx/xxxx.hh>)
-    '''
+def _find_deps_with_regex(srcfile, base_dir, regexs, visited=None):
     results = set()
     visited = visited if visited else set()
     try:
         with open(srcfile, 'r', encoding='utf-8') as f:
-            for line in f:
-                if line.startswith('#include'):
-                    m = _rx_included_local_header.search(line)
-                    if m:
-                        p = joinpath(os.path.split(srcfile)[0], m.group(1))
-                        if dynamic_inputs and any(di.endswith(p) for di in dynamic_inputs):
-                            p = dynamic(p)
-                        results.add(p)
-                    m = _rx_included_nba_header.search(line)
-                    if m:
-                        p = joinpath(nba_include_dir, m.group(1))
-                        if dynamic_inputs and any(di.endswith(p) for di in dynamic_inputs):
-                            p = dynamic(p)
-                        results.add(p)
+            for line in filter(lambda l: l.startswith('#'), f):
+                for regex, is_relative in regexs:
+                    m = regex.search(line)
+                    if not m: continue
+                    p = joinpath(os.path.split(srcfile)[0], m.group(1)) if is_relative \
+                        else joinpath(base_dir, m.group(1))
+                    results.add(p)
         for fname in results.copy():
-            if (fname.endswith('.h') or fname.endswith('.hh')) \
-               and not fname in visited:
+            if not fname in visited:
                 visited.add(fname)
-                results.update(s for s in get_includes(fname, nba_include_dir,
-                                                       dynamic_inputs, visited))
+                results.update(s for s in _find_deps_with_regex(fname, base_dir, regexs, visited))
     except FileNotFoundError:
         pass
     return results
+
+_rx_included_local_header = re.compile(r'^#include\s*"(.+\.(h|hh))"')
+_rx_included_nba_header = re.compile(r'^#include\s*<(nba/.+\.(h|hh))>')
+def get_includes(srcfile, nba_include_dir):
+    '''
+    Gets a list of included local header files from the given source file.
+    (e.g., #include <nba/xxx/xxxx.hh>)
+    '''
+    regexs = (
+        (_rx_included_local_header, True),
+        (_rx_included_nba_header, False),
+    )
+    return _find_deps_with_regex(srcfile, nba_include_dir, regexs)
+
+_rx_required_local_obj_sig = re.compile(r'^#require\s*"(.+\.o)"')
+_rx_required_obj_sig = re.compile(r'^#require\s*<(.+\.o)>')
+def get_requires(srcfile, nba_src_dir):
+    '''
+    Gets a list of dependent object files from the given source file.
+    (e.g., #require <lib/xxx.o>)
+    '''
+    regexs = (
+        (_rx_required_local_obj_sig, True),
+        (_rx_required_obj_sig, False),
+    )
+    return _find_deps_with_regex(srcfile, nba_src_dir, regexs)
 
 _rx_export_elem_decl = re.compile(r'^EXPORT_ELEMENT\(([a-zA-Z0-9_]+)\)')
 def detect_element_def(header_file):

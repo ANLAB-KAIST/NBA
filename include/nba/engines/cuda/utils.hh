@@ -12,22 +12,18 @@
  * We should have our own cutilSafeCall() macro.
  */
 
-#ifdef __cplusplus
-
-#endif
+extern "C" {
 
 inline void __cudaSafeCall(cudaError err, const char *file, const int line)
 {
-    if (cudaSuccess != err) {
-        fprintf(stderr, "%s(%i): CUDA Runtime Error %d: %s.\n",
+    if (cudaSuccess == err || cudaErrorCudartUnloading == err)
+        return;
+    fprintf(stderr, "%s(%i): CUDA Runtime Error %d: %s.\n",
             file, line, (int)err, cudaGetErrorString(err));
-        exit(-1);
-    
+    exit(-1);
 }
 
-#ifdef __cplusplus
 }
-#endif
 
 #define cutilSafeCall(err)       __cudaSafeCall(err, __FILE__, __LINE__)
 

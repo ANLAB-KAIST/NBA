@@ -20,7 +20,7 @@ public:
             tx_batch_count(0), tx_pkt_count(0),
             drop_pkt_count(0), batch_proc_time(0)
     {
-        for (unsigned i = 0; i < NBA_MAX_PROCESSOR_TYPES; i++) {
+        for (unsigned i = 0; i < NBA_MAX_COPROCESSOR_TYPES; i++) {
             dev_sent_batch_count[i] = 0;
             dev_finished_batch_count[i] = 0;
             dev_finished_task_count[i] = 0;
@@ -47,17 +47,17 @@ public:
     /* We do not use wrapper methods to write/read these values, since
      * there is no race condition as all fields are accessed
      * exclusively by a single computation thread. */
-    uint64_t dev_sent_batch_count[NBA_MAX_PROCESSOR_TYPES];
-    uint64_t dev_finished_batch_count[NBA_MAX_PROCESSOR_TYPES];
-    uint64_t dev_finished_task_count[NBA_MAX_PROCESSOR_TYPES];
-    float avg_task_completion_sec[NBA_MAX_PROCESSOR_TYPES];
+    uint64_t dev_sent_batch_count[NBA_MAX_COPROCESSOR_TYPES];
+    uint64_t dev_finished_batch_count[NBA_MAX_COPROCESSOR_TYPES];
+    uint64_t dev_finished_task_count[NBA_MAX_COPROCESSOR_TYPES];
+    float avg_task_completion_sec[NBA_MAX_COPROCESSOR_TYPES];
     uint64_t rx_batch_count;
     uint64_t rx_pkt_count;
     uint64_t tx_batch_count;
     uint64_t tx_pkt_count;
     uint64_t drop_pkt_count;
     uint64_t batch_proc_time;
-    double pkt_proc_cycles[NBA_MAX_PROCESSOR_TYPES];
+    double pkt_proc_cycles[NBA_MAX_COPROCESSOR_TYPES + 1];
 
     //const unsigned PPC_HISTORY_SIZES[2] = {128, 2048};
     const unsigned PPC_HISTORY_SIZES[2] = {512, 512};

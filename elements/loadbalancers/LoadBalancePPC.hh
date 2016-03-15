@@ -64,11 +64,11 @@ public:
 
     int process_batch(int input_port, PacketBatch *batch)
     {
-        int decision = 0;
+        int decision = -1;
         const float c = (float) local_cpu_ratio / LB_PPC_CPU_RATIO_MULTIPLIER;
         rep ++;
         if (offload) {
-            decision = 1;
+            decision = 0;
             if (rep == rep_limit) { // Change to CPU-mode
                 if (local_cpu_ratio == 0)
                     rep_limit = 0; // only once for sampling!
@@ -78,7 +78,7 @@ public:
                 offload = false;
             }
         } else {
-            decision = 0;
+            decision = -1;
             if (rep == rep_limit) { // Change to GPU-mode
                 rep_limit = ctx->num_coproc_ppdepth;
                 rep = 0;

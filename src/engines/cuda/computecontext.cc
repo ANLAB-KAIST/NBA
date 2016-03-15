@@ -1,5 +1,7 @@
 #include <nba/core/intrinsic.hh>
 #include <nba/engines/cuda/computecontext.hh>
+#include <rte_memzone.h>
+#include <unistd.h>
 
 using namespace std;
 using namespace nba;
@@ -10,20 +12,43 @@ struct cuda_event_context {
     void *user_arg;
 };
 
-CUDAComputeContext::CUDAComputeContext(unsigned ctx_id, ComputeDevice *mother_device)
- : ComputeContext(ctx_id, mother_device), checkbits_d(NULL), checkbits_h(NULL),
-   _cuda_mempool_in(), _cuda_mempool_out(),
-   _cpu_mempool_in(cudaHostAllocPortable), _cpu_mempool_out(cudaHostAllocPortable),
-   num_kernel_args(0)
+#define IO_BASE_SIZE (16 * 1024 * 1024)
+#define IO_MEMPOOL_ALIGN (8lu)
+#undef USE_PHYS_CONT_MEMORY // performance degraded :(
+
+CUDAComputeContext::CUDAComputeContext(unsigned ctx_id, ComputeDevice *mother)
+ : ComputeContext(ctx_id, mother), checkbits_d(NULL), checkbits_h(NULL),
+   mz(reserve_memory(mother)), num_kernel_args(0)
    /* NOTE: Write-combined memory degrades performance to half... */
 {
     type_name = "cuda";
-    size_t mem_size = 32 * 1024 * 1024; // TODO: read from config
+    size_t io_base_size = ALIGN_CEIL(IO_BASE_SIZE, getpagesize());
     cutilSafeCall(cudaStreamCreateWithFlags(&_stream, cudaStreamNonBlocking));
-    _cuda_mempool_in.init(mem_size);
-    _cuda_mempool_out.init(mem_size);
-    _cpu_mempool_in.init(mem_size);
-    _cpu_mempool_out.init(mem_size);
+    NEW(node_id, io_base_ring, FixedRing<unsigned>,
+        NBA_MAX_IO_BASES, node_id);
+    for (unsigned i = 0; i < NBA_MAX_IO_BASES; i++) {
+        io_base_ring->push_back(i);
+        NEW(node_id, _cuda_mempool_in[i], CUDAMemoryPool, io_base_size, IO_MEMPOOL_ALIGN);
+        NEW(node_id, _cuda_mempool_out[i], CUDAMemoryPool, io_base_size, IO_MEMPOOL_ALIGN);
+        _cuda_mempool_in[i]->init();
+        _cuda_mempool_out[i]->init();
+        NEW(node_id, _cpu_mempool_in[i], CPUMemoryPool, io_base_size, IO_MEMPOOL_ALIGN, 0);
+        NEW(node_id, _cpu_mempool_out[i], CPUMemoryPool, io_base_size, IO_MEMPOOL_ALIGN, 0);
+        #ifdef USE_PHYS_CONT_MEMORY
+        void *base;
+        base = (void *) ((uintptr_t) mz->addr + i * io_base_size);
+        _cpu_mempool_in[i]->init_with_flags(base, 0);
+        base = (void *) ((uintptr_t) mz->addr + i * io_base_size + NBA_MAX_IO_BASES * io_base_size);
+        _cpu_mempool_out[i]->init_with_flags(base, 0);
+        #else
+        _cpu_mempool_in[i]->init_with_flags(nullptr, cudaHostAllocPortable);
+        _cpu_mempool_out[i]->init_with_flags(nullptr, cudaHostAllocPortable);
+        #endif
+    }
+    {
+        cutilSafeCall(cudaMalloc((void **) &dummy_dev_buf.ptr, CACHE_LINE_SIZE));
+        cutilSafeCall(cudaHostAlloc((void **) &dummy_host_buf.ptr, CACHE_LINE_SIZE, cudaHostAllocPortable));
+    }
     cutilSafeCall(cudaHostAlloc((void **) &checkbits_h, MAX_BLOCKS, cudaHostAllocMapped));
     cutilSafeCall(cudaHostGetDevicePointer((void **) &checkbits_d, checkbits_h, 0));
     assert(checkbits_h != NULL);
@@ -31,69 +56,131 @@ CUDAComputeContext::CUDAComputeContext(unsigned ctx_id, ComputeDevice *mother_de
     memset(checkbits_h, 0, MAX_BLOCKS);
 }
 
+const struct rte_memzone *CUDAComputeContext::reserve_memory(ComputeDevice *mother)
+{
+#ifdef USE_PHYS_CONT_MEMORY
+    char namebuf[RTE_MEMZONE_NAMESIZE];
+    size_t io_base_size = ALIGN_CEIL(IO_BASE_SIZE, getpagesize());
+    snprintf(namebuf, RTE_MEMZONE_NAMESIZE, "cuda.io.%d:%d", mother->device_id, ctx_id);
+    const struct rte_memzone *_mz = rte_memzone_reserve(namebuf, 2 * io_base_size * NBA_MAX_IO_BASES,
+                                                        mother->node_id,
+                                                        RTE_MEMZONE_2MB | RTE_MEMZONE_SIZE_HINT_ONLY);
+    assert(_mz != nullptr);
+    return _mz;
+#else
+    return nullptr;
+#endif
+}
+
 CUDAComputeContext::~CUDAComputeContext()
 {
     cutilSafeCall(cudaStreamDestroy(_stream));
-    _cuda_mempool_in.destroy();
-    _cuda_mempool_out.destroy();
-    _cpu_mempool_in.destroy();
-    _cpu_mempool_out.destroy();
+    for (unsigned i = 0; i < NBA_MAX_IO_BASES; i++) {
+        _cuda_mempool_in[i]->destroy();
+        _cuda_mempool_out[i]->destroy();
+        _cpu_mempool_in[i]->destroy();
+        _cpu_mempool_out[i]->destroy();
+    }
+    if (mz != nullptr)
+        rte_memzone_free(mz);
     cutilSafeCall(cudaFreeHost(checkbits_h));
 }
 
-int CUDAComputeContext::alloc_input_buffer(size_t size, void **host_ptr, memory_t *dev_mem)
+io_base_t CUDAComputeContext::alloc_io_base()
 {
-    *host_ptr = _cpu_mempool_in.alloc(size);
-    assert(*host_ptr != nullptr);
-    dev_mem->ptr = _cuda_mempool_in.alloc(size);
-    assert(dev_mem->ptr != nullptr);
+    if (io_base_ring->empty()) return INVALID_IO_BASE;
+    unsigned i = io_base_ring->front();
+    io_base_ring->pop_front();
+    return (io_base_t) i;
+}
+
+int CUDAComputeContext::alloc_input_buffer(io_base_t io_base, size_t size,
+                                           host_mem_t &host_mem, dev_mem_t &dev_mem)
+{
+    unsigned i = io_base;
+    assert(0 == _cpu_mempool_in[i]->alloc(size, host_mem));
+    assert(0 == _cuda_mempool_in[i]->alloc(size, dev_mem));
+    // for debugging
+    //assert(((uintptr_t)host_mem.ptr & 0xffff) == ((uintptr_t)dev_mem.ptr & 0xffff));
     return 0;
 }
 
-int CUDAComputeContext::alloc_output_buffer(size_t size, void **host_ptr, memory_t *dev_mem)
+int CUDAComputeContext::alloc_output_buffer(io_base_t io_base, size_t size,
+                                            host_mem_t &host_mem, dev_mem_t &dev_mem)
 {
-    *host_ptr = _cpu_mempool_out.alloc(size);
-    assert(*host_ptr != nullptr);
-    dev_mem->ptr = _cuda_mempool_out.alloc(size);
-    assert(dev_mem->ptr != nullptr);
+    unsigned i = io_base;
+    assert(0 == _cpu_mempool_out[i]->alloc(size, host_mem));
+    assert(0 == _cuda_mempool_out[i]->alloc(size, dev_mem));
+    // for debugging
+    //assert(((uintptr_t)host_mem.ptr & 0xffff) == ((uintptr_t)dev_mem.ptr & 0xffff));
     return 0;
 }
 
-void CUDAComputeContext::clear_io_buffers()
+void CUDAComputeContext::map_input_buffer(io_base_t io_base, size_t offset, size_t len,
+                                          host_mem_t &hbuf, dev_mem_t &dbuf) const
 {
-    _cpu_mempool_in.reset();
-    _cpu_mempool_out.reset();
-    _cuda_mempool_in.reset();
-    _cuda_mempool_out.reset();
+    unsigned i = io_base;
+    hbuf.ptr = (void *) ((uintptr_t) _cpu_mempool_in[i]->get_base_ptr().ptr + offset);
+    dbuf.ptr = (void *) ((uintptr_t) _cuda_mempool_in[i]->get_base_ptr().ptr + offset);
+    // len is ignored.
 }
 
-void *CUDAComputeContext::get_host_input_buffer_base()
+void CUDAComputeContext::map_output_buffer(io_base_t io_base, size_t offset, size_t len,
+                                           host_mem_t &hbuf, dev_mem_t &dbuf) const
 {
-    return _cpu_mempool_in.get_base_ptr();
+    unsigned i = io_base;
+    hbuf.ptr = (void *) ((uintptr_t) _cpu_mempool_out[i]->get_base_ptr().ptr + offset);
+    dbuf.ptr = (void *) ((uintptr_t) _cuda_mempool_out[i]->get_base_ptr().ptr + offset);
+    // len is ignored.
 }
 
-memory_t CUDAComputeContext::get_device_input_buffer_base()
+void *CUDAComputeContext::unwrap_host_buffer(const host_mem_t hbuf) const
 {
-    memory_t ret;
-    ret.ptr = _cuda_mempool_in.get_base_ptr();
-    return ret;
+    return hbuf.ptr;
 }
 
-size_t CUDAComputeContext::get_total_input_buffer_size()
+void *CUDAComputeContext::unwrap_device_buffer(const dev_mem_t dbuf) const
 {
-    assert(_cpu_mempool_in.get_alloc_size() == _cuda_mempool_in.get_alloc_size());
-    return _cpu_mempool_in.get_alloc_size();
+    return dbuf.ptr;
 }
 
-int CUDAComputeContext::enqueue_memwrite_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size)
+size_t CUDAComputeContext::get_input_size(io_base_t io_base) const
 {
-    cutilSafeCall(cudaMemcpyAsync(dev_buf.ptr, host_buf, size, cudaMemcpyHostToDevice, _stream));
+    unsigned i = io_base;
+    return _cpu_mempool_in[i]->get_alloc_size();
+}
+
+size_t CUDAComputeContext::get_output_size(io_base_t io_base) const
+{
+    unsigned i = io_base;
+    return _cpu_mempool_out[i]->get_alloc_size();
+}
+
+void CUDAComputeContext::clear_io_buffers(io_base_t io_base)
+{
+    unsigned i = io_base;
+    _cpu_mempool_in[i]->reset();
+    _cpu_mempool_out[i]->reset();
+    _cuda_mempool_in[i]->reset();
+    _cuda_mempool_out[i]->reset();
+    io_base_ring->push_back(i);
+}
+
+int CUDAComputeContext::enqueue_memwrite_op(const host_mem_t host_buf,
+                                            const dev_mem_t dev_buf,
+                                            size_t offset, size_t size)
+{
+    cutilSafeCall(cudaMemcpyAsync(dev_buf.ptr, host_buf.ptr, size,
+                                  cudaMemcpyHostToDevice, _stream));
     return 0;
 }
 
-int CUDAComputeContext::enqueue_memread_op(void *host_buf, memory_t dev_buf, size_t offset, size_t size)
+int CUDAComputeContext::enqueue_memread_op(const host_mem_t host_buf,
+                                           const dev_mem_t dev_buf,
+                                           size_t offset, size_t size)
 {
-    cutilSafeCall(cudaMemcpyAsync(host_buf, dev_buf.ptr, size, cudaMemcpyDeviceToHost, _stream));
+    cutilSafeCall(cudaMemcpyAsync(host_buf.ptr, dev_buf.ptr, size,
+                                  cudaMemcpyDeviceToHost, _stream));
     return 0;
 }
 
@@ -108,7 +195,7 @@ void CUDAComputeContext::push_kernel_arg(struct kernel_arg &arg)
     kernel_args[num_kernel_args ++] = arg;  /* Copied to the array. */
 }
 
-int CUDAComputeContext::enqueue_kernel_launch(kernel_t kernel, struct resource_param *res)
+int CUDAComputeContext::enqueue_kernel_launch(dev_kernel_t kernel, struct resource_param *res)
 {
     assert(checkbits_d != nullptr);
     // TODO: considerations for cudaFuncSetCacheConfig() and
@@ -128,7 +215,9 @@ int CUDAComputeContext::enqueue_kernel_launch(kernel_t kernel, struct resource_p
     return 0;
 }
 
-int CUDAComputeContext::enqueue_event_callback(void (*func_ptr)(ComputeContext *ctx, void *user_arg), void *user_arg)
+int CUDAComputeContext::enqueue_event_callback(
+        void (*func_ptr)(ComputeContext *ctx, void *user_arg),
+        void *user_arg)
 {
     auto cb = [](cudaStream_t stream, cudaError_t status, void *user_data)
     {

@@ -3,6 +3,7 @@
 #include <nba/core/intrinsic.hh>
 #include <nba/framework/config.hh>
 #include <nba/framework/datablock.hh>
+#include <nba/framework/task.hh>
 #include <nba/element/annotation.hh>
 #include <cstdint>
 #include <cstring>
@@ -414,7 +415,7 @@ public:
           first_idx(-1), last_idx(-1), slot_count(0),
           #endif
           datablock_states(nullptr), recv_timestamp(0),
-          generation(0), batch_id(0), element(nullptr), input_port(0), has_results(false),
+          generation(0), batch_id(0),
           #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
           has_dropped(false),
           #endif
@@ -474,9 +475,7 @@ public:
     uint64_t recv_timestamp;
     uint64_t generation;
     uint64_t batch_id;
-    Element* element;
-    int input_port;
-    bool has_results;
+    struct task_tracker tracker;
     #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
     bool has_dropped;
     #endif
