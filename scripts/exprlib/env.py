@@ -42,6 +42,7 @@ class ExperimentEnv:
         self._remote_servers = defaultdict(list)
 
         # Event loop states.
+        self._bin = 'bin/main'
         self._main_cmdargs = None
         self._main_proc = None
         self._main_tasks = []
@@ -81,6 +82,14 @@ class ExperimentEnv:
         self._cpu = []
         self._thruputs = []
 
+    @property
+    def main_bin(self):
+        return self._bin
+
+    @main_bin.setter
+    def main_bin(self, value):
+        self._bin = value
+
     @staticmethod
     def get_user():
         return os.environ.get('SUDO_USER', os.environ['USER'])
@@ -115,6 +124,13 @@ class ExperimentEnv:
         siblings = execute_memoized('cat /sys/devices/system/cpu/'
                                   'cpu0/topology/thread_siblings_list').split(',')
         return len(siblings)
+
+    @staticmethod
+    def get_current_commit(short=True):
+        commit = execute('git rev-parse HEAD', read=True).strip()
+        if short:
+            return commit[:7]
+        return commit
 
     def add_remote_server(self, category, hostname,
                           username=None, keyfile=None, sshargs=None):
@@ -284,9 +300,9 @@ class ExperimentEnv:
 
         # Run the main program.
         if self._verbose:
-            print('Executing: bin/main', ' '.join(args))
+            print('Executing:', self._bin, ' '.join(args))
         self._delayed_calls = []
-        self._main_proc = yield from asyncio.create_subprocess_exec('bin/main', *args,
+        self._main_proc = yield from asyncio.create_subprocess_exec(self._bin, *args,
                                                                     loop=self._loop,
                                                                     stdout=subprocess.PIPE,
                                                                     stderr=None,
