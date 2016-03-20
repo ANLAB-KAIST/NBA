@@ -106,9 +106,9 @@ class ExperimentEnv:
         is usually done as plain user accounts.  It is strongly suggested to
         call this function after data recording is finished.
         '''
-        execute('chown -R {user}:{group} {0}'.format(
-            path, user=ExperimentEnv.get_user(), group=ExperimentEnv.get_group(),
-        ))
+        execute(['chown', '-R',
+                 '{user}:{group}'.format(user=ExperimentEnv.get_user(), group=ExperimentEnv.get_group()),
+                 '{0}'.format(path)])
 
     @staticmethod
     def get_num_nodes():
@@ -127,7 +127,7 @@ class ExperimentEnv:
 
     @staticmethod
     def get_current_commit(short=True):
-        commit = execute('git rev-parse HEAD', read=True).strip()
+        commit = execute(['git', 'rev-parse', 'HEAD'], read=True).strip()
         if short:
             return commit[:7]
         return commit
