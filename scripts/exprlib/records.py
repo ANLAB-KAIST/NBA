@@ -5,7 +5,7 @@ from collections import namedtuple
 import re
 
 PPCRecord = namedtuple('PPCRecord', 'node_id ppc_cpu ppc_gpu ppc_est cpu_ratio thruput')
-AppThruputRecord = namedtuple('AppThrutputRecord', 'pktsize node_id conf_hint gbps mpps')
+AppThruputRecord = namedtuple('AppThrutputRecord', 'pktsz node_id conf gbps mpps')
 PortThruputRecord = namedtuple('PortThruputRecord', [
     'port', 'in_pps', 'in_bps', 'out_pps', 'out_bps', 'in_errs', 'out_errs',
 ])
@@ -47,8 +47,8 @@ class AppThruputReader(BaseReader):
         return self._pktsize_hint
 
     @pktsize_hint.setter
-    def pktsize_hint(self, pktsize):
-        self._pktsize_hint = pktsize
+    def pktsize_hint(self, value):
+        self._pktsize_hint = value
 
     @property
     def conf_hint(self):

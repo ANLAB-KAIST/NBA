@@ -6,6 +6,8 @@ from contextlib import ExitStack
 from statistics import mean
 from itertools import product
 
+import pandas as pd
+
 from exprlib import ExperimentEnv
 from exprlib.subproc import execute_async_simple
 from exprlib.arghelper import comma_sep_numbers, host_port_pair
@@ -14,36 +16,29 @@ from exprlib.plotting.template import plot_thruput
 from exprlib.pktgen import PktGenController
 
 
-async def do_experiment(loop, env, args, conds, thruput_reader, all_thruput_records):
-    conf_name, io_batch_size, comp_batch_size, coproc_ppdepth, pktsize = conds
-    if args.combine_cpu_gpu:
-        short_conf_name = 'cpuonly' if 'cpuonly' in conf_name else 'gpuonly'
-        print(short_conf_name, end='  ')
-    else:
-        short_conf_name = os.path.splitext(os.path.basename(conf_name))[0]
+async def do_experiment(loop, env, args, conds, thruput_reader, all_tput_recs):
+    conf_name, io_batchsz, comp_batchsz, coproc_ppdepth, pktsz = conds
 
-    print('{0:<4d} {1:4d} {2:4d} {3:4d}'.format(io_batch_size, comp_batch_size, coproc_ppdepth, pktsize), end='  ')
-
-    env.envvars['NBA_IO_BATCH_SIZE'] = str(io_batch_size)
-    env.envvars['NBA_COMP_BATCH_SIZE'] = str(comp_batch_size)
+    env.envvars['NBA_IO_BATCH_SIZE'] = str(io_batchsz)
+    env.envvars['NBA_COMP_BATCH_SIZE'] = str(comp_batchsz)
     env.envvars['NBA_COPROC_PPDEPTH'] = str(coproc_ppdepth)
 
     if 'ipv6' in args.element_config_to_use:
         # All random ipv6 pkts
-        pktgen.args = ("-i", "all", "-f", "0", "-v", "6", "-p", str(pktsize))
+        pktgen.args = ("-i", "all", "-f", "0", "-v", "6", "-p", str(pktsz))
     elif 'ipsec' in args.element_config_to_use:
         # ipv4 pkts with fixed 1K flows
-        pktgen.args = ("-i", "all", "-f", "1024", "-r", "0", "-v", "4", "-p", str(pktsize))
+        pktgen.args = ("-i", "all", "-f", "1024", "-r", "0", "-v", "4", "-p", str(pktsz))
     else:
         # All random ipv4 pkts
-        pktgen.args = ("-i", "all", "-f", "0", "-v", "4", "-p", str(pktsize))
+        pktgen.args = ("-i", "all", "-f", "0", "-v", "4", "-p", str(pktsz))
 
     #cpu_records     = env.measure_cpu_usage(interval=2, begin_after=26.0, repeat=True)
 
     # Clear data.
     env.reset_readers()
-    thruput_reader.pktsize_hint = pktsize
-    thruput_reader.conf_hint    = short_conf_name
+    thruput_reader.pktsize_hint = pktsz
+    thruput_reader.conf_hint    = conf_name
 
     # Run.
     async with pktgen:
@@ -52,32 +47,32 @@ async def do_experiment(loop, env, args, conds, thruput_reader, all_thruput_reco
             sys.stdout.flush()
             env.chdir_to_root()
             config_path = os.path.normpath(os.path.join('configs', args.sys_config_to_use))
-            click_path = os.path.normpath(os.path.join('configs', conf_name))
+            click_path = os.path.normpath(os.path.join('configs', conf_name + '.click'))
             main_cmdargs = ['bin/main'] + env.mangle_main_args(config_path, click_path)
             retcode = await execute_async_simple(main_cmdargs, timeout=args.timeout)
         else:
-            retcode = await env.execute_main(args.sys_config_to_use, conf_name, running_time=32.0)
+            retcode = await env.execute_main(args.sys_config_to_use, conf_name + '.click', running_time=32.0)
         if retcode not in (0, -signal.SIGTERM, -signal.SIGKILL):
-            print('The main program exited abnormaly, and we ignore the results! (exit code: {0})'.format(retcode))
+            print('.. case {0!r}: exited abnormaly! (exit code: {1})'.format(conds, retcode))
             return
 
     if args.transparent:
         return
 
     # Fetch results of throughput measurement and compute average.
-    num_nodes = env.get_num_nodes()
+    # TODO: generalize mean calcuation
     thruput_records = thruput_reader.get_records()
-    avg_thruput_mpps, avg_thruput_gbps = 0.0, 0.0
-    for node_id in range(num_nodes):
-        mpps = [t.mpps for t in thruput_records if t.node_id == node_id]
-        gbps = [t.gbps for t in thruput_records if t.node_id == node_id]
-        if len(mpps) > 0:
-            avg_thruput_mpps += mean(mpps)
-        if len(gbps) > 0:
-            avg_thruput_gbps += mean(gbps)
-    print('{0:6.2f}'.format(avg_thruput_mpps), end=' ')
-    print('{0:6.2f}'.format(avg_thruput_gbps), end=' ')
-    all_thruput_records.extend(thruput_records)
+    for n in range(env.get_num_nodes()):
+        all_tput_recs.ix[(conf_name, io_batchsz, comp_batchsz, coproc_ppdepth, n, pktsz)] \
+                = (0, 0)
+    per_node_cnt = [0] * env.get_num_nodes()
+    for r in thruput_records:
+        per_node_cnt[r.node_id] += 1
+        all_tput_recs.ix[(conf_name, io_batchsz, comp_batchsz, coproc_ppdepth, r.node_id, pktsz)] \
+                += (r.mpps, r.gbps)
+    for n in range(env.get_num_nodes()):
+        all_tput_recs.ix[(conf_name, io_batchsz, comp_batchsz, coproc_ppdepth, n, pktsz)] \
+                /= per_node_cnt[n]
 
     ## Fetch results of cpu util measurement and compute average.
     #io_usr_avg = io_sys_avg = coproc_usr_avg = coproc_sys_avg = 0
@@ -95,7 +90,7 @@ async def do_experiment(loop, env, args, conds, thruput_reader, all_thruput_reco
     #coproc_sys_avg = mean(coproc_sys_avgs)
     #print('{0:6.2f} {1:6.2f}'.format(io_usr_avg, io_sys_avg), end='  ')
     #print('{0:6.2f} {1:6.2f}'.format(coproc_usr_avg, coproc_sys_avg))
-    print()
+    print(' .. case {0!r}: done.'.format(conds))
 
 
 if __name__ == '__main__':
@@ -126,43 +121,72 @@ if __name__ == '__main__':
     thruput_reader = AppThruputReader(begin_after=25.0)
     env.register_reader(thruput_reader)
     loop = asyncio.get_event_loop()
-    all_thruput_records = []
 
     pktgen = PktGenController()
     loop.run_until_complete(pktgen.init())
 
     if args.combine_cpu_gpu:
-        base_conf_name, ext = os.path.splitext(os.path.basename(args.element_config_to_use))
+        base_conf_name = os.path.splitext(os.path.basename(args.element_config_to_use))[0]
         conf_names = [base_conf_name + '-cpuonly' + ext, base_conf_name + '-gpuonly' + ext]
     else:
-        conf_names = [args.element_config_to_use]
-    combinations = product(conf_names, args.io_batch_sizes, args.comp_batch_sizes, args.coproc_ppdepths, args.pkt_sizes)
-
-    print('{0} {1}'.format(args.sys_config_to_use, args.element_config_to_use))
-    if args.combine_cpu_gpu:
-        print('conf  ', end='')
-    print('io-batch-size comp-batch-size coproc-ppdepth pkt-size  ' \
-          'Mpps Gbps  cpu-io-usr cpu-io-sys  cpu-coproc-usr cpu-coproc-sys')
+        conf_names = [os.path.splitext(os.path.basename(args.element_config_to_use))[0]]
+    combinations = tuple(product(
+        conf_names,
+        args.io_batch_sizes,
+        args.comp_batch_sizes,
+        args.coproc_ppdepths,
+        tuple(range(env.get_num_nodes())),
+        args.pkt_sizes
+    ))
+    combinations_without_node_id = tuple(product(
+        conf_names,
+        args.io_batch_sizes,
+        args.comp_batch_sizes,
+        args.coproc_ppdepths,
+        args.pkt_sizes
+    ))
+    mi = pd.MultiIndex.from_tuples(combinations, names=[
+        'conf',
+        'io_batchsz',
+        'comp_batchsz',
+        'coproc_ppdepth',
+        'node_id',
+        'pktsz',
+    ])
+    all_tput_recs = pd.DataFrame(index=mi, columns=[
+        'mpps',
+        'gbps',
+    ])
 
     '''
-    all_thruput_records.append(AppThruputRecord(64, 0, 'cpuonly', 27.0, 0))
-    all_thruput_records.append(AppThruputRecord(64, 1, 'cpuonly', 28.2, 0))
-    all_thruput_records.append(AppThruputRecord(1500, 0, 'cpuonly', 40.0, 0))
-    all_thruput_records.append(AppThruputRecord(1500, 1, 'cpuonly', 39.9, 0))
-    all_thruput_records.append(AppThruputRecord(64, 0, 'gpuonly', 13.0, 0))
-    all_thruput_records.append(AppThruputRecord(64, 1, 'gpuonly', 15.2, 0))
-    all_thruput_records.append(AppThruputRecord(1500, 0, 'gpuonly', 38.5, 0))
-    all_thruput_records.append(AppThruputRecord(1500, 1, 'gpuonly', 39.7, 0))
+    _test_records = [
+        AppThruputRecord(64, 0, 'ipsec-encryption-cpuonly', 27.0, 0),
+        AppThruputRecord(64, 1, 'ipsec-encryption-cpuonly', 28.2, 0),
+        AppThruputRecord(1500, 0, 'ipsec-encryption-cpuonly', 40.0, 0),
+        AppThruputRecord(1500, 1, 'ipsec-encryption-cpuonly', 39.9, 0),
+        AppThruputRecord(64, 0, 'ipsec-encryption-gpuonly', 13.0, 0),
+        AppThruputRecord(64, 1, 'ipsec-encryption-gpuonly', 15.2, 0),
+        AppThruputRecord(1500, 0, 'ipsec-encryption-gpuonly', 38.5, 0),
+        AppThruputRecord(1500, 1, 'ipsec-encryption-gpuonly', 39.7, 0),
+    ]
+    for r in _test_records:
+        all_tput_recs.ix[(r.conf, 32, 64, 32, r.node_id, r.pktsz)] = (r.mpps, r.gbps)
     '''
 
-    for conds in combinations:
-        loop.run_until_complete(do_experiment(loop, env, args, conds, thruput_reader, all_thruput_records))
+    for conds in combinations_without_node_id:
+        loop.run_until_complete(do_experiment(loop, env, args, conds, thruput_reader, all_tput_recs))
         sys.stdout.flush()
         time.sleep(3)
-
     loop.close()
 
-    plot_thruput('apptput', all_thruput_records, args.element_config_to_use,
-                 base_path='~/Dropbox/temp/plots/nba/',
-                 combine_cpu_gpu=args.combine_cpu_gpu)
+    # Sum over node_id while preserving other indexes
+    pd.set_option('display.expand_frame_repr', False)
+    pd.set_option('display.float_format', lambda f: '{:.2f}'.format(f))
+    print(all_tput_recs)
+    print(all_tput_recs.sum(level=['conf','io_batchsz','comp_batchsz',
+                                   'coproc_ppdepth','pktsz']))
+
+    #plot_thruput('apptput', all_tput_recs, args.element_config_to_use,
+    #             base_path='~/Dropbox/temp/plots/nba/',
+    #             combine_cpu_gpu=args.combine_cpu_gpu)
 
