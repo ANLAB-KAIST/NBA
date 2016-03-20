@@ -3,6 +3,7 @@ import sys, os, time
 import asyncio, signal
 import argparse
 from contextlib import ExitStack
+from datetime import datetime
 from statistics import mean
 from itertools import product
 
@@ -52,9 +53,6 @@ async def do_experiment(loop, env, args, conds, thruput_reader, all_tput_recs):
             retcode = await execute_async_simple(main_cmdargs, timeout=args.timeout)
         else:
             retcode = await env.execute_main(args.sys_config_to_use, conf_name + '.click', running_time=32.0)
-        if retcode not in (0, -signal.SIGTERM, -signal.SIGKILL):
-            print('.. case {0!r}: exited abnormaly! (exit code: {1})'.format(conds, retcode))
-            return
 
     if args.transparent:
         return
@@ -90,7 +88,10 @@ async def do_experiment(loop, env, args, conds, thruput_reader, all_tput_recs):
     #coproc_sys_avg = mean(coproc_sys_avgs)
     #print('{0:6.2f} {1:6.2f}'.format(io_usr_avg, io_sys_avg), end='  ')
     #print('{0:6.2f} {1:6.2f}'.format(coproc_usr_avg, coproc_sys_avg))
-    print(' .. case {0!r}: done.'.format(conds))
+    if retcode in (0, -signal.SIGTERM, -signal.SIGKILL):
+        print(' .. case {0!r}: done.'.format(conds))
+    else:
+        print(' .. case {0!r}: exited abnormaly! (exit code: {1})'.format(conds, retcode))
 
 
 if __name__ == '__main__':
@@ -125,11 +126,11 @@ if __name__ == '__main__':
     pktgen = PktGenController()
     loop.run_until_complete(pktgen.init())
 
+    base_conf_name = os.path.splitext(os.path.basename(args.element_config_to_use))[0]
     if args.combine_cpu_gpu:
-        base_conf_name = os.path.splitext(os.path.basename(args.element_config_to_use))[0]
-        conf_names = [base_conf_name + '-cpuonly' + ext, base_conf_name + '-gpuonly' + ext]
+        conf_names = [base_conf_name + '-cpuonly', base_conf_name + '-gpuonly']
     else:
-        conf_names = [os.path.splitext(os.path.basename(args.element_config_to_use))[0]]
+        conf_names = [base_conf_name]
     combinations = tuple(product(
         conf_names,
         args.io_batch_sizes,
@@ -172,7 +173,6 @@ if __name__ == '__main__':
     for r in _test_records:
         all_tput_recs.ix[(r.conf, 32, 64, 32, r.node_id, r.pktsz)] = (r.mpps, r.gbps)
     '''
-
     for conds in combinations_without_node_id:
         loop.run_until_complete(do_experiment(loop, env, args, conds, thruput_reader, all_tput_recs))
         sys.stdout.flush()
@@ -182,11 +182,24 @@ if __name__ == '__main__':
     # Sum over node_id while preserving other indexes
     pd.set_option('display.expand_frame_repr', False)
     pd.set_option('display.float_format', lambda f: '{:.2f}'.format(f))
+    system_tput = all_tput_recs.sum(level=['conf','io_batchsz','comp_batchsz',
+                                   'coproc_ppdepth','pktsz'])
+    now = datetime.now()
+    dir_name = 'apptput.{:%Y-%m-%d.%H%M%S}'.format(now)
+    base_path = os.path.join(os.path.expanduser('~/Dropbox/temp/plots/nba'), dir_name)
+    os.makedirs(base_path, exist_ok=True)
+    base_filename = os.path.join(base_path, base_conf_name)
+    print('Throughput per NUMA node')
+    print('========================')
     print(all_tput_recs)
-    print(all_tput_recs.sum(level=['conf','io_batchsz','comp_batchsz',
-                                   'coproc_ppdepth','pktsz']))
-
+    print('Throughput per system')
+    print('=====================')
+    print(system_tput)
+    all_tput_recs.to_csv(os.path.join(base_filename + '.pernode.csv'), float_format='%.2f')
+    system_tput.to_csv(os.path.join(base_filename + '.csv'), float_format='%.2f')
     #plot_thruput('apptput', all_tput_recs, args.element_config_to_use,
     #             base_path='~/Dropbox/temp/plots/nba/',
     #             combine_cpu_gpu=args.combine_cpu_gpu)
+    print('all done.')
+    sys.exit(0)
 
