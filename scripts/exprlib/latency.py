@@ -8,7 +8,7 @@ class LatencyHistogramReader:
         self.records = []
 
     async def subscribe(self, remote_host, remote_cpu_idx):
-        self.remote_addr = 'tcp://{}:{}'.format(remote_host, remote_cpu_idx)
+        self.remote_addr = 'tcp://{}:{}'.format(remote_host, 54000 + remote_cpu_idx)
         self._conn = await aiozmq.create_zmq_stream(zmq.SUB, loop=self._loop,
                                                     connect=self.remote_addr)
         self._conn.transport.setsockopt(zmq.SUBSCRIBE, b'')

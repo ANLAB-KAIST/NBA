@@ -52,7 +52,7 @@ async def do_experiment(loop, env, args, conds, thruput_reader, all_tput_recs):
     # FIXME: get generator addr
     if args.latency:
         lhreader = LatencyHistogramReader(loop)
-        hist_task = loop.create_task(lhreader.subscribe('shader-marcel.anlab', 54001))
+        hist_task = loop.create_task(lhreader.subscribe('shader-marcel.anlab', 0))
 
     # Run.
     async with pktgen:
@@ -75,19 +75,20 @@ async def do_experiment(loop, env, args, conds, thruput_reader, all_tput_recs):
         return
 
     # Fetch results of throughput measurement and compute average.
-    # FIXME: generalize mean calcuation
+    # FIXME: generalize mean calculation
     thruput_records = thruput_reader.get_records()
-    for n in range(env.get_num_nodes()):
-        all_tput_recs.ix[(conf_name, io_batchsz, comp_batchsz, coproc_ppdepth, n, pktsz)] \
-                = (0, 0)
     per_node_cnt = [0] * env.get_num_nodes()
+    per_node_mpps_sum = [0.0] * env.get_num_nodes()
+    per_node_gbps_sum = [0.0] * env.get_num_nodes()
     for r in thruput_records:
         per_node_cnt[r.node_id] += 1
-        all_tput_recs.ix[(conf_name, io_batchsz, comp_batchsz, coproc_ppdepth, r.node_id, pktsz)] \
-                += (r.mpps, r.gbps)
+        per_node_mpps_sum[r.node_id] += r.mpps
+        per_node_gbps_sum[r.node_id] += r.gbps
     for n in range(env.get_num_nodes()):
-        all_tput_recs.ix[(conf_name, io_batchsz, comp_batchsz, coproc_ppdepth, n, pktsz)] \
-                /= per_node_cnt[n]
+        if per_node_cnt[n] > 0:
+            all_tput_recs.ix[(conf_name, io_batchsz, comp_batchsz, coproc_ppdepth, n, pktsz)] \
+                    = (per_node_mpps_sum[n] / per_node_cnt[n],
+                       per_node_gbps_sum[n] / per_node_cnt[n])
 
     # TODO: Store latency histograms
     if args.latency:
