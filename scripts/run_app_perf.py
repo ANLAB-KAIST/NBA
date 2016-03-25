@@ -8,17 +8,26 @@ from statistics import mean
 from itertools import product
 
 import pandas as pd
+import numpy as np
 
 from exprlib import ExperimentEnv
 from exprlib.subproc import execute_async_simple
 from exprlib.arghelper import comma_sep_numbers, host_port_pair
 from exprlib.records import AppThruputRecord, AppThruputReader
 from exprlib.plotting.template import plot_thruput
+from exprlib.plotting.utils import cdf_from_histogram
 from exprlib.pktgen import PktGenController
 from exprlib.latency import LatencyHistogramReader
 
+from namedlist import namedlist
+ExperimentResult = namedlist('ExperiemntResult', [
+    ('thruput_records', None),
+    ('latency_cdf', None),
+])
 
-async def do_experiment(loop, env, args, conds, thruput_reader, all_tput_recs):
+
+async def do_experiment(loop, env, args, conds, thruput_reader):
+    result = ExperimentResult()
     conf_name, io_batchsz, comp_batchsz, coproc_ppdepth, pktsz = conds
 
     env.envvars['NBA_IO_BATCH_SIZE'] = str(io_batchsz)
@@ -72,11 +81,12 @@ async def do_experiment(loop, env, args, conds, thruput_reader, all_tput_recs):
         await asyncio.sleep(0)
 
     if args.transparent:
-        return
+        return None
 
     # Fetch results of throughput measurement and compute average.
     # FIXME: generalize mean calculation
     thruput_records = thruput_reader.get_records()
+    avg_thruput_records = []
     per_node_cnt = [0] * env.get_num_nodes()
     per_node_mpps_sum = [0.0] * env.get_num_nodes()
     per_node_gbps_sum = [0.0] * env.get_num_nodes()
@@ -86,37 +96,27 @@ async def do_experiment(loop, env, args, conds, thruput_reader, all_tput_recs):
         per_node_gbps_sum[r.node_id] += r.gbps
     for n in range(env.get_num_nodes()):
         if per_node_cnt[n] > 0:
-            all_tput_recs.ix[(conf_name, io_batchsz, comp_batchsz, coproc_ppdepth, n, pktsz)] \
-                    = (per_node_mpps_sum[n] / per_node_cnt[n],
-                       per_node_gbps_sum[n] / per_node_cnt[n])
+            avg_thruput_records.append((
+                (conf_name, io_batchsz, comp_batchsz, coproc_ppdepth, n, pktsz),
+                (per_node_mpps_sum[n] / per_node_cnt[n],
+                 per_node_gbps_sum[n] / per_node_cnt[n])))
+    result.thruput_records = avg_thruput_records
 
-    # TODO: Store latency histograms
     if args.latency:
         for r in reversed(lhreader.records):
             if len(r[2]) > 10:
-                print(r)
+                print(r[0], r[1])
+                index, counts = zip(*(p.split() for p in r[2]))
+                index  = np.array(list(map(int, index)))
+                counts = np.array(list(map(int, counts)))
+                result.latency_cdf = cdf_from_histogram(index, counts)
                 break
 
-    ## Fetch results of cpu util measurement and compute average.
-    #io_usr_avg = io_sys_avg = coproc_usr_avg = coproc_sys_avg = 0
-    #io_usr_avgs = []; io_sys_avgs = []; coproc_usr_avgs = []; coproc_sys_avgs = []
-    #io_cores = env.get_io_cores()
-    #coproc_cores = env.get_coproc_cores()
-    #for cpu_usage in cpu_records:
-    #    io_usr_avgs.append(mean(cpu_usage[core].usr for core in io_cores))
-    #    io_sys_avgs.append(mean(cpu_usage[core].sys for core in io_cores))
-    #    coproc_usr_avgs.append(mean(cpu_usage[core].usr for core in coproc_cores))
-    #    coproc_sys_avgs.append(mean(cpu_usage[core].sys for core in coproc_cores))
-    #io_usr_avg = mean(io_usr_avgs)
-    #io_sys_avg = mean(io_sys_avgs)
-    #coproc_usr_avg = mean(coproc_usr_avgs)
-    #coproc_sys_avg = mean(coproc_sys_avgs)
-    #print('{0:6.2f} {1:6.2f}'.format(io_usr_avg, io_sys_avg), end='  ')
-    #print('{0:6.2f} {1:6.2f}'.format(coproc_usr_avg, coproc_sys_avg))
     if retcode in (0, -signal.SIGTERM, -signal.SIGKILL):
         print(' .. case {0!r}: done.'.format(conds))
     else:
         print(' .. case {0!r}: exited abnormaly! (exit code: {1})'.format(conds, retcode))
+    return result
 
 
 if __name__ == '__main__':
@@ -139,6 +139,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--transparent', action='store_true', default=False, help='Pass-through the standard output instead of parsing it. No default timeout is applied.')
     parser.add_argument('--timeout', type=int, default=None, help='Set a forced timeout for transparent mode.')
     parser.add_argument('--combine-cpu-gpu', action='store_true', default=False, help='Run the same config for CPU-only and GPU-only to compare.')
+    parser.add_argument('--no-record', action='store_true', default=False, help='Do NOT record the results.')
     parser.add_argument('-l', '--latency', action='store_true', default=False, help='Save the latency histogram.'
                                                                                     'The packet generation rate is fixed to'
                                                                                     '3 Gbps (for IPsec) or 10 Gbps (otherwise).')
@@ -186,6 +187,7 @@ if __name__ == '__main__':
         'mpps',
         'gbps',
     ])
+    all_latency_cdfs = dict()
 
     '''
     _test_records = [
@@ -202,7 +204,11 @@ if __name__ == '__main__':
         all_tput_recs.ix[(r.conf, 32, 64, 32, r.node_id, r.pktsz)] = (r.mpps, r.gbps)
     '''
     for conds in combinations_without_node_id:
-        loop.run_until_complete(do_experiment(loop, env, args, conds, thruput_reader, all_tput_recs))
+        result = loop.run_until_complete(do_experiment(loop, env, args, conds, thruput_reader))
+        for rec in result.thruput_records:
+            all_tput_recs.ix[rec[0]] = rec[1]
+        if result.latency_cdf is not None:
+            all_latency_cdfs[conds] = result.latency_cdf
         sys.stdout.flush()
         time.sleep(3)
     loop.close()
@@ -212,11 +218,6 @@ if __name__ == '__main__':
     pd.set_option('display.float_format', lambda f: '{:.2f}'.format(f))
     system_tput = all_tput_recs.sum(level=['conf', 'io_batchsz', 'comp_batchsz',
                                            'coproc_ppdepth', 'pktsz'])
-    now = datetime.now()
-    dir_name = 'apptput.{:%Y-%m-%d.%H%M%S}'.format(now)
-    base_path = os.path.join(os.path.expanduser('~/Dropbox/temp/plots/nba'), dir_name)
-    os.makedirs(base_path, exist_ok=True)
-    base_filename = os.path.join(base_path, base_conf_name)
     print('Throughput per NUMA node')
     print('========================')
     print(all_tput_recs)
@@ -224,14 +225,23 @@ if __name__ == '__main__':
     print('=====================')
     print(system_tput)
     print()
-    with open(os.path.join(base_path, 'version.txt'), 'w') as fout:
-        print(env.get_current_commit(short=False), file=fout)
-    all_tput_recs.to_csv(os.path.join(base_filename + '.pernode.csv'), float_format='%.2f')
-    system_tput.to_csv(os.path.join(base_filename + '.csv'), float_format='%.2f')
-    #plot_thruput('apptput', all_tput_recs, args.element_config_to_use,
-    #             base_path='~/Dropbox/temp/plots/nba/',
-    #             combine_cpu_gpu=args.combine_cpu_gpu)
-    env.fix_ownership(base_path)
+    if not args.no_record:
+        now = datetime.now()
+        dir_name = 'app-perf.{:%Y-%m-%d.%H%M%S}'.format(now)
+        base_path = os.path.join(os.path.expanduser('~/Dropbox/temp/plots/nba'), dir_name)
+        os.makedirs(base_path, exist_ok=True)
+        base_filename = os.path.join(base_path, base_conf_name)
+        with open(os.path.join(base_path, 'version.txt'), 'w') as fout:
+            print(env.get_current_commit(short=False), file=fout)
+        all_tput_recs.to_csv(base_filename + '.thruput.pernode.csv', float_format='%.2f')
+        system_tput.to_csv(base_filename + '.thruput.csv', float_format='%.2f')
+        for conds, cdf in all_latency_cdfs.items():
+            conds_str = '{4}'.format(*conds)  # only pktsz
+            cdf.to_csv(base_filename + '.latency.' + conds_str + '.csv', float_format='%.6f')
+        #plot_thruput('apptput', all_tput_recs, args.element_config_to_use,
+        #             base_path='~/Dropbox/temp/plots/nba/',
+        #             combine_cpu_gpu=args.combine_cpu_gpu)
+        env.fix_ownership(base_path)
     print('all done.')
     sys.exit(0)
 
