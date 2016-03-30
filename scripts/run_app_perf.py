@@ -65,6 +65,7 @@ async def do_experiment(loop, env, args, conds, thruput_reader):
 
     # Run.
     async with pktgen:
+        await asyncio.sleep(1)
         if args.transparent:
             print('--- running in transparent mode ---')
             sys.stdout.flush()
@@ -105,7 +106,6 @@ async def do_experiment(loop, env, args, conds, thruput_reader):
     if args.latency:
         for r in reversed(lhreader.records):
             if len(r[2]) > 10:
-                print(r[0], r[1])
                 index, counts = zip(*(p.split() for p in r[2]))
                 index  = np.array(list(map(int, index)))
                 counts = np.array(list(map(int, counts)))
