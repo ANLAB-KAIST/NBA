@@ -1,4 +1,10 @@
 #! /usr/bin/env python3
+
+'''
+This script meausres latnecy and throughput, depending on the cli arguments.
+With "-l" option, it records latency histogram as well.
+'''
+
 import sys, os, time
 import asyncio, signal
 import argparse
@@ -138,11 +144,14 @@ if __name__ == '__main__':
     parser.add_argument('--coproc-ppdepths', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[32])
     parser.add_argument('-t', '--transparent', action='store_true', default=False, help='Pass-through the standard output instead of parsing it. No default timeout is applied.')
     parser.add_argument('--timeout', type=int, default=None, help='Set a forced timeout for transparent mode.')
-    parser.add_argument('--combine-cpu-gpu', action='store_true', default=False, help='Run the same config for CPU-only and GPU-only to compare.')
     parser.add_argument('--no-record', action='store_true', default=False, help='Do NOT record the results.')
-    parser.add_argument('-l', '--latency', action='store_true', default=False, help='Save the latency histogram.'
-                                                                                    'The packet generation rate is fixed to'
-                                                                                    '3 Gbps (for IPsec) or 10 Gbps (otherwise).')
+    parser.add_argument('--prefix', type=str, default=None, help='Additional prefix directory name for recording.')
+    # If -l is used with --combin-cpu-gpu, the latency CPU/GPU result will be merged into one.
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--combine-cpu-gpu', action='store_true', default=False, help='Run the same config for CPU-only and GPU-only to compare.')
+    group.add_argument('-l', '--latency', action='store_true', default=False, help='Save the latency histogram.'
+                                                                                   'The packet generation rate is fixed to'
+                                                                                   '3 Gbps (for IPsec) or 10 Gbps (otherwise).')
     parser.add_argument('-v', '--verbose', action='store_true', default=False)
     args = parser.parse_args()
 
@@ -227,7 +236,11 @@ if __name__ == '__main__':
     print()
     if not args.no_record:
         now = datetime.now()
-        dir_name = 'app-perf.{:%Y-%m-%d.%H%M%S}'.format(now)
+        bin_name = os.path.basename(args.main_bin)
+        dir_name = 'app-perf.{:%Y-%m-%d.%H%M%S}.{}'.format(now, bin_name)
+        if args.prefix:
+            dir_prefix = '{}.{:%Y-%m-%d}'.format(args.prefix, now)
+            dir_name = os.path.join(dir_prefix, dir_name)
         base_path = os.path.join(os.path.expanduser('~/Dropbox/temp/plots/nba'), dir_name)
         os.makedirs(base_path, exist_ok=True)
         base_filename = os.path.join(base_path, base_conf_name)
@@ -238,9 +251,6 @@ if __name__ == '__main__':
         for conds, cdf in all_latency_cdfs.items():
             conds_str = '{4}'.format(*conds)  # only pktsz
             cdf.to_csv(base_filename + '.latency.' + conds_str + '.csv', float_format='%.6f')
-        #plot_thruput('apptput', all_tput_recs, args.element_config_to_use,
-        #             base_path='~/Dropbox/temp/plots/nba/',
-        #             combine_cpu_gpu=args.combine_cpu_gpu)
         env.fix_ownership(base_path)
     print('all done.')
     sys.exit(0)
