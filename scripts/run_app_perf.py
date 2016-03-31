@@ -236,7 +236,7 @@ if __name__ == '__main__':
     print()
     if not args.no_record:
         now = datetime.now()
-        bin_name = os.path.basename(args.main_bin)
+        bin_name = os.path.basename(args.bin)
         dir_name = 'app-perf.{:%Y-%m-%d.%H%M%S}.{}'.format(now, bin_name)
         if args.prefix:
             dir_prefix = '{}.{:%Y-%m-%d}'.format(args.prefix, now)
