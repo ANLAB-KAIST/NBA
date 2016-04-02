@@ -328,12 +328,12 @@ static void io_local_stat_timer_cb(struct ev_loop *loop, struct ev_timer *watche
         memset(&ctx->port_stats[j], 0, sizeof(struct io_port_stat));
     }
  #ifdef NBA_CPU_MICROBENCH
-	char buf[2048];
+    char buf[2048];
     char *bufp = &buf[0];
     for (int e = 0; e < 5; e++) {
         bufp += sprintf(bufp, "[worker:%02u].%d %'12lld, %'12lld, %'12lld\n", ctx->loc.core_id, e, ctx->papi_ctr_rx[e], ctx->papi_ctr_tx[e], ctx->papi_ctr_comp[e]);
     }
-	printf("%s", buf);
+    printf("%s", buf);
     memset(ctx->papi_ctr_rx, 0, sizeof(long long) * 5);
     memset(ctx->papi_ctr_tx, 0, sizeof(long long) * 5);
     memset(ctx->papi_ctr_comp, 0, sizeof(long long) * 5);

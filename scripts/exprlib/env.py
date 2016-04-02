@@ -233,26 +233,21 @@ class ExperimentEnv:
         return core_bits
 
     @staticmethod
-    def mangle_main_args(config_name, click_name, emulate_opts=None, extra_args=None):
+    def mangle_main_args(config_name, click_name,
+                         emulate_opts=None,
+                         extra_args=None, extra_dpdk_args=None):
         args = [
             '-c', hex(ExperimentEnv.get_cpu_mask_with_nics()),
             '-n', os.environ.get('NBA_MEM_CHANNELS', '4'),
         ]
+        # TODO: translate emulate_opts to void_pmd options
+        if extra_dpdk_args:
+            args.extend(extra_dpdk_args)
+        args.append('--')
         if extra_args:
             args.extend(extra_args)
-        args.append('--')
         args.append(config_name)
         args.append(click_name)
-        if emulate_opts:
-            emulate_args = {
-                '--emulated-ipversion': 4,
-                '--emulated-pktsize': 64,
-                '--emulated-fixed-flows': 0,
-            }
-            emulate_args.update(emulate_opts)
-            args.append('--emulate-io')
-            for k, v in emulate_args.items():
-                args.append('{0}={1}'.format(k, v))
         return args
 
     @staticmethod
@@ -275,7 +270,7 @@ class ExperimentEnv:
     def execute_main(self, config_name, click_name,
                      running_time=30.0,
                      emulate_opts=None,
-                     extra_args=None,
+                     extra_args=None, extra_dpdk_args=None,
                      custom_stdout_coro=None):
         '''
         Executes the main program asynchronosuly.
@@ -283,7 +278,8 @@ class ExperimentEnv:
         self.chdir_to_root()
         config_path = os.path.normpath(os.path.join('configs', config_name))
         click_path = os.path.normpath(os.path.join('configs', click_name))
-        args = self.mangle_main_args(config_path, click_path, emulate_opts, extra_args)
+        args = self.mangle_main_args(config_path, click_path,
+                                     emulate_opts, extra_args, extra_dpdk_args)
 
         # Reset/initialize events.
         self._singalled = False

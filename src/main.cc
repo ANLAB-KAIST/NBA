@@ -159,11 +159,13 @@ int main(int argc, char **argv)
 
     /* Parse command-line arguments. */
     dummy_device = false;
+    bool preserve_latency = false;
     char *system_config = new char[PATH_MAX];
     char *pipeline_config = new char[PATH_MAX];
 
     struct option long_opts[] = {
-        {"dummy-device", optional_argument, NULL, 0},
+        {"dummy-device", no_argument, NULL, 0},
+        {"preserve-latency", no_argument, NULL, 0},
         {"loglevel", required_argument, NULL, 'l'},
         {0, 0, 0, 0}
     };
@@ -173,11 +175,11 @@ int main(int argc, char **argv)
         if (c == -1) break;
         switch (c) {
         case 0:
-            /* Skip flag-only options. */
-            if (long_opts[optidx].flag != NULL) break;
             /* Process {long_opts[optidx].name}:{optarg} kv pairs. */
             if (!strcmp("dummy-device", long_opts[optidx].name)) {
                 dummy_device = true;
+            } else if (!strcmp("preserve-latency", long_opts[optidx].name)) {
+                preserve_latency = true;
             }
             break;
         case 'l':
@@ -647,6 +649,7 @@ int main(int argc, char **argv)
             ctx->task_completion_queue_size = system_params["COPROC_COMPLETIONQ_LENGTH"];
             ctx->num_tx_ports = num_ports;
             ctx->num_nodes = num_nodes;
+            ctx->preserve_latency = preserve_latency;
 
             ctx->io_ctx = nullptr;
             ctx->coproc_ctx = nullptr;

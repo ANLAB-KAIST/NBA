@@ -40,6 +40,8 @@ async def do_experiment(loop, env, args, conds, thruput_reader):
     env.envvars['NBA_COMP_BATCH_SIZE'] = str(comp_batchsz)
     env.envvars['NBA_COPROC_PPDEPTH'] = str(coproc_ppdepth)
 
+    extra_nba_args = []
+
     if 'ipv6' in args.element_config_to_use:
         # All random ipv6 pkts
         pktgen.args = ['-i', 'all', '-f', '0', '-v', '6', '-p', str(pktsz)]
@@ -48,6 +50,7 @@ async def do_experiment(loop, env, args, conds, thruput_reader):
     elif 'ipsec' in args.element_config_to_use:
         # ipv4 pkts with fixed 1K flows
         pktgen.args = ['-i', 'all', '-f', '1024', '-r', '0', '-v', '4', '-p', str(pktsz)]
+        extra_nba_args.append('--preserve-latency')
         if args.latency:
             pktgen.args += ['-g', '3', '-l', '--latency-histogram']
     else:
@@ -55,8 +58,6 @@ async def do_experiment(loop, env, args, conds, thruput_reader):
         pktgen.args = ['-i', 'all', '-f', '0', '-v', '4', '-p', str(pktsz)]
         if args.latency:
             pktgen.args += ['-g', '10', '-l', '--latency-histogram']
-
-    #cpu_records     = env.measure_cpu_usage(interval=2, begin_after=26.0, repeat=True)
 
     # Clear data.
     env.reset_readers()
@@ -81,7 +82,10 @@ async def do_experiment(loop, env, args, conds, thruput_reader):
             main_cmdargs = ['bin/main'] + env.mangle_main_args(config_path, click_path)
             retcode = await execute_async_simple(main_cmdargs, timeout=args.timeout)
         else:
-            retcode = await env.execute_main(args.sys_config_to_use, conf_name + '.click', running_time=32.0)
+            retcode = await env.execute_main(args.sys_config_to_use,
+                                             conf_name + '.click',
+                                             extra_args=extra_nba_args,
+                                             running_time=32.0)
 
     if args.latency:
         hist_task.cancel()
