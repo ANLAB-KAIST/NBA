@@ -1,0 +1,7 @@
+pyzmq
+aiozmq
+numpy
+matplotlib
+pandas
+simplejson
+colorama

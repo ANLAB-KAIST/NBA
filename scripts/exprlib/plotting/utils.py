@@ -1,5 +1,7 @@
 #! /usr/bin/env python3
 import sys, os
+import numpy as np
+import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import findSystemFonts, FontProperties
@@ -16,3 +18,8 @@ def find_times_font(bold=False, italic=False):
         if name_matched and style_matched:
             return fprop
     return None
+
+def cdf_from_histogram(index, counts):
+    cum = np.cumsum(counts)
+    cdf = cum / np.max(cum)
+    return pd.DataFrame(data=cdf, index=index)
