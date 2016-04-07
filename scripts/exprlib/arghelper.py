@@ -5,12 +5,22 @@ import sys
 def comma_sep_numbers(minval=0, maxval=sys.maxsize, type=int):
     def _comma_sep_argtype(string):
         try:
-            pieces = list(map(lambda s: type(s.strip()), string.split(',')))
+            pieces = tuple(map(lambda s: type(s.strip()), string.split(',')))
         except ValueError:
-            raise argparse.ArgumentTypeError('{:r} contains non-numeric values.'.format(string))
+            raise argparse.ArgumentTypeError('{:!r} contains non-numeric values.'.format(string))
         for p in pieces:
             if p < minval or p > maxval:
-                raise argparse.ArgumentTypeError('{:r} contains a number out of range.'.format(string))
+                raise argparse.ArgumentTypeError('{:!r} contains a number out of range.'.format(string))
+        return pieces
+    return _comma_sep_argtype
+
+def comma_sep_str(mincnt=1, maxcnt=sys.maxsize):
+    def _comma_sep_argtype(string):
+        pieces = tuple(map(lambda s: s.strip(), string.split(',')))
+        if len(pieces) < mincnt:
+            raise argparse.ArgumentTypeError('{:!r} has too few values.'.format(string))
+        if len(pieces) > maxcnt:
+            raise argparse.ArgumentTypeError('{:!r} has too many values.'.format(string))
         return pieces
     return _comma_sep_argtype
 
@@ -22,13 +32,13 @@ def host_port_pair(default_port):
             pieces = pair.split(':')
             cnt = len(pieces)
             if cnt > 2:
-                raise argparse.ArgumentTypeError('{:r} is not a valid host:port value.'.format(string))
+                raise argparse.ArgumentTypeError('{:!r} is not a valid host:port value.'.format(string))
             elif cnt == 2:
                 try:
                     host, port = pieces[0], int(pieces[1])
                     assert port > 0 and port <= 65535
                 except (ValueError, AssertionError):
-                    raise argparse.ArgumentTypeError('{:r} is not a valid port number.'.format(pieces[1]))
+                    raise argparse.ArgumentTypeError('{:!r} is not a valid port number.'.format(pieces[1]))
             else:
                 host = pieces[0], default_port
             parsed_pairs.append((host, port))

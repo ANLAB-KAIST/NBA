@@ -18,7 +18,7 @@ import numpy as np
 
 from exprlib import ExperimentEnv
 from exprlib.subproc import execute_async_simple
-from exprlib.arghelper import comma_sep_numbers, host_port_pair
+from exprlib.arghelper import comma_sep_numbers, comma_sep_str, host_port_pair
 from exprlib.records import AppThruputRecord, AppThruputReader
 from exprlib.plotting.template import plot_thruput
 from exprlib.plotting.utils import cdf_from_histogram
@@ -42,12 +42,12 @@ async def do_experiment(loop, env, args, conds, thruput_reader):
 
     extra_nba_args = []
 
-    if 'ipv6' in args.element_config_to_use:
+    if 'ipv6' in conf_name:
         # All random ipv6 pkts
         pktgen.args = ['-i', 'all', '-f', '0', '-v', '6', '-p', str(pktsz)]
         if args.latency:
             pktgen.args += ['-g', '10', '-l', '--latency-histogram']
-    elif 'ipsec' in args.element_config_to_use:
+    elif 'ipsec' in conf_name:
         # ipv4 pkts with fixed 1K flows
         pktgen.args = ['-i', 'all', '-f', '1024', '-r', '0', '-v', '4', '-p', str(pktsz)]
         if args.latency:
@@ -73,27 +73,15 @@ async def do_experiment(loop, env, args, conds, thruput_reader):
     # Run.
     async with pktgen:
         await asyncio.sleep(1)
-        if args.transparent:
-            print('--- running in transparent mode ---')
-            sys.stdout.flush()
-            env.chdir_to_root()
-            config_path = os.path.normpath(os.path.join('configs', args.sys_config_to_use))
-            click_path = os.path.normpath(os.path.join('configs', conf_name + '.click'))
-            main_cmdargs = ['bin/main'] + env.mangle_main_args(config_path, click_path)
-            retcode = await execute_async_simple(main_cmdargs, timeout=args.timeout)
-        else:
-            retcode = await env.execute_main(args.sys_config_to_use,
-                                             conf_name + '.click',
-                                             num_max_cores_per_node=num_cores,
-                                             extra_args=extra_nba_args,
-                                             running_time=32.0)
+        retcode = await env.execute_main(args.hw_config,
+                                         args._conf_path_map[conf_name],
+                                         num_max_cores_per_node=num_cores,
+                                         extra_args=extra_nba_args,
+                                         running_time=32.0)
 
     if args.latency:
         hist_task.cancel()
         await asyncio.sleep(0)
-
-    if args.transparent:
-        return None
 
     # Fetch results of throughput measurement and compute average.
     # FIXME: generalize mean calculation
@@ -140,16 +128,14 @@ if __name__ == '__main__':
                                             'Example: sudo ./scriptname default.py ipv4-router.click\n ',
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     # TODO: Restrict program option: packet size argument is only valid in emulation mode.
-    parser.add_argument('sys_config_to_use')
-    parser.add_argument('element_config_to_use')
+    parser.add_argument('hw_config')
+    parser.add_argument('element_configs', type=comma_sep_str(1), metavar='NAME[,NAME...]')
     parser.add_argument('-b', '--bin', type=str, metavar='PATH', default='bin/main')
     parser.add_argument('-p', '--pkt-sizes', type=comma_sep_numbers(64, 1500), metavar='NUM[,NUM...]', default=[64])
     parser.add_argument('--io-batch-sizes', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[32])
     parser.add_argument('--comp-batch-sizes', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[64])
     parser.add_argument('--coproc-ppdepths', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[32])
     parser.add_argument('--num-cores', type=comma_sep_numbers(1, 64), metavar='NUM[,NUM...]', default=[64])
-    parser.add_argument('-t', '--transparent', action='store_true', default=False, help='Pass-through the standard output instead of parsing it. No default timeout is applied.')
-    parser.add_argument('--timeout', type=int, default=None, help='Set a forced timeout for transparent mode.')
     parser.add_argument('--no-record', action='store_true', default=False, help='Do NOT record the results.')
     parser.add_argument('--prefix', type=str, default=None, help='Additional prefix directory name for recording.')
     # If -l is used with --combin-cpu-gpu, the latency CPU/GPU result will be merged into one.
@@ -170,11 +156,25 @@ if __name__ == '__main__':
     pktgen = PktGenController()
     loop.run_until_complete(pktgen.init())
 
-    base_conf_name = os.path.splitext(os.path.basename(args.element_config_to_use))[0]
-    if args.combine_cpu_gpu:
-        conf_names = [base_conf_name + '-cpuonly', base_conf_name + '-gpuonly']
-    else:
-        conf_names = [base_conf_name]
+    conf_names = []
+    args._conf_path_map = dict()
+    for elem_config in args.element_configs:
+        if args.combine_cpu_gpu:
+            p = os.path.splitext(elem_config)
+            base = os.path.basename(p[0])
+            conf_name = base + '-cpuonly'
+            conf_path = p[0] + '-cpuonly' + p[1]
+            conf_names.append(conf_name)
+            args._conf_path_map[conf_name] = conf_path
+            conf_name = base + '-gpuonly'
+            conf_path = p[0] + '-gpuonly' + p[1]
+            conf_names.append(conf_name)
+            args._conf_path_map[conf_name] = conf_path
+        else:
+            conf_name = os.path.splitext(os.path.basename(elem_config))[0]
+            conf_path = elem_config
+            conf_names.append(conf_name)
+            args._conf_path_map[conf_name] = conf_path
     combinations = tuple(product(
         conf_names,
         args.io_batch_sizes,
