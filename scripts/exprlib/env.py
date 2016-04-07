@@ -218,26 +218,31 @@ class ExperimentEnv:
         return sorted(nodes_with_nics)
 
     @staticmethod
-    def get_cpu_mask_with_nics(only_phys_cores=True):
+    def get_cpu_mask_with_nics(num_max_cores_per_node, only_phys_cores=True):
         '''
         Return a CPU core index bitmask of all cores in the NUMA nodes that have NICs.
         '''
         core_bits = 0
         node_cpus = ExperimentEnv.get_core_topology()
         nodes_with_nics = ExperimentEnv.get_nodes_with_nics()
+        ht_div = ExperimentEnv.get_hyperthreading_degree() if only_phys_cores else 1
         for node_id in nodes_with_nics:
-            ht_div = ExperimentEnv.get_hyperthreading_degree() if only_phys_cores else 1
             phys_cnt = len(node_cpus[node_id]) // ht_div
-            for core_id in node_cpus[node_id][:phys_cnt]:
+            max_cnt = min(num_max_cores_per_node, phys_cnt)
+            for core_id in node_cpus[node_id][:max_cnt]:
                 core_bits |= (1 << core_id)
+            # Force add device-handling cores
+            core_bits |= (1 << node_cpus[node_id][phys_cnt - 1])
         return core_bits
 
     @staticmethod
     def mangle_main_args(config_name, click_name,
+                         num_max_cores_per_node,
                          emulate_opts=None,
                          extra_args=None, extra_dpdk_args=None):
+        core_mask = ExperimentEnv.get_cpu_mask_with_nics(num_max_cores_per_node)
         args = [
-            '-c', hex(ExperimentEnv.get_cpu_mask_with_nics()),
+            '-c', '{:x}'.format(core_mask),
             '-n', os.environ.get('NBA_MEM_CHANNELS', '4'),
         ]
         # TODO: translate emulate_opts to void_pmd options
@@ -269,6 +274,7 @@ class ExperimentEnv:
     @asyncio.coroutine
     def execute_main(self, config_name, click_name,
                      running_time=30.0,
+                     num_max_cores_per_node=64,
                      emulate_opts=None,
                      extra_args=None, extra_dpdk_args=None,
                      custom_stdout_coro=None):
@@ -278,7 +284,7 @@ class ExperimentEnv:
         self.chdir_to_root()
         config_path = os.path.normpath(os.path.join('configs', config_name))
         click_path = os.path.normpath(os.path.join('configs', click_name))
-        args = self.mangle_main_args(config_path, click_path,
+        args = self.mangle_main_args(config_path, click_path, num_max_cores_per_node,
                                      emulate_opts, extra_args, extra_dpdk_args)
 
         # Reset/initialize events.

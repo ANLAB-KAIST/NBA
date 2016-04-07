@@ -34,7 +34,7 @@ ExperimentResult = namedlist('ExperiemntResult', [
 
 async def do_experiment(loop, env, args, conds, thruput_reader):
     result = ExperimentResult()
-    conf_name, io_batchsz, comp_batchsz, coproc_ppdepth, pktsz = conds
+    conf_name, io_batchsz, comp_batchsz, coproc_ppdepth, num_cores, pktsz = conds
 
     env.envvars['NBA_IO_BATCH_SIZE'] = str(io_batchsz)
     env.envvars['NBA_COMP_BATCH_SIZE'] = str(comp_batchsz)
@@ -50,8 +50,8 @@ async def do_experiment(loop, env, args, conds, thruput_reader):
     elif 'ipsec' in args.element_config_to_use:
         # ipv4 pkts with fixed 1K flows
         pktgen.args = ['-i', 'all', '-f', '1024', '-r', '0', '-v', '4', '-p', str(pktsz)]
-        extra_nba_args.append('--preserve-latency')
         if args.latency:
+            extra_nba_args.append('--preserve-latency')
             pktgen.args += ['-g', '3', '-l', '--latency-histogram']
     else:
         # All random ipv4 pkts
@@ -84,6 +84,7 @@ async def do_experiment(loop, env, args, conds, thruput_reader):
         else:
             retcode = await env.execute_main(args.sys_config_to_use,
                                              conf_name + '.click',
+                                             num_max_cores_per_node=num_cores,
                                              extra_args=extra_nba_args,
                                              running_time=32.0)
 
@@ -108,7 +109,7 @@ async def do_experiment(loop, env, args, conds, thruput_reader):
     for n in range(env.get_num_nodes()):
         if per_node_cnt[n] > 0:
             avg_thruput_records.append((
-                (conf_name, io_batchsz, comp_batchsz, coproc_ppdepth, n, pktsz),
+                (conf_name, io_batchsz, comp_batchsz, coproc_ppdepth, num_cores, n, pktsz),
                 (per_node_mpps_sum[n] / per_node_cnt[n],
                  per_node_gbps_sum[n] / per_node_cnt[n])))
     result.thruput_records = avg_thruput_records
@@ -146,6 +147,7 @@ if __name__ == '__main__':
     parser.add_argument('--io-batch-sizes', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[32])
     parser.add_argument('--comp-batch-sizes', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[64])
     parser.add_argument('--coproc-ppdepths', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[32])
+    parser.add_argument('--num-cores', type=comma_sep_numbers(1, 64), metavar='NUM[,NUM...]', default=[64])
     parser.add_argument('-t', '--transparent', action='store_true', default=False, help='Pass-through the standard output instead of parsing it. No default timeout is applied.')
     parser.add_argument('--timeout', type=int, default=None, help='Set a forced timeout for transparent mode.')
     parser.add_argument('--no-record', action='store_true', default=False, help='Do NOT record the results.')
@@ -178,6 +180,7 @@ if __name__ == '__main__':
         args.io_batch_sizes,
         args.comp_batch_sizes,
         args.coproc_ppdepths,
+        args.num_cores,
         tuple(range(env.get_num_nodes())),
         args.pkt_sizes
     ))
@@ -186,6 +189,7 @@ if __name__ == '__main__':
         args.io_batch_sizes,
         args.comp_batch_sizes,
         args.coproc_ppdepths,
+        args.num_cores,
         args.pkt_sizes
     ))
     mi = pd.MultiIndex.from_tuples(combinations, names=[
@@ -193,6 +197,7 @@ if __name__ == '__main__':
         'io_batchsz',
         'comp_batchsz',
         'coproc_ppdepth',
+        'num_cores',
         'node_id',
         'pktsz',
     ])
@@ -230,7 +235,7 @@ if __name__ == '__main__':
     pd.set_option('display.expand_frame_repr', False)
     pd.set_option('display.float_format', lambda f: '{:.2f}'.format(f))
     system_tput = all_tput_recs.sum(level=['conf', 'io_batchsz', 'comp_batchsz',
-                                           'coproc_ppdepth', 'pktsz'])
+                                           'coproc_ppdepth', 'num_cores', 'pktsz'])
     print('Throughput per NUMA node')
     print('========================')
     print(all_tput_recs)
