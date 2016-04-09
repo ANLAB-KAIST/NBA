@@ -35,7 +35,7 @@ USE_NVPROF = bool(int(os.getenv('USE_NVPROF', 0)))
 USE_OPENSSL_EVP = bool(int(os.getenv('USE_OPENSSL_EVP', 1)))
 NO_HUGEPAGES = bool(int(os.getenv('NBA_NO_HUGE', 0)))
 # Values for batching scheme - 0: traditional, 1: continuous, 2: bitvector, 3: linkedlist
-BATCHING_SCHEME = int(os.getenv('NBA_BATCHING_SCHEME', 2))
+BATCHING_SCHEME = int(os.getenv('NBA_BATCHING_SCHEME', 0))
 PMD      = os.getenv('NBA_PMD', 'ixgbe')
 logger.debug(fmt('Compiling using {PMD} poll-mode driver...'))
 
