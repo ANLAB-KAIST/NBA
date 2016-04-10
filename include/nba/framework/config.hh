@@ -12,6 +12,7 @@
 #define NBA_MAX_COPROCESSORS        (2)     // Max number of coprocessor devices
 #define NBA_MAX_COPROCESSOR_TYPES   (1)     // Max number of coprocessor types
 
+
 #define NBA_BATCHING_TRADITIONAL    (0)
 #define NBA_BATCHING_CONTINUOUS     (1)
 #define NBA_BATCHING_BITVECTOR      (2)
@@ -20,6 +21,16 @@
 #ifndef NBA_BATCHING_SCHEME
 #define NBA_BATCHING_SCHEME         NBA_BATCHING_TRADITIONAL
 #endif
+
+
+#define NBA_BRANCHPRED_DISABLED     (0)    // disabled
+#define NBA_BRANCHPRED_ENABLED      (1)    // conditionally perform branch-pred
+#define NBA_BRANCHPRED_ALWAYS       (2)    // always perform branch-pred
+
+#ifndef NBA_BRANCHPRED_SCHEME
+#define NBA_BRANCHPRED_SCHEME       NBA_BRANCHPRED_DISABLED
+#endif
+
 
 #define NBA_MAX_PACKET_SIZE         (2048)
 #ifdef NBA_NO_HUGE

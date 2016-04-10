@@ -316,20 +316,20 @@ void ElementGraph::process_batch(PacketBatch *batch)
                 case 0:
                     // pass
                     break;
-                #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
                 case DROP:
-                    assert(0 == rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]));
+                    #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
+                    rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]);
+                    #endif
                     EXCLUDE_PACKET(batch, pkt_idx);
                     break;
-                #endif
-                case PENDING:
+                case PENDING: {
                     // remove from PacketBatch, but don't free..
                     // They are stored in io_thread_ctx::pended_pkt_queue.
                     EXCLUDE_PACKET(batch, pkt_idx);
-                    break;
-                case SLOWPATH:
+                    break; }
+                case SLOWPATH: {
                     rte_panic("SLOWPATH is not supported yet. (element: %s)\n", current_elem->class_name());
-                    break;
+                    break; }
                 }
             } END_FOR;
             #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
@@ -370,11 +370,20 @@ void ElementGraph::process_batch(PacketBatch *batch)
         const int *const results = batch->results;
         PacketBatch *out_batches[num_max_outputs];
         // TODO: implement per-batch handling for branches
-#ifndef NBA_DISABLE_BRANCH_PREDICTION
-#ifndef NBA_BRANCH_PREDICTION_ALWAYS
+
+        /*
+         * NBA_BRANCHPRED_DISABLED: use code path 2 only
+         * NBA_BRANCHPRED_ENABLED: use both code path 1 & 2
+         * NBA_BRANCHPRED_ALWAYS: use code path 1 only
+         */
+
+#if (NBA_BRANCHPRED_SCHEME == NBA_BRANCHPRED_ENABLED \
+     || NBA_BRANCHPRED_SCHEME == NBA_BRANCHPRED_ALWAYS)
+#  if NBA_BRANCHPRED_SCHEME != NBA_BRANCHPRED_ALWAYS
         /* use branch prediction when miss < total / 4. */
         if ((current_elem->branch_total >> 2) > (current_elem->branch_miss))
-#endif
+#  endif
+        /* Code Path 1: Use branch prediction. */
         {
             /* With multiple outputs, make copy of batches.
              * This does not copy the content of packets but the
@@ -410,27 +419,27 @@ void ElementGraph::process_batch(PacketBatch *batch)
                                 ev_run(ctx->io_ctx->loop, 0);
                             }
                             new (out_batches[o]) PacketBatch();
-                            anno_set(&out_batches[o]->banno, NBA_BANNO_LB_DECISION, lb_decision);
+                            anno_copy(&out_batches[o]->banno, &batch->banno);
                             out_batches[o]->recv_timestamp = batch->recv_timestamp;
+                            out_batches[o]->generation = batch->generation + 1;
                         }
-                        /* Append the packet to the output batch. */
                         ADD_PACKET(out_batches[o], batch->packets[pkt_idx]);
-                        /* Exclude it from the batch. */
                         EXCLUDE_PACKET(batch, pkt_idx);
                         break; }
-                    #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
-                    case DROP:
+                    case DROP: {
+                        #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
                         rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]);
-                        EXCLUDE_PACKET(batch, pkt_idx);
-                    #endif
-                    case PENDING: {
-                        /* The packet is stored in io_thread_ctx::pended_pkt_queue. */
-                        /* Exclude it from the batch. */
+                        #endif
                         EXCLUDE_PACKET(batch, pkt_idx);
                         break; }
-                    case SLOWPATH:
-                        assert(0); // Not implemented yet.
-                        break;
+                    case PENDING: {
+                        /* The packet is now stored in io_thread_ctx::pended_pkt_queue. */
+                        EXCLUDE_PACKET(batch, pkt_idx);
+                        break; }
+                    case SLOWPATH: {
+                        rte_panic("SLOWPATH not implemented. (element: %s)\n",
+                                  current_elem->class_name());
+                        break; }
                     }
                     current_elem->branch_miss++;
                 }
@@ -490,25 +499,24 @@ void ElementGraph::process_batch(PacketBatch *batch)
                 }
             }
         }
-#ifndef NBA_BRANCH_PREDICTION_ALWAYS
+#  if NBA_BRANCHPRED_SCHEME != NBA_BRANCHPRED_ALWAYS
         else
-#endif
-#endif
-#ifndef NBA_BRANCH_PREDICTION_ALWAYS
+#  endif
+#endif // endif(code-path-1)
+#if (NBA_BRANCHPRED_SCHEME == NBA_BRANCHPRED_DISABLED \
+     || NBA_BRANCHPRED_SCHEME == NBA_BRANCHPRED_ENABLED)
+        /* Code Path 2: No branch prediction. */
         {
+            /* Allocate and initialize copy-batches. */
             while (rte_mempool_get_bulk(ctx->batch_pool, (void **) out_batches, num_outputs) == -ENOENT
                    && !ctx->io_ctx->loop_broken) {
                 ev_run(ctx->io_ctx->loop, 0);
             }
-
-            // TODO: optimize by choosing/determining the "major" path and reuse the
-            //       batch for that path.
-
-            /* Initialize copy-batches. */
             for (unsigned o = 0; o < num_outputs; o++) {
                 new (out_batches[o]) PacketBatch();
-                anno_set(&out_batches[o]->banno, NBA_BANNO_LB_DECISION, lb_decision);
+                anno_copy(&out_batches[o]->banno, &batch->banno);
                 out_batches[o]->recv_timestamp = batch->recv_timestamp;
+                out_batches[o]->generation = batch->generation + 1;
             }
 
             /* Classify packets into copy-batches. */
@@ -516,32 +524,41 @@ void ElementGraph::process_batch(PacketBatch *batch)
                 int o = results[pkt_idx];
                 #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
                 if (o >= (signed) num_outputs || o < 0)
-                    printf("o=%d, num_outputs=%lu, %u/%u/%u\n", o, num_outputs, pkt_idx, batch->count, batch->drop_count);
+                    printf("o=%d, num_outputs=%lu, %u/%u/%u\n", o, num_outputs,
+                           pkt_idx, batch->count, batch->drop_count);
                 #else
                 if (o >= (signed) num_outputs || o < 0)
-                    printf("o=%d, num_outputs=%lu, %u/%u\n", o, num_outputs, pkt_idx, batch->count);
+                    printf("o=%d, num_outputs=%lu, %u/%u\n", o, num_outputs,
+                           pkt_idx, batch->count);
                 #endif
                 assert(o < (signed) num_outputs && o >= 0);
 
-                if (o >= 0) {
+                switch(o) {
+                HANDLE_ALL_PORTS: {
                     ADD_PACKET(out_batches[o], batch->packets[pkt_idx]);
-                #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
-                } else if (o == DROP) {
+                    break; }
+                case DROP: {
+                    #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
                     rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]);
-                #endif
-                } else if (o == PENDING) {
-                    // remove from PacketBatch, but don't free..
-                    // They are stored in io_thread_ctx::pended_pkt_queue.
-                } else if (o == SLOWPATH) {
-                    assert(0);
-                } else {
-                    rte_panic("Invalid packet disposition value. (element: %s, value: %d)\n", current_elem->class_name(), o);
+                    #endif
+                    break; }
+                case PENDING: {
+                    /* The packet is now stored in io_thread_ctx::pended_pkt_queue. */
+                    break; }
+                case SLOWPATH: {
+                    rte_panic("SLOWPATH not implemented. (element: %s)\n",
+                              current_elem->class_name());
+                    break; }
                 }
                 /* Packets are excluded from original batch in ALL cases. */
                 /* Therefore, we do not have to collect_excluded_packets()
                  * nor clean_drops()! */
                 EXCLUDE_PACKET_MARK_ONLY(batch, pkt_idx);
             } END_FOR;
+
+            /* With multiple outputs (branches happened), we have made
+             * copy-batches and the parent should free its batch. */
+            free_batch(batch);
 
             /* Recurse into the element subgraph starting from each
              * output port using copy-batches. */
@@ -552,7 +569,7 @@ void ElementGraph::process_batch(PacketBatch *batch)
 
                         if (ctx->inspector) {
                             ctx->inspector->tx_batch_count ++;
-                            ctx->inspector->tx_pkt_count += batch->count;
+                            ctx->inspector->tx_pkt_count += out_batches[o]->count;
                         }
 
                         /* We are at the end leaf of the pipeline. */
@@ -576,14 +593,10 @@ void ElementGraph::process_batch(PacketBatch *batch)
                     /* This batch is unused! */
                     free_batch(out_batches[o]);
                 }
-            }
-
-            /* With multiple outputs (branches happened), we have made
-             * copy-batches and the parent should free its batch. */
-            free_batch(batch);
+            } //endfor(recurse)
         }
-#endif
-    } /* endif(numoutputs) */
+#endif //endif(code-path-2)
+    } //endif(numoutputs)
 }
 
 void ElementGraph::process_offload_task(OffloadTask *otask)

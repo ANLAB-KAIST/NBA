@@ -120,6 +120,7 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
     int cnt = batch->count ++; \
     batch->packets[cnt] = pkt; \
     batch->excluded[cnt] = false; \
+    Packet::from_base(pkt)->mother = batch; \
 }
 
 
@@ -191,6 +192,7 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
     int cnt = batch->count ++; \
     batch->packets[cnt] = pkt; \
     batch->excluded[cnt] = false; \
+    Packet::from_base(pkt)->mother = batch; \
 }
 
 
@@ -282,6 +284,7 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
     int cnt = batch->count ++; \
     batch->packets[cnt] = pkt; \
     batch->mask |= (1llu << (64 - (pkt_idx + 1))); \
+    Packet::from_base(pkt)->mother = batch; \
 }
 
 
@@ -384,6 +387,7 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
     batch->packets[new_idx] = raw_pkt; \
     batch->last_idx = new_idx; \
     batch->count ++; \
+    Packet::from_base(pkt)->mother = batch; \
 }
 
 
