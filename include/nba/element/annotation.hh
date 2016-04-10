@@ -10,24 +10,24 @@ namespace nba {
 /* Predefined per-packet annotations */
 enum PacketAnnotationKind
 {
-	NBA_ANNO_IFACE_IN = 0,
-	NBA_ANNO_IFACE_OUT,
-	NBA_ANNO_TIMESTAMP,
-	NBA_ANNO_BATCH_ID,
-	NBA_ANNO_IPSEC_FLOW_ID,
-	NBA_ANNO_IPSEC_IV1,
-	NBA_ANNO_IPSEC_IV2,
+    NBA_ANNO_IFACE_IN = 0,
+    NBA_ANNO_IFACE_OUT,
+    NBA_ANNO_TIMESTAMP,
+    NBA_ANNO_BATCH_ID,
+    NBA_ANNO_IPSEC_FLOW_ID,
+    NBA_ANNO_IPSEC_IV1,
+    NBA_ANNO_IPSEC_IV2,
 
-	//End of PacketAnnotationKind
-	NBA_MAX_ANNOTATION_SET_SIZE
+    //End of PacketAnnotationKind
+    NBA_MAX_ANNOTATION_SET_SIZE
 };
 
 enum BatchAnnotationKind
 {
-	NBA_BANNO_LB_DECISION = 0,
+    NBA_BANNO_LB_DECISION = 0,
 
-	//End of PacketAnnotationKind
-	NBA_MAX_BANNOTATION_SET_SIZE
+    //End of PacketAnnotationKind
+    NBA_MAX_BANNOTATION_SET_SIZE
 };
 
 struct annotation_set {
@@ -50,6 +50,18 @@ static inline int64_t anno_get(struct annotation_set *anno_item,
 {
     assert(anno_item->bitmask & (1 << anno_id));
     return anno_item->values[anno_id];
+}
+
+static inline void anno_copy(struct annotation_set *dst,
+                             struct annotation_set *src)
+{
+    dst->bitmask = src->bitmask;
+    uint64_t mask = src->bitmask;
+    while (mask != 0) {
+        const unsigned anno_idx = __builtin_ctzll(mask);
+        mask &= ~(1llu << anno_idx);
+        dst->values[anno_idx] = src->values[anno_idx];
+    }
 }
 
 // TODO: implement custom annotation mapping
