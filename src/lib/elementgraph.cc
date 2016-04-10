@@ -40,7 +40,7 @@ ElementGraph::ElementGraph(comp_thread_context *ctx)
     input_elem = nullptr;
     assert(0 == rte_malloc_validate(ctx, NULL));
 
-#ifdef NBA_REUSE_DATABLOCKS
+#if NBA_REUSE_DATABLOCKS == 1
     struct rte_hash_parameters hparams;
     char namebuf[RTE_HASH_NAMESIZE];
     snprintf(namebuf, RTE_HASH_NAMESIZE, "elemgraph@%u.%u:offl_actions",
@@ -648,7 +648,7 @@ void ElementGraph::add_offload_action(struct offload_action_key *key)
 
 bool ElementGraph::check_preproc(OffloadableElement *oel, int dbid)
 {
-#ifdef NBA_REUSE_DATABLOCKS
+#if NBA_REUSE_DATABLOCKS == 1
     struct offload_action_key key = { (void *) oel, dbid, ELEM_OFFL_PREPROC };
     return (rte_hash_lookup(offl_actions, &key) >= 0);
 #else
@@ -658,7 +658,7 @@ bool ElementGraph::check_preproc(OffloadableElement *oel, int dbid)
 
 bool ElementGraph::check_postproc(OffloadableElement *oel, int dbid)
 {
-#ifdef NBA_REUSE_DATABLOCKS
+#if NBA_REUSE_DATABLOCKS == 1
     struct offload_action_key key = { (void *) oel, dbid, ELEM_OFFL_POSTPROC };
     return (rte_hash_lookup(offl_actions, &key) >= 0);
 #else
@@ -668,7 +668,7 @@ bool ElementGraph::check_postproc(OffloadableElement *oel, int dbid)
 
 bool ElementGraph::check_postproc_all(OffloadableElement *oel)
 {
-#ifdef NBA_REUSE_DATABLOCKS
+#if NBA_REUSE_DATABLOCKS == 1
     struct offload_action_key key = { (void *) oel, -1, ELEM_OFFL_POSTPROC_FIN };
     return (rte_hash_lookup(offl_actions, &key) >= 0);
 #else

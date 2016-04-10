@@ -35,7 +35,11 @@ USE_NVPROF = bool(int(os.getenv('USE_NVPROF', 0)))
 USE_OPENSSL_EVP = bool(int(os.getenv('USE_OPENSSL_EVP', 1)))
 NO_HUGEPAGES = bool(int(os.getenv('NBA_NO_HUGE', 0)))
 # Values for batching scheme - 0: traditional, 1: continuous, 2: bitvector, 3: linkedlist
-BATCHING_SCHEME = int(os.getenv('NBA_BATCHING_SCHEME', 0))
+BATCHING_SCHEME   = int(os.getenv('NBA_BATCHING_SCHEME', 0))
+# Values for branchpred scheme - 0: disabled, 1: enabled, 2: always
+BRANCHPRED_SCHEME = int(os.getenv('NBA_BRANCHPRED_SCHEME', 0))
+# Values for reuse datablocks - 0: disabled, 1: enabled
+REUSE_DATABLOCKS = int(os.getenv('NBA_REUSE_DATABLOCKS', 0))
 PMD      = os.getenv('NBA_PMD', 'ixgbe')
 logger.debug(fmt('Compiling using {PMD} poll-mode driver...'))
 
@@ -110,6 +114,8 @@ if USE_NVPROF:      CFLAGS += ' -DUSE_NVPROF'
 if NO_HUGEPAGES:    CFLAGS += ' -DNBA_NO_HUGE'
 CFLAGS += ' -DNBA_PMD_{0}'.format(PMD.upper())
 CFLAGS += ' -DNBA_BATCHING_SCHEME={0}'.format(BATCHING_SCHEME)
+CFLAGS += ' -DNBA_BRANCHPRED_SCHEME={0}'.format(BRANCHPRED_SCHEME)
+CFLAGS += ' -DNBA_REUSE_DATABLOCKS={0}'.format(REUSE_DATABLOCKS)
 
 # User-defined variables
 v = os.getenv('NBA_SLEEPY_IO', 0)

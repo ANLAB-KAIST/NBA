@@ -32,6 +32,14 @@
 #endif
 
 
+#define NBA_REUSE_DATABLOCKS_DISABLED  (0)
+#define NBA_REUSE_DATABLOCKS_ENABLED   (1)
+
+#ifndef NBA_REUSE_DATABLOCKS
+#define NBA_REUSE_DATABLOCKS        NBA_REUSE_DATABLOCKS_ENABLED
+#endif
+
+
 #define NBA_MAX_PACKET_SIZE         (2048)
 #ifdef NBA_NO_HUGE
   #define NBA_MAX_IO_BATCH_SIZE      (4u)
@@ -72,7 +80,6 @@
 
 #undef NBA_IPFWD_RR_NODE_LOCAL
 
-#define NBA_REUSE_DATABLOCKS
 
 /* If you change below, update HANDLE_ALL_PORTS macro in lib/element.hh as well!! */
 #define NBA_MAX_ELEM_NEXTS (4)

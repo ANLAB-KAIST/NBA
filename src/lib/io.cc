@@ -161,7 +161,7 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
         uint64_t total_batch_size = 0;
         for (PacketBatch *batch : task->batches)
             total_batch_size += batch->count;
-        #ifdef NBA_REUSE_DATABLOCKS
+        #if NBA_REUSE_DATABLOCKS == 1
         if (ctx->elem_graph->check_next_offloadable(task->elem)) {
             for (PacketBatch *batch : task->batches) {
                 batch->compute_time += (uint64_t)
