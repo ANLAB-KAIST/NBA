@@ -252,14 +252,13 @@ if __name__ == '__main__':
             dir_name = os.path.join(dir_prefix, dir_name)
         base_path = os.path.join(os.path.expanduser('~/Dropbox/temp/plots/nba'), dir_name)
         os.makedirs(base_path, exist_ok=True)
-        base_filename = os.path.join(base_path, base_conf_name)
         with open(os.path.join(base_path, 'version.txt'), 'w') as fout:
             print(env.get_current_commit(short=False), file=fout)
-        all_tput_recs.to_csv(base_filename + '.thruput.pernode.csv', float_format='%.2f')
-        system_tput.to_csv(base_filename + '.thruput.csv', float_format='%.2f')
+        all_tput_recs.to_csv(os.path.join(base_path, 'thruput.pernode.csv'), float_format='%.2f')
+        system_tput.to_csv(os.path.join(base_path, 'thruput.csv'), float_format='%.2f')
         for conds, cdf in all_latency_cdfs.items():
-            conds_str = '{4}'.format(*conds)  # only pktsz
-            cdf.to_csv(base_filename + '.latency.' + conds_str + '.csv', float_format='%.6f')
+            conds_str = '{5}'.format(*conds)  # only pktsz
+            cdf.to_csv(os.path.join(base_path, 'latency.' + conds_str + '.csv'), float_format='%.6f')
         env.fix_ownership(base_path)
     print('all done.')
     sys.exit(0)

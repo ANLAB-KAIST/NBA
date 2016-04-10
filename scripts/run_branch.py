@@ -11,7 +11,7 @@ if __name__ == '__main__':
     args.bin = 'bin-backup/main.branchpred.' + args.branch_pred_type
 
     #branch_configs = ["l2fwd-echo-branch-lv1.click"]#, "l2fwd-echo-branch-lv2.click", "l2fwd-echo-branch-lv3.click"]
-    branch_config = 'configs/l2fwd-echo-skewed-branch-lv3.click'
+    branch_config = 'l2fwd-echo-skewed-branch-lv3.click'
     #branch_ratios = [50, 40, 30, 20, 10, 5, 1]
     branch_ratios = [99, 95, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 1]
 
@@ -26,7 +26,8 @@ if __name__ == '__main__':
 
         high_branch = '{:.2f}'.format((100 - ratio) / 100)
         low_branch  = '{:.2f}'.format((ratio) / 100)
-        with open(branch_config, 'r') as infile, open(gen_path, 'w') as outfile:
+        with open(os.path.join('configs', branch_config), 'r') as infile, \
+             open(os.path.join('configs', gen_path), 'w') as outfile:
             data_in  = infile.read()
             data_out = data_in.format(high_branch, low_branch, 'echoback');
             print(data_out, file=outfile, end='')
@@ -47,4 +48,4 @@ if __name__ == '__main__':
     # Delete templated configs.
     os.chdir('..')
     for path in conf_paths:
-        os.unlink(path)
+        os.unlink(os.path.join('configs', path))
