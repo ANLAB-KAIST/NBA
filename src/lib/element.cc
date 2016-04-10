@@ -47,7 +47,6 @@ int Element::_process_batch(int input_port, PacketBatch *batch)
     batch->drop_count = 0;
     #endif
     FOR_EACH_PACKET(batch) {
-        assert(batch->packets[pkt_idx] != nullptr);
         Packet *pkt = Packet::from_base(batch->packets[pkt_idx]);
         pkt->bidx = pkt_idx;
         this->process(input_port, pkt);

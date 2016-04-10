@@ -3,6 +3,7 @@
 #include <limits>
 #include <stdexcept>
 #include <vector>
+#include <nba/core/enumerate.hh>
 
 using namespace std;
 using namespace nba;
@@ -20,36 +21,35 @@ int RandomWeightedBranch::initialize()
 int RandomWeightedBranch::configure(comp_thread_context *ctx, std::vector<std::string> &args)
 {
     Element::configure(ctx, args);
-    float total_sum = 0.0f;
-    for (auto it = args.begin(); it != args.end(); it++) {
-        float p = stof(*it) / 100.0f;
-        total_sum += p;
-    }
-
     float sum = 0.0f;
-    for (auto it = args.begin(); it != args.end(); it++) {
-        float p = stof(*it) / 100.0f;
+    for (auto& arg : args) {
+        float p = stof(arg);
         sum += p;
-        out_probs.push_back(sum/total_sum);
+        out_probs.push_back(sum);
     }
-
-    if (!approx_equal(sum/total_sum, 1.0f))
-        throw invalid_argument("The sum of output probabilities must be exactly 1 (100%).");
+    /* Example input: 0.2, 0.8
+     * Example out_probs:
+     * (0, 0.2)
+     * (1, 1.0)
+     */
+    if (!approx_equal(sum, 1.0f))
+        throw invalid_argument("The sum of output probabilities must be exactly 1.0 (100%).");
     return 0;
 }
 
 int RandomWeightedBranch::process(int input_port, Packet *pkt)
 {
     float x = uniform_dist(random_generator);
-    int idx = 0;
-    for (auto cur = out_probs.begin(); cur != out_probs.end(); cur++) {
-        if(x < *cur) {
-            output(idx).push(pkt);
+    int last_idx = 0;
+    for (auto&& pair : enumerate(out_probs)) {
+        if (x < pair.second) {
+            output(pair.first).push(pkt);
             return 0;
         }
-        idx++;
+        last_idx = pair.first;
     }
-    output(idx - 1).push(pkt);
+    /* Safeguard. */
+    output(last_idx).push(pkt);
     return 0;
 }
 
