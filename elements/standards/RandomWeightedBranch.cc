@@ -22,6 +22,8 @@ int RandomWeightedBranch::configure(comp_thread_context *ctx, std::vector<std::s
 {
     Element::configure(ctx, args);
     float sum = 0.0f;
+    if (args.size() > max_num_args)
+        throw invalid_argument("You cannot set too many arguments.");
     for (auto& arg : args) {
         float p = stof(arg);
         sum += p;

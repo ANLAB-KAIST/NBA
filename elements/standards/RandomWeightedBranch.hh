@@ -2,6 +2,7 @@
 #define __NBA_ELEMENT_RANDOMWEIGHTEDBRANCH_HH__
 
 #include <nba/element/element.hh>
+#include <nba/core/queue.hh>
 #include <vector>
 #include <string>
 #include <random>
@@ -30,7 +31,8 @@ public:
     int process(int input_port, Packet *pkt);
 
 private:
-    std::vector<float> out_probs;
+    static const size_t max_num_args = 10;
+    FixedArray<float, max_num_args> out_probs;
     std::uniform_real_distribution<float> uniform_dist;
     std::default_random_engine random_generator;
 } __attribute__ ((aligned(64)));
