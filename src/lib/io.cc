@@ -236,9 +236,6 @@ static size_t comp_process_batch(io_thread_context *ctx, void *pkts, size_t coun
     batch->count = count;
     INIT_BATCH_MASK(batch);
     batch->recv_timestamp = t;
-    batch->compute_time = 0;
-    batch->delay_start = 0;
-    batch->delay_time = 0;
     batch->batch_id = recv_batch_cnt;
     #if NBA_BATCHING_SCHEME == NBA_BATCHING_LINKEDLIST
     batch->first_idx = 0;

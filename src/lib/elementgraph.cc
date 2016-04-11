@@ -385,10 +385,9 @@ void ElementGraph::process_batch(PacketBatch *batch)
 #  endif
         /* Code Path 1: Use branch prediction. */
         {
-            /* With multiple outputs, make copy of batches.
-             * This does not copy the content of packets but the
-             * pointers to packets. */
-            int predicted_output = 0; //TODO set to right prediction
+            /* Get the index of the output port for which most packets have
+             * took their path. */
+            int predicted_output = 0;
             uint64_t current_max = 0;
             for (unsigned k = 0; k < current_elem->next_elems.size(); k++) {
                 if (current_max < current_elem->branch_count[k]) {
@@ -396,11 +395,10 @@ void ElementGraph::process_batch(PacketBatch *batch)
                     predicted_output = k;
                 }
             }
-
-            memset(out_batches, 0, num_max_outputs*sizeof(PacketBatch *));
+            memset(out_batches, 0, num_max_outputs * sizeof(PacketBatch *));
             out_batches[predicted_output] = batch;
 
-            /* Classify packets into copy-batches. */
+            /* Classify packets into copy-batches... */
             #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
             batch->has_dropped = false;
             #endif
@@ -408,7 +406,7 @@ void ElementGraph::process_batch(PacketBatch *batch)
                 int o = results[pkt_idx];
                 assert(o < (signed) num_outputs);
 
-                /* Prediction mismatch! */
+                /* ...except for the reused batch. */
                 if (unlikely(o != predicted_output)) {
                     switch(o) {
                     HANDLE_ALL_PORTS: {
@@ -422,25 +420,24 @@ void ElementGraph::process_batch(PacketBatch *batch)
                             anno_copy(&out_batches[o]->banno, &batch->banno);
                             out_batches[o]->recv_timestamp = batch->recv_timestamp;
                             out_batches[o]->generation = batch->generation + 1;
+                            INIT_BATCH_MASK(out_batches[o]);
                         }
                         ADD_PACKET(out_batches[o], batch->packets[pkt_idx]);
-                        EXCLUDE_PACKET(batch, pkt_idx);
                         break; }
                     case DROP: {
                         #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
                         rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]);
                         #endif
-                        EXCLUDE_PACKET(batch, pkt_idx);
                         break; }
                     case PENDING: {
                         /* The packet is now stored in io_thread_ctx::pended_pkt_queue. */
-                        EXCLUDE_PACKET(batch, pkt_idx);
                         break; }
                     case SLOWPATH: {
                         rte_panic("SLOWPATH not implemented. (element: %s)\n",
                                   current_elem->class_name());
                         break; }
                     }
+                    EXCLUDE_PACKET(batch, pkt_idx);
                     current_elem->branch_miss++;
                 }
                 current_elem->branch_total++;
@@ -517,6 +514,7 @@ void ElementGraph::process_batch(PacketBatch *batch)
                 anno_copy(&out_batches[o]->banno, &batch->banno);
                 out_batches[o]->recv_timestamp = batch->recv_timestamp;
                 out_batches[o]->generation = batch->generation + 1;
+                INIT_BATCH_MASK(out_batches[o]);
             }
 
             /* Classify packets into copy-batches. */
@@ -590,7 +588,7 @@ void ElementGraph::process_batch(PacketBatch *batch)
                         queue.push_back(Task::to_task(out_batches[o]));
                     }
                 } else {
-                    /* This batch is unused! */
+                    /* This batch is allocated above, but no packet has come. */
                     free_batch(out_batches[o]);
                 }
             } //endfor(recurse)
