@@ -2,7 +2,7 @@
 #define __NBA_ELEMENT_RANDOMWEIGHTEDBRANCH_HH__
 
 #include <nba/element/element.hh>
-#include <nba/core/queue.hh>
+#include <nba/core/intrinsic.hh>
 #include <vector>
 #include <string>
 #include <random>
@@ -11,8 +11,7 @@ namespace nba {
 
 class RandomWeightedBranch : public Element {
 public:
-    RandomWeightedBranch(): Element(), out_probs(),
-                    uniform_dist(0.0f, 1.0f), random_generator()
+    RandomWeightedBranch(): Element(), ddist(), gen()
     {
     }
 
@@ -31,11 +30,9 @@ public:
     int process(int input_port, Packet *pkt);
 
 private:
-    static const size_t max_num_args = 10;
-    FixedArray<float, max_num_args> out_probs;
-    std::uniform_real_distribution<float> uniform_dist;
-    std::default_random_engine random_generator;
-} __attribute__ ((aligned(64)));
+    std::discrete_distribution<int> ddist;
+    std::default_random_engine gen;
+} __cache_aligned;
 
 EXPORT_ELEMENT(RandomWeightedBranch);
 
