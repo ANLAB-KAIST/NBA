@@ -39,7 +39,7 @@ BATCHING_SCHEME   = int(os.getenv('NBA_BATCHING_SCHEME', 0))
 # Values for branchpred scheme - 0: disabled, 1: enabled, 2: always
 BRANCHPRED_SCHEME = int(os.getenv('NBA_BRANCHPRED_SCHEME', 0))
 # Values for reuse datablocks - 0: disabled, 1: enabled
-REUSE_DATABLOCKS = int(os.getenv('NBA_REUSE_DATABLOCKS', 0))
+REUSE_DATABLOCKS = int(os.getenv('NBA_REUSE_DATABLOCKS', 1))
 PMD      = os.getenv('NBA_PMD', 'ixgbe')
 logger.debug(fmt('Compiling using {PMD} poll-mode driver...'))
 
