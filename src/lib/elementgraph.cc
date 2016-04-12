@@ -398,6 +398,12 @@ void ElementGraph::process_batch(PacketBatch *batch)
             memset(out_batches, 0, num_max_outputs * sizeof(PacketBatch *));
             out_batches[predicted_output] = batch;
 
+            /* Reset branch counters. */
+            for (unsigned k = 0; k < current_elem->next_elems.size(); k++) {
+                current_elem->branch_total = 0;
+                current_elem->branch_count[k] = 0;
+            }
+
             /* Classify packets into copy-batches... */
             #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
             batch->has_dropped = false;
@@ -405,6 +411,8 @@ void ElementGraph::process_batch(PacketBatch *batch)
             FOR_EACH_PACKET(batch) {
                 int o = results[pkt_idx];
                 assert(o < (signed) num_outputs);
+                current_elem->branch_total++;
+                current_elem->branch_count[o]++;
 
                 /* ...except for the reused batch. */
                 if (unlikely(o != predicted_output)) {
@@ -412,7 +420,7 @@ void ElementGraph::process_batch(PacketBatch *batch)
                     HANDLE_ALL_PORTS: {
                         if (!out_batches[o]) {
                             /* out_batch is not allocated yet... */
-                            while (rte_mempool_get(ctx->batch_pool, (void**)(out_batches + o)) == -ENOENT
+                            while (rte_mempool_get(ctx->batch_pool, (void**)&out_batches[o]) == -ENOENT
                                    && !ctx->io_ctx->loop_broken) {
                                 ev_run(ctx->io_ctx->loop, 0);
                             }
@@ -420,6 +428,7 @@ void ElementGraph::process_batch(PacketBatch *batch)
                             anno_copy(&out_batches[o]->banno, &batch->banno);
                             out_batches[o]->recv_timestamp = batch->recv_timestamp;
                             out_batches[o]->generation = batch->generation + 1;
+                            out_batches[o]->count = 0;
                             INIT_BATCH_MASK(out_batches[o]);
                         }
                         ADD_PACKET(out_batches[o], batch->packets[pkt_idx]);
@@ -440,8 +449,6 @@ void ElementGraph::process_batch(PacketBatch *batch)
                     EXCLUDE_PACKET(batch, pkt_idx);
                     current_elem->branch_miss++;
                 }
-                current_elem->branch_total++;
-                current_elem->branch_count[o]++;
             } END_FOR;
 
             // NOTE: out_batches[predicted_output] == batch
@@ -452,13 +459,13 @@ void ElementGraph::process_batch(PacketBatch *batch)
             batch->clean_drops(ctx->io_ctx->drop_queue);
             #endif
 
-            if (current_elem->branch_total & BRANCH_TRUNC_LIMIT) {
-                //double percentage = ((double)(current_elem->branch_total-current_elem->branch_miss) / (double)current_elem->branch_total);
-                //printf("%s: prediction: %f\n", current_elem->class_name(), percentage);
-                current_elem->branch_miss = current_elem->branch_total = 0;
-                for (unsigned k = 0; k < current_elem->next_elems.size(); k++)
-                    current_elem->branch_count[k] = current_elem->branch_count[k] >> 1;
-            }
+            //if (current_elem->branch_total & BRANCH_TRUNC_LIMIT) {
+            //    //double percentage = ((double)(current_elem->branch_total-current_elem->branch_miss) / (double)current_elem->branch_total);
+            //    //printf("%s: prediction: %f\n", current_elem->class_name(), percentage);
+            //    current_elem->branch_miss = current_elem->branch_total = 0;
+            //    for (unsigned k = 0; k < current_elem->next_elems.size(); k++)
+            //        current_elem->branch_count[k] = current_elem->branch_count[k] >> 1;
+            //}
 
             /* Recurse into the element subgraph starting from each
              * output port using copy-batches. */
@@ -514,6 +521,7 @@ void ElementGraph::process_batch(PacketBatch *batch)
                 anno_copy(&out_batches[o]->banno, &batch->banno);
                 out_batches[o]->recv_timestamp = batch->recv_timestamp;
                 out_batches[o]->generation = batch->generation + 1;
+                out_batches[o]->count = 0;
                 INIT_BATCH_MASK(out_batches[o]);
             }
 
