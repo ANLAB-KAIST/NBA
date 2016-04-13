@@ -1,3 +1,4 @@
+#include <nba/core/intrinsic.hh>
 #include <nba/framework/config.hh>
 #include <nba/framework/elementgraph.hh>
 #include <nba/framework/logging.hh>
@@ -383,26 +384,37 @@ void ElementGraph::process_batch(PacketBatch *batch)
         /* use branch prediction when miss < total / 4. */
         if ((current_elem->branch_total >> 2) > (current_elem->branch_miss))
 #  endif
+#  pragma message "Branch prediction path enabled."
         /* Code Path 1: Use branch prediction. */
         {
+            /* Allocate copy-batches, but do NOT initialize them yet. */
+            while (rte_mempool_get_bulk(ctx->batch_pool,
+                                        (void **) &out_batches,
+                                        num_outputs) == -ENOENT
+                   && !ctx->io_ctx->loop_broken)
+            {
+                ev_run(ctx->io_ctx->loop, 0);
+            }
+            bool out_batches_used[num_outputs];
+            memzero(out_batches_used, num_outputs);
+
             /* Get the index of the output port for which most packets have
              * took their path. */
             int predicted_output = 0;
             uint64_t current_max = 0;
-            for (unsigned k = 0; k < current_elem->next_elems.size(); k++) {
+            for (unsigned k = 0; k < num_outputs; k++) {
                 if (current_max < current_elem->branch_count[k]) {
                     current_max = current_elem->branch_count[k];
                     predicted_output = k;
                 }
             }
-            memset(out_batches, 0, num_max_outputs * sizeof(PacketBatch *));
+            rte_mempool_put(ctx->batch_pool, out_batches[predicted_output]);
             out_batches[predicted_output] = batch;
+            out_batches_used[predicted_output] = true;
 
             /* Reset branch counters. */
-            for (unsigned k = 0; k < current_elem->next_elems.size(); k++) {
-                current_elem->branch_total = 0;
-                current_elem->branch_count[k] = 0;
-            }
+            current_elem->branch_total = 0;
+            memzero(current_elem->branch_count, num_outputs);
 
             /* Classify packets into copy-batches... */
             #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
@@ -418,12 +430,9 @@ void ElementGraph::process_batch(PacketBatch *batch)
                 if (unlikely(o != predicted_output)) {
                     switch(o) {
                     HANDLE_ALL_PORTS: {
-                        if (!out_batches[o]) {
-                            /* out_batch is not allocated yet... */
-                            while (rte_mempool_get(ctx->batch_pool, (void**)&out_batches[o]) == -ENOENT
-                                   && !ctx->io_ctx->loop_broken) {
-                                ev_run(ctx->io_ctx->loop, 0);
-                            }
+                        if (unlikely(!out_batches_used[o])) {
+                            /* out_batch is not initialized yet... */
+                            out_batches_used[o] = true;
                             new (out_batches[o]) PacketBatch();
                             anno_copy(&out_batches[o]->banno, &batch->banno);
                             out_batches[o]->recv_timestamp = batch->recv_timestamp;
@@ -455,7 +464,8 @@ void ElementGraph::process_batch(PacketBatch *batch)
             #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
             if (batch->has_dropped)
                 batch->collect_excluded_packets();
-            if (ctx->inspector) ctx->inspector->drop_pkt_count += batch->drop_count;
+            if (ctx->inspector)
+                ctx->inspector->drop_pkt_count += batch->drop_count;
             batch->clean_drops(ctx->io_ctx->drop_queue);
             #endif
 
@@ -470,8 +480,8 @@ void ElementGraph::process_batch(PacketBatch *batch)
             /* Recurse into the element subgraph starting from each
              * output port using copy-batches. */
             for (unsigned o = 0; o < num_outputs; o++) {
-                if (out_batches[o] && out_batches[o]->count > 0) {
-                    assert(current_elem->next_elems[o] != NULL);
+                if (likely(out_batches_used[o])) {
+                    assert(current_elem->next_elems[o] != nullptr);
                     if (current_elem->next_elems[o]->get_type() & ELEMTYPE_OUTPUT) {
 
                         if (ctx->inspector) {
@@ -498,8 +508,7 @@ void ElementGraph::process_batch(PacketBatch *batch)
                     }
                 } else {
                     /* This batch is unused! */
-                    if (out_batches[o])
-                        free_batch(out_batches[o]);
+                    rte_mempool_put(ctx->batch_pool, out_batches[o]);
                 }
             }
         }
@@ -509,11 +518,15 @@ void ElementGraph::process_batch(PacketBatch *batch)
 #endif // endif(code-path-1)
 #if (NBA_BRANCHPRED_SCHEME == NBA_BRANCHPRED_DISABLED \
      || NBA_BRANCHPRED_SCHEME == NBA_BRANCHPRED_ENABLED)
+#  pragma message "Non-branch prediction path enabled."
         /* Code Path 2: No branch prediction. */
         {
             /* Allocate and initialize copy-batches. */
-            while (rte_mempool_get_bulk(ctx->batch_pool, (void **) out_batches, num_outputs) == -ENOENT
-                   && !ctx->io_ctx->loop_broken) {
+            while (rte_mempool_get_bulk(ctx->batch_pool,
+                                        (void **) out_batches,
+                                        num_outputs) == -ENOENT
+                   && !ctx->io_ctx->loop_broken)
+            {
                 ev_run(ctx->io_ctx->loop, 0);
             }
             for (unsigned o = 0; o < num_outputs; o++) {
@@ -569,7 +582,7 @@ void ElementGraph::process_batch(PacketBatch *batch)
             /* Recurse into the element subgraph starting from each
              * output port using copy-batches. */
             for (unsigned o = 0; o < num_outputs; o++) {
-                if (out_batches[o]->count > 0) {
+                if (likely(out_batches[o]->count > 0)) {
                     assert(current_elem->next_elems[o] != NULL);
                     if (current_elem->next_elems[o]->get_type() & ELEMTYPE_OUTPUT) {
 

@@ -89,6 +89,8 @@ static inline uint64_t rdtscp(void)
     return ((uint64_t)low | ((uint64_t)high << 32));
 }
 
+#define memzero(ptr, n) memset((ptr), 0, sizeof(decltype((ptr)[0])) * (n))
+
 }
 
 #endif
