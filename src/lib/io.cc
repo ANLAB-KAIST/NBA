@@ -322,7 +322,7 @@ static void io_local_stat_timer_cb(struct ev_loop *loop, struct ev_timer *watche
         rte_atomic64_add(&ctx->node_stat->port_stats[j].num_recv_bytes, ctx->port_stats[j].num_recv_bytes);
         rte_atomic64_add(&ctx->node_stat->port_stats[j].num_sent_bytes, ctx->port_stats[j].num_sent_bytes);
         ctx->tx_pkt_thruput += ctx->port_stats[j].num_sent_pkts;
-        memset(&ctx->port_stats[j], 0, sizeof(struct io_port_stat));
+        memzero(&ctx->port_stats[j], 1);
     }
  #ifdef NBA_CPU_MICROBENCH
     char buf[2048];
@@ -352,7 +352,7 @@ static void io_node_stat_cb(struct ev_loop *loop, struct ev_async *watcher, int 
     if (rte_atomic16_cmpset((volatile uint16_t *) &ctx->node_master_flag->cnt, node_stat->num_threads, 0)) {
         unsigned j;
         struct io_thread_stat total;
-        memset(&total, 0, sizeof(struct io_thread_stat));
+        memzero(&total, 1);
         struct io_thread_stat *last_total = &node_stat->last_total;
         struct rte_eth_stats s;
         for (j = 0; j < node_stat->num_ports; j++) {
@@ -414,7 +414,7 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
 {
     struct rte_mbuf *out_batches[NBA_MAX_PORTS][NBA_MAX_COMP_BATCH_SIZE];
     unsigned out_batches_cnt[NBA_MAX_PORTS];
-    memset(out_batches_cnt, 0, sizeof(unsigned) * NBA_MAX_PORTS);
+    memzero(out_batches_cnt, NBA_MAX_PORTS);
     uint64_t t = rdtscp();
     int64_t proc_id = anno_get(&batch->banno, NBA_BANNO_LB_DECISION) + 1; // adjust range to be positive
     ctx->comp_ctx->inspector->update_batch_proc_time(t - batch->recv_timestamp);
@@ -633,7 +633,7 @@ int io_loop(void *arg)
     ctx->port_stats = (struct io_port_stat *) rte_malloc_socket("io_port_stat",
                                                                 sizeof(struct io_port_stat) * ctx->node_stat->num_ports,
                                                                 CACHE_LINE_SIZE, ctx->loc.node_id);
-    memset(ctx->port_stats, 0, sizeof(struct io_port_stat) * ctx->node_stat->num_ports);
+    memzero(ctx->port_stats, ctx->node_stat->num_ports);
 
     /* Initialize statistics timer. */
     if (ctx->loc.local_thread_idx == 0) {

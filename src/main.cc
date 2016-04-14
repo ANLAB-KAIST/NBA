@@ -287,7 +287,7 @@ int main(int argc, char **argv)
 
     /* Prepare per-port configurations. */
     struct rte_eth_conf port_conf;
-    memset(&port_conf, 0, sizeof(port_conf));
+    memzero(&port_conf, 1);
     port_conf.rxmode.mq_mode        = ETH_RSS;
 
     uint8_t hash_key[40];
@@ -314,7 +314,7 @@ int main(int argc, char **argv)
 
     /* Per RX-queue configuration */
     struct rte_eth_rxconf rx_conf;
-    memset(&rx_conf, 0, sizeof(rx_conf));
+    memzero(&rx_conf, 1);
     rx_conf.rx_thresh.pthresh = 8;
     rx_conf.rx_thresh.hthresh = 4;
     rx_conf.rx_thresh.wthresh = 4;
@@ -324,7 +324,7 @@ int main(int argc, char **argv)
 
     /* Per TX-queue configuration */
     struct rte_eth_txconf tx_conf;
-    memset(&tx_conf, 0, sizeof(tx_conf));
+    memzero(&tx_conf, 1);
     tx_conf.tx_thresh.pthresh = 36;
     tx_conf.tx_thresh.hthresh = 4;
     tx_conf.tx_thresh.wthresh = 0;
@@ -344,9 +344,7 @@ int main(int argc, char **argv)
     const uint16_t mbuf_size = RTE_PKTMBUF_HEADROOM + NBA_MAX_PACKET_SIZE;
 
     /* Initialize per-node information. */
-    for (unsigned node_idx = 0; node_idx < num_nodes; node_idx ++) {
-        memset(&node_ports[node_idx], 0, sizeof(node_ports[0]));
-    }
+    memzero(node_ports, num_nodes);
 
     struct rte_mempool* rx_mempools[NBA_MAX_PORTS][NBA_MAX_QUEUES_PER_PORT] = {{0,}};  // for debugging
     struct rte_mempool* newpkt_mempools[NBA_MAX_PORTS][NBA_MAX_QUEUES_PER_PORT] = {{0,}};
@@ -448,7 +446,7 @@ int main(int argc, char **argv)
         queues = new struct rte_ring*[queue_confs.size()];
         qwatchers = new struct ev_async*[queue_confs.size()];
         queue_privs = new void*[queue_confs.size()];
-        memset(queue_privs, 0, sizeof(void*) * queue_confs.size());
+        memzero(queue_privs, queue_confs.size());
 
         unsigned qidx = 0;
         for (struct queue_conf &conf : queue_confs) {
@@ -685,7 +683,7 @@ int main(int argc, char **argv)
                     ctx->task_completion_watcher = qwatchers[conf.taskoutq_idx];
                     ctx->coproc_ctx = coproc_ctx;
                     RTE_LOG(DEBUG, MAIN, "Registering %lu datablocks...\n", num_datablocks);
-                    memset(ctx->datablock_registry, 0, sizeof(DataBlock*) * NBA_MAX_DATABLOCKS);
+                    memzero(ctx->datablock_registry, NBA_MAX_DATABLOCKS);
                     for (unsigned dbid = 0; dbid < num_datablocks; dbid++) {
                         ctx->datablock_registry[dbid] = (datablock_ctors[dbid])();
                         ctx->datablock_registry[dbid]->set_id(dbid);
@@ -803,7 +801,7 @@ int main(int argc, char **argv)
                 node_stats[node_id]->port_stats[j].num_tx_drop_pkts = RTE_ATOMIC64_INIT(0);
                 node_stats[node_id]->port_stats[j].num_invalid_pkts = RTE_ATOMIC64_INIT(0);
             }
-            memset(&node_stats[node_id]->last_total, 0, sizeof(struct io_thread_stat));
+            memzero(&node_stats[node_id]->last_total, 1);
             unsigned num_io_threads_in_node = 0;
             for (auto it = io_thread_confs.begin(); it != io_thread_confs.end(); it++) {
                 struct io_thread_conf &conf = *it;
