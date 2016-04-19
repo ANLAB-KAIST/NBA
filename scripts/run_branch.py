@@ -7,13 +7,16 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--branch-pred-type', choices=('on', 'off', 'always'), required=True)
-    args = parser.parse_args()
+    parser.add_argument('--skip-dropbox', action='store_true', default=False)
+    args, extra_args = parser.parse_known_args()
     args.bin = 'bin-backup/main.branchpred.' + args.branch_pred_type
 
     #branch_configs = ["l2fwd-echo-branch-lv1.click"]#, "l2fwd-echo-branch-lv2.click", "l2fwd-echo-branch-lv3.click"]
     branch_config = 'l2fwd-echo-skewed-branch-lv3.click'
+    #branch_config = 'l2fwd-echo-branch-lv1.click'
     #branch_ratios = [50, 40, 30, 20, 10, 5, 1]
-    branch_ratios = [99, 95, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 1]
+    #branch_ratios = [99, 95, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 1]
+    branch_ratios = [90, 80, 60, 50, 40, 20, 10]
 
     conf_paths = []
     os.chdir('..')
@@ -34,16 +37,20 @@ if __name__ == '__main__':
 
     os.chdir('scripts')
     # Run.
-    subprocess.run(['dropbox.py', 'stop'])
-    subprocess.run([
+    if not args.skip_dropbox: subprocess.run(['dropbox.py', 'stop'])
+    main_args = [
         './run_app_perf.py',
         '--prefix', 'branch-pred.' + args.branch_pred_type,
         '-b', args.bin,
         '-p', '64',
+    ]
+    main_args.extend(extra_args)
+    main_args.extend([
         'default.py',
         ','.join(conf_paths),
     ])
-    subprocess.run(['dropbox.py', 'start'])
+    subprocess.run(main_args)
+    if not args.skip_dropbox: subprocess.run(['dropbox.py', 'start'])
 
     # Delete templated configs.
     os.chdir('..')
