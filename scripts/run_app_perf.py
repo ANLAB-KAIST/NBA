@@ -1,32 +1,33 @@
 #! /usr/bin/env python3
 
 '''
-This script meausres latnecy and throughput, depending on the cli arguments.
+This script measures latency and throughput, depending on the cli arguments.
 With "-l" option, it records latency histogram as well.
 '''
 
-import sys, os, time
-import asyncio, signal
 import argparse
-from contextlib import ExitStack
+import asyncio
 from datetime import datetime
-from statistics import mean
 from itertools import product
+import os
+import signal
+from statistics import mean
+import sys
+import time
 
-import pandas as pd
+from namedlist import namedlist
 import numpy as np
+import pandas as pd
 
 from exprlib import ExperimentEnv
-from exprlib.subproc import execute_async_simple
 from exprlib.arghelper import comma_sep_numbers, comma_sep_str, host_port_pair
 from exprlib.records import AppThruputRecord, AppThruputReader
-from exprlib.plotting.template import plot_thruput
 from exprlib.plotting.utils import cdf_from_histogram
 from exprlib.pktgen import PktGenController
 from exprlib.latency import LatencyHistogramReader
 
-from namedlist import namedlist
-ExperimentResult = namedlist('ExperiemntResult', [
+
+ExperimentResult = namedlist('ExperimentResult', [
     ('thruput_records', None),
     ('latency_cdf', None),
 ])
@@ -39,25 +40,45 @@ async def do_experiment(loop, env, args, conds, thruput_reader):
     env.envvars['NBA_IO_BATCH_SIZE'] = str(io_batchsz)
     env.envvars['NBA_COMP_BATCH_SIZE'] = str(comp_batchsz)
     env.envvars['NBA_COPROC_PPDEPTH'] = str(coproc_ppdepth)
-
     extra_nba_args = []
 
-    if 'ipv6' in conf_name:
-        # All random ipv6 pkts
-        pktgen.args = ['-i', 'all', '-f', '0', '-v', '6', '-p', str(pktsz)]
+    offered_thruputs = {
+        'ipv4': '10',
+        'ipv6': '10',
+        'ipsec': '3',
+    }
+    traffic_opts = {
+        'ipv4': ['-v', '4', '-f', '0'],
+        'ipv6': ['-v', '6', '-f', '0'],
+        'ipsec': ['-v', '4', '-f', '1024', '-r', '0'],
+    }
+    if pktsz == 0:
+        pktgen.args = ['-i', 'all', '--trace', 'traces/caida_anon_2016.pcap', '--repeat']
         if args.latency:
-            pktgen.args += ['-g', '10', '-l', '--latency-histogram']
-    elif 'ipsec' in conf_name:
-        # ipv4 pkts with fixed 1K flows
-        pktgen.args = ['-i', 'all', '-f', '1024', '-r', '0', '-v', '4', '-p', str(pktsz)]
-        if args.latency:
-            extra_nba_args.append('--preserve-latency')
-            pktgen.args += ['-g', '3', '-l', '--latency-histogram']
+            if 'ipv6' in conf_name:
+                pktgen.args += ['-g', offered_thruputs['ipv6'], '-l', '--latency-histogram']
+            elif 'ipsec' in conf_name:
+                extra_nba_args.append('--preserve-latency')
+                pktgen.args += ['-g', offered_thruputs['ipsec'], '-l', '--latency-histogram']
+            else:
+                pktgen.args += ['-g', offered_thruputs['ipv4'], '-l', '--latency-histogram']
     else:
-        # All random ipv4 pkts
-        pktgen.args = ['-i', 'all', '-f', '0', '-v', '4', '-p', str(pktsz)]
-        if args.latency:
-            pktgen.args += ['-g', '10', '-l', '--latency-histogram']
+        if 'ipv6' in conf_name:
+            # All random ipv6 pkts
+            pktgen.args = ['-i', 'all'] + traffic_opts['ipv6'] + ['-p', str(pktsz)]
+            if args.latency:
+                pktgen.args += ['-g', offered_thruputs['ipv6'], '-l', '--latency-histogram']
+        elif 'ipsec' in conf_name:
+            # ipv4 pkts with fixed 1K flows
+            pktgen.args = ['-i', 'all'] + traffic_opts['ipsec'] + ['-p', str(pktsz)]
+            if args.latency:
+                extra_nba_args.append('--preserve-latency')
+                pktgen.args += ['-g', offered_thruputs['ipsec'], '-l', '--latency-histogram']
+        else:
+            # All random ipv4 pkts
+            pktgen.args = ['-i', 'all'] + traffic_opts['ipv4'] + ['-p', str(pktsz)]
+            if args.latency:
+                pktgen.args += ['-g', offered_thruputs['ipv4'], '-l', '--latency-histogram']
 
     # Clear data.
     env.reset_readers()
@@ -77,7 +98,7 @@ async def do_experiment(loop, env, args, conds, thruput_reader):
                                          args._conf_path_map[conf_name],
                                          num_max_cores_per_node=num_cores,
                                          extra_args=extra_nba_args,
-                                         running_time=32.0)
+                                         running_time=args.timeout)
 
     if args.latency:
         hist_task.cancel()
@@ -131,21 +152,36 @@ if __name__ == '__main__':
     parser.add_argument('hw_config')
     parser.add_argument('element_configs', type=comma_sep_str(1), metavar='NAME[,NAME...]')
     parser.add_argument('-b', '--bin', type=str, metavar='PATH', default='bin/main')
-    parser.add_argument('-p', '--pkt-sizes', type=comma_sep_numbers(64, 1500), metavar='NUM[,NUM...]', default=[64])
-    parser.add_argument('--io-batch-sizes', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[32])
-    parser.add_argument('--comp-batch-sizes', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[64])
-    parser.add_argument('--coproc-ppdepths', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[32])
-    parser.add_argument('--num-cores', type=comma_sep_numbers(1, 64), metavar='NUM[,NUM...]', default=[64])
-    parser.add_argument('--no-record', action='store_true', default=False, help='Do NOT record the results.')
-    parser.add_argument('--prefix', type=str, default=None, help='Additional prefix directory name for recording.')
+    parser.add_argument('--io-batch-sizes', type=comma_sep_numbers(1, 256),
+                        metavar='NUM[,NUM...]', default=[32])
+    parser.add_argument('--comp-batch-sizes', type=comma_sep_numbers(1, 256),
+                        metavar='NUM[,NUM...]', default=[64])
+    parser.add_argument('--coproc-ppdepths', type=comma_sep_numbers(1, 256),
+                        metavar='NUM[,NUM...]', default=[32])
+    parser.add_argument('--num-cores', type=comma_sep_numbers(1, 64),
+                        metavar='NUM[,NUM...]', default=[64])
+    parser.add_argument('--no-record', action='store_true', default=False,
+                        help='Skip recording the results.')
+    parser.add_argument('--timeout', type=float, default=32.0,
+                        help='Running time in seconds. (default: 32 sec)')
+    parser.add_argument('--prefix', type=str, default=None,
+                        help='Additional prefix directory name for recording.')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-p', '--pkt-sizes', type=comma_sep_numbers(64, 1500),
+                       metavar='NUM[,NUM...]', default=[64])
+    group.add_argument('-t', '--trace', action='store_true', default=False)
     # If -l is used with --combin-cpu-gpu, the latency CPU/GPU result will be merged into one.
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--combine-cpu-gpu', action='store_true', default=False, help='Run the same config for CPU-only and GPU-only to compare.')
-    group.add_argument('-l', '--latency', action='store_true', default=False, help='Save the latency histogram.'
-                                                                                   'The packet generation rate is fixed to'
-                                                                                   '3 Gbps (for IPsec) or 10 Gbps (otherwise).')
+    group.add_argument('--combine-cpu-gpu', action='store_true', default=False,
+                       help='Run the same config for CPU-only and GPU-only to compare.')
+    group.add_argument('-l', '--latency', action='store_true', default=False,
+                       help='Save the latency histogram.'
+                            'The packet generation rate is fixed to'
+                            '3 Gbps (for IPsec) or 10 Gbps (otherwise).')
     parser.add_argument('-v', '--verbose', action='store_true', default=False)
     args = parser.parse_args()
+
+    assert args.timeout > 10.0, 'Too short timeout (must be > 10 seconds).'
 
     env = ExperimentEnv(verbose=args.verbose)
     env.main_bin = args.bin
@@ -182,7 +218,7 @@ if __name__ == '__main__':
         args.coproc_ppdepths,
         args.num_cores,
         tuple(range(env.get_num_nodes())),
-        args.pkt_sizes
+        (0,) if args.trace else args.pkt_sizes
     ))
     combinations_without_node_id = tuple(product(
         conf_names,
@@ -190,7 +226,7 @@ if __name__ == '__main__':
         args.comp_batch_sizes,
         args.coproc_ppdepths,
         args.num_cores,
-        args.pkt_sizes
+        (0,) if args.trace else args.pkt_sizes
     ))
     mi = pd.MultiIndex.from_tuples(combinations, names=[
         'conf',

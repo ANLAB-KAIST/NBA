@@ -1,5 +1,5 @@
 FromInput() ->
-LoadBalancePPC() ->
+LoadBalanceThruput() ->
 IPsecESPencap() ->
 IPsecAES() ->
 IPsecAuthHMACSHA1() -> 

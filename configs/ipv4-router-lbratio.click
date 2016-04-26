@@ -1,7 +1,7 @@
 FromInput() ->
 DropBroadcasts() ->
 CheckIPHeader() ->
-LoadBalanceThruput() ->
+LoadBalanceByWeight("from-env") ->
 IPlookup() ->
 DecIPTTL() ->
 ToOutput();

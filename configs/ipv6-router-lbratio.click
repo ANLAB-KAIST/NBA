@@ -1,6 +1,6 @@
 FromInput() ->
 CheckIP6Header() ->
-LoadBalanceThruput() ->
+LoadBalanceByWeight("from-env") ->
 LookupIP6Route() ->
 DecIP6HLIM() ->
 DropBroadcasts() ->
