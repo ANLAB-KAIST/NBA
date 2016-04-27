@@ -43,9 +43,9 @@ dropbox.py stop
 ./run_loadbalancer_per_cpu_ratio.py -b bin-backup/main -p 64 default.py ipv4-router-lbratio.click 0 1 0.1
 ./run_loadbalancer_per_cpu_ratio.py -b bin-backup/main -p 64 default.py ipv6-router-lbratio.click 0 1 0.1
 ./run_loadbalancer_per_cpu_ratio.py -b bin-backup/main -p 64,256,1024 default.py ipsec-encryption-lbratio.click 0 1 0.1
-./run_app_perf.py --prefix alb -b bin-backup/main --timeout 60 -p 64 default.py ipv4-router.click
-./run_app_perf.py --prefix alb -b bin-backup/main --timeout 60 -p 64 default.py ipv6-router.click
-./run_app_perf.py --prefix alb -b bin-backup/main --timeout 60 -p 64,256,1024 default.py ipsec-encryption.click
+./run_app_perf.py --prefix alb -b bin-backup/main --timeout 150 --cut 5 -p 64 default.py ipv4-router.click
+./run_app_perf.py --prefix alb -b bin-backup/main --timeout 150 --cut 5 -p 64 default.py ipv6-router.click
+./run_app_perf.py --prefix alb -b bin-backup/main --timeout 150 --cut 5 -p 64,256,1024 default.py ipsec-encryption.click
 #./run_loadbalancer_per_cpu_ratio.py -b bin-backup/main --trace default.py ipsec-encryption-lbratio.click 0 1 0.1
 #./run_app_perf.py --prefix alb -b bin-backup/main --trace default.py ipsec-encryption.click
 

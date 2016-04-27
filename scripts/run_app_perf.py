@@ -164,6 +164,8 @@ if __name__ == '__main__':
                         help='Skip recording the results.')
     parser.add_argument('--timeout', type=float, default=32.0,
                         help='Running time in seconds. (default: 32 sec)')
+    parser.add_argument('--cut', type=float, default=None,
+                        help='Take the last N seconds of measurement values. (default: all samples)')
     parser.add_argument('--prefix', type=str, default=None,
                         help='Additional prefix directory name for recording.')
     group = parser.add_mutually_exclusive_group(required=True)
@@ -181,11 +183,15 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose', action='store_true', default=False)
     args = parser.parse_args()
 
-    assert args.timeout > 10.0, 'Too short timeout (must be > 10 seconds).'
+    assert args.timeout > 25.0, 'Too short timeout (must be > 25 seconds).'
 
     env = ExperimentEnv(verbose=args.verbose)
     env.main_bin = args.bin
-    thruput_reader = AppThruputReader(begin_after=25.0)
+    if args.cut is None:
+        begin_after = 25.0
+    else:
+        begin_after = max(25.0, args.timeout - args.cut)
+    thruput_reader = AppThruputReader(begin_after=begin_after)
     env.register_reader(thruput_reader)
     loop = asyncio.get_event_loop()
 
