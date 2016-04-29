@@ -1,16 +1,18 @@
 #! /usr/bin/env python3
 # -*- mode: python -*-
-import os, sys, re, sysconfig, glob, logging
+import os, sys, re
+import glob
+import logging
 from collections import namedtuple
+import subprocess
+import sysconfig
 from snakemake.utils import format as fmt
 from snakemake.logging import logger
 from distutils.version import LooseVersion
+
 sys.path.insert(0, '.')
 import compilelib
-from pprint import pprint
-from snakemake import shell
 
-logger.set_level(logging.DEBUG)
 
 ExtLib = namedtuple('ExtLib', 'path target build_cmd clean_cmd')
 
@@ -19,15 +21,24 @@ def joinpath(*args):
 
 def version():
     modern_version = LooseVersion('4.7.0')
-    for line in shell('g++ --version', iterable=True):
-        m = re.search('\d\.\d\.\d', line)
+    result = subprocess.run(['g++', '--version'],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            universal_newlines=True)
+    for line in result.stdout.splitlines():
+        m = re.search(' (\d+\.\d+(\.\d+)?)', line)
         if m:
-            VERSION = LooseVersion(m.group(0))
+            ver = LooseVersion(m.group(1))
             break
-    if VERSION >= modern_version:
+    else:
+        raise RuntimeError('Could not detect compiler version!')
+    if ver >= modern_version:
         return '-std=gnu++11'
     else:
         return '-std=c++0x'
+
+
+logger.set_level(logging.DEBUG)
 
 USE_CUDA = bool(int(os.getenv('USE_CUDA', 1)))
 USE_PHI  = bool(int(os.getenv('USE_PHI', 0)))
