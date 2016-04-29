@@ -1,0 +1,9 @@
+[BASIC]
+disable=missing-docstring,bad-builtin
+
+# allow single-character variable names (such as "f")
+# note: i,j,k are already allowed in "good-names" option by default.
+variable-rgx=[a-z_][a-z0-9_]*$
+
+# allow lower-case, underscore-starting constant names in the global scope.
+const-rgx=_?(([a-zA-Z_][a-zA-Z0-9_]*)|(__.*__))$

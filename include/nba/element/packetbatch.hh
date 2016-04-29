@@ -120,6 +120,7 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
     int cnt = batch->count ++; \
     batch->packets[cnt] = pkt; \
     batch->excluded[cnt] = false; \
+    Packet::from_base(pkt)->mother = batch; \
 }
 
 
@@ -191,6 +192,7 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
     int cnt = batch->count ++; \
     batch->packets[cnt] = pkt; \
     batch->excluded[cnt] = false; \
+    Packet::from_base(pkt)->mother = batch; \
 }
 
 
@@ -208,8 +210,8 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
 { \
     uint64_t _mask = batch->mask; \
     while (_mask != 0) { \
-        const unsigned pkt_idx = __builtin_clzll(_mask); \
-        _mask &= ~(1llu << (64 - (pkt_idx + 1)));
+        const unsigned pkt_idx = __builtin_ctzll(_mask); \
+        _mask &= ~(1llu << pkt_idx);
 #define END_FOR \
     } /* endwhile(_mask) */ \
 }
@@ -227,19 +229,19 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
     uint64_t _mask = batch->mask; \
     unsigned _cnt = 0; \
     while (_pmask != 0 && _cnt < depth) { \
-        const unsigned pre_pkt_idx = __builtin_clzll(_pmask); \
+        const unsigned pre_pkt_idx = __builtin_ctzll(_pmask); \
         rte_prefetch0(rte_pktmbuf_mtod(batch->packets[pre_pkt_idx], void*)); \
-        _pmask &= ~(1llu << (64 - (pre_pkt_idx + 1))); \
+        _pmask &= ~(1llu << pre_pkt_idx); \
         _cnt ++; \
     } \
     while (_mask != 0) { \
         if (_pmask != 0) { \
-            const unsigned pre_pkt_idx = __builtin_clzll(_pmask); \
+            const unsigned pre_pkt_idx = __builtin_ctzll(_pmask); \
             rte_prefetch0(rte_pktmbuf_mtod(batch->packets[pre_pkt_idx], void*)); \
-            _pmask &= ~(1llu << (64 - (pre_pkt_idx + 1))); \
+            _pmask &= ~(1llu << pre_pkt_idx); \
         } \
-        const unsigned pkt_idx = __builtin_clzll(_mask); \
-        _mask &= ~(1llu << (64 - (pkt_idx + 1)));
+        const unsigned pkt_idx = __builtin_ctzll(_mask); \
+        _mask &= ~(1llu << pkt_idx);
 #define END_FOR_ALL_PREFETCH \
     } /* endwhile(batch) */ \
 }
@@ -262,26 +264,27 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
 
 #define INIT_BATCH_MASK(batch) \
 { \
-    batch->mask = (0xFFFFffffFFFFffffllu << (64 - batch->count)); \
+    batch->mask = (0xFFFFffffFFFFffffllu >> (64 - batch->count)); \
 }
 #define IS_PACKET_VALID(batch, pkt_idx) \
-    (likely((batch->mask & (1llu << (64 - (pkt_idx + 1)))) == 1))
+    (likely((batch->mask & (1llu << pkt_idx)) == 1))
 #define IS_PACKET_INVALID(batch, pkt_idx) \
-    (unlikely((batch->mask & (1llu << (64 - (pkt_idx + 1)))) == 0))
+    (unlikely((batch->mask & (1llu << pkt_idx)) == 0))
 #define EXCLUDE_PACKET(batch, pkt_idx) \
 { \
-    batch->mask &= ~(1llu << (64 - (pkt_idx + 1))); \
+    batch->mask &= ~(1llu << pkt_idx); \
     batch->packets[pkt_idx] = nullptr; \
 }
 #define EXCLUDE_PACKET_MARK_ONLY(batch, pkt_idx) \
 { \
-    batch->mask &= ~(1llu << (64 - (pkt_idx + 1))); \
+    batch->mask &= ~(1llu << pkt_idx); \
 }
 #define ADD_PACKET(batch, pkt) \
 { \
     int cnt = batch->count ++; \
     batch->packets[cnt] = pkt; \
-    batch->mask |= (1llu << (64 - (pkt_idx + 1))); \
+    batch->mask |= (1llu << cnt); \
+    Packet::from_base(pkt)->mother = batch; \
 }
 
 
@@ -384,6 +387,7 @@ for (unsigned pkt_idx = 0; pkt_idx < batch->count; pkt_idx ++) { \
     batch->packets[new_idx] = raw_pkt; \
     batch->last_idx = new_idx; \
     batch->count ++; \
+    Packet::from_base(pkt)->mother = batch; \
 }
 
 

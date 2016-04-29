@@ -38,7 +38,9 @@ private:
     #ifdef DEBUG
     uint32_t magic;
     #endif
+public:
     PacketBatch *mother;
+private:
     struct rte_mbuf *base;
     bool cloned;
 public:

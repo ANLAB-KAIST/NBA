@@ -1,3 +1,4 @@
+#include <nba/core/intrinsic.hh>
 #include <nba/framework/config.hh>
 #include <nba/framework/elementgraph.hh>
 #include <nba/framework/logging.hh>
@@ -40,7 +41,7 @@ ElementGraph::ElementGraph(comp_thread_context *ctx)
     input_elem = nullptr;
     assert(0 == rte_malloc_validate(ctx, NULL));
 
-#ifdef NBA_REUSE_DATABLOCKS
+#if NBA_REUSE_DATABLOCKS == 1
     struct rte_hash_parameters hparams;
     char namebuf[RTE_HASH_NAMESIZE];
     snprintf(namebuf, RTE_HASH_NAMESIZE, "elemgraph@%u.%u:offl_actions",
@@ -316,20 +317,20 @@ void ElementGraph::process_batch(PacketBatch *batch)
                 case 0:
                     // pass
                     break;
-                #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
                 case DROP:
-                    assert(0 == rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]));
+                    #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
+                    rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]);
+                    #endif
                     EXCLUDE_PACKET(batch, pkt_idx);
                     break;
-                #endif
-                case PENDING:
+                case PENDING: {
                     // remove from PacketBatch, but don't free..
                     // They are stored in io_thread_ctx::pended_pkt_queue.
                     EXCLUDE_PACKET(batch, pkt_idx);
-                    break;
-                case SLOWPATH:
+                    break; }
+                case SLOWPATH: {
                     rte_panic("SLOWPATH is not supported yet. (element: %s)\n", current_elem->class_name());
-                    break;
+                    break; }
                 }
             } END_FOR;
             #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
@@ -370,95 +371,117 @@ void ElementGraph::process_batch(PacketBatch *batch)
         const int *const results = batch->results;
         PacketBatch *out_batches[num_max_outputs];
         // TODO: implement per-batch handling for branches
-#ifndef NBA_DISABLE_BRANCH_PREDICTION
-#ifndef NBA_BRANCH_PREDICTION_ALWAYS
+
+        /*
+         * NBA_BRANCHPRED_DISABLED: use code path 2 only
+         * NBA_BRANCHPRED_ENABLED: use both code path 1 & 2
+         * NBA_BRANCHPRED_ALWAYS: use code path 1 only
+         */
+
+#if (NBA_BRANCHPRED_SCHEME == NBA_BRANCHPRED_ENABLED \
+     || NBA_BRANCHPRED_SCHEME == NBA_BRANCHPRED_ALWAYS)
+#  if NBA_BRANCHPRED_SCHEME != NBA_BRANCHPRED_ALWAYS
         /* use branch prediction when miss < total / 4. */
         if ((current_elem->branch_total >> 2) > (current_elem->branch_miss))
-#endif
+#  endif
+#  pragma message "Branch prediction path enabled."
+        /* Code Path 1: Use branch prediction. */
         {
-            /* With multiple outputs, make copy of batches.
-             * This does not copy the content of packets but the
-             * pointers to packets. */
-            int predicted_output = 0; //TODO set to right prediction
+            /* Allocate copy-batches, but do NOT initialize them yet. */
+            while (rte_mempool_get_bulk(ctx->batch_pool,
+                                        (void **) &out_batches,
+                                        num_outputs) == -ENOENT
+                   && !ctx->io_ctx->loop_broken)
+            {
+                ev_run(ctx->io_ctx->loop, 0);
+            }
+            bool out_batches_used[num_outputs];
+            memzero(out_batches_used, num_outputs);
+
+            /* Get the index of the output port for which most packets have
+             * took their path. */
+            int predicted_output = 0;
             uint64_t current_max = 0;
-            for (unsigned k = 0; k < current_elem->next_elems.size(); k++) {
+            for (unsigned k = 0; k < num_outputs; k++) {
                 if (current_max < current_elem->branch_count[k]) {
                     current_max = current_elem->branch_count[k];
                     predicted_output = k;
                 }
             }
-
-            memset(out_batches, 0, num_max_outputs*sizeof(PacketBatch *));
+            rte_mempool_put(ctx->batch_pool, out_batches[predicted_output]);
             out_batches[predicted_output] = batch;
+            out_batches_used[predicted_output] = true;
 
-            /* Classify packets into copy-batches. */
+            /* Reset branch counters. */
+            current_elem->branch_total = 0;
+            memzero(current_elem->branch_count, num_outputs);
+
+            /* Classify packets into copy-batches... */
             #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
             batch->has_dropped = false;
             #endif
             FOR_EACH_PACKET(batch) {
                 int o = results[pkt_idx];
                 assert(o < (signed) num_outputs);
+                current_elem->branch_total++;
+                current_elem->branch_count[o]++;
 
-                /* Prediction mismatch! */
+                /* ...except for the reused batch. */
                 if (unlikely(o != predicted_output)) {
                     switch(o) {
                     HANDLE_ALL_PORTS: {
-                        if (!out_batches[o]) {
-                            /* out_batch is not allocated yet... */
-                            while (rte_mempool_get(ctx->batch_pool, (void**)(out_batches + o)) == -ENOENT
-                                   && !ctx->io_ctx->loop_broken) {
-                                ev_run(ctx->io_ctx->loop, 0);
-                            }
+                        if (unlikely(!out_batches_used[o])) {
+                            /* out_batch is not initialized yet... */
+                            out_batches_used[o] = true;
                             new (out_batches[o]) PacketBatch();
-                            anno_set(&out_batches[o]->banno, NBA_BANNO_LB_DECISION, lb_decision);
+                            anno_copy(&out_batches[o]->banno, &batch->banno);
                             out_batches[o]->recv_timestamp = batch->recv_timestamp;
+                            out_batches[o]->generation = batch->generation + 1;
+                            out_batches[o]->count = 0;
+                            INIT_BATCH_MASK(out_batches[o]);
                         }
-                        /* Append the packet to the output batch. */
                         ADD_PACKET(out_batches[o], batch->packets[pkt_idx]);
-                        /* Exclude it from the batch. */
-                        EXCLUDE_PACKET(batch, pkt_idx);
                         break; }
-                    #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
-                    case DROP:
+                    case DROP: {
+                        #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
                         rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]);
-                        EXCLUDE_PACKET(batch, pkt_idx);
-                    #endif
-                    case PENDING: {
-                        /* The packet is stored in io_thread_ctx::pended_pkt_queue. */
-                        /* Exclude it from the batch. */
-                        EXCLUDE_PACKET(batch, pkt_idx);
+                        #endif
                         break; }
-                    case SLOWPATH:
-                        assert(0); // Not implemented yet.
-                        break;
+                    case PENDING: {
+                        /* The packet is now stored in io_thread_ctx::pended_pkt_queue. */
+                        break; }
+                    case SLOWPATH: {
+                        rte_panic("SLOWPATH not implemented. (element: %s)\n",
+                                  current_elem->class_name());
+                        break; }
                     }
+                    EXCLUDE_PACKET(batch, pkt_idx);
                     current_elem->branch_miss++;
                 }
-                current_elem->branch_total++;
-                current_elem->branch_count[o]++;
             } END_FOR;
 
             // NOTE: out_batches[predicted_output] == batch
             #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
             if (batch->has_dropped)
                 batch->collect_excluded_packets();
-            if (ctx->inspector) ctx->inspector->drop_pkt_count += batch->drop_count;
+            if (ctx->inspector)
+                ctx->inspector->drop_pkt_count += batch->drop_count;
             batch->clean_drops(ctx->io_ctx->drop_queue);
             #endif
 
-            if (current_elem->branch_total & BRANCH_TRUNC_LIMIT) {
-                //double percentage = ((double)(current_elem->branch_total-current_elem->branch_miss) / (double)current_elem->branch_total);
-                //printf("%s: prediction: %f\n", current_elem->class_name(), percentage);
-                current_elem->branch_miss = current_elem->branch_total = 0;
-                for (unsigned k = 0; k < current_elem->next_elems.size(); k++)
-                    current_elem->branch_count[k] = current_elem->branch_count[k] >> 1;
-            }
+            //if (current_elem->branch_total & BRANCH_TRUNC_LIMIT) {
+            //    //double percentage = ((double)(current_elem->branch_total-current_elem->branch_miss) / (double)current_elem->branch_total);
+            //    //printf("%s: prediction: %f\n", current_elem->class_name(), percentage);
+            //    current_elem->branch_miss = current_elem->branch_total = 0;
+            //    for (unsigned k = 0; k < current_elem->next_elems.size(); k++)
+            //        current_elem->branch_count[k] = current_elem->branch_count[k] >> 1;
+            //}
 
             /* Recurse into the element subgraph starting from each
              * output port using copy-batches. */
             for (unsigned o = 0; o < num_outputs; o++) {
-                if (out_batches[o] && out_batches[o]->count > 0) {
-                    assert(current_elem->next_elems[o] != NULL);
+                if (likely(out_batches_used[o])) {
+                    assert(current_elem->next_elems[o] != nullptr);
                     if (current_elem->next_elems[o]->get_type() & ELEMTYPE_OUTPUT) {
 
                         if (ctx->inspector) {
@@ -485,30 +508,34 @@ void ElementGraph::process_batch(PacketBatch *batch)
                     }
                 } else {
                     /* This batch is unused! */
-                    if (out_batches[o])
-                        free_batch(out_batches[o]);
+                    rte_mempool_put(ctx->batch_pool, out_batches[o]);
                 }
             }
         }
-#ifndef NBA_BRANCH_PREDICTION_ALWAYS
+#  if NBA_BRANCHPRED_SCHEME != NBA_BRANCHPRED_ALWAYS
         else
-#endif
-#endif
-#ifndef NBA_BRANCH_PREDICTION_ALWAYS
+#  endif
+#endif // endif(code-path-1)
+#if (NBA_BRANCHPRED_SCHEME == NBA_BRANCHPRED_DISABLED \
+     || NBA_BRANCHPRED_SCHEME == NBA_BRANCHPRED_ENABLED)
+#  pragma message "Non-branch prediction path enabled."
+        /* Code Path 2: No branch prediction. */
         {
-            while (rte_mempool_get_bulk(ctx->batch_pool, (void **) out_batches, num_outputs) == -ENOENT
-                   && !ctx->io_ctx->loop_broken) {
+            /* Allocate and initialize copy-batches. */
+            while (rte_mempool_get_bulk(ctx->batch_pool,
+                                        (void **) out_batches,
+                                        num_outputs) == -ENOENT
+                   && !ctx->io_ctx->loop_broken)
+            {
                 ev_run(ctx->io_ctx->loop, 0);
             }
-
-            // TODO: optimize by choosing/determining the "major" path and reuse the
-            //       batch for that path.
-
-            /* Initialize copy-batches. */
             for (unsigned o = 0; o < num_outputs; o++) {
                 new (out_batches[o]) PacketBatch();
-                anno_set(&out_batches[o]->banno, NBA_BANNO_LB_DECISION, lb_decision);
+                anno_copy(&out_batches[o]->banno, &batch->banno);
                 out_batches[o]->recv_timestamp = batch->recv_timestamp;
+                out_batches[o]->generation = batch->generation + 1;
+                out_batches[o]->count = 0;
+                INIT_BATCH_MASK(out_batches[o]);
             }
 
             /* Classify packets into copy-batches. */
@@ -516,26 +543,31 @@ void ElementGraph::process_batch(PacketBatch *batch)
                 int o = results[pkt_idx];
                 #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
                 if (o >= (signed) num_outputs || o < 0)
-                    printf("o=%d, num_outputs=%lu, %u/%u/%u\n", o, num_outputs, pkt_idx, batch->count, batch->drop_count);
+                    printf("o=%d, num_outputs=%lu, %u/%u/%u\n", o, num_outputs,
+                           pkt_idx, batch->count, batch->drop_count);
                 #else
                 if (o >= (signed) num_outputs || o < 0)
-                    printf("o=%d, num_outputs=%lu, %u/%u\n", o, num_outputs, pkt_idx, batch->count);
+                    printf("o=%d, num_outputs=%lu, %u/%u\n", o, num_outputs,
+                           pkt_idx, batch->count);
                 #endif
                 assert(o < (signed) num_outputs && o >= 0);
 
-                if (o >= 0) {
+                switch(o) {
+                HANDLE_ALL_PORTS: {
                     ADD_PACKET(out_batches[o], batch->packets[pkt_idx]);
-                #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
-                } else if (o == DROP) {
+                    break; }
+                case DROP: {
+                    #if NBA_BATCHING_SCHEME != NBA_BATCHING_CONTINUOUS
                     rte_ring_enqueue(ctx->io_ctx->drop_queue, batch->packets[pkt_idx]);
-                #endif
-                } else if (o == PENDING) {
-                    // remove from PacketBatch, but don't free..
-                    // They are stored in io_thread_ctx::pended_pkt_queue.
-                } else if (o == SLOWPATH) {
-                    assert(0);
-                } else {
-                    rte_panic("Invalid packet disposition value. (element: %s, value: %d)\n", current_elem->class_name(), o);
+                    #endif
+                    break; }
+                case PENDING: {
+                    /* The packet is now stored in io_thread_ctx::pended_pkt_queue. */
+                    break; }
+                case SLOWPATH: {
+                    rte_panic("SLOWPATH not implemented. (element: %s)\n",
+                              current_elem->class_name());
+                    break; }
                 }
                 /* Packets are excluded from original batch in ALL cases. */
                 /* Therefore, we do not have to collect_excluded_packets()
@@ -543,16 +575,20 @@ void ElementGraph::process_batch(PacketBatch *batch)
                 EXCLUDE_PACKET_MARK_ONLY(batch, pkt_idx);
             } END_FOR;
 
+            /* With multiple outputs (branches happened), we have made
+             * copy-batches and the parent should free its batch. */
+            free_batch(batch);
+
             /* Recurse into the element subgraph starting from each
              * output port using copy-batches. */
             for (unsigned o = 0; o < num_outputs; o++) {
-                if (out_batches[o]->count > 0) {
+                if (likely(out_batches[o]->count > 0)) {
                     assert(current_elem->next_elems[o] != NULL);
                     if (current_elem->next_elems[o]->get_type() & ELEMTYPE_OUTPUT) {
 
                         if (ctx->inspector) {
                             ctx->inspector->tx_batch_count ++;
-                            ctx->inspector->tx_pkt_count += batch->count;
+                            ctx->inspector->tx_pkt_count += out_batches[o]->count;
                         }
 
                         /* We are at the end leaf of the pipeline. */
@@ -573,17 +609,13 @@ void ElementGraph::process_batch(PacketBatch *batch)
                         queue.push_back(Task::to_task(out_batches[o]));
                     }
                 } else {
-                    /* This batch is unused! */
+                    /* This batch is allocated above, but no packet has come. */
                     free_batch(out_batches[o]);
                 }
-            }
-
-            /* With multiple outputs (branches happened), we have made
-             * copy-batches and the parent should free its batch. */
-            free_batch(batch);
+            } //endfor(recurse)
         }
-#endif
-    } /* endif(numoutputs) */
+#endif //endif(code-path-2)
+    } //endif(numoutputs)
 }
 
 void ElementGraph::process_offload_task(OffloadTask *otask)
@@ -635,7 +667,7 @@ void ElementGraph::add_offload_action(struct offload_action_key *key)
 
 bool ElementGraph::check_preproc(OffloadableElement *oel, int dbid)
 {
-#ifdef NBA_REUSE_DATABLOCKS
+#if NBA_REUSE_DATABLOCKS == 1
     struct offload_action_key key = { (void *) oel, dbid, ELEM_OFFL_PREPROC };
     return (rte_hash_lookup(offl_actions, &key) >= 0);
 #else
@@ -645,7 +677,7 @@ bool ElementGraph::check_preproc(OffloadableElement *oel, int dbid)
 
 bool ElementGraph::check_postproc(OffloadableElement *oel, int dbid)
 {
-#ifdef NBA_REUSE_DATABLOCKS
+#if NBA_REUSE_DATABLOCKS == 1
     struct offload_action_key key = { (void *) oel, dbid, ELEM_OFFL_POSTPROC };
     return (rte_hash_lookup(offl_actions, &key) >= 0);
 #else
@@ -655,7 +687,7 @@ bool ElementGraph::check_postproc(OffloadableElement *oel, int dbid)
 
 bool ElementGraph::check_postproc_all(OffloadableElement *oel)
 {
-#ifdef NBA_REUSE_DATABLOCKS
+#if NBA_REUSE_DATABLOCKS == 1
     struct offload_action_key key = { (void *) oel, -1, ELEM_OFFL_POSTPROC_FIN };
     return (rte_hash_lookup(offl_actions, &key) >= 0);
 #else

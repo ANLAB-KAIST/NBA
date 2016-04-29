@@ -30,7 +30,7 @@ Element::Element() : next_elems(), next_connected_inputs()
 {
     num_min_inputs = num_max_inputs = 0;
     num_min_outputs = num_max_outputs = 0;
-    memset(branch_count, 0, sizeof(uint64_t) * ElementGraph::num_max_outputs);
+    memzero(branch_count, ElementGraph::num_max_outputs);
     for (int i = 0; i < ElementGraph::num_max_outputs; i++)
         outputs[i] = OutputPort(this, i);
 }
@@ -41,7 +41,7 @@ Element::~Element()
 
 int Element::_process_batch(int input_port, PacketBatch *batch)
 {
-    memset(output_counts, 0, sizeof(uint16_t) * ElementGraph::num_max_outputs);
+    memzero(output_counts, ElementGraph::num_max_outputs);
     #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
     batch->has_dropped = false;
     batch->drop_count = 0;

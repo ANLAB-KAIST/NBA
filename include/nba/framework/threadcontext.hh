@@ -158,6 +158,7 @@ public:
     unsigned num_batchpool_size;
     unsigned num_taskpool_size;
     unsigned task_completion_queue_size;
+    bool preserve_latency;
 
     struct rte_mempool *batch_pool;
     struct rte_mempool *dbstate_pool;

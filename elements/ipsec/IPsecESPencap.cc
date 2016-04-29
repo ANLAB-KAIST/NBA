@@ -1,5 +1,6 @@
 #include "IPsecESPencap.hh"
 #include <nba/element/annotation.hh>
+#include <nba/framework/threadcontext.hh>
 #include <random>
 #include <nba/core/checksum.hh>
 #include <xmmintrin.h>
@@ -103,6 +104,14 @@ int IPsecESPencap::process(int input_port, Packet *pkt)
     uint8_t *encaped_iph = (uint8_t *) esph + sizeof(*esph);
     uint8_t *esp_trail = encaped_iph + ip_len;
 
+    // Hack for latency measurement experiments.
+    uintptr_t payload = 0;
+    __m128i timestamp;  // actual size: uin16 + uint64
+    if (ctx->preserve_latency) {
+        payload   = (uintptr_t) pkt->data() + sizeof(struct ether_hdr) + sizeof(struct iphdr);
+        timestamp = _mm_loadu_si128((__m128i *) payload);
+    }
+
     memmove(encaped_iph, iph, ip_len);          // copy the IP header and payload.
     memset(esp_trail, 0, pad_len);              // clear the padding.
     esp_trail[pad_len] = (uint8_t) pad_len;     // store pad_len at the second byte from last.
@@ -111,6 +120,11 @@ int IPsecESPencap::process(int input_port, Packet *pkt)
     // Fill the ESP header.
     esph->esp_spi = sa_entry->spi;
     esph->esp_rpl = sa_entry->rpl;
+
+    // Hack for latency measurement experiments.
+    if (ctx->preserve_latency) {
+        _mm_storeu_si128((__m128i *) payload, timestamp);
+    }
 
     // Generate random IV.
     uint64_t iv_first_half = rand();

@@ -1,20 +1,38 @@
 #! /usr/bin/env python3
-import sys, time
-import asyncio
+
 import argparse
-from contextlib import ExitStack
-from statistics import mean
-from itertools import product
-from exprlib import execute, comma_sep_numbers, host_port_pair, ExperimentEnv
-from pspgen import PktGenRunner
+import asyncio
+from datetime import datetime
 import decimal
+from itertools import product
+import os
+import signal
+import sys
+import time
+
+from namedlist import namedlist
+import numpy as np
+import pandas as pd
+
+from exprlib import ExperimentEnv
+from exprlib.arghelper import comma_sep_numbers, comma_sep_str
+from exprlib.records import AppThruputReader
+from exprlib.plotting.utils import cdf_from_histogram
+from exprlib.pktgen import PktGenController
+from exprlib.latency import LatencyHistogramReader
+
+
+ExperimentResult = namedlist('ExperimentResult', [
+    ('thruput_records', None),
+    ('latency_cdf', None),
+])
+
 
 def frange(start, end, interval):
     if (end - start) * interval < 0:
         raise ValueError
     decimal.getcontext().prec = 2
     _start      = decimal.Decimal(start)
-    _end        = decimal.Decimal(end)
     _interval   = decimal.Decimal(interval)
     if interval == 0:
         return [start]
@@ -22,117 +40,219 @@ def frange(start, end, interval):
         n = int(round((end - start) / float(interval)))
         return [float(_start + _interval * i) for i in range(n + 1)]
 
+
+async def do_experiment(loop, env, args, conds, thruput_reader):
+    result = ExperimentResult()
+    conf_name, pktsz, cpu_ratio = conds
+
+    env.envvars['NBA_IO_BATCH_SIZE'] = '32'
+    env.envvars['NBA_COMP_BATCH_SIZE'] = '64'
+    env.envvars['NBA_COPROC_PPDEPTH'] = '32'
+    env.envvars['NBA_LOADBALANCER_CPU_RATIO'] = cpu_ratio
+    extra_nba_args = []
+
+    offered_thruputs = {
+        'ipv4': '10',
+        'ipv6': '10',
+        'ipsec': '3',
+    }
+    traffic_opts = {
+        'ipv4': ['-v', '4', '-f', '0'],
+        'ipv6': ['-v', '6', '-f', '0'],
+        'ipsec': ['-v', '4', '-f', '1024', '-r', '0'],
+    }
+    if pktsz == 0:
+        pktgen.args = ['-i', 'all', '--trace', 'traces/caida_anon_2016.pcap', '--repeat']
+        if args.latency:
+            if 'ipv6' in conf_name:
+                pktgen.args += ['-g', offered_thruputs['ipv6'], '-l', '--latency-histogram']
+            elif 'ipsec' in conf_name:
+                extra_nba_args.append('--preserve-latency')
+                pktgen.args += ['-g', offered_thruputs['ipsec'], '-l', '--latency-histogram']
+            else:
+                pktgen.args += ['-g', offered_thruputs['ipv4'], '-l', '--latency-histogram']
+    else:
+        if 'ipv6' in conf_name:
+            # All random ipv6 pkts
+            pktgen.args = ['-i', 'all'] + traffic_opts['ipv6'] + ['-p', str(pktsz)]
+            if args.latency:
+                pktgen.args += ['-g', offered_thruputs['ipv6'], '-l', '--latency-histogram']
+        elif 'ipsec' in conf_name:
+            # ipv4 pkts with fixed 1K flows
+            pktgen.args = ['-i', 'all'] + traffic_opts['ipsec'] + ['-p', str(pktsz)]
+            if args.latency:
+                extra_nba_args.append('--preserve-latency')
+                pktgen.args += ['-g', offered_thruputs['ipsec'], '-l', '--latency-histogram']
+        else:
+            # All random ipv4 pkts
+            pktgen.args = ['-i', 'all'] + traffic_opts['ipv4'] + ['-p', str(pktsz)]
+            if args.latency:
+                pktgen.args += ['-g', offered_thruputs['ipv4'], '-l', '--latency-histogram']
+
+    # Clear data.
+    env.reset_readers()
+    thruput_reader.pktsize_hint = pktsz
+    thruput_reader.conf_hint    = conf_name
+
+    # Run latency subscriber. (address = "tcp://generator-host:(54000 + cpu_idx)")
+    # FIXME: get generator addr
+    if args.latency:
+        lhreader = LatencyHistogramReader(loop)
+        hist_task = loop.create_task(lhreader.subscribe('shader-marcel.anlab', 0))
+
+    async with pktgen:
+        await asyncio.sleep(1)
+        retcode = await env.execute_main(args.hw_config,
+                                         args._conf_path_map[conf_name],
+                                         extra_args=extra_nba_args,
+                                         running_time=32.0)
+
+    if args.latency:
+        hist_task.cancel()
+        await asyncio.sleep(0)
+
+    # Fetch results of throughput measurement and compute average.
+    # FIXME: generalize mean calculation
+    thruput_records = thruput_reader.get_records()
+    avg_thruput_records = []
+    per_node_cnt = [0] * env.get_num_nodes()
+    per_node_mpps_sum = [0.0] * env.get_num_nodes()
+    per_node_gbps_sum = [0.0] * env.get_num_nodes()
+    for r in thruput_records:
+        per_node_cnt[r.node_id] += 1
+        per_node_mpps_sum[r.node_id] += r.mpps
+        per_node_gbps_sum[r.node_id] += r.gbps
+    for n in range(env.get_num_nodes()):
+        if per_node_cnt[n] > 0:
+            avg_thruput_records.append((
+                (conf_name, n, pktsz, cpu_ratio),
+                (per_node_mpps_sum[n] / per_node_cnt[n],
+                 per_node_gbps_sum[n] / per_node_cnt[n])))
+    result.thruput_records = avg_thruput_records
+
+    if args.latency:
+        for r in reversed(lhreader.records):
+            if len(r[2]) > 10:
+                index, counts = zip(*(p.split() for p in r[2]))
+                index  = np.array(list(map(int, index)))
+                counts = np.array(list(map(int, counts)))
+                result.latency_cdf = cdf_from_histogram(index, counts)
+                break
+
+    if retcode in (0, -signal.SIGTERM, -signal.SIGKILL):
+        print(' .. case {0!r}: done.'.format(conds))
+    else:
+        print(' .. case {0!r}: exited abnormaly! (exit code: {1})'.format(conds, retcode))
+    return result
+
+
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='NOTE: 1. You must be running pspgen-servers ' \
-                                                 'in the packet generator servers!\n' \
+    parser = argparse.ArgumentParser(description='NOTE: 1. You must be running pspgen-servers '
+                                                 'in the packet generator servers!\n'
                                                  '2. Packet size argument is only valid in emulation mode.',
-                                     epilog='Example: sudo ./scriptname rss.py ipv4-router.click 0 1 0.1')
-    # TODO: Restrict program option: packet size argument is only valid in emulation mode.
-    parser.add_argument('sys_config_to_use')
-    parser.add_argument('element_config_to_use')
+                                     epilog='Example: sudo ./scriptname default.py ipv4-router.click 0 1 0.1',
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('hw_config')
+    parser.add_argument('element_configs', type=comma_sep_str(1), metavar='NAME[,NAME...]')
+    parser.add_argument('-b', '--bin', type=str, metavar='PATH', default='bin/main')
     parser.add_argument('ratio_start', type=float)
     parser.add_argument('ratio_end', type=float)
     parser.add_argument('ratio_interval', type=float)
-    parser.add_argument('-p', '--pkt-sizes', type=comma_sep_numbers(64, 1500), metavar='NUM[,NUM...]', default=[64])
-    parser.add_argument('--io-batch-sizes', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[64])
-    parser.add_argument('--comp-batch-sizes', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[64])
-    parser.add_argument('--coproc-ppdepths', type=comma_sep_numbers(1, 256), metavar='NUM[,NUM...]', default=[32])
-    parser.add_argument('--pktgen', type=host_port_pair(54321), metavar='HOST:PORT', nargs='+',
-                        default=[('shader-marcel.anlab', 54321), ('shader-lahti.anlab', 54321)])
-    parser.add_argument('--emulate-io', action='store_true', default=False)
+    parser.add_argument('--prefix', type=str, default=None,
+                        help='Additional prefix directory name for recording.')
     parser.add_argument('-v', '--verbose', action='store_true', default=False)
+    parser.add_argument('--no-record', action='store_true', default=False,
+                        help='Skip recording the results.')
+    parser.add_argument('-l', '--latency', action='store_true', default=False,
+                        help='Save the latency histogram.'
+                             'The packet generation rate is fixed to'
+                             '3 Gbps (for IPsec) or 10 Gbps (otherwise).')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-p', '--pkt-sizes', type=comma_sep_numbers(64, 1500),
+                       metavar='NUM[,NUM...]', default=[64])
+    group.add_argument('-t', '--trace', action='store_true', default=False)
     args = parser.parse_args()
 
     cpu_ratio_list = frange(args.ratio_start, args.ratio_end, args.ratio_interval)
 
     env = ExperimentEnv(verbose=args.verbose)
-    pktgens = []
-    if not args.emulate_io:
-        for host, port in args.pktgen:
-            pktgens.append(PktGenRunner(host, port))
+    env.main_bin = args.bin
+    thruput_reader = AppThruputReader(begin_after=25.0)
+    env.register_reader(thruput_reader)
+    loop = asyncio.get_event_loop()
 
-    combinations = product(args.io_batch_sizes, args.comp_batch_sizes,
-                           args.coproc_ppdepths, args.pkt_sizes, cpu_ratio_list)
+    pktgen = PktGenController()
+    loop.run_until_complete(pktgen.init())
 
-    print('{0} {1}'.format(args.sys_config_to_use, args.element_config_to_use))
-    print('# CPU ratio values: {0}'.format(', '.join(map(str, cpu_ratio_list))))
-    print('io-batch-size comp-batch-size coproc-ppdepth pkt-size cpu-ratio  ' \
-          'Mpps Gbps  cpu-io-usr cpu-io-sys  cpu-coproc-usr cpu-coproc-sys')
+    conf_names = []
+    args._conf_path_map = dict()
+    for elem_config in args.element_configs:
+        conf_name = os.path.splitext(os.path.basename(elem_config))[0]
+        assert 'lbratio' in conf_name  # check config compatibility
+        conf_path = elem_config
+        conf_names.append(conf_name)
+        args._conf_path_map[conf_name] = conf_path
+    combinations = tuple(product(
+        conf_names,
+        tuple(range(env.get_num_nodes())),
+        (0,) if args.trace else args.pkt_sizes,
+        cpu_ratio_list
+    ))
+    combinations_without_node_id = tuple(product(
+        conf_names,
+        (0,) if args.trace else args.pkt_sizes,
+        cpu_ratio_list
+    ))
+    mi = pd.MultiIndex.from_tuples(combinations, names=[
+        'conf',
+        'node_id',
+        'pktsz',
+        'cpu_ratio',
+    ])
+    all_tput_recs = pd.DataFrame(index=mi, columns=[
+        'mpps',
+        'gbps',
+    ])
+    all_latency_cdfs = dict()
 
-    for io_batch_size, comp_batch_size, coproc_ppdepth, pktsize, cpu_ratio in combinations:
-
-        print('{0:<4d} {1:4d} {2:4d} {3:4d} {4:6.2f}'.format(
-                io_batch_size, comp_batch_size, coproc_ppdepth, pktsize, cpu_ratio), end='  ')
-
-        env.envvars['NBA_IO_BATCH_SIZE'] = str(io_batch_size)
-        env.envvars['NBA_COMP_BATCH_SIZE'] = str(comp_batch_size)
-        env.envvars['NBA_COPROC_PPDEPTH'] = str(coproc_ppdepth)
-        env.envvars['NBA_LOADBALANCER_CPU_RATIO'] = cpu_ratio
-
-        if 'ipv6' in args.element_config_to_use:
-            # All random ipv6 pkts
-            if args.emulate_io:
-                emulate_opts = {'--emulated-pktsize': pktsize, '--emulated-ipversion': 6}
-            else:
-                emulate_opts = None
-                for pktgen in pktgens:
-                    pktgen.set_args("-i", "all", "-f", "0", "-v", "6", "-p", str(pktsize))
-        elif 'ipsec' in args.element_config_to_use:
-            # ipv4 pkts with 1K flows
-            # ipv4 pkts with 1K flows
-            if args.emulate_io:
-                emulate_opts = {'--emulated-pktsize': pktsize, '--emulated-fixed-flows': 1024}
-            else:
-                emulate_opts = None
-                for pktgen in pktgens:
-                    pktgen.set_args("-i", "all", "-f", "1024", "-r", "0", "-v", "4", "-p", str(pktsize))
-        else:
-            # All random ipv4 pkts
-            if args.emulate_io:
-                emulate_opts = {'--emulated-pktsize': pktsize}
-            else:
-                emulate_opts = None
-                for pktgen in pktgens:
-                    pktgen.set_args("-i", "all", "-f", "0", "-v", "4", "-p", str(pktsize))
-
-        # Configure what and how to measure things.
-        thruput_records = env.measure_thruput(begin_after=15.0, repeat=True)
-        cpu_records     = env.measure_cpu_usage(interval=1.2, begin_after=15.0, repeat=True)
-
-        # Run.
-        with ExitStack() as stack:
-            # TODO: Implement running pktgen server remotely
-            #_ = [stack.enter_context(pktgen) for pktgen in pktgens]
-            loop = asyncio.get_event_loop()
-            retcode = loop.run_until_complete(env.execute_main(args.sys_config_to_use, args.element_config_to_use,
-                                                               running_time=30.0, emulate_opts=emulate_opts))
-            if retcode != 0:
-                print('The main program exited abnormaly, and we ignore the results! (exit code: {0})'.format(retcode))
-                continue
-
-        # Fetch results of throughput measurement and compute average.
-        average_thruput_mpps = mean(t.total_fwd_pps for t in thruput_records)
-        average_thruput_gbps = mean(t.total_fwd_bps for t in thruput_records)
-        print('{0:6.2f}'.format(average_thruput_mpps), end=' ')
-        print('{0:6.2f}'.format(average_thruput_gbps), end=' ')
-
-        # Fetch results of cpu util measurement and compute average.
-        io_usr_avg = io_sys_avg = coproc_usr_avg = coproc_sys_avg = 0
-        io_usr_avgs = []; io_sys_avgs = []; coproc_usr_avgs = []; coproc_sys_avgs = []
-        io_cores = env.get_io_cores()
-        coproc_cores = env.get_coproc_cores()
-        for cpu_usage in cpu_records:
-            io_usr_avgs.append(mean(cpu_usage[core].usr for core in io_cores))
-            io_sys_avgs.append(mean(cpu_usage[core].sys for core in io_cores))
-            coproc_usr_avgs.append(mean(cpu_usage[core].usr for core in coproc_cores))
-            coproc_sys_avgs.append(mean(cpu_usage[core].sys for core in coproc_cores))
-        io_usr_avg = mean(io_usr_avgs)
-        io_sys_avg = mean(io_sys_avgs)
-        coproc_usr_avg = mean(coproc_usr_avgs)
-        coproc_sys_avg = mean(coproc_sys_avgs)
-        print('{0:6.2f} {1:6.2f}'.format(io_usr_avg, io_sys_avg), end='  ')
-        print('{0:6.2f} {1:6.2f}'.format(coproc_usr_avg, coproc_sys_avg))
-
+    for conds in combinations_without_node_id:
+        result = loop.run_until_complete(do_experiment(loop, env, args, conds, thruput_reader))
+        for rec in result.thruput_records:
+            all_tput_recs.ix[rec[0]] = rec[1]
+        if result.latency_cdf is not None:
+            all_latency_cdfs[conds] = result.latency_cdf
         sys.stdout.flush()
         time.sleep(3)
+    loop.close()
+
+    # Sum over node_id while preserving other indexes
+    pd.set_option('display.expand_frame_repr', False)
+    pd.set_option('display.float_format', '{:.2f}'.format)
+    system_tput = all_tput_recs.sum(level=['conf', 'pktsz', 'cpu_ratio'])
+    print('Throughput per NUMA node')
+    print('========================')
+    print(all_tput_recs)
+    print('Throughput per system')
+    print('=====================')
+    print(system_tput)
+    print()
+    if not args.no_record:
+        now = datetime.now()
+        bin_name = os.path.basename(args.bin)
+        dir_name = 'loadbalance-ratio.{:%Y-%m-%d.%H%M%S}.{}'.format(now, bin_name)
+        if args.prefix:
+            dir_prefix = '{}.{:%Y-%m-%d}'.format(args.prefix, now)
+            dir_name = os.path.join(dir_prefix, dir_name)
+        base_path = os.path.join(os.path.expanduser('~/Dropbox/temp/plots/nba'), dir_name)
+        os.makedirs(base_path, exist_ok=True)
+        with open(os.path.join(base_path, 'version.txt'), 'w') as fout:
+            print(env.get_current_commit(short=False), file=fout)
+        all_tput_recs.to_csv(os.path.join(base_path, 'thruput.pernode.csv'), float_format='%.2f')
+        system_tput.to_csv(os.path.join(base_path, 'thruput.csv'), float_format='%.2f')
+        for conds, cdf in all_latency_cdfs.items():
+            conds_str = '{5}'.format(*conds)  # only pktsz
+            cdf.to_csv(os.path.join(base_path, 'latency.' + conds_str + '.csv'), float_format='%.6f')
+        env.fix_ownership(base_path)
+    print('all done.')
+    sys.exit(0)

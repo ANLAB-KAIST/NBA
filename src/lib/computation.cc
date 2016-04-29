@@ -185,7 +185,7 @@ void comp_thread_context::build_element_graph(const char* config_file)
         }
     }
     RTE_LOG(INFO, ELEM, "Number of linear groups: %lu\n", linear_groups.size());
-    #ifdef NBA_REUSE_DATABLOCKS
+    #if NBA_REUSE_DATABLOCKS == 1
     for (vector<GraphMetaData *> group : linear_groups) {
 
         Element *prev_el = nullptr;

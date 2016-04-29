@@ -226,7 +226,7 @@ public:
         }
         NEW(0, finished_batches, FixedRing<PacketBatch*>,
             MAX_FINBATCH_QLEN, finished_batches_arrbuf);
-        memset(tasks, 0, sizeof(OffloadTask *) * NBA_MAX_COPROCESSOR_TYPES);
+        memzero(tasks, NBA_MAX_COPROCESSOR_TYPES);
     }
     virtual ~OffloadableElement() {}
     int get_type() const { return ELEMTYPE_OFFLOADABLE | ELEMTYPE_SCHEDULABLE; }

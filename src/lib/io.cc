@@ -161,7 +161,7 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
         uint64_t total_batch_size = 0;
         for (PacketBatch *batch : task->batches)
             total_batch_size += batch->count;
-        #ifdef NBA_REUSE_DATABLOCKS
+        #if NBA_REUSE_DATABLOCKS == 1
         if (ctx->elem_graph->check_next_offloadable(task->elem)) {
             for (PacketBatch *batch : task->batches) {
                 batch->compute_time += (uint64_t)
@@ -236,9 +236,6 @@ static size_t comp_process_batch(io_thread_context *ctx, void *pkts, size_t coun
     batch->count = count;
     INIT_BATCH_MASK(batch);
     batch->recv_timestamp = t;
-    batch->compute_time = 0;
-    batch->delay_start = 0;
-    batch->delay_time = 0;
     batch->batch_id = recv_batch_cnt;
     #if NBA_BATCHING_SCHEME == NBA_BATCHING_LINKEDLIST
     batch->first_idx = 0;
@@ -325,15 +322,15 @@ static void io_local_stat_timer_cb(struct ev_loop *loop, struct ev_timer *watche
         rte_atomic64_add(&ctx->node_stat->port_stats[j].num_recv_bytes, ctx->port_stats[j].num_recv_bytes);
         rte_atomic64_add(&ctx->node_stat->port_stats[j].num_sent_bytes, ctx->port_stats[j].num_sent_bytes);
         ctx->tx_pkt_thruput += ctx->port_stats[j].num_sent_pkts;
-        memset(&ctx->port_stats[j], 0, sizeof(struct io_port_stat));
+        memzero(&ctx->port_stats[j], 1);
     }
  #ifdef NBA_CPU_MICROBENCH
-	char buf[2048];
+    char buf[2048];
     char *bufp = &buf[0];
     for (int e = 0; e < 5; e++) {
         bufp += sprintf(bufp, "[worker:%02u].%d %'12lld, %'12lld, %'12lld\n", ctx->loc.core_id, e, ctx->papi_ctr_rx[e], ctx->papi_ctr_tx[e], ctx->papi_ctr_comp[e]);
     }
-	printf("%s", buf);
+    printf("%s", buf);
     memset(ctx->papi_ctr_rx, 0, sizeof(long long) * 5);
     memset(ctx->papi_ctr_tx, 0, sizeof(long long) * 5);
     memset(ctx->papi_ctr_comp, 0, sizeof(long long) * 5);
@@ -355,7 +352,7 @@ static void io_node_stat_cb(struct ev_loop *loop, struct ev_async *watcher, int 
     if (rte_atomic16_cmpset((volatile uint16_t *) &ctx->node_master_flag->cnt, node_stat->num_threads, 0)) {
         unsigned j;
         struct io_thread_stat total;
-        memset(&total, 0, sizeof(struct io_thread_stat));
+        memzero(&total, 1);
         struct io_thread_stat *last_total = &node_stat->last_total;
         struct rte_eth_stats s;
         for (j = 0; j < node_stat->num_ports; j++) {
@@ -417,7 +414,7 @@ void io_tx_batch(struct io_thread_context *ctx, PacketBatch *batch)
 {
     struct rte_mbuf *out_batches[NBA_MAX_PORTS][NBA_MAX_COMP_BATCH_SIZE];
     unsigned out_batches_cnt[NBA_MAX_PORTS];
-    memset(out_batches_cnt, 0, sizeof(unsigned) * NBA_MAX_PORTS);
+    memzero(out_batches_cnt, NBA_MAX_PORTS);
     uint64_t t = rdtscp();
     int64_t proc_id = anno_get(&batch->banno, NBA_BANNO_LB_DECISION) + 1; // adjust range to be positive
     ctx->comp_ctx->inspector->update_batch_proc_time(t - batch->recv_timestamp);
@@ -636,7 +633,7 @@ int io_loop(void *arg)
     ctx->port_stats = (struct io_port_stat *) rte_malloc_socket("io_port_stat",
                                                                 sizeof(struct io_port_stat) * ctx->node_stat->num_ports,
                                                                 CACHE_LINE_SIZE, ctx->loc.node_id);
-    memset(ctx->port_stats, 0, sizeof(struct io_port_stat) * ctx->node_stat->num_ports);
+    memzero(ctx->port_stats, ctx->node_stat->num_ports);
 
     /* Initialize statistics timer. */
     if (ctx->loc.local_thread_idx == 0) {

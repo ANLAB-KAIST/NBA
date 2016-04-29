@@ -1,16 +1,18 @@
 #! /usr/bin/env python3
 # -*- mode: python -*-
-import os, sys, re, sysconfig, glob, logging
+import os, sys, re
+import glob
+import logging
 from collections import namedtuple
+import subprocess
+import sysconfig
 from snakemake.utils import format as fmt
 from snakemake.logging import logger
 from distutils.version import LooseVersion
+
 sys.path.insert(0, '.')
 import compilelib
-from pprint import pprint
-from snakemake import shell
 
-logger.set_level(logging.DEBUG)
 
 ExtLib = namedtuple('ExtLib', 'path target build_cmd clean_cmd')
 
@@ -19,15 +21,24 @@ def joinpath(*args):
 
 def version():
     modern_version = LooseVersion('4.7.0')
-    for line in shell('g++ --version', iterable=True):
-        m = re.search('\d\.\d\.\d', line)
+    result = subprocess.run(['g++', '--version'],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            universal_newlines=True)
+    for line in result.stdout.splitlines():
+        m = re.search(' (\d+\.\d+(\.\d+)?)', line)
         if m:
-            VERSION = LooseVersion(m.group(0))
+            ver = LooseVersion(m.group(1))
             break
-    if VERSION >= modern_version:
+    else:
+        raise RuntimeError('Could not detect compiler version!')
+    if ver >= modern_version:
         return '-std=gnu++11'
     else:
         return '-std=c++0x'
+
+
+logger.set_level(logging.DEBUG)
 
 USE_CUDA = bool(int(os.getenv('USE_CUDA', 1)))
 USE_PHI  = bool(int(os.getenv('USE_PHI', 0)))
@@ -35,7 +46,11 @@ USE_NVPROF = bool(int(os.getenv('USE_NVPROF', 0)))
 USE_OPENSSL_EVP = bool(int(os.getenv('USE_OPENSSL_EVP', 1)))
 NO_HUGEPAGES = bool(int(os.getenv('NBA_NO_HUGE', 0)))
 # Values for batching scheme - 0: traditional, 1: continuous, 2: bitvector, 3: linkedlist
-BATCHING_SCHEME = int(os.getenv('NBA_BATCHING_SCHEME', 2))
+BATCHING_SCHEME   = int(os.getenv('NBA_BATCHING_SCHEME', 0))
+# Values for branchpred scheme - 0: disabled, 1: enabled, 2: always
+BRANCHPRED_SCHEME = int(os.getenv('NBA_BRANCHPRED_SCHEME', 0))
+# Values for reuse datablocks - 0: disabled, 1: enabled
+REUSE_DATABLOCKS = int(os.getenv('NBA_REUSE_DATABLOCKS', 1))
 PMD      = os.getenv('NBA_PMD', 'ixgbe')
 logger.debug(fmt('Compiling using {PMD} poll-mode driver...'))
 
@@ -110,6 +125,8 @@ if USE_NVPROF:      CFLAGS += ' -DUSE_NVPROF'
 if NO_HUGEPAGES:    CFLAGS += ' -DNBA_NO_HUGE'
 CFLAGS += ' -DNBA_PMD_{0}'.format(PMD.upper())
 CFLAGS += ' -DNBA_BATCHING_SCHEME={0}'.format(BATCHING_SCHEME)
+CFLAGS += ' -DNBA_BRANCHPRED_SCHEME={0}'.format(BRANCHPRED_SCHEME)
+CFLAGS += ' -DNBA_REUSE_DATABLOCKS={0}'.format(REUSE_DATABLOCKS)
 
 # User-defined variables
 v = os.getenv('NBA_SLEEPY_IO', 0)
