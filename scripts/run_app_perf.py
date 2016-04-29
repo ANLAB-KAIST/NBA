@@ -11,7 +11,6 @@ from datetime import datetime
 from itertools import product
 import os
 import signal
-from statistics import mean
 import sys
 import time
 
@@ -20,8 +19,8 @@ import numpy as np
 import pandas as pd
 
 from exprlib import ExperimentEnv
-from exprlib.arghelper import comma_sep_numbers, comma_sep_str, host_port_pair
-from exprlib.records import AppThruputRecord, AppThruputReader
+from exprlib.arghelper import comma_sep_numbers, comma_sep_str
+from exprlib.records import AppThruputReader
 from exprlib.plotting.utils import cdf_from_histogram
 from exprlib.pktgen import PktGenController
 from exprlib.latency import LatencyHistogramReader
@@ -275,7 +274,7 @@ if __name__ == '__main__':
 
     # Sum over node_id while preserving other indexes
     pd.set_option('display.expand_frame_repr', False)
-    pd.set_option('display.float_format', lambda f: '{:.2f}'.format(f))
+    pd.set_option('display.float_format', '{:.2f}'.format)
     system_tput = all_tput_recs.sum(level=['conf', 'io_batchsz', 'comp_batchsz',
                                            'coproc_ppdepth', 'num_cores', 'pktsz'])
     print('Throughput per NUMA node')

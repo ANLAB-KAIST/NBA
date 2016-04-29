@@ -7,7 +7,6 @@ import decimal
 from itertools import product
 import os
 import signal
-from statistics import mean
 import sys
 import time
 
@@ -16,8 +15,8 @@ import numpy as np
 import pandas as pd
 
 from exprlib import ExperimentEnv
-from exprlib.arghelper import comma_sep_numbers, comma_sep_str, host_port_pair
-from exprlib.records import AppThruputRecord, AppThruputReader
+from exprlib.arghelper import comma_sep_numbers, comma_sep_str
+from exprlib.records import AppThruputReader
 from exprlib.plotting.utils import cdf_from_histogram
 from exprlib.pktgen import PktGenController
 from exprlib.latency import LatencyHistogramReader
@@ -34,7 +33,6 @@ def frange(start, end, interval):
         raise ValueError
     decimal.getcontext().prec = 2
     _start      = decimal.Decimal(start)
-    _end        = decimal.Decimal(end)
     _interval   = decimal.Decimal(interval)
     if interval == 0:
         return [start]
@@ -230,7 +228,7 @@ if __name__ == '__main__':
 
     # Sum over node_id while preserving other indexes
     pd.set_option('display.expand_frame_repr', False)
-    pd.set_option('display.float_format', lambda f: '{:.2f}'.format(f))
+    pd.set_option('display.float_format', '{:.2f}'.format)
     system_tput = all_tput_recs.sum(level=['conf', 'pktsz', 'cpu_ratio'])
     print('Throughput per NUMA node')
     print('========================')
