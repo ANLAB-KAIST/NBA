@@ -1,6 +1,7 @@
 #ifndef __NBA_INTRINSIC_HH__
 #define __NBA_INTRINSIC_HH__
 
+#include <rte_config.h>
 #include <rte_memory.h>
 #include <type_traits>
 

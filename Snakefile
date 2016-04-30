@@ -40,10 +40,13 @@ def version():
 
 logger.set_level(logging.DEBUG)
 
-USE_CUDA = bool(int(os.getenv('USE_CUDA', 1)))
-USE_PHI  = bool(int(os.getenv('USE_PHI', 0)))
-USE_NVPROF = bool(int(os.getenv('USE_NVPROF', 0)))
-USE_OPENSSL_EVP = bool(int(os.getenv('USE_OPENSSL_EVP', 1)))
+USE_CUDA   = bool(int(os.getenv('NBA_USE_CUDA', 1)))
+USE_PHI    = bool(int(os.getenv('NBA_USE_PHI', 0)))
+USE_KNAPP  = bool(int(os.getenv('NBA_USE_KNAPP', 0)))
+
+USE_NVPROF = bool(int(os.getenv('NBA_USE_NVPROF', 0)))
+USE_OPENSSL_EVP = bool(int(os.getenv('NBA_USE_OPENSSL_EVP', 1)))
+
 NO_HUGEPAGES = bool(int(os.getenv('NBA_NO_HUGE', 0)))
 # Values for batching scheme - 0: traditional, 1: continuous, 2: bitvector, 3: linkedlist
 BATCHING_SCHEME   = int(os.getenv('NBA_BATCHING_SCHEME', 0))
@@ -120,6 +123,7 @@ if os.getenv('TESTING', 0):
 LIBS = '-pthread -lpcre -lrt'
 if USE_CUDA:        CFLAGS += ' -DUSE_CUDA'
 if USE_PHI:         CFLAGS += ' -DUSE_PHI'
+if USE_KNAPP:       CFLAGS += ' -DUSE_KNAPP'
 if USE_OPENSSL_EVP: CFLAGS += ' -DUSE_OPENSSL_EVP'
 if USE_NVPROF:      CFLAGS += ' -DUSE_NVPROF'
 if NO_HUGEPAGES:    CFLAGS += ' -DNBA_NO_HUGE'
@@ -168,42 +172,47 @@ if USE_CUDA:
                   + ' -gencode arch=compute_20,code=sm_21' \
                   + ' -gencode arch=compute_20,code=compute_21'
 
+if USE_KNAPP:
+    CFLAGS += ''
+    LIBS   += ' -lscif'
+
 # NVIDIA Profiler configurations
 if USE_NVPROF:
     if not USE_CUDA:
-        CFLAGS       += ' -I/usr/local/cuda/include'
-        LIBS         += ' -L/usr/local/cuda/lib64'
+        CFLAGS += ' -I/usr/local/cuda/include'
+        LIBS   += ' -L/usr/local/cuda/lib64'
     LIBS   += ' -lnvToolsExt'
 
 # Intel Xeon Phi configurations
 if USE_PHI:
-    CFLAGS    += ' -I/opt/intel/opencl/include'
-    LIBS      += ' -L/opt/intel/opencl/lib64 -lOpenCL'
+    CFLAGS += ' -I/opt/intel/opencl/include'
+    LIBS   += ' -L/opt/intel/opencl/lib64 -lOpenCL'
 
 # OpenSSL configurations
 SSL_PATH = os.getenv('NBA_OPENSSL_PATH') or '/usr'
-CFLAGS        += ' -I{SSL_PATH}/include'
-LIBS          += ' -L{SSL_PATH}/lib -lcrypto'
+CFLAGS  += ' -I{SSL_PATH}/include'
+LIBS    += ' -L{SSL_PATH}/lib -lcrypto'
 
 # Python configurations (assuming we use the same version of Python for Snakemake and configuration scripts)
-CFLAGS        += ' -I{0} -fwrapv'.format(sysconfig.get_path('include'))
-LIBS          += ' -L{0} -lpython{1}m {2} {3}'.format(sysconfig.get_config_var('LIBDIR'),
-                                                      '{0}.{1}'.format(sys.version_info.major, sys.version_info.minor),
-                                                      sysconfig.get_config_var('LIBS'),
-                                                      sysconfig.get_config_var('LINKFORSHARED'))
+PYTHON_VERSION = '{0.major}.{0.minor}'.format(sys.version_info)
+CFLAGS += ' -I{0} -fwrapv'.format(sysconfig.get_path('include'))
+LIBS   += ' -L{0} -lpython{1}m {2} {3}'.format(sysconfig.get_config_var('LIBDIR'),
+                                               PYTHON_VERSION,
+                                               sysconfig.get_config_var('LIBS'),
+                                               sysconfig.get_config_var('LINKFORSHARED'))
 
 # click-parser configurations
-CLICKPARSER_PATH = os.getenv('CLICKPARSER_PATH', fmt('{THIRD_PARTY_DIR}/click-parser'))
-CFLAGS        += ' -I{CLICKPARSER_PATH}/include'
-LIBS          += ' -L{CLICKPARSER_PATH}/build -lclickparser'
+CLICKPARSER_PATH = os.getenv('CLICKPARSER_PATH') or fmt('{THIRD_PARTY_DIR}/click-parser')
+CFLAGS += ' -I{CLICKPARSER_PATH}/include'
+LIBS   += ' -L{CLICKPARSER_PATH}/build -lclickparser'
 
 # libev configurations
 LIBEV_PREFIX = os.getenv('LIBEV_PATH', '/usr/local')
-CFLAGS       += ' -I{LIBEV_PREFIX}/include'
-LIBS         += ' -L{LIBEV_PREFIX}/lib -lev'
+CFLAGS += ' -I{LIBEV_PREFIX}/include'
+LIBS   += ' -L{LIBEV_PREFIX}/lib -lev'
 
 # PAPI configurations
-LIBS          += ' -lpapi'
+LIBS += ' -lpapi'
 
 # DPDK configurations
 DPDK_PATH = os.getenv('NBA_DPDK_PATH')
@@ -220,13 +229,13 @@ librte_pmds    = {
 librte_names   = {'ethdev', 'rte_eal', 'rte_cmdline', 'rte_sched',
                   'rte_mbuf', 'rte_mempool', 'rte_ring', 'rte_hash'}
 librte_names.update(librte_pmds[PMD])
-CFLAGS        += ' -I{DPDK_PATH}/include'
-LIBS          += ' -L{DPDK_PATH}/lib' \
-                 + ' -Wl,--whole-archive' \
-                 + ' -Wl,--start-group ' \
-                 + ' '.join('-l' + libname for libname in librte_names) \
-                 + ' -Wl,--end-group' \
-                 + ' -Wl,--no-whole-archive'
+CFLAGS += ' -I{DPDK_PATH}/include'
+LIBS   += ' -L{DPDK_PATH}/lib' \
+          + ' -Wl,--whole-archive' \
+          + ' -Wl,--start-group ' \
+          + ' '.join('-l' + libname for libname in librte_names) \
+          + ' -Wl,--end-group' \
+          + ' -Wl,--no-whole-archive'
 
 # Other dependencies
 LIBS += ' -lnuma -ldl'

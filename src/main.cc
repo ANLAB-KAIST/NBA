@@ -27,7 +27,10 @@
 #include <nba/engines/cuda/utils.hh>
 #include <nba/engines/cuda/computedevice.hh>
 #include <nba/engines/cuda/computecontext.hh>
-#include <cuda.h>
+#endif
+#ifdef USE_KNAPP
+#include <nba/engines/knapp/computedevice.hh>
+#include <nba/engines/knapp/computecontext.hh>
 #endif
 #ifdef USE_PHI
 #include <nba/engines/phi/utils.hh>
@@ -573,27 +576,36 @@ int main(int argc, char **argv)
             /* WARNING: subclasses are usually LARGER than their base
              * classes and malloc should use the subclass' size! */
             // TODO: (generalization) apply factory pattern for arbitrary device.
-            ctx->device = NULL;
+            ctx->device = nullptr;
             if (dummy_device) {
-                ctx->device = (ComputeDevice *) rte_malloc_socket(NULL, sizeof(DummyComputeDevice),
-                                          CACHE_LINE_SIZE, ctx->loc.node_id);
+                ctx->device = (ComputeDevice *) rte_malloc_socket(nullptr,
+                        sizeof(DummyComputeDevice),
+                        CACHE_LINE_SIZE, ctx->loc.node_id);
             } else {
                 #ifdef USE_CUDA
-                ctx->device = (ComputeDevice *) rte_malloc_socket(NULL, sizeof(CUDAComputeDevice),
-                                          CACHE_LINE_SIZE, ctx->loc.node_id);
+                ctx->device = (ComputeDevice *) rte_malloc_socket(nullptr,
+                        sizeof(CUDAComputeDevice),
+                        CACHE_LINE_SIZE, ctx->loc.node_id);
+                #endif
+                #ifdef USE_KNAPP
+                ctx->device = (ComputeDevice *) rte_malloc_socket(nullptr,
+                        sizeof(KnappComputeDevice),
+                        CACHE_LINE_SIZE, ctx->loc.node_id);
                 #endif
                 #ifdef USE_PHI
-                ctx->device = (ComputeDevice *) rte_malloc_socket(NULL, sizeof(PhiComputeDevice),
-                                          CACHE_LINE_SIZE, ctx->loc.node_id);
+                ctx->device = (ComputeDevice *) rte_malloc_socket(nullptr,
+                        sizeof(PhiComputeDevice),
+                        CACHE_LINE_SIZE, ctx->loc.node_id);
                 #endif
             }
-            assert(ctx->device != NULL);
+            assert(ctx->device != nullptr);
 
             queue_privs[conf.taskinq_idx] = ctx;
 
             threading::bind_cpu(ctx->loc.core_id); /* To ensure the thread is spawned in the node. */
             pthread_yield();
-            assert(0 == pthread_create(&coprocessor_threads[i].tid, NULL, nba::coproc_loop, ctx));
+            assert(0 == pthread_create(&coprocessor_threads[i].tid,
+                                       nullptr, nba::coproc_loop, ctx));
 
             /* Initialize one-by-one. */
             ctx->thread_init_done_barrier->wait();
