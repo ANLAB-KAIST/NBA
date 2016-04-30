@@ -1,30 +1,34 @@
-#include <nba/engines/cuda/test.hh>
+#include <nba/engines/knapp/test.hh>
 #include <nba/core/shiftedint.hh>
 #include <nba/framework/datablock_shared.hh>
 
 using namespace std;
 using namespace nba;
 
-__global__ void noop()
+void noop()
+//__global__ void noop()
 {
-    __syncthreads();
+    //__syncthreads();
 }
 
 void *nba::get_test_kernel_noop()
 { return reinterpret_cast<void *> (noop); }
 
-__global__ void shiftedint_size_check(size_t *sz_measured_in_device)
+void shiftedint_size_check(size_t *sz_measured_in_device)
+//__global__ void shiftedint_size_check(size_t *sz_measured_in_device)
 {
     *sz_measured_in_device = sizeof(nba::dev_offset_t);
 }
 
-__global__ void shiftedint_value_check
+void shiftedint_value_check
+//__global__ void shiftedint_value_check
 (nba::dev_offset_t *v, uint64_t *raw_v)
 {
     *raw_v = v->as_value<uint64_t>();
 }
 
-__global__ void dbarg_size_check(size_t *sizes, size_t *offsets)
+void dbarg_size_check(size_t *sizes, size_t *offsets)
+//__global__ void dbarg_size_check(size_t *sizes, size_t *offsets)
 {
     sizes[0] = sizeof(struct datablock_kernel_arg);
     offsets[0] = offsetof(struct datablock_kernel_arg, batches);

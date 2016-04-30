@@ -39,19 +39,19 @@ KnappComputeDevice::~KnappComputeDevice()
 
 int KnappComputeDevice::get_spec(struct compute_device_spec *spec)
 {
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, device_id);
-    spec->max_threads = prop.maxThreadsPerMultiProcessor * prop.multiProcessorCount;
-    spec->max_workgroups = prop.maxGridSize[0] * prop.maxGridSize[1] * prop.maxGridSize[2];
-    spec->max_concurrent_kernels = prop.concurrentKernels;
-    spec->global_memory_size = prop.totalGlobalMem;
+    //cudaDeviceProp prop;
+    //cudaGetDeviceProperties(&prop, device_id);
+    //spec->max_threads = prop.maxThreadsPerMultiProcessor * prop.multiProcessorCount;
+    //spec->max_workgroups = prop.maxGridSize[0] * prop.maxGridSize[1] * prop.maxGridSize[2];
+    //spec->max_concurrent_kernels = prop.concurrentKernels;
+    //spec->global_memory_size = prop.totalGlobalMem;
     return 0;
 }
 
 int KnappComputeDevice::get_utilization(struct compute_device_util *util)
 {
     size_t free, total;
-    cutilSafeCall(cudaMemGetInfo(&free, &total));
+    //cutilSafeCall(cudaMemGetInfo(&free, &total));
     util->used_memory_bytes = total - free;
     // TODO: true utilization value can be read from NVML library,
     //       but our GeForce-class GPUs do not support it. :(
