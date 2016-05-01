@@ -3,6 +3,7 @@
 #include <nba/engines/knapp/types.hh>
 #include <nba/engines/knapp/utils.hh>
 #include <nba/engines/knapp/computedevice.hh>
+#include <rte_memory.h>
 #include <scif.h>
 
 using namespace std;
@@ -12,7 +13,7 @@ KnappComputeDevice::KnappComputeDevice(
         unsigned node_id, unsigned device_id, size_t num_contexts
 ) : ComputeDevice(node_id, device_id, num_contexts)
 {
-    type_name = "knapp";
+    type_name = "knapp.phi";
     assert(num_contexts > 0);
     //cutilSafeCall(cudaSetDevice(device_id));
     //cutilSafeCall(cudaSetDeviceFlags(cudaDeviceScheduleSpin & cudaDeviceMapHost));

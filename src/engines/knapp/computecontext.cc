@@ -4,6 +4,7 @@
 #include <nba/engines/knapp/utils.hh>
 #include <nba/engines/knapp/computecontext.hh>
 #include <rte_memzone.h>
+#include <rte_memory.h>
 #include <unistd.h>
 #include <scif.h>
 
@@ -25,7 +26,7 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
    mz(reserve_memory(mother)), num_kernel_args(0)
    /* NOTE: Write-combined memory degrades performance to half... */
 {
-    type_name = "knapp";
+    type_name = "knapp.phi";
     size_t io_base_size = ALIGN_CEIL(IO_BASE_SIZE, getpagesize());
     int rc;
 

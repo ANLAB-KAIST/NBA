@@ -17,6 +17,7 @@ uint16_t nba::knapp::local_node;
 void nba::knapp::connect_with_retry(struct vdevice *vdev)
 {
     int rc = 0;
+    fprintf(stderr, "connect_with_retry\n");
     for (unsigned retry = 0; retry < KNAPP_SCIF_MAX_CONN_RETRY; retry++) {
         rc = scif_connect(vdev->data_epd, &vdev->remote_dataport);
         if (rc < 0) {

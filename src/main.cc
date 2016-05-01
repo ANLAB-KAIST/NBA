@@ -686,6 +686,9 @@ int main(int argc, char **argv)
                     #ifdef USE_CUDA
                     ctx->named_offload_devices->insert(pair<string, ComputeDevice *>("cuda", device));
                     #endif
+                    #ifdef USE_KNAPP
+                    ctx->named_offload_devices->insert(pair<string, ComputeDevice *>("knapp.phi", device));
+                    #endif
                     #ifdef USE_PHI
                     ctx->named_offload_devices->insert(pair<string, ComputeDevice *>("phi", device));
                     #endif
