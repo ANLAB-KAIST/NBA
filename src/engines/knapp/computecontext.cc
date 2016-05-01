@@ -1,4 +1,7 @@
 #include <nba/core/intrinsic.hh>
+#include <nba/engines/knapp/defs.hh>
+#include <nba/engines/knapp/types.hh>
+#include <nba/engines/knapp/utils.hh>
 #include <nba/engines/knapp/computecontext.hh>
 #include <rte_memzone.h>
 #include <unistd.h>
@@ -24,7 +27,43 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
 {
     type_name = "knapp";
     size_t io_base_size = ALIGN_CEIL(IO_BASE_SIZE, getpagesize());
-    //cutilSafeCall(cudaStreamCreateWithFlags(&_stream, cudaStreamNonBlocking));
+    int rc;
+
+    /* Initialize Knapp vDev Parameters. */
+    vdev.device_id = ctx_id;
+    vdev.ht_per_core = 4;  // FIXME: retrieve from scif
+    vdev.pipeline_depth = 32;
+    vdev.next_poll = 0;
+
+    vdev.data_epd = scif_open();
+    if (vdev.data_epd == SCIF_OPEN_FAILED)
+        rte_exit(EXIT_FAILURE, "scif_open() for data_epd failed.");
+    vdev.ctrl_epd = scif_open();
+    if (vdev.ctrl_epd == SCIF_OPEN_FAILED)
+        rte_exit(EXIT_FAILURE, "scif_open() for ctrl_epd failed.");
+    vdev.local_dataport.node = knapp::local_node;
+    vdev.local_dataport.port = knapp::get_host_dataport(ctx_id);
+    vdev.local_ctrlport.node = knapp::local_node;
+    vdev.local_ctrlport.port = knapp::get_host_ctrlport(ctx_id);
+    vdev.remote_ctrlport.node = knapp::remote_scif_nodes[0];
+    vdev.remote_ctrlport.port = knapp::get_mic_dataport(ctx_id);
+    vdev.remote_ctrlport.node = knapp::remote_scif_nodes[0];
+    vdev.remote_ctrlport.port = knapp::get_mic_ctrlport(ctx_id);
+    rc = scif_bind(vdev.data_epd, vdev.local_dataport.port);
+    assert(rc == vdev.local_dataport.port);
+    rc = scif_bind(vdev.ctrl_epd, vdev.local_ctrlport.port);
+    assert(rc == vdev.local_ctrlport.port);
+    knapp::connect_with_retry(&vdev);
+
+    vdev.ctrlbuf = (uint8_t *) rte_zmalloc_socket(nullptr,
+            KNAPP_OFFLOAD_CTRLBUF_SIZE,
+            CACHE_LINE_SIZE, node_id);
+    assert(vdev.ctrlbuf != nullptr);
+    vdev.tasks_in_flight = (struct knapp::offload_task *) rte_zmalloc_socket(nullptr,
+            sizeof(struct knapp::offload_task) * vdev.pipeline_depth,
+            CACHE_LINE_SIZE, node_id);
+    assert(vdev.tasks_in_flight != nullptr);
+
     NEW(node_id, io_base_ring, FixedRing<unsigned>,
         NBA_MAX_IO_BASES, node_id);
     for (unsigned i = 0; i < NBA_MAX_IO_BASES; i++) {
@@ -42,14 +81,11 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
         base = (void *) ((uintptr_t) mz->addr + i * io_base_size + NBA_MAX_IO_BASES * io_base_size);
         _cpu_mempool_out[i]->init_with_flags(base, 0);
         #else
-        _cpu_mempool_in[i]->init_with_flags(nullptr, cudaHostAllocPortable);
-        _cpu_mempool_out[i]->init_with_flags(nullptr, cudaHostAllocPortable);
+        //_cpu_mempool_in[i]->init_with_flags(nullptr, cudaHostAllocPortable);
+        //_cpu_mempool_out[i]->init_with_flags(nullptr, cudaHostAllocPortable);
         #endif
     }
-    {
-        //cutilSafeCall(cudaMalloc((void **) &dummy_dev_buf.ptr, CACHE_LINE_SIZE));
-        //cutilSafeCall(cudaHostAlloc((void **) &dummy_host_buf.ptr, CACHE_LINE_SIZE, cudaHostAllocPortable));
-    }
+    // TODO: replace wtih scif_register() & scif_mmap()
     //cutilSafeCall(cudaHostAlloc((void **) &checkbits_h, MAX_BLOCKS, cudaHostAllocMapped));
     //cutilSafeCall(cudaHostGetDevicePointer((void **) &checkbits_d, checkbits_h, 0));
     assert(checkbits_h != NULL);
@@ -84,7 +120,11 @@ KnappComputeContext::~KnappComputeContext()
     }
     if (mz != nullptr)
         rte_memzone_free(mz);
-    cutilSafeCall(cudaFreeHost(checkbits_h));
+    scif_close(vdev.data_epd);
+    scif_close(vdev.ctrl_epd);
+    rte_free(vdev.ctrlbuf);
+    rte_free(vdev.tasks_in_flight);
+    //cutilSafeCall(cudaFreeHost(checkbits_h));
 }
 
 io_base_t KnappComputeContext::alloc_io_base()
@@ -192,7 +232,7 @@ void KnappComputeContext::clear_kernel_args()
 
 void KnappComputeContext::push_kernel_arg(struct kernel_arg &arg)
 {
-    assert(num_kernel_args < Knapp_MAX_KERNEL_ARGS);
+    assert(num_kernel_args < KNAPP_MAX_KERNEL_ARGS);
     kernel_args[num_kernel_args ++] = arg;  /* Copied to the array. */
 }
 

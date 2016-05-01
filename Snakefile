@@ -63,6 +63,8 @@ SOURCE_DIRS = ['src/core', 'src/lib', 'elements']
 SOURCE_DIRS += ['src/engines/dummy']
 if USE_CUDA:
     SOURCE_DIRS += ['src/engines/cuda']
+if USE_KNAPP:
+    SOURCE_DIRS += ['src/engines/knapp']
 if USE_PHI:
     SOURCE_DIRS += ['src/engines/phi']
 BLACKLIST = {  # temporarily excluded for data-copy-optimization refactoring

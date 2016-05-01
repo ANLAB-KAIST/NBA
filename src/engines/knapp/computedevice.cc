@@ -1,5 +1,7 @@
 #include <nba/core/intrinsic.hh>
 #include <nba/framework/logging.hh>
+#include <nba/engines/knapp/types.hh>
+#include <nba/engines/knapp/utils.hh>
 #include <nba/engines/knapp/computedevice.hh>
 #include <scif.h>
 
@@ -17,6 +19,7 @@ KnappComputeDevice::KnappComputeDevice(
     //cutilSafeCall(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
     RTE_LOG(DEBUG, COPROC, "KnappComputeDevice: # contexts: %lu\n", num_contexts);
     for (unsigned i = 0; i < num_contexts; i++) {
+        KnappComputeContext *ctx = nullptr;
         NEW(node_id, ctx, KnappComputeContext, i, this);
         _ready_contexts.push_back(ctx);
         contexts.push_back((ComputeContext *) ctx);
@@ -50,7 +53,7 @@ int KnappComputeDevice::get_spec(struct compute_device_spec *spec)
 
 int KnappComputeDevice::get_utilization(struct compute_device_util *util)
 {
-    size_t free, total;
+    size_t free = 0, total = 0;
     //cutilSafeCall(cudaMemGetInfo(&free, &total));
     util->used_memory_bytes = total - free;
     // TODO: true utilization value can be read from NVML library,
@@ -91,21 +94,21 @@ void KnappComputeDevice::_return_context(ComputeContext *cctx)
 
 host_mem_t KnappComputeDevice::alloc_host_buffer(size_t size, int flags)
 {
-    void *ptr;
+    void *ptr = nullptr;
     //int nvflags = 0;
     //nvflags |= (flags & HOST_PINNED) ? cudaHostAllocPortable : 0;
     //nvflags |= (flags & HOST_MAPPED) ? cudaHostAllocMapped : 0;
     //nvflags |= (flags & HOST_WRITECOMBINED) ? cudaHostAllocWriteCombined : 0;
     //cutilSafeCall(cudaHostAlloc(&ptr, size, nvflags));
-    assert(ptr != NULL);
+    assert(ptr != nullptr);
     return { ptr };
 }
 
 dev_mem_t KnappComputeDevice::alloc_device_buffer(size_t size, int flags)
 {
-    void *ptr;
+    void *ptr = nullptr;
     //cutilSafeCall(cudaMalloc(&ptr, size));
-    assert(ptr != NULL);
+    assert(ptr != nullptr);
     return { ptr };
 }
 

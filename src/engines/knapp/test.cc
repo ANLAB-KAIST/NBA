@@ -30,10 +30,10 @@ void shiftedint_value_check
 void dbarg_size_check(size_t *sizes, size_t *offsets)
 //__global__ void dbarg_size_check(size_t *sizes, size_t *offsets)
 {
-    sizes[0] = sizeof(struct datablock_kernel_arg);
-    offsets[0] = offsetof(struct datablock_kernel_arg, batches);
-    sizes[1] = sizeof(struct datablock_batch_info);
-    offsets[1] = offsetof(struct datablock_batch_info, item_offsets);
+    //sizes[0] = sizeof(struct datablock_kernel_arg);
+    //offsets[0] = offsetof(struct datablock_kernel_arg, batches);
+    //sizes[1] = sizeof(struct datablock_batch_info);
+    //offsets[1] = offsetof(struct datablock_batch_info, item_offsets);
 }
 
 void *nba::get_test_kernel_shiftedint_size_check()

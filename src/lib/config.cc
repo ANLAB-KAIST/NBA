@@ -1,5 +1,6 @@
 #include <nba/core/strutils.hh>
 #include <nba/framework/config.hh>
+#include <nba/framework/logging.hh>
 #include <cstdio>
 #include <cstdlib>
 #include <cassert>
@@ -9,6 +10,8 @@
 #include <unordered_map>
 #include <numa.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <dirent.h>
 #include <Python.h>
 #include <rte_config.h>
 #include <rte_common.h>
@@ -22,6 +25,10 @@
 #ifdef USE_CUDA
 #include <cuda.h>
 #include <nba/engines/cuda/utils.hh>
+#endif
+#ifdef USE_KNAPP
+#include <scif.h>
+#include <nba/engines/knapp/utils.hh>
 #endif
 #ifdef USE_PHI
 #include <CL/opencl.h>
@@ -194,6 +201,98 @@ nba_get_coprocessors(PyObject *self, PyObject *args)
     }
 
     cudaDeviceReset(); // ignore errors when GPU doesn't exist
+#endif
+#ifdef USE_KNAPP
+    uint16_t scif_nodes[32];
+    uint16_t local_node;
+
+    int num_scif_nodes = scif_get_nodeIDs(scif_nodes, 32, &local_node);
+    if (num_scif_nodes == 1) {
+        // No coprocessors found.
+        RTE_LOG(INFO, MAIN, "No Xeon Phi processors found.\n");
+    }
+    for (int i = 0; i < num_scif_nodes; i++) {
+        if (scif_nodes[i] == local_node) /* Skip myself (host CPU). */
+            continue;
+
+        knapp::remote_scif_nodes.push_back(scif_nodes[i]);
+
+        PyObject *pnamedtuple = PyStructSequence_New(&coprocdevice_type);
+        assert(pnamedtuple != NULL);
+
+        char syspath[FILENAME_MAX], pciid[16], buf[16];
+        PyObject *po;
+
+        po = PyLong_FromLong(scif_nodes[i]);
+        PyStructSequence_SetItem(pnamedtuple, 0, po);
+
+        po = PyUnicode_FromString("knapp.phi");
+        PyStructSequence_SetItem(pnamedtuple, 1, po);
+
+        /* Unfortunately, SCIF does not expose device details. */
+        // FIXME: find mapping of scif_nodes and PCI device IDs
+        //        We currently cannot do that because our system only has
+        //        single Phi processor! :(
+        DIR *parent_dir = opendir("/sys/bus/pci/devices");
+        struct dirent *d = nullptr;
+        string device_name = "<not found>";
+        unordered_map<uint16_t, string> xeon_phi_names = {
+            {0x2250, "Xeon Phi 5100 series"},
+            {0x225c, "Xeon Phi SE10/7120 series"},
+            {0x225d, "Xeon Phi 3120 series"},
+            {0x225e, "Xeon Phi 31S1 series"},
+        };
+        if (parent_dir) {
+            while ((d = readdir(parent_dir)) != nullptr) {
+                if (!strcmp(d->d_name, ".") || !strcmp(d->d_name, ".."))
+                    continue;
+                uint16_t device_id = 0;
+                sprintf(syspath, "/sys/bus/pci/devices/%s/device", d->d_name);
+                FILE *f = fopen(syspath, "r");
+                fread(buf, 16, 1, f);
+                string sbuf = buf;
+                device_id = stoi(sbuf, nullptr, 16);
+                fclose(f);
+                auto search = xeon_phi_names.find(device_id);
+                if (search == xeon_phi_names.end()) {
+                    continue;
+                } else {
+                    strncpy(pciid, d->d_name, 16);
+                    RTE_LOG(DEBUG, MAIN, "found Xeon Phi (0x%04x, %s) at %s\n",
+                           device_id, search->second.c_str(), d->d_name);
+                    device_name = search->second;
+                    break;
+                }
+            }
+        } else {
+            RTE_LOG(ERR, MAIN, "Could not find matching PCI device with SCIF node %d!\n",
+                    scif_nodes[i]);
+        }
+        closedir(parent_dir);
+
+        po = PyUnicode_FromString(pciid);
+        PyStructSequence_SetItem(pnamedtuple, 2, po);
+
+        sprintf(syspath, "/sys/bus/pci/devices/%s/numa_node", pciid);
+        FILE *f = fopen(syspath, "r");
+        fread(buf, 16, 1, f);
+        assert(feof(f));
+        fclose(f);
+        int numa_node = atoi(buf);
+        po = PyLong_FromLong((long) numa_node);
+        PyStructSequence_SetItem(pnamedtuple, 3, po);
+
+        po = PyUnicode_FromString(device_name.c_str());
+        PyStructSequence_SetItem(pnamedtuple, 4, po);
+
+        po = PyBool_FromLong((long) true);
+        PyStructSequence_SetItem(pnamedtuple, 5, po);
+
+        po = PyLong_FromLong((long) 8589934592); // FIXME: implement correctly
+        PyStructSequence_SetItem(pnamedtuple, 6, po);
+
+        PyList_Append(plist, pnamedtuple);
+    }
 #endif
 #ifdef USE_PHI
     cl_platform_id platform_ids[64];

@@ -1,5 +1,5 @@
-#ifndef __NBA_Knapp_COMPUTECTX_HH__
-#define __NBA_Knapp_COMPUTECTX_HH__
+#ifndef __NBA_KNAPP_COMPUTECTX_HH__
+#define __NBA_KNAPP_COMPUTECTX_HH__
 
 #include <nba/core/queue.hh>
 #include <nba/framework/config.hh>
@@ -7,6 +7,7 @@
 #include <nba/framework/computecontext.hh>
 #include <nba/engines/knapp/mempool.hh>
 #include <nba/engines/knapp/utils.hh>
+#include <nba/engines/knapp/types.hh>
 
 struct rte_memzone;
 
@@ -15,6 +16,10 @@ struct rte_memzone;
 namespace nba
 {
 
+/**
+ * Knapp abstracts a Xeon Phi processor as multiple "virtual devices."
+ * Each vdev corresponds to ComputeContext in NBA.
+ */
 class KnappComputeContext: public ComputeContext
 {
 friend class KnappComputeDevice;
@@ -89,7 +94,10 @@ private:
 
     uint8_t *checkbits_d;
     uint8_t *checkbits_h;
-    //cudaStream_t _stream;
+
+    /* vDevice context. */
+    struct knapp::vdevice vdev;
+
     //KnappMemoryPool *_cuda_mempool_in[NBA_MAX_IO_BASES];
     //KnappMemoryPool *_cuda_mempool_out[NBA_MAX_IO_BASES];
     CPUMemoryPool *_cpu_mempool_in[NBA_MAX_IO_BASES];
