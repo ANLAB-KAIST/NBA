@@ -1,6 +1,7 @@
 #ifndef __NBA_KNAPP_TYPES_HH__
 #define __NBA_KNAPP_TYPES_HH__
 
+#include <nba/core/queue.hh>
 #include <scif.h>
 
 namespace nba {
@@ -26,6 +27,8 @@ struct vdevice {
     struct scif_portID remote_ctrlport;
 
     uint8_t *ctrlbuf;
+
+    FixedRing<int> *cores;
 };
 
 struct offload_task {

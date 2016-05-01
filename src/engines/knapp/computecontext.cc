@@ -19,12 +19,10 @@ struct cuda_event_context {
 
 #define IO_BASE_SIZE (16 * 1024 * 1024)
 #define IO_MEMPOOL_ALIGN (8lu)
-#undef USE_PHYS_CONT_MEMORY // performance degraded :(
 
 KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
  : ComputeContext(ctx_id, mother), checkbits_d(NULL), checkbits_h(NULL),
    mz(reserve_memory(mother)), num_kernel_args(0)
-   /* NOTE: Write-combined memory degrades performance to half... */
 {
     type_name = "knapp.phi";
     size_t io_base_size = ALIGN_CEIL(IO_BASE_SIZE, getpagesize());
@@ -32,10 +30,16 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
 
     /* Initialize Knapp vDev Parameters. */
     vdev.device_id = ctx_id;
-    vdev.ht_per_core = 4;  // FIXME: retrieve from scif
-    vdev.pipeline_depth = 32;
-    vdev.next_poll = 0;
+    vdev.ht_per_core = 2;                   // FIXME: set from config
+    vdev.pipeline_depth = NBA_MAX_IO_BASES; // Key adaptation: app-specific I/O buffers -> io_base_t
+    const unsigned num_cores_per_vdev = 2;  // FIXME: set from config
 
+    NEW(node_id, vdev.cores, FixedRing<int>, KNAPP_MAX_CORES_PER_DEVICE, node_id);
+    for (unsigned i = 0; i < num_cores_per_vdev; i++) {
+        vdev.cores->push_back(i + ctx_id * num_cores_per_vdev);
+    }
+
+    /* Initialize vDev communication channels. */
     vdev.data_epd = scif_open();
     if (vdev.data_epd == SCIF_OPEN_FAILED)
         rte_exit(EXIT_FAILURE, "scif_open() for data_epd failed.");
@@ -54,7 +58,6 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
     assert(rc == vdev.local_dataport.port);
     rc = scif_bind(vdev.ctrl_epd, vdev.local_ctrlport.port);
     assert(rc == vdev.local_ctrlport.port);
-    knapp::connect_with_retry(&vdev);
 
     vdev.ctrlbuf = (uint8_t *) rte_zmalloc_socket(nullptr,
             KNAPP_OFFLOAD_CTRLBUF_SIZE,
@@ -65,8 +68,11 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
             CACHE_LINE_SIZE, node_id);
     assert(vdev.tasks_in_flight != nullptr);
 
-    NEW(node_id, io_base_ring, FixedRing<unsigned>,
-        NBA_MAX_IO_BASES, node_id);
+    vdev.next_poll = 0;
+    // TODO: knapp::pollring_init(&vdev.pollring, vdev.pipeline_depth, vdev.data_epd, node_id);
+
+    /* Initialize I/O buffers. */
+    NEW(node_id, io_base_ring, FixedRing<unsigned>, NBA_MAX_IO_BASES, node_id);
     for (unsigned i = 0; i < NBA_MAX_IO_BASES; i++) {
         io_base_ring->push_back(i);
         //NEW(node_id, _cuda_mempool_in[i], KnappMemoryPool, io_base_size, IO_MEMPOOL_ALIGN);
@@ -75,39 +81,24 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
         //_cuda_mempool_out[i]->init();
         NEW(node_id, _cpu_mempool_in[i], CPUMemoryPool, io_base_size, IO_MEMPOOL_ALIGN, 0);
         NEW(node_id, _cpu_mempool_out[i], CPUMemoryPool, io_base_size, IO_MEMPOOL_ALIGN, 0);
-        #ifdef USE_PHYS_CONT_MEMORY
-        void *base;
-        base = (void *) ((uintptr_t) mz->addr + i * io_base_size);
-        _cpu_mempool_in[i]->init_with_flags(base, 0);
-        base = (void *) ((uintptr_t) mz->addr + i * io_base_size + NBA_MAX_IO_BASES * io_base_size);
-        _cpu_mempool_out[i]->init_with_flags(base, 0);
-        #else
         //_cpu_mempool_in[i]->init_with_flags(nullptr, cudaHostAllocPortable);
         //_cpu_mempool_out[i]->init_with_flags(nullptr, cudaHostAllocPortable);
-        #endif
     }
+
     // TODO: replace wtih scif_register() & scif_mmap()
     //cutilSafeCall(cudaHostAlloc((void **) &checkbits_h, MAX_BLOCKS, cudaHostAllocMapped));
     //cutilSafeCall(cudaHostGetDevicePointer((void **) &checkbits_d, checkbits_h, 0));
     assert(checkbits_h != NULL);
     assert(checkbits_d != NULL);
     memset(checkbits_h, 0, MAX_BLOCKS);
+
+    /* Connect to the MIC-side daemon. */
+    knapp::connect_with_retry(&vdev);
 }
 
 const struct rte_memzone *KnappComputeContext::reserve_memory(ComputeDevice *mother)
 {
-#ifdef USE_PHYS_CONT_MEMORY
-    char namebuf[RTE_MEMZONE_NAMESIZE];
-    size_t io_base_size = ALIGN_CEIL(IO_BASE_SIZE, getpagesize());
-    snprintf(namebuf, RTE_MEMZONE_NAMESIZE, "knapp.io.%d:%d", mother->device_id, ctx_id);
-    const struct rte_memzone *_mz = rte_memzone_reserve(namebuf, 2 * io_base_size * NBA_MAX_IO_BASES,
-                                                        mother->node_id,
-                                                        RTE_MEMZONE_2MB | RTE_MEMZONE_SIZE_HINT_ONLY);
-    assert(_mz != nullptr);
-    return _mz;
-#else
     return nullptr;
-#endif
 }
 
 KnappComputeContext::~KnappComputeContext()

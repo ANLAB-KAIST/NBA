@@ -15,9 +15,6 @@ KnappComputeDevice::KnappComputeDevice(
 {
     type_name = "knapp.phi";
     assert(num_contexts > 0);
-    //cutilSafeCall(cudaSetDevice(device_id));
-    //cutilSafeCall(cudaSetDeviceFlags(cudaDeviceScheduleSpin & cudaDeviceMapHost));
-    //cutilSafeCall(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
     RTE_LOG(DEBUG, COPROC, "KnappComputeDevice: # contexts: %lu\n", num_contexts);
     for (unsigned i = 0; i < num_contexts; i++) {
         KnappComputeContext *ctx = nullptr;
@@ -43,24 +40,20 @@ KnappComputeDevice::~KnappComputeDevice()
 
 int KnappComputeDevice::get_spec(struct compute_device_spec *spec)
 {
-    //cudaDeviceProp prop;
-    //cudaGetDeviceProperties(&prop, device_id);
-    //spec->max_threads = prop.maxThreadsPerMultiProcessor * prop.multiProcessorCount;
-    //spec->max_workgroups = prop.maxGridSize[0] * prop.maxGridSize[1] * prop.maxGridSize[2];
-    //spec->max_concurrent_kernels = prop.concurrentKernels;
-    //spec->global_memory_size = prop.totalGlobalMem;
+    // FIXME: generalize for different Phi processor models.
+    spec->max_threads = 60 * 4;
+    spec->max_workgroups = 60;
+    spec->max_concurrent_kernels = true;
+    spec->global_memory_size = 8ll * 1024 * 1024 * 1024;
     return 0;
 }
 
 int KnappComputeDevice::get_utilization(struct compute_device_util *util)
 {
-    size_t free = 0, total = 0;
-    //cutilSafeCall(cudaMemGetInfo(&free, &total));
+    // FIXME: implement MIC status checks
+    size_t free = 8ll * 1024 * 1024 * 1024, total = 8ll * 1024 * 1024 * 1024;
     util->used_memory_bytes = total - free;
-    // TODO: true utilization value can be read from NVML library,
-    //       but our GeForce-class GPUs do not support it. :(
-    //       Any better estimation??
-    util->utilization = (float)free / total;
+    util->utilization = (float) free / total;
     return 0;
 }
 
