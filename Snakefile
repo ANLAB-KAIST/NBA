@@ -65,6 +65,7 @@ if USE_CUDA:
     SOURCE_DIRS += ['src/engines/cuda']
 if USE_KNAPP:
     SOURCE_DIRS += ['src/engines/knapp']
+    MIC_SOURCE_DIR = 'src/engines/knapp-mic'
 if USE_PHI:
     SOURCE_DIRS += ['src/engines/phi']
 BLACKLIST = {  # temporarily excluded for data-copy-optimization refactoring
@@ -90,24 +91,34 @@ BLACKLIST = {  # temporarily excluded for data-copy-optimization refactoring
 SOURCE_FILES = [s for s in compilelib.find_all(SOURCE_DIRS, r'^.+\.(c|cc|cpp)$') if s not in BLACKLIST]
 if USE_CUDA:
     SOURCE_FILES += [s for s in compilelib.find_all(SOURCE_DIRS, r'^.+\.cu$') if s not in BLACKLIST]
+if USE_KNAPP:
+    MIC_SOURCE_FILES = [s for s in compilelib.find_all([MIC_SOURCE_DIR], r'^.+\.cc$')]
 SOURCE_FILES.append('src/main.cc')
 HEADER_FILES         = [s for s in compilelib.find_all(SOURCE_DIRS, r'^.+\.(h|hh|hpp)$') if s not in BLACKLIST]
 ELEMENT_HEADER_FILES = [s for s in compilelib.find_all(['elements'], r'^.+\.(h|hh|hpp)$') if s not in BLACKLIST]
 
 # List of object files
 OBJ_DIR   = 'build'
-os.makedirs('build', exist_ok=True)
+os.makedirs(OBJ_DIR, exist_ok=True)
 OBJ_FILES = [joinpath(OBJ_DIR, o) for o in map(lambda s: re.sub(r'^(.+)\.(c|cc|cpp|cu)$', r'\1.o', s), SOURCE_FILES)]
 GTEST_MAIN_OBJ = 'build/src/lib/gtest/gtest_main.o'
 GTEST_FUSED_OBJ = 'build/src/lib/gtest/gtest-all.o'
 OBJ_FILES.remove(GTEST_MAIN_OBJ)
 OBJ_FILES.remove(GTEST_FUSED_OBJ)
+if USE_KNAPP:
+    MIC_OBJ_DIR   = 'build/_mic'
+    os.makedirs(MIC_OBJ_DIR, exist_ok=True)
+    MIC_OBJ_FILES = [joinpath(MIC_OBJ_DIR, o) for o in map(lambda s: re.sub(r'^(.+)\.cc$', r'\1.o', s), MIC_SOURCE_FILES)]
 
 # Common configurations
 CXXSTD = version()
 
 CC   = 'gcc'
 CXX  = 'g++ ' + CXXSTD
+if USE_KNAPP:
+    MIC_CC     = 'icpc -std=c++11 -mmic -fPIC'
+    MIC_CFLAGS = '-Wall'
+    MIC_LIBS   = '-pthread -lscif -lrt'
 NVCC = 'nvcc'
 SUPPRESSED_CC_WARNINGS = (
     'unused-function',
@@ -264,12 +275,28 @@ rule main:
     output: 'bin/main'
     shell: '{CXX} -o {output} -Wl,--whole-archive {OBJ_FILES} -Wl,--no-whole-archive {LIBS}'
 
+if USE_KNAPP:
+    # You need to run "sudo scp knapp-mic mic0:~/" to copy to MIC.
+    rule mic_main:
+        input: MIC_OBJ_FILES
+        output: 'bin/knapp-mic'
+        shell: '{MIC_CC} -o {output} {MIC_OBJ_FILES} {MIC_LIBS}'
+
+    for srcfile in MIC_SOURCE_FILES:
+        includes = [f for f in compilelib.get_includes(srcfile, 'include')]
+        if srcfile.endswith('.cc'):
+            objfile = re.sub(r'(.+)\.cc$', joinpath(MIC_OBJ_DIR, r'\1.o'), srcfile)
+            rule:
+                input: srcfile, includes
+                output: objfile
+                shell: '{MIC_CC} {MIC_CFLAGS} -c {input[0]} -o {output}'
+
 for lib in THIRD_PARTY_LIBS:
     rule:
         output: lib.target
         shell: lib.build_cmd
 
-_clean_cmds = '\n'.join(['rm -rf build bin/main `find . -path "lib/*_map.hh"`']
+_clean_cmds = '\n'.join(['rm -rf build bin/main bin/knapp-mic `find . -path "lib/*_map.hh"`']
                         + [lib.clean_cmd for lib in THIRD_PARTY_LIBS])
 rule clean:
     shell: _clean_cmds
@@ -312,22 +339,22 @@ for srcfile in SOURCE_FILES:
     # dependencies to fully exploit automatic dependency checks.
     includes = [f for f in compilelib.get_includes(srcfile, 'include')]
     if srcfile.endswith('.c'):
-        outputs = re.sub(r'(.+)\.c$', joinpath(OBJ_DIR, r'\1.o'), srcfile)
+        objfile = re.sub(r'(.+)\.c$', joinpath(OBJ_DIR, r'\1.o'), srcfile)
         rule:
             input: srcfile, includes
-            output: outputs
+            output: objfile
             shell: '{CC} {CFLAGS} -c {input[0]} -o {output}'
     elif srcfile.endswith('.cc') or srcfile.endswith('.cpp'):
-        outputs = re.sub(r'(.+)\.(cc|cpp)$', joinpath(OBJ_DIR, r'\1.o'), srcfile)
+        objfile = re.sub(r'(.+)\.(cc|cpp)$', joinpath(OBJ_DIR, r'\1.o'), srcfile)
         rule:
             input: srcfile, includes
-            output: outputs
+            output: objfile
             shell: '{CXX} {CXXFLAGS} -c {input[0]} -o {output}'
     elif srcfile.endswith('.cu') and USE_CUDA:
-        outputs = re.sub(r'(.+)\.cu$', joinpath(OBJ_DIR, r'\1.o'), srcfile)
+        objfile = re.sub(r'(.+)\.cu$', joinpath(OBJ_DIR, r'\1.o'), srcfile)
         rule:
             input: srcfile, includes
-            output: outputs
+            output: objfile
             shell: '{NVCC} {NVCFLAGS} -c {input[0]} -o {output}'
 
 rule elemmap:
