@@ -11,25 +11,25 @@ message CtrlRequest {
     }
     Type type = 1;
 
-    message PingParam {
+    message TextParam {
 	string msg = 1;
     }
     message MallocParam {
 	uint64 size  = 1;
 	uint64 align = 2;
     }
-    message CreateVdevParam {
+    message vDeviceInfoParam {
 	uint32 num_pcores	    = 1;
 	uint32 num_lcores_per_pcore = 2;
     }
-    message VdevRefParam {
-	uint64 vdev_id = 1;
+    message ResourceParam {
+	uint64 handle = 1;
     }
     oneof params {
-	PingParam ping_param		  = 2;
-	MallocParam malloc_param	  = 3;
-	CreateVdevParam create_vdev_param = 4;
-	VdevRefParam vdev_ref		  = 5;
+	TextParam text = 2;
+	MallocParam malloc = 3;
+	vDeviceInfoParam vdevInfo = 4;
+	ResourceParam resource = 5;
     }
 }
 

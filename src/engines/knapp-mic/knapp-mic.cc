@@ -3,6 +3,7 @@
 #include <nba/engines/knapp/sharedtypes.hh>
 #include <nba/engines/knapp/micbarrier.hh>
 #include <nba/engines/knapp/micutils.hh>
+#include <nba/engines/knapp/ctrl.pb.h>
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -11,6 +12,7 @@
 #include <vector>
 #include <map>
 #include <unistd.h>
+#include <poll.h>
 #include <signal.h>
 #include <locale.h>
 
@@ -30,6 +32,8 @@ using namespace nba::knapp;
 cpu_set_t **cpuset_per_lcore;
 pthread_attr_t *attr_per_lcore;
 int core_util[KNAPP_NUM_CORES][KNAPP_MAX_THREADS_PER_CORE];
+static pthread_t control_thread;
+static volatile bool exit_flag;
 
 /* MIC daemon consists of 3 types of threads:
  * (1) control_thread_loop: global state mgmt (e.g., "cudaMalloc", "cudaMmecpy")
@@ -215,33 +219,96 @@ static void *nba::knapp::master_thread_loop(void *arg) {
 
 static void *nba::knapp::control_thread_loop(void *arg)
 {
-    std::vector<struct vdevice *> vdevs;
-    scif_epd_t master_epd;
-    struct scif_portID master_port;
+    scif_epd_t master_listen_epd, master_epd;
+    struct scif_portID accepted_master_port;
     int backlog = 1;
     int rc = 0;
-    log_info("Listening on the control channel...\n");
+    sigset_t intr_mask, orig_mask;
+    sigemptyset(&intr_mask);
+    sigaddset(&intr_mask, SIGINT);
+    sigaddset(&intr_mask, SIGTERM);
+    pthread_sigmask(SIG_BLOCK, &intr_mask, &orig_mask);
 
-    rc = scif_listen(master_epd, backlog);
+    uint16_t scif_nodes[32];
+    uint16_t local_node;
+    size_t num_nodes;
+    num_nodes = scif_get_nodeIDs(scif_nodes, 32, &local_node);
+
+    master_listen_epd = scif_open();
+    rc = scif_bind(master_listen_epd, KNAPP_MASTER_PORT);
+    assert(KNAPP_MASTER_PORT == rc);
+    rc = scif_listen(master_listen_epd, backlog);
     assert(0 == rc);
-    rc = scif_accept(master_epd, &master_port,
+
+    log_info("Listening on the control channel...\n");
+    struct pollfd p = {master_listen_epd, POLLIN, 0};
+    rc = ppoll(&p, 1, nullptr, &orig_mask);
+    if (rc == -1 && errno == EINTR && exit_flag)
+        goto terminate;
+    rc = scif_accept(master_listen_epd, &accepted_master_port,
                      &master_epd, SCIF_ACCEPT_SYNC);
     assert(0 == rc);
+    exit_flag = false;
 
     // TODO: implement a control protocol loop.
-    while (true) {
-        //recv_ctrlmsg(master_epd, ctrlbuf, );
+    while (!exit_flag) {
+        uint32_t msgsz;
+        char buf[1024];
+
+        struct pollfd p = {master_epd, POLLIN, 0};
+        rc = ppoll(&p, 1, nullptr, &orig_mask);
+        if (rc == -1 && errno == EINTR && exit_flag)
+            break;
+        rc = scif_recv(master_epd, &msgsz, sizeof(msgsz), SCIF_RECV_BLOCK);
+        if (rc == -1 && errno == ECONNRESET)
+            break;
+        assert(rc == sizeof(msgsz));
+        assert(msgsz < 1024);
+        rc = scif_recv(master_epd, &buf, msgsz, SCIF_RECV_BLOCK);
+        assert(rc == msgsz);
+
+        CtrlRequest request;
+        CtrlResponse resp;
+        request.ParseFromArray((void *) buf, msgsz);
+
+        switch (request.type()) {
+        case CtrlRequest::PING:
+            resp.set_reply(CtrlResponse::SUCCESS);
+            const std::string &msg = request.text().msg();
+            log_info("PING request with \"%s\"\n", msg.c_str());
+            resp.mutable_text()->set_msg(msg);
+            break;
+        default:
+            log_error("Not implemented request type: %d\n", request.type());
+        }
+
+        msgsz = resp.ByteSize();
+        resp.SerializeToArray(buf, msgsz);
+        scif_send(master_epd, &msgsz, sizeof(msgsz), SCIF_SEND_BLOCK);
+        scif_send(master_epd, buf, msgsz, SCIF_SEND_BLOCK);
     }
+terminate:
+    log_info("Terminating the control channel...\n");
+    scif_close(master_epd);
+    scif_close(master_listen_epd);
 
     return nullptr;
 }
 
 
 static void nba::knapp::stop_all() {
+    exit_flag = true;
     for (auto vdev : vdevs)
         vdev->exit = true;
+    log_info("Stopping...\n");
+    /* Ensure propagation of signals. */
+    pthread_kill(control_thread, SIGINT);
+    for (auto vdev : vdevs)
+        pthread_kill(vdev->master_thread, SIGINT);
+    /* Wait... */
     for (auto vdev : vdevs)
         pthread_join(vdev->master_thread, nullptr);
+    pthread_join(control_thread, nullptr);
 }
 
 static void nba::knapp::handle_signal(int signal) {
@@ -272,7 +339,6 @@ int main (int argc, char *argv[])
     }
 #endif
     pthread_attr_t attr;
-    pthread_t control_thread;
     {
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);

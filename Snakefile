@@ -316,6 +316,13 @@ rule clean:
     shell: _clean_cmds
 
 _test_cases, = glob_wildcards('tests/test_{case}.cc')
+print(_test_cases)
+if not USE_CUDA:
+    _test_cases.remove('cuda')
+    _test_cases.remove('ipv4route')
+    _test_cases.remove('ipsec')
+if not USE_KNAPP:
+    _test_cases.remove('knapp')
 TEST_OBJ_FILES = OBJ_FILES.copy()
 TEST_OBJ_FILES.append(GTEST_MAIN_OBJ)
 TEST_OBJ_FILES.append(GTEST_FUSED_OBJ)
