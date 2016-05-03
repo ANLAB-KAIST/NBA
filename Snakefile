@@ -316,7 +316,6 @@ rule clean:
     shell: _clean_cmds
 
 _test_cases, = glob_wildcards('tests/test_{case}.cc')
-print(_test_cases)
 if not USE_CUDA:
     _test_cases.remove('cuda')
     _test_cases.remove('ipv4route')
