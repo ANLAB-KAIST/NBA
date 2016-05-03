@@ -4,3 +4,10 @@
 [submodule "3rdparty/googletest"]
 	path = 3rdparty/googletest
 	url = https://github.com/google/googletest
+[submodule "3rdparty/protobuf"]
+	path = 3rdparty/protobuf
+	url = https://github.com/google/protobuf
+[submodule "3rdparty/protobuf-mic"]
+	path = 3rdparty/protobuf-mic
+	url = https://github.com/anlab-kaist/protobuf
+	branch = mic-port
