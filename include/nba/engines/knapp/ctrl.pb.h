@@ -30,6 +30,7 @@
 #include <google/protobuf/unknown_field_set.h>
 // @@protoc_insertion_point(includes)
 
+namespace nba {
 namespace knapp {
 
 // Internal implementation detail -- do not call these.
@@ -51,7 +52,9 @@ enum CtrlRequest_Type {
   CtrlRequest_Type_MALLOC = 1,
   CtrlRequest_Type_FREE = 2,
   CtrlRequest_Type_CREATE_VDEV = 3,
-  CtrlRequest_Type_DESTROY_VDEV = 4
+  CtrlRequest_Type_DESTROY_VDEV = 4,
+  CtrlRequest_Type_CtrlRequest_Type_INT_MIN_SENTINEL_DO_NOT_USE_ = ::google::protobuf::kint32min,
+  CtrlRequest_Type_CtrlRequest_Type_INT_MAX_SENTINEL_DO_NOT_USE_ = ::google::protobuf::kint32max
 };
 bool CtrlRequest_Type_IsValid(int value);
 const CtrlRequest_Type CtrlRequest_Type_Type_MIN = CtrlRequest_Type_PING;
@@ -70,7 +73,9 @@ inline bool CtrlRequest_Type_Parse(
 }
 enum CtrlResponse_Reply {
   CtrlResponse_Reply_SUCCESS = 0,
-  CtrlResponse_Reply_FAILURE = 1
+  CtrlResponse_Reply_FAILURE = 1,
+  CtrlResponse_Reply_CtrlResponse_Reply_INT_MIN_SENTINEL_DO_NOT_USE_ = ::google::protobuf::kint32min,
+  CtrlResponse_Reply_CtrlResponse_Reply_INT_MAX_SENTINEL_DO_NOT_USE_ = ::google::protobuf::kint32max
 };
 bool CtrlResponse_Reply_IsValid(int value);
 const CtrlResponse_Reply CtrlResponse_Reply_Reply_MIN = CtrlResponse_Reply_SUCCESS;
@@ -99,14 +104,6 @@ class CtrlRequest_PingParam : public ::google::protobuf::Message {
   inline CtrlRequest_PingParam& operator=(const CtrlRequest_PingParam& from) {
     CopyFrom(from);
     return *this;
-  }
-
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
-    return _internal_metadata_.unknown_fields();
-  }
-
-  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
-    return _internal_metadata_.mutable_unknown_fields();
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
@@ -153,8 +150,7 @@ class CtrlRequest_PingParam : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // required string msg = 1;
-  bool has_msg() const;
+  // optional string msg = 1;
   void clear_msg();
   static const int kMsgFieldNumber = 1;
   const ::std::string& msg() const;
@@ -165,15 +161,13 @@ class CtrlRequest_PingParam : public ::google::protobuf::Message {
   ::std::string* release_msg();
   void set_allocated_msg(::std::string* msg);
 
-  // @@protoc_insertion_point(class_scope:knapp.CtrlRequest.PingParam)
+  // @@protoc_insertion_point(class_scope:nba.knapp.CtrlRequest.PingParam)
  private:
-  inline void set_has_msg();
-  inline void clear_has_msg();
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
-  ::google::protobuf::uint32 _has_bits_[1];
-  mutable int _cached_size_;
+  bool _is_default_instance_;
   ::google::protobuf::internal::ArenaStringPtr msg_;
+  mutable int _cached_size_;
   friend void  protobuf_AddDesc_ctrl_2eproto();
   friend void protobuf_AssignDesc_ctrl_2eproto();
   friend void protobuf_ShutdownFile_ctrl_2eproto();
@@ -193,14 +187,6 @@ class CtrlRequest_MallocParam : public ::google::protobuf::Message {
   inline CtrlRequest_MallocParam& operator=(const CtrlRequest_MallocParam& from) {
     CopyFrom(from);
     return *this;
-  }
-
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
-    return _internal_metadata_.unknown_fields();
-  }
-
-  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
-    return _internal_metadata_.mutable_unknown_fields();
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
@@ -247,35 +233,26 @@ class CtrlRequest_MallocParam : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // required uint64 size = 1;
-  bool has_size() const;
+  // optional uint64 size = 1;
   void clear_size();
   static const int kSizeFieldNumber = 1;
   ::google::protobuf::uint64 size() const;
   void set_size(::google::protobuf::uint64 value);
 
-  // required uint64 align = 2;
-  bool has_align() const;
+  // optional uint64 align = 2;
   void clear_align();
   static const int kAlignFieldNumber = 2;
   ::google::protobuf::uint64 align() const;
   void set_align(::google::protobuf::uint64 value);
 
-  // @@protoc_insertion_point(class_scope:knapp.CtrlRequest.MallocParam)
+  // @@protoc_insertion_point(class_scope:nba.knapp.CtrlRequest.MallocParam)
  private:
-  inline void set_has_size();
-  inline void clear_has_size();
-  inline void set_has_align();
-  inline void clear_has_align();
-
-  // helper for ByteSize()
-  int RequiredFieldsByteSizeFallback() const;
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
-  ::google::protobuf::uint32 _has_bits_[1];
-  mutable int _cached_size_;
+  bool _is_default_instance_;
   ::google::protobuf::uint64 size_;
   ::google::protobuf::uint64 align_;
+  mutable int _cached_size_;
   friend void  protobuf_AddDesc_ctrl_2eproto();
   friend void protobuf_AssignDesc_ctrl_2eproto();
   friend void protobuf_ShutdownFile_ctrl_2eproto();
@@ -295,14 +272,6 @@ class CtrlRequest_CreateVdevParam : public ::google::protobuf::Message {
   inline CtrlRequest_CreateVdevParam& operator=(const CtrlRequest_CreateVdevParam& from) {
     CopyFrom(from);
     return *this;
-  }
-
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
-    return _internal_metadata_.unknown_fields();
-  }
-
-  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
-    return _internal_metadata_.mutable_unknown_fields();
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
@@ -349,35 +318,26 @@ class CtrlRequest_CreateVdevParam : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // required uint32 num_pcores = 1;
-  bool has_num_pcores() const;
+  // optional uint32 num_pcores = 1;
   void clear_num_pcores();
   static const int kNumPcoresFieldNumber = 1;
   ::google::protobuf::uint32 num_pcores() const;
   void set_num_pcores(::google::protobuf::uint32 value);
 
-  // required uint32 num_lcores_per_pcore = 2;
-  bool has_num_lcores_per_pcore() const;
+  // optional uint32 num_lcores_per_pcore = 2;
   void clear_num_lcores_per_pcore();
   static const int kNumLcoresPerPcoreFieldNumber = 2;
   ::google::protobuf::uint32 num_lcores_per_pcore() const;
   void set_num_lcores_per_pcore(::google::protobuf::uint32 value);
 
-  // @@protoc_insertion_point(class_scope:knapp.CtrlRequest.CreateVdevParam)
+  // @@protoc_insertion_point(class_scope:nba.knapp.CtrlRequest.CreateVdevParam)
  private:
-  inline void set_has_num_pcores();
-  inline void clear_has_num_pcores();
-  inline void set_has_num_lcores_per_pcore();
-  inline void clear_has_num_lcores_per_pcore();
-
-  // helper for ByteSize()
-  int RequiredFieldsByteSizeFallback() const;
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
-  ::google::protobuf::uint32 _has_bits_[1];
-  mutable int _cached_size_;
+  bool _is_default_instance_;
   ::google::protobuf::uint32 num_pcores_;
   ::google::protobuf::uint32 num_lcores_per_pcore_;
+  mutable int _cached_size_;
   friend void  protobuf_AddDesc_ctrl_2eproto();
   friend void protobuf_AssignDesc_ctrl_2eproto();
   friend void protobuf_ShutdownFile_ctrl_2eproto();
@@ -397,14 +357,6 @@ class CtrlRequest_VdevRefParam : public ::google::protobuf::Message {
   inline CtrlRequest_VdevRefParam& operator=(const CtrlRequest_VdevRefParam& from) {
     CopyFrom(from);
     return *this;
-  }
-
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
-    return _internal_metadata_.unknown_fields();
-  }
-
-  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
-    return _internal_metadata_.mutable_unknown_fields();
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
@@ -451,22 +403,19 @@ class CtrlRequest_VdevRefParam : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // required uint64 vdev_id = 1;
-  bool has_vdev_id() const;
+  // optional uint64 vdev_id = 1;
   void clear_vdev_id();
   static const int kVdevIdFieldNumber = 1;
   ::google::protobuf::uint64 vdev_id() const;
   void set_vdev_id(::google::protobuf::uint64 value);
 
-  // @@protoc_insertion_point(class_scope:knapp.CtrlRequest.VdevRefParam)
+  // @@protoc_insertion_point(class_scope:nba.knapp.CtrlRequest.VdevRefParam)
  private:
-  inline void set_has_vdev_id();
-  inline void clear_has_vdev_id();
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
-  ::google::protobuf::uint32 _has_bits_[1];
-  mutable int _cached_size_;
+  bool _is_default_instance_;
   ::google::protobuf::uint64 vdev_id_;
+  mutable int _cached_size_;
   friend void  protobuf_AddDesc_ctrl_2eproto();
   friend void protobuf_AssignDesc_ctrl_2eproto();
   friend void protobuf_ShutdownFile_ctrl_2eproto();
@@ -488,16 +437,16 @@ class CtrlRequest : public ::google::protobuf::Message {
     return *this;
   }
 
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
-    return _internal_metadata_.unknown_fields();
-  }
-
-  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
-    return _internal_metadata_.mutable_unknown_fields();
-  }
-
   static const ::google::protobuf::Descriptor* descriptor();
   static const CtrlRequest& default_instance();
+
+  enum ParamsCase {
+    kPingParam = 2,
+    kMallocParam = 3,
+    kCreateVdevParam = 4,
+    kVdevRef = 5,
+    PARAMS_NOT_SET = 0,
+  };
 
   void Swap(CtrlRequest* other);
 
@@ -577,70 +526,73 @@ class CtrlRequest : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // required .knapp.CtrlRequest.Type type = 1;
-  bool has_type() const;
+  // optional .nba.knapp.CtrlRequest.Type type = 1;
   void clear_type();
   static const int kTypeFieldNumber = 1;
-  ::knapp::CtrlRequest_Type type() const;
-  void set_type(::knapp::CtrlRequest_Type value);
+  ::nba::knapp::CtrlRequest_Type type() const;
+  void set_type(::nba::knapp::CtrlRequest_Type value);
 
-  // optional .knapp.CtrlRequest.PingParam ping_param = 2;
+  // optional .nba.knapp.CtrlRequest.PingParam ping_param = 2;
   bool has_ping_param() const;
   void clear_ping_param();
   static const int kPingParamFieldNumber = 2;
-  const ::knapp::CtrlRequest_PingParam& ping_param() const;
-  ::knapp::CtrlRequest_PingParam* mutable_ping_param();
-  ::knapp::CtrlRequest_PingParam* release_ping_param();
-  void set_allocated_ping_param(::knapp::CtrlRequest_PingParam* ping_param);
+  const ::nba::knapp::CtrlRequest_PingParam& ping_param() const;
+  ::nba::knapp::CtrlRequest_PingParam* mutable_ping_param();
+  ::nba::knapp::CtrlRequest_PingParam* release_ping_param();
+  void set_allocated_ping_param(::nba::knapp::CtrlRequest_PingParam* ping_param);
 
-  // optional .knapp.CtrlRequest.MallocParam malloc_param = 3;
+  // optional .nba.knapp.CtrlRequest.MallocParam malloc_param = 3;
   bool has_malloc_param() const;
   void clear_malloc_param();
   static const int kMallocParamFieldNumber = 3;
-  const ::knapp::CtrlRequest_MallocParam& malloc_param() const;
-  ::knapp::CtrlRequest_MallocParam* mutable_malloc_param();
-  ::knapp::CtrlRequest_MallocParam* release_malloc_param();
-  void set_allocated_malloc_param(::knapp::CtrlRequest_MallocParam* malloc_param);
+  const ::nba::knapp::CtrlRequest_MallocParam& malloc_param() const;
+  ::nba::knapp::CtrlRequest_MallocParam* mutable_malloc_param();
+  ::nba::knapp::CtrlRequest_MallocParam* release_malloc_param();
+  void set_allocated_malloc_param(::nba::knapp::CtrlRequest_MallocParam* malloc_param);
 
-  // optional .knapp.CtrlRequest.CreateVdevParam create_vdev_param = 4;
+  // optional .nba.knapp.CtrlRequest.CreateVdevParam create_vdev_param = 4;
   bool has_create_vdev_param() const;
   void clear_create_vdev_param();
   static const int kCreateVdevParamFieldNumber = 4;
-  const ::knapp::CtrlRequest_CreateVdevParam& create_vdev_param() const;
-  ::knapp::CtrlRequest_CreateVdevParam* mutable_create_vdev_param();
-  ::knapp::CtrlRequest_CreateVdevParam* release_create_vdev_param();
-  void set_allocated_create_vdev_param(::knapp::CtrlRequest_CreateVdevParam* create_vdev_param);
+  const ::nba::knapp::CtrlRequest_CreateVdevParam& create_vdev_param() const;
+  ::nba::knapp::CtrlRequest_CreateVdevParam* mutable_create_vdev_param();
+  ::nba::knapp::CtrlRequest_CreateVdevParam* release_create_vdev_param();
+  void set_allocated_create_vdev_param(::nba::knapp::CtrlRequest_CreateVdevParam* create_vdev_param);
 
-  // optional .knapp.CtrlRequest.VdevRefParam vdev_ref = 5;
+  // optional .nba.knapp.CtrlRequest.VdevRefParam vdev_ref = 5;
   bool has_vdev_ref() const;
   void clear_vdev_ref();
   static const int kVdevRefFieldNumber = 5;
-  const ::knapp::CtrlRequest_VdevRefParam& vdev_ref() const;
-  ::knapp::CtrlRequest_VdevRefParam* mutable_vdev_ref();
-  ::knapp::CtrlRequest_VdevRefParam* release_vdev_ref();
-  void set_allocated_vdev_ref(::knapp::CtrlRequest_VdevRefParam* vdev_ref);
+  const ::nba::knapp::CtrlRequest_VdevRefParam& vdev_ref() const;
+  ::nba::knapp::CtrlRequest_VdevRefParam* mutable_vdev_ref();
+  ::nba::knapp::CtrlRequest_VdevRefParam* release_vdev_ref();
+  void set_allocated_vdev_ref(::nba::knapp::CtrlRequest_VdevRefParam* vdev_ref);
 
-  // @@protoc_insertion_point(class_scope:knapp.CtrlRequest)
+  ParamsCase params_case() const;
+  // @@protoc_insertion_point(class_scope:nba.knapp.CtrlRequest)
  private:
-  inline void set_has_type();
-  inline void clear_has_type();
   inline void set_has_ping_param();
-  inline void clear_has_ping_param();
   inline void set_has_malloc_param();
-  inline void clear_has_malloc_param();
   inline void set_has_create_vdev_param();
-  inline void clear_has_create_vdev_param();
   inline void set_has_vdev_ref();
-  inline void clear_has_vdev_ref();
+
+  inline bool has_params() const;
+  void clear_params();
+  inline void clear_has_params();
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
-  ::google::protobuf::uint32 _has_bits_[1];
-  mutable int _cached_size_;
-  ::knapp::CtrlRequest_PingParam* ping_param_;
-  ::knapp::CtrlRequest_MallocParam* malloc_param_;
-  ::knapp::CtrlRequest_CreateVdevParam* create_vdev_param_;
-  ::knapp::CtrlRequest_VdevRefParam* vdev_ref_;
+  bool _is_default_instance_;
   int type_;
+  union ParamsUnion {
+    ParamsUnion() {}
+    ::nba::knapp::CtrlRequest_PingParam* ping_param_;
+    ::nba::knapp::CtrlRequest_MallocParam* malloc_param_;
+    ::nba::knapp::CtrlRequest_CreateVdevParam* create_vdev_param_;
+    ::nba::knapp::CtrlRequest_VdevRefParam* vdev_ref_;
+  } params_;
+  mutable int _cached_size_;
+  ::google::protobuf::uint32 _oneof_case_[1];
+
   friend void  protobuf_AddDesc_ctrl_2eproto();
   friend void protobuf_AssignDesc_ctrl_2eproto();
   friend void protobuf_ShutdownFile_ctrl_2eproto();
@@ -660,14 +612,6 @@ class CtrlResponse_TextResponse : public ::google::protobuf::Message {
   inline CtrlResponse_TextResponse& operator=(const CtrlResponse_TextResponse& from) {
     CopyFrom(from);
     return *this;
-  }
-
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
-    return _internal_metadata_.unknown_fields();
-  }
-
-  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
-    return _internal_metadata_.mutable_unknown_fields();
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
@@ -714,8 +658,7 @@ class CtrlResponse_TextResponse : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // required string msg = 1;
-  bool has_msg() const;
+  // optional string msg = 1;
   void clear_msg();
   static const int kMsgFieldNumber = 1;
   const ::std::string& msg() const;
@@ -726,15 +669,13 @@ class CtrlResponse_TextResponse : public ::google::protobuf::Message {
   ::std::string* release_msg();
   void set_allocated_msg(::std::string* msg);
 
-  // @@protoc_insertion_point(class_scope:knapp.CtrlResponse.TextResponse)
+  // @@protoc_insertion_point(class_scope:nba.knapp.CtrlResponse.TextResponse)
  private:
-  inline void set_has_msg();
-  inline void clear_has_msg();
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
-  ::google::protobuf::uint32 _has_bits_[1];
-  mutable int _cached_size_;
+  bool _is_default_instance_;
   ::google::protobuf::internal::ArenaStringPtr msg_;
+  mutable int _cached_size_;
   friend void  protobuf_AddDesc_ctrl_2eproto();
   friend void protobuf_AssignDesc_ctrl_2eproto();
   friend void protobuf_ShutdownFile_ctrl_2eproto();
@@ -754,14 +695,6 @@ class CtrlResponse_ResourceResponse : public ::google::protobuf::Message {
   inline CtrlResponse_ResourceResponse& operator=(const CtrlResponse_ResourceResponse& from) {
     CopyFrom(from);
     return *this;
-  }
-
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
-    return _internal_metadata_.unknown_fields();
-  }
-
-  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
-    return _internal_metadata_.mutable_unknown_fields();
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
@@ -808,22 +741,19 @@ class CtrlResponse_ResourceResponse : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // required uint64 handle = 1;
-  bool has_handle() const;
+  // optional uint64 handle = 1;
   void clear_handle();
   static const int kHandleFieldNumber = 1;
   ::google::protobuf::uint64 handle() const;
   void set_handle(::google::protobuf::uint64 value);
 
-  // @@protoc_insertion_point(class_scope:knapp.CtrlResponse.ResourceResponse)
+  // @@protoc_insertion_point(class_scope:nba.knapp.CtrlResponse.ResourceResponse)
  private:
-  inline void set_has_handle();
-  inline void clear_has_handle();
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
-  ::google::protobuf::uint32 _has_bits_[1];
-  mutable int _cached_size_;
+  bool _is_default_instance_;
   ::google::protobuf::uint64 handle_;
+  mutable int _cached_size_;
   friend void  protobuf_AddDesc_ctrl_2eproto();
   friend void protobuf_AssignDesc_ctrl_2eproto();
   friend void protobuf_ShutdownFile_ctrl_2eproto();
@@ -845,16 +775,14 @@ class CtrlResponse : public ::google::protobuf::Message {
     return *this;
   }
 
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
-    return _internal_metadata_.unknown_fields();
-  }
-
-  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
-    return _internal_metadata_.mutable_unknown_fields();
-  }
-
   static const ::google::protobuf::Descriptor* descriptor();
   static const CtrlResponse& default_instance();
+
+  enum DataCase {
+    kText = 2,
+    kResource = 3,
+    DATA_NOT_SET = 0,
+  };
 
   void Swap(CtrlResponse* other);
 
@@ -926,46 +854,51 @@ class CtrlResponse : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // required .knapp.CtrlResponse.Reply reply = 1;
-  bool has_reply() const;
+  // optional .nba.knapp.CtrlResponse.Reply reply = 1;
   void clear_reply();
   static const int kReplyFieldNumber = 1;
-  ::knapp::CtrlResponse_Reply reply() const;
-  void set_reply(::knapp::CtrlResponse_Reply value);
+  ::nba::knapp::CtrlResponse_Reply reply() const;
+  void set_reply(::nba::knapp::CtrlResponse_Reply value);
 
-  // optional .knapp.CtrlResponse.TextResponse text = 2;
+  // optional .nba.knapp.CtrlResponse.TextResponse text = 2;
   bool has_text() const;
   void clear_text();
   static const int kTextFieldNumber = 2;
-  const ::knapp::CtrlResponse_TextResponse& text() const;
-  ::knapp::CtrlResponse_TextResponse* mutable_text();
-  ::knapp::CtrlResponse_TextResponse* release_text();
-  void set_allocated_text(::knapp::CtrlResponse_TextResponse* text);
+  const ::nba::knapp::CtrlResponse_TextResponse& text() const;
+  ::nba::knapp::CtrlResponse_TextResponse* mutable_text();
+  ::nba::knapp::CtrlResponse_TextResponse* release_text();
+  void set_allocated_text(::nba::knapp::CtrlResponse_TextResponse* text);
 
-  // optional .knapp.CtrlResponse.ResourceResponse resource = 3;
+  // optional .nba.knapp.CtrlResponse.ResourceResponse resource = 3;
   bool has_resource() const;
   void clear_resource();
   static const int kResourceFieldNumber = 3;
-  const ::knapp::CtrlResponse_ResourceResponse& resource() const;
-  ::knapp::CtrlResponse_ResourceResponse* mutable_resource();
-  ::knapp::CtrlResponse_ResourceResponse* release_resource();
-  void set_allocated_resource(::knapp::CtrlResponse_ResourceResponse* resource);
+  const ::nba::knapp::CtrlResponse_ResourceResponse& resource() const;
+  ::nba::knapp::CtrlResponse_ResourceResponse* mutable_resource();
+  ::nba::knapp::CtrlResponse_ResourceResponse* release_resource();
+  void set_allocated_resource(::nba::knapp::CtrlResponse_ResourceResponse* resource);
 
-  // @@protoc_insertion_point(class_scope:knapp.CtrlResponse)
+  DataCase data_case() const;
+  // @@protoc_insertion_point(class_scope:nba.knapp.CtrlResponse)
  private:
-  inline void set_has_reply();
-  inline void clear_has_reply();
   inline void set_has_text();
-  inline void clear_has_text();
   inline void set_has_resource();
-  inline void clear_has_resource();
+
+  inline bool has_data() const;
+  void clear_data();
+  inline void clear_has_data();
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
-  ::google::protobuf::uint32 _has_bits_[1];
-  mutable int _cached_size_;
-  ::knapp::CtrlResponse_TextResponse* text_;
-  ::knapp::CtrlResponse_ResourceResponse* resource_;
+  bool _is_default_instance_;
   int reply_;
+  union DataUnion {
+    DataUnion() {}
+    ::nba::knapp::CtrlResponse_TextResponse* text_;
+    ::nba::knapp::CtrlResponse_ResourceResponse* resource_;
+  } data_;
+  mutable int _cached_size_;
+  ::google::protobuf::uint32 _oneof_case_[1];
+
   friend void  protobuf_AddDesc_ctrl_2eproto();
   friend void protobuf_AssignDesc_ctrl_2eproto();
   friend void protobuf_ShutdownFile_ctrl_2eproto();
@@ -981,600 +914,540 @@ class CtrlResponse : public ::google::protobuf::Message {
 #if !PROTOBUF_INLINE_NOT_IN_HEADERS
 // CtrlRequest_PingParam
 
-// required string msg = 1;
-inline bool CtrlRequest_PingParam::has_msg() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-inline void CtrlRequest_PingParam::set_has_msg() {
-  _has_bits_[0] |= 0x00000001u;
-}
-inline void CtrlRequest_PingParam::clear_has_msg() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional string msg = 1;
 inline void CtrlRequest_PingParam::clear_msg() {
   msg_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_msg();
 }
 inline const ::std::string& CtrlRequest_PingParam::msg() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.PingParam.msg)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.PingParam.msg)
   return msg_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void CtrlRequest_PingParam::set_msg(const ::std::string& value) {
-  set_has_msg();
+  
   msg_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:knapp.CtrlRequest.PingParam.msg)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.PingParam.msg)
 }
 inline void CtrlRequest_PingParam::set_msg(const char* value) {
-  set_has_msg();
+  
   msg_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:knapp.CtrlRequest.PingParam.msg)
+  // @@protoc_insertion_point(field_set_char:nba.knapp.CtrlRequest.PingParam.msg)
 }
 inline void CtrlRequest_PingParam::set_msg(const char* value, size_t size) {
-  set_has_msg();
+  
   msg_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:knapp.CtrlRequest.PingParam.msg)
+  // @@protoc_insertion_point(field_set_pointer:nba.knapp.CtrlRequest.PingParam.msg)
 }
 inline ::std::string* CtrlRequest_PingParam::mutable_msg() {
-  set_has_msg();
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlRequest.PingParam.msg)
+  
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.PingParam.msg)
   return msg_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline ::std::string* CtrlRequest_PingParam::release_msg() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlRequest.PingParam.msg)
-  clear_has_msg();
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.PingParam.msg)
+  
   return msg_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void CtrlRequest_PingParam::set_allocated_msg(::std::string* msg) {
   if (msg != NULL) {
-    set_has_msg();
+    
   } else {
-    clear_has_msg();
+    
   }
   msg_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), msg);
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlRequest.PingParam.msg)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.PingParam.msg)
 }
 
 // -------------------------------------------------------------------
 
 // CtrlRequest_MallocParam
 
-// required uint64 size = 1;
-inline bool CtrlRequest_MallocParam::has_size() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-inline void CtrlRequest_MallocParam::set_has_size() {
-  _has_bits_[0] |= 0x00000001u;
-}
-inline void CtrlRequest_MallocParam::clear_has_size() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional uint64 size = 1;
 inline void CtrlRequest_MallocParam::clear_size() {
   size_ = GOOGLE_ULONGLONG(0);
-  clear_has_size();
 }
 inline ::google::protobuf::uint64 CtrlRequest_MallocParam::size() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.MallocParam.size)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.MallocParam.size)
   return size_;
 }
 inline void CtrlRequest_MallocParam::set_size(::google::protobuf::uint64 value) {
-  set_has_size();
+  
   size_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlRequest.MallocParam.size)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.MallocParam.size)
 }
 
-// required uint64 align = 2;
-inline bool CtrlRequest_MallocParam::has_align() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-inline void CtrlRequest_MallocParam::set_has_align() {
-  _has_bits_[0] |= 0x00000002u;
-}
-inline void CtrlRequest_MallocParam::clear_has_align() {
-  _has_bits_[0] &= ~0x00000002u;
-}
+// optional uint64 align = 2;
 inline void CtrlRequest_MallocParam::clear_align() {
   align_ = GOOGLE_ULONGLONG(0);
-  clear_has_align();
 }
 inline ::google::protobuf::uint64 CtrlRequest_MallocParam::align() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.MallocParam.align)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.MallocParam.align)
   return align_;
 }
 inline void CtrlRequest_MallocParam::set_align(::google::protobuf::uint64 value) {
-  set_has_align();
+  
   align_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlRequest.MallocParam.align)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.MallocParam.align)
 }
 
 // -------------------------------------------------------------------
 
 // CtrlRequest_CreateVdevParam
 
-// required uint32 num_pcores = 1;
-inline bool CtrlRequest_CreateVdevParam::has_num_pcores() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-inline void CtrlRequest_CreateVdevParam::set_has_num_pcores() {
-  _has_bits_[0] |= 0x00000001u;
-}
-inline void CtrlRequest_CreateVdevParam::clear_has_num_pcores() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional uint32 num_pcores = 1;
 inline void CtrlRequest_CreateVdevParam::clear_num_pcores() {
   num_pcores_ = 0u;
-  clear_has_num_pcores();
 }
 inline ::google::protobuf::uint32 CtrlRequest_CreateVdevParam::num_pcores() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.CreateVdevParam.num_pcores)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.CreateVdevParam.num_pcores)
   return num_pcores_;
 }
 inline void CtrlRequest_CreateVdevParam::set_num_pcores(::google::protobuf::uint32 value) {
-  set_has_num_pcores();
+  
   num_pcores_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlRequest.CreateVdevParam.num_pcores)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.CreateVdevParam.num_pcores)
 }
 
-// required uint32 num_lcores_per_pcore = 2;
-inline bool CtrlRequest_CreateVdevParam::has_num_lcores_per_pcore() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-inline void CtrlRequest_CreateVdevParam::set_has_num_lcores_per_pcore() {
-  _has_bits_[0] |= 0x00000002u;
-}
-inline void CtrlRequest_CreateVdevParam::clear_has_num_lcores_per_pcore() {
-  _has_bits_[0] &= ~0x00000002u;
-}
+// optional uint32 num_lcores_per_pcore = 2;
 inline void CtrlRequest_CreateVdevParam::clear_num_lcores_per_pcore() {
   num_lcores_per_pcore_ = 0u;
-  clear_has_num_lcores_per_pcore();
 }
 inline ::google::protobuf::uint32 CtrlRequest_CreateVdevParam::num_lcores_per_pcore() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.CreateVdevParam.num_lcores_per_pcore)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.CreateVdevParam.num_lcores_per_pcore)
   return num_lcores_per_pcore_;
 }
 inline void CtrlRequest_CreateVdevParam::set_num_lcores_per_pcore(::google::protobuf::uint32 value) {
-  set_has_num_lcores_per_pcore();
+  
   num_lcores_per_pcore_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlRequest.CreateVdevParam.num_lcores_per_pcore)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.CreateVdevParam.num_lcores_per_pcore)
 }
 
 // -------------------------------------------------------------------
 
 // CtrlRequest_VdevRefParam
 
-// required uint64 vdev_id = 1;
-inline bool CtrlRequest_VdevRefParam::has_vdev_id() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-inline void CtrlRequest_VdevRefParam::set_has_vdev_id() {
-  _has_bits_[0] |= 0x00000001u;
-}
-inline void CtrlRequest_VdevRefParam::clear_has_vdev_id() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional uint64 vdev_id = 1;
 inline void CtrlRequest_VdevRefParam::clear_vdev_id() {
   vdev_id_ = GOOGLE_ULONGLONG(0);
-  clear_has_vdev_id();
 }
 inline ::google::protobuf::uint64 CtrlRequest_VdevRefParam::vdev_id() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.VdevRefParam.vdev_id)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.VdevRefParam.vdev_id)
   return vdev_id_;
 }
 inline void CtrlRequest_VdevRefParam::set_vdev_id(::google::protobuf::uint64 value) {
-  set_has_vdev_id();
+  
   vdev_id_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlRequest.VdevRefParam.vdev_id)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.VdevRefParam.vdev_id)
 }
 
 // -------------------------------------------------------------------
 
 // CtrlRequest
 
-// required .knapp.CtrlRequest.Type type = 1;
-inline bool CtrlRequest::has_type() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-inline void CtrlRequest::set_has_type() {
-  _has_bits_[0] |= 0x00000001u;
-}
-inline void CtrlRequest::clear_has_type() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional .nba.knapp.CtrlRequest.Type type = 1;
 inline void CtrlRequest::clear_type() {
   type_ = 0;
-  clear_has_type();
 }
-inline ::knapp::CtrlRequest_Type CtrlRequest::type() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.type)
-  return static_cast< ::knapp::CtrlRequest_Type >(type_);
+inline ::nba::knapp::CtrlRequest_Type CtrlRequest::type() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.type)
+  return static_cast< ::nba::knapp::CtrlRequest_Type >(type_);
 }
-inline void CtrlRequest::set_type(::knapp::CtrlRequest_Type value) {
-  assert(::knapp::CtrlRequest_Type_IsValid(value));
-  set_has_type();
+inline void CtrlRequest::set_type(::nba::knapp::CtrlRequest_Type value) {
+  
   type_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlRequest.type)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.type)
 }
 
-// optional .knapp.CtrlRequest.PingParam ping_param = 2;
+// optional .nba.knapp.CtrlRequest.PingParam ping_param = 2;
 inline bool CtrlRequest::has_ping_param() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
+  return params_case() == kPingParam;
 }
 inline void CtrlRequest::set_has_ping_param() {
-  _has_bits_[0] |= 0x00000002u;
-}
-inline void CtrlRequest::clear_has_ping_param() {
-  _has_bits_[0] &= ~0x00000002u;
+  _oneof_case_[0] = kPingParam;
 }
 inline void CtrlRequest::clear_ping_param() {
-  if (ping_param_ != NULL) ping_param_->::knapp::CtrlRequest_PingParam::Clear();
-  clear_has_ping_param();
-}
-inline const ::knapp::CtrlRequest_PingParam& CtrlRequest::ping_param() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.ping_param)
-  return ping_param_ != NULL ? *ping_param_ : *default_instance_->ping_param_;
-}
-inline ::knapp::CtrlRequest_PingParam* CtrlRequest::mutable_ping_param() {
-  set_has_ping_param();
-  if (ping_param_ == NULL) {
-    ping_param_ = new ::knapp::CtrlRequest_PingParam;
+  if (has_ping_param()) {
+    delete params_.ping_param_;
+    clear_has_params();
   }
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlRequest.ping_param)
-  return ping_param_;
 }
-inline ::knapp::CtrlRequest_PingParam* CtrlRequest::release_ping_param() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlRequest.ping_param)
-  clear_has_ping_param();
-  ::knapp::CtrlRequest_PingParam* temp = ping_param_;
-  ping_param_ = NULL;
-  return temp;
+inline  const ::nba::knapp::CtrlRequest_PingParam& CtrlRequest::ping_param() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.ping_param)
+  return has_ping_param()
+      ? *params_.ping_param_
+      : ::nba::knapp::CtrlRequest_PingParam::default_instance();
 }
-inline void CtrlRequest::set_allocated_ping_param(::knapp::CtrlRequest_PingParam* ping_param) {
-  delete ping_param_;
-  ping_param_ = ping_param;
+inline ::nba::knapp::CtrlRequest_PingParam* CtrlRequest::mutable_ping_param() {
+  if (!has_ping_param()) {
+    clear_params();
+    set_has_ping_param();
+    params_.ping_param_ = new ::nba::knapp::CtrlRequest_PingParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.ping_param)
+  return params_.ping_param_;
+}
+inline ::nba::knapp::CtrlRequest_PingParam* CtrlRequest::release_ping_param() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.ping_param)
+  if (has_ping_param()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_PingParam* temp = params_.ping_param_;
+    params_.ping_param_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+inline void CtrlRequest::set_allocated_ping_param(::nba::knapp::CtrlRequest_PingParam* ping_param) {
+  clear_params();
   if (ping_param) {
     set_has_ping_param();
-  } else {
-    clear_has_ping_param();
+    params_.ping_param_ = ping_param;
   }
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlRequest.ping_param)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.ping_param)
 }
 
-// optional .knapp.CtrlRequest.MallocParam malloc_param = 3;
+// optional .nba.knapp.CtrlRequest.MallocParam malloc_param = 3;
 inline bool CtrlRequest::has_malloc_param() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
+  return params_case() == kMallocParam;
 }
 inline void CtrlRequest::set_has_malloc_param() {
-  _has_bits_[0] |= 0x00000004u;
-}
-inline void CtrlRequest::clear_has_malloc_param() {
-  _has_bits_[0] &= ~0x00000004u;
+  _oneof_case_[0] = kMallocParam;
 }
 inline void CtrlRequest::clear_malloc_param() {
-  if (malloc_param_ != NULL) malloc_param_->::knapp::CtrlRequest_MallocParam::Clear();
-  clear_has_malloc_param();
-}
-inline const ::knapp::CtrlRequest_MallocParam& CtrlRequest::malloc_param() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.malloc_param)
-  return malloc_param_ != NULL ? *malloc_param_ : *default_instance_->malloc_param_;
-}
-inline ::knapp::CtrlRequest_MallocParam* CtrlRequest::mutable_malloc_param() {
-  set_has_malloc_param();
-  if (malloc_param_ == NULL) {
-    malloc_param_ = new ::knapp::CtrlRequest_MallocParam;
+  if (has_malloc_param()) {
+    delete params_.malloc_param_;
+    clear_has_params();
   }
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlRequest.malloc_param)
-  return malloc_param_;
 }
-inline ::knapp::CtrlRequest_MallocParam* CtrlRequest::release_malloc_param() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlRequest.malloc_param)
-  clear_has_malloc_param();
-  ::knapp::CtrlRequest_MallocParam* temp = malloc_param_;
-  malloc_param_ = NULL;
-  return temp;
+inline  const ::nba::knapp::CtrlRequest_MallocParam& CtrlRequest::malloc_param() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.malloc_param)
+  return has_malloc_param()
+      ? *params_.malloc_param_
+      : ::nba::knapp::CtrlRequest_MallocParam::default_instance();
 }
-inline void CtrlRequest::set_allocated_malloc_param(::knapp::CtrlRequest_MallocParam* malloc_param) {
-  delete malloc_param_;
-  malloc_param_ = malloc_param;
+inline ::nba::knapp::CtrlRequest_MallocParam* CtrlRequest::mutable_malloc_param() {
+  if (!has_malloc_param()) {
+    clear_params();
+    set_has_malloc_param();
+    params_.malloc_param_ = new ::nba::knapp::CtrlRequest_MallocParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.malloc_param)
+  return params_.malloc_param_;
+}
+inline ::nba::knapp::CtrlRequest_MallocParam* CtrlRequest::release_malloc_param() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.malloc_param)
+  if (has_malloc_param()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_MallocParam* temp = params_.malloc_param_;
+    params_.malloc_param_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+inline void CtrlRequest::set_allocated_malloc_param(::nba::knapp::CtrlRequest_MallocParam* malloc_param) {
+  clear_params();
   if (malloc_param) {
     set_has_malloc_param();
-  } else {
-    clear_has_malloc_param();
+    params_.malloc_param_ = malloc_param;
   }
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlRequest.malloc_param)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.malloc_param)
 }
 
-// optional .knapp.CtrlRequest.CreateVdevParam create_vdev_param = 4;
+// optional .nba.knapp.CtrlRequest.CreateVdevParam create_vdev_param = 4;
 inline bool CtrlRequest::has_create_vdev_param() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
+  return params_case() == kCreateVdevParam;
 }
 inline void CtrlRequest::set_has_create_vdev_param() {
-  _has_bits_[0] |= 0x00000008u;
-}
-inline void CtrlRequest::clear_has_create_vdev_param() {
-  _has_bits_[0] &= ~0x00000008u;
+  _oneof_case_[0] = kCreateVdevParam;
 }
 inline void CtrlRequest::clear_create_vdev_param() {
-  if (create_vdev_param_ != NULL) create_vdev_param_->::knapp::CtrlRequest_CreateVdevParam::Clear();
-  clear_has_create_vdev_param();
-}
-inline const ::knapp::CtrlRequest_CreateVdevParam& CtrlRequest::create_vdev_param() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.create_vdev_param)
-  return create_vdev_param_ != NULL ? *create_vdev_param_ : *default_instance_->create_vdev_param_;
-}
-inline ::knapp::CtrlRequest_CreateVdevParam* CtrlRequest::mutable_create_vdev_param() {
-  set_has_create_vdev_param();
-  if (create_vdev_param_ == NULL) {
-    create_vdev_param_ = new ::knapp::CtrlRequest_CreateVdevParam;
+  if (has_create_vdev_param()) {
+    delete params_.create_vdev_param_;
+    clear_has_params();
   }
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlRequest.create_vdev_param)
-  return create_vdev_param_;
 }
-inline ::knapp::CtrlRequest_CreateVdevParam* CtrlRequest::release_create_vdev_param() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlRequest.create_vdev_param)
-  clear_has_create_vdev_param();
-  ::knapp::CtrlRequest_CreateVdevParam* temp = create_vdev_param_;
-  create_vdev_param_ = NULL;
-  return temp;
+inline  const ::nba::knapp::CtrlRequest_CreateVdevParam& CtrlRequest::create_vdev_param() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.create_vdev_param)
+  return has_create_vdev_param()
+      ? *params_.create_vdev_param_
+      : ::nba::knapp::CtrlRequest_CreateVdevParam::default_instance();
 }
-inline void CtrlRequest::set_allocated_create_vdev_param(::knapp::CtrlRequest_CreateVdevParam* create_vdev_param) {
-  delete create_vdev_param_;
-  create_vdev_param_ = create_vdev_param;
+inline ::nba::knapp::CtrlRequest_CreateVdevParam* CtrlRequest::mutable_create_vdev_param() {
+  if (!has_create_vdev_param()) {
+    clear_params();
+    set_has_create_vdev_param();
+    params_.create_vdev_param_ = new ::nba::knapp::CtrlRequest_CreateVdevParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.create_vdev_param)
+  return params_.create_vdev_param_;
+}
+inline ::nba::knapp::CtrlRequest_CreateVdevParam* CtrlRequest::release_create_vdev_param() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.create_vdev_param)
+  if (has_create_vdev_param()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_CreateVdevParam* temp = params_.create_vdev_param_;
+    params_.create_vdev_param_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+inline void CtrlRequest::set_allocated_create_vdev_param(::nba::knapp::CtrlRequest_CreateVdevParam* create_vdev_param) {
+  clear_params();
   if (create_vdev_param) {
     set_has_create_vdev_param();
-  } else {
-    clear_has_create_vdev_param();
+    params_.create_vdev_param_ = create_vdev_param;
   }
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlRequest.create_vdev_param)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.create_vdev_param)
 }
 
-// optional .knapp.CtrlRequest.VdevRefParam vdev_ref = 5;
+// optional .nba.knapp.CtrlRequest.VdevRefParam vdev_ref = 5;
 inline bool CtrlRequest::has_vdev_ref() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
+  return params_case() == kVdevRef;
 }
 inline void CtrlRequest::set_has_vdev_ref() {
-  _has_bits_[0] |= 0x00000010u;
-}
-inline void CtrlRequest::clear_has_vdev_ref() {
-  _has_bits_[0] &= ~0x00000010u;
+  _oneof_case_[0] = kVdevRef;
 }
 inline void CtrlRequest::clear_vdev_ref() {
-  if (vdev_ref_ != NULL) vdev_ref_->::knapp::CtrlRequest_VdevRefParam::Clear();
-  clear_has_vdev_ref();
-}
-inline const ::knapp::CtrlRequest_VdevRefParam& CtrlRequest::vdev_ref() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.vdev_ref)
-  return vdev_ref_ != NULL ? *vdev_ref_ : *default_instance_->vdev_ref_;
-}
-inline ::knapp::CtrlRequest_VdevRefParam* CtrlRequest::mutable_vdev_ref() {
-  set_has_vdev_ref();
-  if (vdev_ref_ == NULL) {
-    vdev_ref_ = new ::knapp::CtrlRequest_VdevRefParam;
+  if (has_vdev_ref()) {
+    delete params_.vdev_ref_;
+    clear_has_params();
   }
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlRequest.vdev_ref)
-  return vdev_ref_;
 }
-inline ::knapp::CtrlRequest_VdevRefParam* CtrlRequest::release_vdev_ref() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlRequest.vdev_ref)
-  clear_has_vdev_ref();
-  ::knapp::CtrlRequest_VdevRefParam* temp = vdev_ref_;
-  vdev_ref_ = NULL;
-  return temp;
+inline  const ::nba::knapp::CtrlRequest_VdevRefParam& CtrlRequest::vdev_ref() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.vdev_ref)
+  return has_vdev_ref()
+      ? *params_.vdev_ref_
+      : ::nba::knapp::CtrlRequest_VdevRefParam::default_instance();
 }
-inline void CtrlRequest::set_allocated_vdev_ref(::knapp::CtrlRequest_VdevRefParam* vdev_ref) {
-  delete vdev_ref_;
-  vdev_ref_ = vdev_ref;
+inline ::nba::knapp::CtrlRequest_VdevRefParam* CtrlRequest::mutable_vdev_ref() {
+  if (!has_vdev_ref()) {
+    clear_params();
+    set_has_vdev_ref();
+    params_.vdev_ref_ = new ::nba::knapp::CtrlRequest_VdevRefParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.vdev_ref)
+  return params_.vdev_ref_;
+}
+inline ::nba::knapp::CtrlRequest_VdevRefParam* CtrlRequest::release_vdev_ref() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.vdev_ref)
+  if (has_vdev_ref()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_VdevRefParam* temp = params_.vdev_ref_;
+    params_.vdev_ref_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+inline void CtrlRequest::set_allocated_vdev_ref(::nba::knapp::CtrlRequest_VdevRefParam* vdev_ref) {
+  clear_params();
   if (vdev_ref) {
     set_has_vdev_ref();
-  } else {
-    clear_has_vdev_ref();
+    params_.vdev_ref_ = vdev_ref;
   }
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlRequest.vdev_ref)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.vdev_ref)
 }
 
+inline bool CtrlRequest::has_params() const {
+  return params_case() != PARAMS_NOT_SET;
+}
+inline void CtrlRequest::clear_has_params() {
+  _oneof_case_[0] = PARAMS_NOT_SET;
+}
+inline CtrlRequest::ParamsCase CtrlRequest::params_case() const {
+  return CtrlRequest::ParamsCase(_oneof_case_[0]);
+}
 // -------------------------------------------------------------------
 
 // CtrlResponse_TextResponse
 
-// required string msg = 1;
-inline bool CtrlResponse_TextResponse::has_msg() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-inline void CtrlResponse_TextResponse::set_has_msg() {
-  _has_bits_[0] |= 0x00000001u;
-}
-inline void CtrlResponse_TextResponse::clear_has_msg() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional string msg = 1;
 inline void CtrlResponse_TextResponse::clear_msg() {
   msg_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_msg();
 }
 inline const ::std::string& CtrlResponse_TextResponse::msg() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlResponse.TextResponse.msg)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.TextResponse.msg)
   return msg_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void CtrlResponse_TextResponse::set_msg(const ::std::string& value) {
-  set_has_msg();
+  
   msg_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:knapp.CtrlResponse.TextResponse.msg)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.TextResponse.msg)
 }
 inline void CtrlResponse_TextResponse::set_msg(const char* value) {
-  set_has_msg();
+  
   msg_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:knapp.CtrlResponse.TextResponse.msg)
+  // @@protoc_insertion_point(field_set_char:nba.knapp.CtrlResponse.TextResponse.msg)
 }
 inline void CtrlResponse_TextResponse::set_msg(const char* value, size_t size) {
-  set_has_msg();
+  
   msg_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:knapp.CtrlResponse.TextResponse.msg)
+  // @@protoc_insertion_point(field_set_pointer:nba.knapp.CtrlResponse.TextResponse.msg)
 }
 inline ::std::string* CtrlResponse_TextResponse::mutable_msg() {
-  set_has_msg();
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlResponse.TextResponse.msg)
+  
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlResponse.TextResponse.msg)
   return msg_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline ::std::string* CtrlResponse_TextResponse::release_msg() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlResponse.TextResponse.msg)
-  clear_has_msg();
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlResponse.TextResponse.msg)
+  
   return msg_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void CtrlResponse_TextResponse::set_allocated_msg(::std::string* msg) {
   if (msg != NULL) {
-    set_has_msg();
+    
   } else {
-    clear_has_msg();
+    
   }
   msg_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), msg);
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlResponse.TextResponse.msg)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlResponse.TextResponse.msg)
 }
 
 // -------------------------------------------------------------------
 
 // CtrlResponse_ResourceResponse
 
-// required uint64 handle = 1;
-inline bool CtrlResponse_ResourceResponse::has_handle() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-inline void CtrlResponse_ResourceResponse::set_has_handle() {
-  _has_bits_[0] |= 0x00000001u;
-}
-inline void CtrlResponse_ResourceResponse::clear_has_handle() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional uint64 handle = 1;
 inline void CtrlResponse_ResourceResponse::clear_handle() {
   handle_ = GOOGLE_ULONGLONG(0);
-  clear_has_handle();
 }
 inline ::google::protobuf::uint64 CtrlResponse_ResourceResponse::handle() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlResponse.ResourceResponse.handle)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.ResourceResponse.handle)
   return handle_;
 }
 inline void CtrlResponse_ResourceResponse::set_handle(::google::protobuf::uint64 value) {
-  set_has_handle();
+  
   handle_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlResponse.ResourceResponse.handle)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.ResourceResponse.handle)
 }
 
 // -------------------------------------------------------------------
 
 // CtrlResponse
 
-// required .knapp.CtrlResponse.Reply reply = 1;
-inline bool CtrlResponse::has_reply() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-inline void CtrlResponse::set_has_reply() {
-  _has_bits_[0] |= 0x00000001u;
-}
-inline void CtrlResponse::clear_has_reply() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional .nba.knapp.CtrlResponse.Reply reply = 1;
 inline void CtrlResponse::clear_reply() {
   reply_ = 0;
-  clear_has_reply();
 }
-inline ::knapp::CtrlResponse_Reply CtrlResponse::reply() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlResponse.reply)
-  return static_cast< ::knapp::CtrlResponse_Reply >(reply_);
+inline ::nba::knapp::CtrlResponse_Reply CtrlResponse::reply() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.reply)
+  return static_cast< ::nba::knapp::CtrlResponse_Reply >(reply_);
 }
-inline void CtrlResponse::set_reply(::knapp::CtrlResponse_Reply value) {
-  assert(::knapp::CtrlResponse_Reply_IsValid(value));
-  set_has_reply();
+inline void CtrlResponse::set_reply(::nba::knapp::CtrlResponse_Reply value) {
+  
   reply_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlResponse.reply)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.reply)
 }
 
-// optional .knapp.CtrlResponse.TextResponse text = 2;
+// optional .nba.knapp.CtrlResponse.TextResponse text = 2;
 inline bool CtrlResponse::has_text() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
+  return data_case() == kText;
 }
 inline void CtrlResponse::set_has_text() {
-  _has_bits_[0] |= 0x00000002u;
-}
-inline void CtrlResponse::clear_has_text() {
-  _has_bits_[0] &= ~0x00000002u;
+  _oneof_case_[0] = kText;
 }
 inline void CtrlResponse::clear_text() {
-  if (text_ != NULL) text_->::knapp::CtrlResponse_TextResponse::Clear();
-  clear_has_text();
-}
-inline const ::knapp::CtrlResponse_TextResponse& CtrlResponse::text() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlResponse.text)
-  return text_ != NULL ? *text_ : *default_instance_->text_;
-}
-inline ::knapp::CtrlResponse_TextResponse* CtrlResponse::mutable_text() {
-  set_has_text();
-  if (text_ == NULL) {
-    text_ = new ::knapp::CtrlResponse_TextResponse;
+  if (has_text()) {
+    delete data_.text_;
+    clear_has_data();
   }
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlResponse.text)
-  return text_;
 }
-inline ::knapp::CtrlResponse_TextResponse* CtrlResponse::release_text() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlResponse.text)
-  clear_has_text();
-  ::knapp::CtrlResponse_TextResponse* temp = text_;
-  text_ = NULL;
-  return temp;
+inline  const ::nba::knapp::CtrlResponse_TextResponse& CtrlResponse::text() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.text)
+  return has_text()
+      ? *data_.text_
+      : ::nba::knapp::CtrlResponse_TextResponse::default_instance();
 }
-inline void CtrlResponse::set_allocated_text(::knapp::CtrlResponse_TextResponse* text) {
-  delete text_;
-  text_ = text;
+inline ::nba::knapp::CtrlResponse_TextResponse* CtrlResponse::mutable_text() {
+  if (!has_text()) {
+    clear_data();
+    set_has_text();
+    data_.text_ = new ::nba::knapp::CtrlResponse_TextResponse;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlResponse.text)
+  return data_.text_;
+}
+inline ::nba::knapp::CtrlResponse_TextResponse* CtrlResponse::release_text() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlResponse.text)
+  if (has_text()) {
+    clear_has_data();
+    ::nba::knapp::CtrlResponse_TextResponse* temp = data_.text_;
+    data_.text_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+inline void CtrlResponse::set_allocated_text(::nba::knapp::CtrlResponse_TextResponse* text) {
+  clear_data();
   if (text) {
     set_has_text();
-  } else {
-    clear_has_text();
+    data_.text_ = text;
   }
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlResponse.text)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlResponse.text)
 }
 
-// optional .knapp.CtrlResponse.ResourceResponse resource = 3;
+// optional .nba.knapp.CtrlResponse.ResourceResponse resource = 3;
 inline bool CtrlResponse::has_resource() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
+  return data_case() == kResource;
 }
 inline void CtrlResponse::set_has_resource() {
-  _has_bits_[0] |= 0x00000004u;
-}
-inline void CtrlResponse::clear_has_resource() {
-  _has_bits_[0] &= ~0x00000004u;
+  _oneof_case_[0] = kResource;
 }
 inline void CtrlResponse::clear_resource() {
-  if (resource_ != NULL) resource_->::knapp::CtrlResponse_ResourceResponse::Clear();
-  clear_has_resource();
-}
-inline const ::knapp::CtrlResponse_ResourceResponse& CtrlResponse::resource() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlResponse.resource)
-  return resource_ != NULL ? *resource_ : *default_instance_->resource_;
-}
-inline ::knapp::CtrlResponse_ResourceResponse* CtrlResponse::mutable_resource() {
-  set_has_resource();
-  if (resource_ == NULL) {
-    resource_ = new ::knapp::CtrlResponse_ResourceResponse;
+  if (has_resource()) {
+    delete data_.resource_;
+    clear_has_data();
   }
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlResponse.resource)
-  return resource_;
 }
-inline ::knapp::CtrlResponse_ResourceResponse* CtrlResponse::release_resource() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlResponse.resource)
-  clear_has_resource();
-  ::knapp::CtrlResponse_ResourceResponse* temp = resource_;
-  resource_ = NULL;
-  return temp;
+inline  const ::nba::knapp::CtrlResponse_ResourceResponse& CtrlResponse::resource() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.resource)
+  return has_resource()
+      ? *data_.resource_
+      : ::nba::knapp::CtrlResponse_ResourceResponse::default_instance();
 }
-inline void CtrlResponse::set_allocated_resource(::knapp::CtrlResponse_ResourceResponse* resource) {
-  delete resource_;
-  resource_ = resource;
+inline ::nba::knapp::CtrlResponse_ResourceResponse* CtrlResponse::mutable_resource() {
+  if (!has_resource()) {
+    clear_data();
+    set_has_resource();
+    data_.resource_ = new ::nba::knapp::CtrlResponse_ResourceResponse;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlResponse.resource)
+  return data_.resource_;
+}
+inline ::nba::knapp::CtrlResponse_ResourceResponse* CtrlResponse::release_resource() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlResponse.resource)
+  if (has_resource()) {
+    clear_has_data();
+    ::nba::knapp::CtrlResponse_ResourceResponse* temp = data_.resource_;
+    data_.resource_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+inline void CtrlResponse::set_allocated_resource(::nba::knapp::CtrlResponse_ResourceResponse* resource) {
+  clear_data();
   if (resource) {
     set_has_resource();
-  } else {
-    clear_has_resource();
+    data_.resource_ = resource;
   }
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlResponse.resource)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlResponse.resource)
 }
 
+inline bool CtrlResponse::has_data() const {
+  return data_case() != DATA_NOT_SET;
+}
+inline void CtrlResponse::clear_has_data() {
+  _oneof_case_[0] = DATA_NOT_SET;
+}
+inline CtrlResponse::DataCase CtrlResponse::data_case() const {
+  return CtrlResponse::DataCase(_oneof_case_[0]);
+}
 #endif  // !PROTOBUF_INLINE_NOT_IN_HEADERS
 // -------------------------------------------------------------------
 
@@ -1594,20 +1467,21 @@ inline void CtrlResponse::set_allocated_resource(::knapp::CtrlResponse_ResourceR
 // @@protoc_insertion_point(namespace_scope)
 
 }  // namespace knapp
+}  // namespace nba
 
 #ifndef SWIG
 namespace google {
 namespace protobuf {
 
-template <> struct is_proto_enum< ::knapp::CtrlRequest_Type> : ::google::protobuf::internal::true_type {};
+template <> struct is_proto_enum< ::nba::knapp::CtrlRequest_Type> : ::google::protobuf::internal::true_type {};
 template <>
-inline const EnumDescriptor* GetEnumDescriptor< ::knapp::CtrlRequest_Type>() {
-  return ::knapp::CtrlRequest_Type_descriptor();
+inline const EnumDescriptor* GetEnumDescriptor< ::nba::knapp::CtrlRequest_Type>() {
+  return ::nba::knapp::CtrlRequest_Type_descriptor();
 }
-template <> struct is_proto_enum< ::knapp::CtrlResponse_Reply> : ::google::protobuf::internal::true_type {};
+template <> struct is_proto_enum< ::nba::knapp::CtrlResponse_Reply> : ::google::protobuf::internal::true_type {};
 template <>
-inline const EnumDescriptor* GetEnumDescriptor< ::knapp::CtrlResponse_Reply>() {
-  return ::knapp::CtrlResponse_Reply_descriptor();
+inline const EnumDescriptor* GetEnumDescriptor< ::nba::knapp::CtrlResponse_Reply>() {
+  return ::nba::knapp::CtrlResponse_Reply_descriptor();
 }
 
 }  // namespace protobuf

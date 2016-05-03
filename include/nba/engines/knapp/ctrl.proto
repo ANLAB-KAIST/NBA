@@ -1,5 +1,5 @@
-syntax = "proto2";
-package knapp;
+syntax = "proto3";
+package nba.knapp;
 
 message CtrlRequest {
     enum Type {
@@ -9,29 +9,28 @@ message CtrlRequest {
 	CREATE_VDEV  = 3;
 	DESTROY_VDEV = 4;
     }
-    required Type type = 1;
+    Type type = 1;
 
     message PingParam {
-	required string msg = 1;
+	string msg = 1;
     }
-    optional PingParam ping_param = 2;
-
     message MallocParam {
-	required uint64 size  = 1;
-	required uint64 align = 2;
+	uint64 size  = 1;
+	uint64 align = 2;
     }
-    optional MallocParam malloc_param = 3;
-
     message CreateVdevParam {
-	required uint32 num_pcores	    = 1;
-	required uint32 num_lcores_per_pcore = 2;
+	uint32 num_pcores	    = 1;
+	uint32 num_lcores_per_pcore = 2;
     }
-    optional CreateVdevParam create_vdev_param = 4;
-
     message VdevRefParam {
-	required uint64 vdev_id = 1;
+	uint64 vdev_id = 1;
     }
-    optional VdevRefParam vdev_ref = 5;
+    oneof params {
+	PingParam ping_param		  = 2;
+	MallocParam malloc_param	  = 3;
+	CreateVdevParam create_vdev_param = 4;
+	VdevRefParam vdev_ref		  = 5;
+    }
 }
 
 message CtrlResponse {
@@ -39,15 +38,17 @@ message CtrlResponse {
 	SUCCESS = 0;
 	FAILURE = 1;
     }
-    required Reply reply = 1;
+    Reply reply = 1;
 
     message TextResponse {
-	required string msg = 1;
+	string msg = 1;
     }
-    optional TextResponse text = 2;
-
     message ResourceResponse {
-	required uint64 handle = 1;
+	uint64 handle = 1;
     }
-    optional ResourceResponse resource = 3;
+
+    oneof data {
+	TextResponse text	  = 2;
+	ResourceResponse resource = 3;
+    }
 }

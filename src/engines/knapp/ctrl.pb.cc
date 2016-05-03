@@ -17,6 +17,7 @@
 #include <google/protobuf/wire_format.h>
 // @@protoc_insertion_point(includes)
 
+namespace nba {
 namespace knapp {
 
 namespace {
@@ -24,6 +25,12 @@ namespace {
 const ::google::protobuf::Descriptor* CtrlRequest_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   CtrlRequest_reflection_ = NULL;
+struct CtrlRequestOneofInstance {
+  const ::nba::knapp::CtrlRequest_PingParam* ping_param_;
+  const ::nba::knapp::CtrlRequest_MallocParam* malloc_param_;
+  const ::nba::knapp::CtrlRequest_CreateVdevParam* create_vdev_param_;
+  const ::nba::knapp::CtrlRequest_VdevRefParam* vdev_ref_;
+}* CtrlRequest_default_oneof_instance_ = NULL;
 const ::google::protobuf::Descriptor* CtrlRequest_PingParam_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   CtrlRequest_PingParam_reflection_ = NULL;
@@ -40,6 +47,10 @@ const ::google::protobuf::EnumDescriptor* CtrlRequest_Type_descriptor_ = NULL;
 const ::google::protobuf::Descriptor* CtrlResponse_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   CtrlResponse_reflection_ = NULL;
+struct CtrlResponseOneofInstance {
+  const ::nba::knapp::CtrlResponse_TextResponse* text_;
+  const ::nba::knapp::CtrlResponse_ResourceResponse* resource_;
+}* CtrlResponse_default_oneof_instance_ = NULL;
 const ::google::protobuf::Descriptor* CtrlResponse_TextResponse_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   CtrlResponse_TextResponse_reflection_ = NULL;
@@ -58,24 +69,27 @@ void protobuf_AssignDesc_ctrl_2eproto() {
       "ctrl.proto");
   GOOGLE_CHECK(file != NULL);
   CtrlRequest_descriptor_ = file->message_type(0);
-  static const int CtrlRequest_offsets_[5] = {
+  static const int CtrlRequest_offsets_[6] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest, type_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest, ping_param_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest, malloc_param_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest, create_vdev_param_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest, vdev_ref_),
+    PROTO2_GENERATED_DEFAULT_ONEOF_FIELD_OFFSET(CtrlRequest_default_oneof_instance_, ping_param_),
+    PROTO2_GENERATED_DEFAULT_ONEOF_FIELD_OFFSET(CtrlRequest_default_oneof_instance_, malloc_param_),
+    PROTO2_GENERATED_DEFAULT_ONEOF_FIELD_OFFSET(CtrlRequest_default_oneof_instance_, create_vdev_param_),
+    PROTO2_GENERATED_DEFAULT_ONEOF_FIELD_OFFSET(CtrlRequest_default_oneof_instance_, vdev_ref_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest, params_),
   };
   CtrlRequest_reflection_ =
     ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
       CtrlRequest_descriptor_,
       CtrlRequest::default_instance_,
       CtrlRequest_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest, _has_bits_[0]),
       -1,
       -1,
+      -1,
+      CtrlRequest_default_oneof_instance_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest, _oneof_case_[0]),
       sizeof(CtrlRequest),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest, _internal_metadata_),
-      -1);
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest, _is_default_instance_));
   CtrlRequest_PingParam_descriptor_ = CtrlRequest_descriptor_->nested_type(0);
   static const int CtrlRequest_PingParam_offsets_[1] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_PingParam, msg_),
@@ -85,12 +99,12 @@ void protobuf_AssignDesc_ctrl_2eproto() {
       CtrlRequest_PingParam_descriptor_,
       CtrlRequest_PingParam::default_instance_,
       CtrlRequest_PingParam_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_PingParam, _has_bits_[0]),
+      -1,
       -1,
       -1,
       sizeof(CtrlRequest_PingParam),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_PingParam, _internal_metadata_),
-      -1);
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_PingParam, _is_default_instance_));
   CtrlRequest_MallocParam_descriptor_ = CtrlRequest_descriptor_->nested_type(1);
   static const int CtrlRequest_MallocParam_offsets_[2] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_MallocParam, size_),
@@ -101,12 +115,12 @@ void protobuf_AssignDesc_ctrl_2eproto() {
       CtrlRequest_MallocParam_descriptor_,
       CtrlRequest_MallocParam::default_instance_,
       CtrlRequest_MallocParam_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_MallocParam, _has_bits_[0]),
+      -1,
       -1,
       -1,
       sizeof(CtrlRequest_MallocParam),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_MallocParam, _internal_metadata_),
-      -1);
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_MallocParam, _is_default_instance_));
   CtrlRequest_CreateVdevParam_descriptor_ = CtrlRequest_descriptor_->nested_type(2);
   static const int CtrlRequest_CreateVdevParam_offsets_[2] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_CreateVdevParam, num_pcores_),
@@ -117,12 +131,12 @@ void protobuf_AssignDesc_ctrl_2eproto() {
       CtrlRequest_CreateVdevParam_descriptor_,
       CtrlRequest_CreateVdevParam::default_instance_,
       CtrlRequest_CreateVdevParam_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_CreateVdevParam, _has_bits_[0]),
+      -1,
       -1,
       -1,
       sizeof(CtrlRequest_CreateVdevParam),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_CreateVdevParam, _internal_metadata_),
-      -1);
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_CreateVdevParam, _is_default_instance_));
   CtrlRequest_VdevRefParam_descriptor_ = CtrlRequest_descriptor_->nested_type(3);
   static const int CtrlRequest_VdevRefParam_offsets_[1] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_VdevRefParam, vdev_id_),
@@ -132,30 +146,33 @@ void protobuf_AssignDesc_ctrl_2eproto() {
       CtrlRequest_VdevRefParam_descriptor_,
       CtrlRequest_VdevRefParam::default_instance_,
       CtrlRequest_VdevRefParam_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_VdevRefParam, _has_bits_[0]),
+      -1,
       -1,
       -1,
       sizeof(CtrlRequest_VdevRefParam),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_VdevRefParam, _internal_metadata_),
-      -1);
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_VdevRefParam, _is_default_instance_));
   CtrlRequest_Type_descriptor_ = CtrlRequest_descriptor_->enum_type(0);
   CtrlResponse_descriptor_ = file->message_type(1);
-  static const int CtrlResponse_offsets_[3] = {
+  static const int CtrlResponse_offsets_[4] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse, reply_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse, text_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse, resource_),
+    PROTO2_GENERATED_DEFAULT_ONEOF_FIELD_OFFSET(CtrlResponse_default_oneof_instance_, text_),
+    PROTO2_GENERATED_DEFAULT_ONEOF_FIELD_OFFSET(CtrlResponse_default_oneof_instance_, resource_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse, data_),
   };
   CtrlResponse_reflection_ =
     ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
       CtrlResponse_descriptor_,
       CtrlResponse::default_instance_,
       CtrlResponse_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse, _has_bits_[0]),
       -1,
       -1,
+      -1,
+      CtrlResponse_default_oneof_instance_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse, _oneof_case_[0]),
       sizeof(CtrlResponse),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse, _internal_metadata_),
-      -1);
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse, _is_default_instance_));
   CtrlResponse_TextResponse_descriptor_ = CtrlResponse_descriptor_->nested_type(0);
   static const int CtrlResponse_TextResponse_offsets_[1] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_TextResponse, msg_),
@@ -165,12 +182,12 @@ void protobuf_AssignDesc_ctrl_2eproto() {
       CtrlResponse_TextResponse_descriptor_,
       CtrlResponse_TextResponse::default_instance_,
       CtrlResponse_TextResponse_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_TextResponse, _has_bits_[0]),
+      -1,
       -1,
       -1,
       sizeof(CtrlResponse_TextResponse),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_TextResponse, _internal_metadata_),
-      -1);
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_TextResponse, _is_default_instance_));
   CtrlResponse_ResourceResponse_descriptor_ = CtrlResponse_descriptor_->nested_type(1);
   static const int CtrlResponse_ResourceResponse_offsets_[1] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_ResourceResponse, handle_),
@@ -180,12 +197,12 @@ void protobuf_AssignDesc_ctrl_2eproto() {
       CtrlResponse_ResourceResponse_descriptor_,
       CtrlResponse_ResourceResponse::default_instance_,
       CtrlResponse_ResourceResponse_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_ResourceResponse, _has_bits_[0]),
+      -1,
       -1,
       -1,
       sizeof(CtrlResponse_ResourceResponse),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_ResourceResponse, _internal_metadata_),
-      -1);
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_ResourceResponse, _is_default_instance_));
   CtrlResponse_Reply_descriptor_ = CtrlResponse_descriptor_->enum_type(0);
 }
 
@@ -221,6 +238,7 @@ void protobuf_RegisterTypes(const ::std::string&) {
 
 void protobuf_ShutdownFile_ctrl_2eproto() {
   delete CtrlRequest::default_instance_;
+  delete CtrlRequest_default_oneof_instance_;
   delete CtrlRequest_reflection_;
   delete CtrlRequest_PingParam::default_instance_;
   delete CtrlRequest_PingParam_reflection_;
@@ -231,6 +249,7 @@ void protobuf_ShutdownFile_ctrl_2eproto() {
   delete CtrlRequest_VdevRefParam::default_instance_;
   delete CtrlRequest_VdevRefParam_reflection_;
   delete CtrlResponse::default_instance_;
+  delete CtrlResponse_default_oneof_instance_;
   delete CtrlResponse_reflection_;
   delete CtrlResponse_TextResponse::default_instance_;
   delete CtrlResponse_TextResponse_reflection_;
@@ -245,35 +264,38 @@ void protobuf_AddDesc_ctrl_2eproto() {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-    "\n\nctrl.proto\022\005knapp\"\205\004\n\013CtrlRequest\022%\n\004t"
-    "ype\030\001 \002(\0162\027.knapp.CtrlRequest.Type\0220\n\npi"
-    "ng_param\030\002 \001(\0132\034.knapp.CtrlRequest.PingP"
-    "aram\0224\n\014malloc_param\030\003 \001(\0132\036.knapp.CtrlR"
-    "equest.MallocParam\022=\n\021create_vdev_param\030"
-    "\004 \001(\0132\".knapp.CtrlRequest.CreateVdevPara"
-    "m\0221\n\010vdev_ref\030\005 \001(\0132\037.knapp.CtrlRequest."
-    "VdevRefParam\032\030\n\tPingParam\022\013\n\003msg\030\001 \002(\t\032*"
-    "\n\013MallocParam\022\014\n\004size\030\001 \002(\004\022\r\n\005align\030\002 \002"
-    "(\004\032C\n\017CreateVdevParam\022\022\n\nnum_pcores\030\001 \002("
-    "\r\022\034\n\024num_lcores_per_pcore\030\002 \002(\r\032\037\n\014VdevR"
-    "efParam\022\017\n\007vdev_id\030\001 \002(\004\"I\n\004Type\022\010\n\004PING"
-    "\020\000\022\n\n\006MALLOC\020\001\022\010\n\004FREE\020\002\022\017\n\013CREATE_VDEV\020"
-    "\003\022\020\n\014DESTROY_VDEV\020\004\"\204\002\n\014CtrlResponse\022(\n\005"
-    "reply\030\001 \002(\0162\031.knapp.CtrlResponse.Reply\022."
-    "\n\004text\030\002 \001(\0132 .knapp.CtrlResponse.TextRe"
-    "sponse\0226\n\010resource\030\003 \001(\0132$.knapp.CtrlRes"
-    "ponse.ResourceResponse\032\033\n\014TextResponse\022\013"
-    "\n\003msg\030\001 \002(\t\032\"\n\020ResourceResponse\022\016\n\006handl"
-    "e\030\001 \002(\004\"!\n\005Reply\022\013\n\007SUCCESS\020\000\022\013\n\007FAILURE"
-    "\020\001", 802);
+    "\n\nctrl.proto\022\tnba.knapp\"\253\004\n\013CtrlRequest\022"
+    ")\n\004type\030\001 \001(\0162\033.nba.knapp.CtrlRequest.Ty"
+    "pe\0226\n\nping_param\030\002 \001(\0132 .nba.knapp.CtrlR"
+    "equest.PingParamH\000\022:\n\014malloc_param\030\003 \001(\013"
+    "2\".nba.knapp.CtrlRequest.MallocParamH\000\022C"
+    "\n\021create_vdev_param\030\004 \001(\0132&.nba.knapp.Ct"
+    "rlRequest.CreateVdevParamH\000\0227\n\010vdev_ref\030"
+    "\005 \001(\0132#.nba.knapp.CtrlRequest.VdevRefPar"
+    "amH\000\032\030\n\tPingParam\022\013\n\003msg\030\001 \001(\t\032*\n\013Malloc"
+    "Param\022\014\n\004size\030\001 \001(\004\022\r\n\005align\030\002 \001(\004\032C\n\017Cr"
+    "eateVdevParam\022\022\n\nnum_pcores\030\001 \001(\r\022\034\n\024num"
+    "_lcores_per_pcore\030\002 \001(\r\032\037\n\014VdevRefParam\022"
+    "\017\n\007vdev_id\030\001 \001(\004\"I\n\004Type\022\010\n\004PING\020\000\022\n\n\006MA"
+    "LLOC\020\001\022\010\n\004FREE\020\002\022\017\n\013CREATE_VDEV\020\003\022\020\n\014DES"
+    "TROY_VDEV\020\004B\010\n\006params\"\234\002\n\014CtrlResponse\022,"
+    "\n\005reply\030\001 \001(\0162\035.nba.knapp.CtrlResponse.R"
+    "eply\0224\n\004text\030\002 \001(\0132$.nba.knapp.CtrlRespo"
+    "nse.TextResponseH\000\022<\n\010resource\030\003 \001(\0132(.n"
+    "ba.knapp.CtrlResponse.ResourceResponseH\000"
+    "\032\033\n\014TextResponse\022\013\n\003msg\030\001 \001(\t\032\"\n\020Resourc"
+    "eResponse\022\016\n\006handle\030\001 \001(\004\"!\n\005Reply\022\013\n\007SU"
+    "CCESS\020\000\022\013\n\007FAILURE\020\001B\006\n\004datab\006proto3", 876);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "ctrl.proto", &protobuf_RegisterTypes);
   CtrlRequest::default_instance_ = new CtrlRequest();
+  CtrlRequest_default_oneof_instance_ = new CtrlRequestOneofInstance();
   CtrlRequest_PingParam::default_instance_ = new CtrlRequest_PingParam();
   CtrlRequest_MallocParam::default_instance_ = new CtrlRequest_MallocParam();
   CtrlRequest_CreateVdevParam::default_instance_ = new CtrlRequest_CreateVdevParam();
   CtrlRequest_VdevRefParam::default_instance_ = new CtrlRequest_VdevRefParam();
   CtrlResponse::default_instance_ = new CtrlResponse();
+  CtrlResponse_default_oneof_instance_ = new CtrlResponseOneofInstance();
   CtrlResponse_TextResponse::default_instance_ = new CtrlResponse_TextResponse();
   CtrlResponse_ResourceResponse::default_instance_ = new CtrlResponse_ResourceResponse();
   CtrlRequest::default_instance_->InitAsDefaultInstance();
@@ -340,10 +362,11 @@ const int CtrlRequest_PingParam::kMsgFieldNumber;
 CtrlRequest_PingParam::CtrlRequest_PingParam()
   : ::google::protobuf::Message(), _internal_metadata_(NULL) {
   SharedCtor();
-  // @@protoc_insertion_point(constructor:knapp.CtrlRequest.PingParam)
+  // @@protoc_insertion_point(constructor:nba.knapp.CtrlRequest.PingParam)
 }
 
 void CtrlRequest_PingParam::InitAsDefaultInstance() {
+  _is_default_instance_ = true;
 }
 
 CtrlRequest_PingParam::CtrlRequest_PingParam(const CtrlRequest_PingParam& from)
@@ -351,18 +374,18 @@ CtrlRequest_PingParam::CtrlRequest_PingParam(const CtrlRequest_PingParam& from)
     _internal_metadata_(NULL) {
   SharedCtor();
   MergeFrom(from);
-  // @@protoc_insertion_point(copy_constructor:knapp.CtrlRequest.PingParam)
+  // @@protoc_insertion_point(copy_constructor:nba.knapp.CtrlRequest.PingParam)
 }
 
 void CtrlRequest_PingParam::SharedCtor() {
+    _is_default_instance_ = false;
   ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
   msg_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
 CtrlRequest_PingParam::~CtrlRequest_PingParam() {
-  // @@protoc_insertion_point(destructor:knapp.CtrlRequest.PingParam)
+  // @@protoc_insertion_point(destructor:nba.knapp.CtrlRequest.PingParam)
   SharedDtor();
 }
 
@@ -398,35 +421,29 @@ CtrlRequest_PingParam* CtrlRequest_PingParam::New(::google::protobuf::Arena* are
 }
 
 void CtrlRequest_PingParam::Clear() {
-// @@protoc_insertion_point(message_clear_start:knapp.CtrlRequest.PingParam)
-  if (has_msg()) {
-    msg_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  }
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+// @@protoc_insertion_point(message_clear_start:nba.knapp.CtrlRequest.PingParam)
+  msg_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 
 bool CtrlRequest_PingParam::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  // @@protoc_insertion_point(parse_start:knapp.CtrlRequest.PingParam)
+  // @@protoc_insertion_point(parse_start:nba.knapp.CtrlRequest.PingParam)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required string msg = 1;
+      // optional string msg = 1;
       case 1: {
         if (tag == 10) {
           DO_(::google::protobuf::internal::WireFormatLite::ReadString(
                 input, this->mutable_msg()));
-          ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+          DO_(::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
             this->msg().data(), this->msg().length(),
-            ::google::protobuf::internal::WireFormat::PARSE,
-            "knapp.CtrlRequest.PingParam.msg");
+            ::google::protobuf::internal::WireFormatLite::PARSE,
+            "nba.knapp.CtrlRequest.PingParam.msg"));
         } else {
           goto handle_unusual;
         }
@@ -441,78 +458,65 @@ bool CtrlRequest_PingParam::MergePartialFromCodedStream(
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
           goto success;
         }
-        DO_(::google::protobuf::internal::WireFormat::SkipField(
-              input, tag, mutable_unknown_fields()));
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag));
         break;
       }
     }
   }
 success:
-  // @@protoc_insertion_point(parse_success:knapp.CtrlRequest.PingParam)
+  // @@protoc_insertion_point(parse_success:nba.knapp.CtrlRequest.PingParam)
   return true;
 failure:
-  // @@protoc_insertion_point(parse_failure:knapp.CtrlRequest.PingParam)
+  // @@protoc_insertion_point(parse_failure:nba.knapp.CtrlRequest.PingParam)
   return false;
 #undef DO_
 }
 
 void CtrlRequest_PingParam::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // @@protoc_insertion_point(serialize_start:knapp.CtrlRequest.PingParam)
-  // required string msg = 1;
-  if (has_msg()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+  // @@protoc_insertion_point(serialize_start:nba.knapp.CtrlRequest.PingParam)
+  // optional string msg = 1;
+  if (this->msg().size() > 0) {
+    ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
       this->msg().data(), this->msg().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "knapp.CtrlRequest.PingParam.msg");
+      ::google::protobuf::internal::WireFormatLite::SERIALIZE,
+      "nba.knapp.CtrlRequest.PingParam.msg");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       1, this->msg(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
-        unknown_fields(), output);
-  }
-  // @@protoc_insertion_point(serialize_end:knapp.CtrlRequest.PingParam)
+  // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlRequest.PingParam)
 }
 
 ::google::protobuf::uint8* CtrlRequest_PingParam::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // @@protoc_insertion_point(serialize_to_array_start:knapp.CtrlRequest.PingParam)
-  // required string msg = 1;
-  if (has_msg()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+  // @@protoc_insertion_point(serialize_to_array_start:nba.knapp.CtrlRequest.PingParam)
+  // optional string msg = 1;
+  if (this->msg().size() > 0) {
+    ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
       this->msg().data(), this->msg().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "knapp.CtrlRequest.PingParam.msg");
+      ::google::protobuf::internal::WireFormatLite::SERIALIZE,
+      "nba.knapp.CtrlRequest.PingParam.msg");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         1, this->msg(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
-        unknown_fields(), target);
-  }
-  // @@protoc_insertion_point(serialize_to_array_end:knapp.CtrlRequest.PingParam)
+  // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlRequest.PingParam)
   return target;
 }
 
 int CtrlRequest_PingParam::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:knapp.CtrlRequest.PingParam)
+// @@protoc_insertion_point(message_byte_size_start:nba.knapp.CtrlRequest.PingParam)
   int total_size = 0;
 
-  // required string msg = 1;
-  if (has_msg()) {
+  // optional string msg = 1;
+  if (this->msg().size() > 0) {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::StringSize(
         this->msg());
   }
-  if (_internal_metadata_.have_unknown_fields()) {
-    total_size +=
-      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
-        unknown_fields());
-  }
+
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = total_size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
@@ -520,50 +524,44 @@ int CtrlRequest_PingParam::ByteSize() const {
 }
 
 void CtrlRequest_PingParam::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:knapp.CtrlRequest.PingParam)
+// @@protoc_insertion_point(generalized_merge_from_start:nba.knapp.CtrlRequest.PingParam)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
   const CtrlRequest_PingParam* source = 
       ::google::protobuf::internal::DynamicCastToGenerated<const CtrlRequest_PingParam>(
           &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:knapp.CtrlRequest.PingParam)
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:nba.knapp.CtrlRequest.PingParam)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:knapp.CtrlRequest.PingParam)
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:nba.knapp.CtrlRequest.PingParam)
     MergeFrom(*source);
   }
 }
 
 void CtrlRequest_PingParam::MergeFrom(const CtrlRequest_PingParam& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:knapp.CtrlRequest.PingParam)
+// @@protoc_insertion_point(class_specific_merge_from_start:nba.knapp.CtrlRequest.PingParam)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
-  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_msg()) {
-      set_has_msg();
-      msg_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.msg_);
-    }
-  }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+  if (from.msg().size() > 0) {
+
+    msg_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.msg_);
   }
 }
 
 void CtrlRequest_PingParam::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:knapp.CtrlRequest.PingParam)
+// @@protoc_insertion_point(generalized_copy_from_start:nba.knapp.CtrlRequest.PingParam)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void CtrlRequest_PingParam::CopyFrom(const CtrlRequest_PingParam& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:knapp.CtrlRequest.PingParam)
+// @@protoc_insertion_point(class_specific_copy_from_start:nba.knapp.CtrlRequest.PingParam)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 bool CtrlRequest_PingParam::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
   return true;
 }
@@ -574,7 +572,6 @@ void CtrlRequest_PingParam::Swap(CtrlRequest_PingParam* other) {
 }
 void CtrlRequest_PingParam::InternalSwap(CtrlRequest_PingParam* other) {
   msg_.Swap(&other->msg_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
   _internal_metadata_.Swap(&other->_internal_metadata_);
   std::swap(_cached_size_, other->_cached_size_);
 }
@@ -598,10 +595,11 @@ const int CtrlRequest_MallocParam::kAlignFieldNumber;
 CtrlRequest_MallocParam::CtrlRequest_MallocParam()
   : ::google::protobuf::Message(), _internal_metadata_(NULL) {
   SharedCtor();
-  // @@protoc_insertion_point(constructor:knapp.CtrlRequest.MallocParam)
+  // @@protoc_insertion_point(constructor:nba.knapp.CtrlRequest.MallocParam)
 }
 
 void CtrlRequest_MallocParam::InitAsDefaultInstance() {
+  _is_default_instance_ = true;
 }
 
 CtrlRequest_MallocParam::CtrlRequest_MallocParam(const CtrlRequest_MallocParam& from)
@@ -609,18 +607,18 @@ CtrlRequest_MallocParam::CtrlRequest_MallocParam(const CtrlRequest_MallocParam& 
     _internal_metadata_(NULL) {
   SharedCtor();
   MergeFrom(from);
-  // @@protoc_insertion_point(copy_constructor:knapp.CtrlRequest.MallocParam)
+  // @@protoc_insertion_point(copy_constructor:nba.knapp.CtrlRequest.MallocParam)
 }
 
 void CtrlRequest_MallocParam::SharedCtor() {
+    _is_default_instance_ = false;
   _cached_size_ = 0;
   size_ = GOOGLE_ULONGLONG(0);
   align_ = GOOGLE_ULONGLONG(0);
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
 CtrlRequest_MallocParam::~CtrlRequest_MallocParam() {
-  // @@protoc_insertion_point(destructor:knapp.CtrlRequest.MallocParam)
+  // @@protoc_insertion_point(destructor:nba.knapp.CtrlRequest.MallocParam)
   SharedDtor();
 }
 
@@ -655,7 +653,7 @@ CtrlRequest_MallocParam* CtrlRequest_MallocParam::New(::google::protobuf::Arena*
 }
 
 void CtrlRequest_MallocParam::Clear() {
-// @@protoc_insertion_point(message_clear_start:knapp.CtrlRequest.MallocParam)
+// @@protoc_insertion_point(message_clear_start:nba.knapp.CtrlRequest.MallocParam)
 #if defined(__clang__)
 #define ZR_HELPER_(f) \
   _Pragma("clang diagnostic push") \
@@ -677,29 +675,25 @@ void CtrlRequest_MallocParam::Clear() {
 #undef ZR_HELPER_
 #undef ZR_
 
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
 }
 
 bool CtrlRequest_MallocParam::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  // @@protoc_insertion_point(parse_start:knapp.CtrlRequest.MallocParam)
+  // @@protoc_insertion_point(parse_start:nba.knapp.CtrlRequest.MallocParam)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required uint64 size = 1;
+      // optional uint64 size = 1;
       case 1: {
         if (tag == 8) {
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
                  input, &size_)));
-          set_has_size();
+
         } else {
           goto handle_unusual;
         }
@@ -707,14 +701,14 @@ bool CtrlRequest_MallocParam::MergePartialFromCodedStream(
         break;
       }
 
-      // required uint64 align = 2;
+      // optional uint64 align = 2;
       case 2: {
         if (tag == 16) {
          parse_align:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
                  input, &align_)));
-          set_has_align();
+
         } else {
           goto handle_unusual;
         }
@@ -729,105 +723,71 @@ bool CtrlRequest_MallocParam::MergePartialFromCodedStream(
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
           goto success;
         }
-        DO_(::google::protobuf::internal::WireFormat::SkipField(
-              input, tag, mutable_unknown_fields()));
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag));
         break;
       }
     }
   }
 success:
-  // @@protoc_insertion_point(parse_success:knapp.CtrlRequest.MallocParam)
+  // @@protoc_insertion_point(parse_success:nba.knapp.CtrlRequest.MallocParam)
   return true;
 failure:
-  // @@protoc_insertion_point(parse_failure:knapp.CtrlRequest.MallocParam)
+  // @@protoc_insertion_point(parse_failure:nba.knapp.CtrlRequest.MallocParam)
   return false;
 #undef DO_
 }
 
 void CtrlRequest_MallocParam::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // @@protoc_insertion_point(serialize_start:knapp.CtrlRequest.MallocParam)
-  // required uint64 size = 1;
-  if (has_size()) {
+  // @@protoc_insertion_point(serialize_start:nba.knapp.CtrlRequest.MallocParam)
+  // optional uint64 size = 1;
+  if (this->size() != 0) {
     ::google::protobuf::internal::WireFormatLite::WriteUInt64(1, this->size(), output);
   }
 
-  // required uint64 align = 2;
-  if (has_align()) {
+  // optional uint64 align = 2;
+  if (this->align() != 0) {
     ::google::protobuf::internal::WireFormatLite::WriteUInt64(2, this->align(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
-        unknown_fields(), output);
-  }
-  // @@protoc_insertion_point(serialize_end:knapp.CtrlRequest.MallocParam)
+  // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlRequest.MallocParam)
 }
 
 ::google::protobuf::uint8* CtrlRequest_MallocParam::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // @@protoc_insertion_point(serialize_to_array_start:knapp.CtrlRequest.MallocParam)
-  // required uint64 size = 1;
-  if (has_size()) {
+  // @@protoc_insertion_point(serialize_to_array_start:nba.knapp.CtrlRequest.MallocParam)
+  // optional uint64 size = 1;
+  if (this->size() != 0) {
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(1, this->size(), target);
   }
 
-  // required uint64 align = 2;
-  if (has_align()) {
+  // optional uint64 align = 2;
+  if (this->align() != 0) {
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(2, this->align(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
-        unknown_fields(), target);
-  }
-  // @@protoc_insertion_point(serialize_to_array_end:knapp.CtrlRequest.MallocParam)
+  // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlRequest.MallocParam)
   return target;
 }
 
-int CtrlRequest_MallocParam::RequiredFieldsByteSizeFallback() const {
-// @@protoc_insertion_point(required_fields_byte_size_fallback_start:knapp.CtrlRequest.MallocParam)
-  int total_size = 0;
-
-  if (has_size()) {
-    // required uint64 size = 1;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt64Size(
-        this->size());
-  }
-
-  if (has_align()) {
-    // required uint64 align = 2;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt64Size(
-        this->align());
-  }
-
-  return total_size;
-}
 int CtrlRequest_MallocParam::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:knapp.CtrlRequest.MallocParam)
+// @@protoc_insertion_point(message_byte_size_start:nba.knapp.CtrlRequest.MallocParam)
   int total_size = 0;
 
-  if (((_has_bits_[0] & 0x00000003) ^ 0x00000003) == 0) {  // All required fields are present.
-    // required uint64 size = 1;
+  // optional uint64 size = 1;
+  if (this->size() != 0) {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::UInt64Size(
         this->size());
+  }
 
-    // required uint64 align = 2;
+  // optional uint64 align = 2;
+  if (this->align() != 0) {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::UInt64Size(
         this->align());
+  }
 
-  } else {
-    total_size += RequiredFieldsByteSizeFallback();
-  }
-  if (_internal_metadata_.have_unknown_fields()) {
-    total_size +=
-      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
-        unknown_fields());
-  }
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = total_size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
@@ -835,52 +795,46 @@ int CtrlRequest_MallocParam::ByteSize() const {
 }
 
 void CtrlRequest_MallocParam::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:knapp.CtrlRequest.MallocParam)
+// @@protoc_insertion_point(generalized_merge_from_start:nba.knapp.CtrlRequest.MallocParam)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
   const CtrlRequest_MallocParam* source = 
       ::google::protobuf::internal::DynamicCastToGenerated<const CtrlRequest_MallocParam>(
           &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:knapp.CtrlRequest.MallocParam)
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:nba.knapp.CtrlRequest.MallocParam)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:knapp.CtrlRequest.MallocParam)
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:nba.knapp.CtrlRequest.MallocParam)
     MergeFrom(*source);
   }
 }
 
 void CtrlRequest_MallocParam::MergeFrom(const CtrlRequest_MallocParam& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:knapp.CtrlRequest.MallocParam)
+// @@protoc_insertion_point(class_specific_merge_from_start:nba.knapp.CtrlRequest.MallocParam)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
-  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_size()) {
-      set_size(from.size());
-    }
-    if (from.has_align()) {
-      set_align(from.align());
-    }
+  if (from.size() != 0) {
+    set_size(from.size());
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+  if (from.align() != 0) {
+    set_align(from.align());
   }
 }
 
 void CtrlRequest_MallocParam::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:knapp.CtrlRequest.MallocParam)
+// @@protoc_insertion_point(generalized_copy_from_start:nba.knapp.CtrlRequest.MallocParam)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void CtrlRequest_MallocParam::CopyFrom(const CtrlRequest_MallocParam& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:knapp.CtrlRequest.MallocParam)
+// @@protoc_insertion_point(class_specific_copy_from_start:nba.knapp.CtrlRequest.MallocParam)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 bool CtrlRequest_MallocParam::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000003) != 0x00000003) return false;
 
   return true;
 }
@@ -892,7 +846,6 @@ void CtrlRequest_MallocParam::Swap(CtrlRequest_MallocParam* other) {
 void CtrlRequest_MallocParam::InternalSwap(CtrlRequest_MallocParam* other) {
   std::swap(size_, other->size_);
   std::swap(align_, other->align_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
   _internal_metadata_.Swap(&other->_internal_metadata_);
   std::swap(_cached_size_, other->_cached_size_);
 }
@@ -916,10 +869,11 @@ const int CtrlRequest_CreateVdevParam::kNumLcoresPerPcoreFieldNumber;
 CtrlRequest_CreateVdevParam::CtrlRequest_CreateVdevParam()
   : ::google::protobuf::Message(), _internal_metadata_(NULL) {
   SharedCtor();
-  // @@protoc_insertion_point(constructor:knapp.CtrlRequest.CreateVdevParam)
+  // @@protoc_insertion_point(constructor:nba.knapp.CtrlRequest.CreateVdevParam)
 }
 
 void CtrlRequest_CreateVdevParam::InitAsDefaultInstance() {
+  _is_default_instance_ = true;
 }
 
 CtrlRequest_CreateVdevParam::CtrlRequest_CreateVdevParam(const CtrlRequest_CreateVdevParam& from)
@@ -927,18 +881,18 @@ CtrlRequest_CreateVdevParam::CtrlRequest_CreateVdevParam(const CtrlRequest_Creat
     _internal_metadata_(NULL) {
   SharedCtor();
   MergeFrom(from);
-  // @@protoc_insertion_point(copy_constructor:knapp.CtrlRequest.CreateVdevParam)
+  // @@protoc_insertion_point(copy_constructor:nba.knapp.CtrlRequest.CreateVdevParam)
 }
 
 void CtrlRequest_CreateVdevParam::SharedCtor() {
+    _is_default_instance_ = false;
   _cached_size_ = 0;
   num_pcores_ = 0u;
   num_lcores_per_pcore_ = 0u;
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
 CtrlRequest_CreateVdevParam::~CtrlRequest_CreateVdevParam() {
-  // @@protoc_insertion_point(destructor:knapp.CtrlRequest.CreateVdevParam)
+  // @@protoc_insertion_point(destructor:nba.knapp.CtrlRequest.CreateVdevParam)
   SharedDtor();
 }
 
@@ -973,7 +927,7 @@ CtrlRequest_CreateVdevParam* CtrlRequest_CreateVdevParam::New(::google::protobuf
 }
 
 void CtrlRequest_CreateVdevParam::Clear() {
-// @@protoc_insertion_point(message_clear_start:knapp.CtrlRequest.CreateVdevParam)
+// @@protoc_insertion_point(message_clear_start:nba.knapp.CtrlRequest.CreateVdevParam)
 #if defined(__clang__)
 #define ZR_HELPER_(f) \
   _Pragma("clang diagnostic push") \
@@ -995,29 +949,25 @@ void CtrlRequest_CreateVdevParam::Clear() {
 #undef ZR_HELPER_
 #undef ZR_
 
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
 }
 
 bool CtrlRequest_CreateVdevParam::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  // @@protoc_insertion_point(parse_start:knapp.CtrlRequest.CreateVdevParam)
+  // @@protoc_insertion_point(parse_start:nba.knapp.CtrlRequest.CreateVdevParam)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required uint32 num_pcores = 1;
+      // optional uint32 num_pcores = 1;
       case 1: {
         if (tag == 8) {
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
                  input, &num_pcores_)));
-          set_has_num_pcores();
+
         } else {
           goto handle_unusual;
         }
@@ -1025,14 +975,14 @@ bool CtrlRequest_CreateVdevParam::MergePartialFromCodedStream(
         break;
       }
 
-      // required uint32 num_lcores_per_pcore = 2;
+      // optional uint32 num_lcores_per_pcore = 2;
       case 2: {
         if (tag == 16) {
          parse_num_lcores_per_pcore:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
                  input, &num_lcores_per_pcore_)));
-          set_has_num_lcores_per_pcore();
+
         } else {
           goto handle_unusual;
         }
@@ -1047,105 +997,71 @@ bool CtrlRequest_CreateVdevParam::MergePartialFromCodedStream(
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
           goto success;
         }
-        DO_(::google::protobuf::internal::WireFormat::SkipField(
-              input, tag, mutable_unknown_fields()));
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag));
         break;
       }
     }
   }
 success:
-  // @@protoc_insertion_point(parse_success:knapp.CtrlRequest.CreateVdevParam)
+  // @@protoc_insertion_point(parse_success:nba.knapp.CtrlRequest.CreateVdevParam)
   return true;
 failure:
-  // @@protoc_insertion_point(parse_failure:knapp.CtrlRequest.CreateVdevParam)
+  // @@protoc_insertion_point(parse_failure:nba.knapp.CtrlRequest.CreateVdevParam)
   return false;
 #undef DO_
 }
 
 void CtrlRequest_CreateVdevParam::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // @@protoc_insertion_point(serialize_start:knapp.CtrlRequest.CreateVdevParam)
-  // required uint32 num_pcores = 1;
-  if (has_num_pcores()) {
+  // @@protoc_insertion_point(serialize_start:nba.knapp.CtrlRequest.CreateVdevParam)
+  // optional uint32 num_pcores = 1;
+  if (this->num_pcores() != 0) {
     ::google::protobuf::internal::WireFormatLite::WriteUInt32(1, this->num_pcores(), output);
   }
 
-  // required uint32 num_lcores_per_pcore = 2;
-  if (has_num_lcores_per_pcore()) {
+  // optional uint32 num_lcores_per_pcore = 2;
+  if (this->num_lcores_per_pcore() != 0) {
     ::google::protobuf::internal::WireFormatLite::WriteUInt32(2, this->num_lcores_per_pcore(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
-        unknown_fields(), output);
-  }
-  // @@protoc_insertion_point(serialize_end:knapp.CtrlRequest.CreateVdevParam)
+  // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlRequest.CreateVdevParam)
 }
 
 ::google::protobuf::uint8* CtrlRequest_CreateVdevParam::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // @@protoc_insertion_point(serialize_to_array_start:knapp.CtrlRequest.CreateVdevParam)
-  // required uint32 num_pcores = 1;
-  if (has_num_pcores()) {
+  // @@protoc_insertion_point(serialize_to_array_start:nba.knapp.CtrlRequest.CreateVdevParam)
+  // optional uint32 num_pcores = 1;
+  if (this->num_pcores() != 0) {
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(1, this->num_pcores(), target);
   }
 
-  // required uint32 num_lcores_per_pcore = 2;
-  if (has_num_lcores_per_pcore()) {
+  // optional uint32 num_lcores_per_pcore = 2;
+  if (this->num_lcores_per_pcore() != 0) {
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(2, this->num_lcores_per_pcore(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
-        unknown_fields(), target);
-  }
-  // @@protoc_insertion_point(serialize_to_array_end:knapp.CtrlRequest.CreateVdevParam)
+  // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlRequest.CreateVdevParam)
   return target;
 }
 
-int CtrlRequest_CreateVdevParam::RequiredFieldsByteSizeFallback() const {
-// @@protoc_insertion_point(required_fields_byte_size_fallback_start:knapp.CtrlRequest.CreateVdevParam)
-  int total_size = 0;
-
-  if (has_num_pcores()) {
-    // required uint32 num_pcores = 1;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt32Size(
-        this->num_pcores());
-  }
-
-  if (has_num_lcores_per_pcore()) {
-    // required uint32 num_lcores_per_pcore = 2;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt32Size(
-        this->num_lcores_per_pcore());
-  }
-
-  return total_size;
-}
 int CtrlRequest_CreateVdevParam::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:knapp.CtrlRequest.CreateVdevParam)
+// @@protoc_insertion_point(message_byte_size_start:nba.knapp.CtrlRequest.CreateVdevParam)
   int total_size = 0;
 
-  if (((_has_bits_[0] & 0x00000003) ^ 0x00000003) == 0) {  // All required fields are present.
-    // required uint32 num_pcores = 1;
+  // optional uint32 num_pcores = 1;
+  if (this->num_pcores() != 0) {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::UInt32Size(
         this->num_pcores());
+  }
 
-    // required uint32 num_lcores_per_pcore = 2;
+  // optional uint32 num_lcores_per_pcore = 2;
+  if (this->num_lcores_per_pcore() != 0) {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::UInt32Size(
         this->num_lcores_per_pcore());
+  }
 
-  } else {
-    total_size += RequiredFieldsByteSizeFallback();
-  }
-  if (_internal_metadata_.have_unknown_fields()) {
-    total_size +=
-      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
-        unknown_fields());
-  }
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = total_size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
@@ -1153,52 +1069,46 @@ int CtrlRequest_CreateVdevParam::ByteSize() const {
 }
 
 void CtrlRequest_CreateVdevParam::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:knapp.CtrlRequest.CreateVdevParam)
+// @@protoc_insertion_point(generalized_merge_from_start:nba.knapp.CtrlRequest.CreateVdevParam)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
   const CtrlRequest_CreateVdevParam* source = 
       ::google::protobuf::internal::DynamicCastToGenerated<const CtrlRequest_CreateVdevParam>(
           &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:knapp.CtrlRequest.CreateVdevParam)
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:nba.knapp.CtrlRequest.CreateVdevParam)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:knapp.CtrlRequest.CreateVdevParam)
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:nba.knapp.CtrlRequest.CreateVdevParam)
     MergeFrom(*source);
   }
 }
 
 void CtrlRequest_CreateVdevParam::MergeFrom(const CtrlRequest_CreateVdevParam& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:knapp.CtrlRequest.CreateVdevParam)
+// @@protoc_insertion_point(class_specific_merge_from_start:nba.knapp.CtrlRequest.CreateVdevParam)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
-  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_num_pcores()) {
-      set_num_pcores(from.num_pcores());
-    }
-    if (from.has_num_lcores_per_pcore()) {
-      set_num_lcores_per_pcore(from.num_lcores_per_pcore());
-    }
+  if (from.num_pcores() != 0) {
+    set_num_pcores(from.num_pcores());
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+  if (from.num_lcores_per_pcore() != 0) {
+    set_num_lcores_per_pcore(from.num_lcores_per_pcore());
   }
 }
 
 void CtrlRequest_CreateVdevParam::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:knapp.CtrlRequest.CreateVdevParam)
+// @@protoc_insertion_point(generalized_copy_from_start:nba.knapp.CtrlRequest.CreateVdevParam)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void CtrlRequest_CreateVdevParam::CopyFrom(const CtrlRequest_CreateVdevParam& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:knapp.CtrlRequest.CreateVdevParam)
+// @@protoc_insertion_point(class_specific_copy_from_start:nba.knapp.CtrlRequest.CreateVdevParam)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 bool CtrlRequest_CreateVdevParam::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000003) != 0x00000003) return false;
 
   return true;
 }
@@ -1210,7 +1120,6 @@ void CtrlRequest_CreateVdevParam::Swap(CtrlRequest_CreateVdevParam* other) {
 void CtrlRequest_CreateVdevParam::InternalSwap(CtrlRequest_CreateVdevParam* other) {
   std::swap(num_pcores_, other->num_pcores_);
   std::swap(num_lcores_per_pcore_, other->num_lcores_per_pcore_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
   _internal_metadata_.Swap(&other->_internal_metadata_);
   std::swap(_cached_size_, other->_cached_size_);
 }
@@ -1233,10 +1142,11 @@ const int CtrlRequest_VdevRefParam::kVdevIdFieldNumber;
 CtrlRequest_VdevRefParam::CtrlRequest_VdevRefParam()
   : ::google::protobuf::Message(), _internal_metadata_(NULL) {
   SharedCtor();
-  // @@protoc_insertion_point(constructor:knapp.CtrlRequest.VdevRefParam)
+  // @@protoc_insertion_point(constructor:nba.knapp.CtrlRequest.VdevRefParam)
 }
 
 void CtrlRequest_VdevRefParam::InitAsDefaultInstance() {
+  _is_default_instance_ = true;
 }
 
 CtrlRequest_VdevRefParam::CtrlRequest_VdevRefParam(const CtrlRequest_VdevRefParam& from)
@@ -1244,17 +1154,17 @@ CtrlRequest_VdevRefParam::CtrlRequest_VdevRefParam(const CtrlRequest_VdevRefPara
     _internal_metadata_(NULL) {
   SharedCtor();
   MergeFrom(from);
-  // @@protoc_insertion_point(copy_constructor:knapp.CtrlRequest.VdevRefParam)
+  // @@protoc_insertion_point(copy_constructor:nba.knapp.CtrlRequest.VdevRefParam)
 }
 
 void CtrlRequest_VdevRefParam::SharedCtor() {
+    _is_default_instance_ = false;
   _cached_size_ = 0;
   vdev_id_ = GOOGLE_ULONGLONG(0);
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
 CtrlRequest_VdevRefParam::~CtrlRequest_VdevRefParam() {
-  // @@protoc_insertion_point(destructor:knapp.CtrlRequest.VdevRefParam)
+  // @@protoc_insertion_point(destructor:nba.knapp.CtrlRequest.VdevRefParam)
   SharedDtor();
 }
 
@@ -1289,31 +1199,27 @@ CtrlRequest_VdevRefParam* CtrlRequest_VdevRefParam::New(::google::protobuf::Aren
 }
 
 void CtrlRequest_VdevRefParam::Clear() {
-// @@protoc_insertion_point(message_clear_start:knapp.CtrlRequest.VdevRefParam)
+// @@protoc_insertion_point(message_clear_start:nba.knapp.CtrlRequest.VdevRefParam)
   vdev_id_ = GOOGLE_ULONGLONG(0);
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
 }
 
 bool CtrlRequest_VdevRefParam::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  // @@protoc_insertion_point(parse_start:knapp.CtrlRequest.VdevRefParam)
+  // @@protoc_insertion_point(parse_start:nba.knapp.CtrlRequest.VdevRefParam)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required uint64 vdev_id = 1;
+      // optional uint64 vdev_id = 1;
       case 1: {
         if (tag == 8) {
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
                  input, &vdev_id_)));
-          set_has_vdev_id();
+
         } else {
           goto handle_unusual;
         }
@@ -1328,67 +1234,54 @@ bool CtrlRequest_VdevRefParam::MergePartialFromCodedStream(
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
           goto success;
         }
-        DO_(::google::protobuf::internal::WireFormat::SkipField(
-              input, tag, mutable_unknown_fields()));
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag));
         break;
       }
     }
   }
 success:
-  // @@protoc_insertion_point(parse_success:knapp.CtrlRequest.VdevRefParam)
+  // @@protoc_insertion_point(parse_success:nba.knapp.CtrlRequest.VdevRefParam)
   return true;
 failure:
-  // @@protoc_insertion_point(parse_failure:knapp.CtrlRequest.VdevRefParam)
+  // @@protoc_insertion_point(parse_failure:nba.knapp.CtrlRequest.VdevRefParam)
   return false;
 #undef DO_
 }
 
 void CtrlRequest_VdevRefParam::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // @@protoc_insertion_point(serialize_start:knapp.CtrlRequest.VdevRefParam)
-  // required uint64 vdev_id = 1;
-  if (has_vdev_id()) {
+  // @@protoc_insertion_point(serialize_start:nba.knapp.CtrlRequest.VdevRefParam)
+  // optional uint64 vdev_id = 1;
+  if (this->vdev_id() != 0) {
     ::google::protobuf::internal::WireFormatLite::WriteUInt64(1, this->vdev_id(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
-        unknown_fields(), output);
-  }
-  // @@protoc_insertion_point(serialize_end:knapp.CtrlRequest.VdevRefParam)
+  // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlRequest.VdevRefParam)
 }
 
 ::google::protobuf::uint8* CtrlRequest_VdevRefParam::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // @@protoc_insertion_point(serialize_to_array_start:knapp.CtrlRequest.VdevRefParam)
-  // required uint64 vdev_id = 1;
-  if (has_vdev_id()) {
+  // @@protoc_insertion_point(serialize_to_array_start:nba.knapp.CtrlRequest.VdevRefParam)
+  // optional uint64 vdev_id = 1;
+  if (this->vdev_id() != 0) {
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(1, this->vdev_id(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
-        unknown_fields(), target);
-  }
-  // @@protoc_insertion_point(serialize_to_array_end:knapp.CtrlRequest.VdevRefParam)
+  // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlRequest.VdevRefParam)
   return target;
 }
 
 int CtrlRequest_VdevRefParam::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:knapp.CtrlRequest.VdevRefParam)
+// @@protoc_insertion_point(message_byte_size_start:nba.knapp.CtrlRequest.VdevRefParam)
   int total_size = 0;
 
-  // required uint64 vdev_id = 1;
-  if (has_vdev_id()) {
+  // optional uint64 vdev_id = 1;
+  if (this->vdev_id() != 0) {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::UInt64Size(
         this->vdev_id());
   }
-  if (_internal_metadata_.have_unknown_fields()) {
-    total_size +=
-      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
-        unknown_fields());
-  }
+
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = total_size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
@@ -1396,49 +1289,43 @@ int CtrlRequest_VdevRefParam::ByteSize() const {
 }
 
 void CtrlRequest_VdevRefParam::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:knapp.CtrlRequest.VdevRefParam)
+// @@protoc_insertion_point(generalized_merge_from_start:nba.knapp.CtrlRequest.VdevRefParam)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
   const CtrlRequest_VdevRefParam* source = 
       ::google::protobuf::internal::DynamicCastToGenerated<const CtrlRequest_VdevRefParam>(
           &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:knapp.CtrlRequest.VdevRefParam)
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:nba.knapp.CtrlRequest.VdevRefParam)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:knapp.CtrlRequest.VdevRefParam)
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:nba.knapp.CtrlRequest.VdevRefParam)
     MergeFrom(*source);
   }
 }
 
 void CtrlRequest_VdevRefParam::MergeFrom(const CtrlRequest_VdevRefParam& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:knapp.CtrlRequest.VdevRefParam)
+// @@protoc_insertion_point(class_specific_merge_from_start:nba.knapp.CtrlRequest.VdevRefParam)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
-  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_vdev_id()) {
-      set_vdev_id(from.vdev_id());
-    }
-  }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+  if (from.vdev_id() != 0) {
+    set_vdev_id(from.vdev_id());
   }
 }
 
 void CtrlRequest_VdevRefParam::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:knapp.CtrlRequest.VdevRefParam)
+// @@protoc_insertion_point(generalized_copy_from_start:nba.knapp.CtrlRequest.VdevRefParam)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void CtrlRequest_VdevRefParam::CopyFrom(const CtrlRequest_VdevRefParam& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:knapp.CtrlRequest.VdevRefParam)
+// @@protoc_insertion_point(class_specific_copy_from_start:nba.knapp.CtrlRequest.VdevRefParam)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 bool CtrlRequest_VdevRefParam::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
   return true;
 }
@@ -1449,7 +1336,6 @@ void CtrlRequest_VdevRefParam::Swap(CtrlRequest_VdevRefParam* other) {
 }
 void CtrlRequest_VdevRefParam::InternalSwap(CtrlRequest_VdevRefParam* other) {
   std::swap(vdev_id_, other->vdev_id_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
   _internal_metadata_.Swap(&other->_internal_metadata_);
   std::swap(_cached_size_, other->_cached_size_);
 }
@@ -1476,14 +1362,15 @@ const int CtrlRequest::kVdevRefFieldNumber;
 CtrlRequest::CtrlRequest()
   : ::google::protobuf::Message(), _internal_metadata_(NULL) {
   SharedCtor();
-  // @@protoc_insertion_point(constructor:knapp.CtrlRequest)
+  // @@protoc_insertion_point(constructor:nba.knapp.CtrlRequest)
 }
 
 void CtrlRequest::InitAsDefaultInstance() {
-  ping_param_ = const_cast< ::knapp::CtrlRequest_PingParam*>(&::knapp::CtrlRequest_PingParam::default_instance());
-  malloc_param_ = const_cast< ::knapp::CtrlRequest_MallocParam*>(&::knapp::CtrlRequest_MallocParam::default_instance());
-  create_vdev_param_ = const_cast< ::knapp::CtrlRequest_CreateVdevParam*>(&::knapp::CtrlRequest_CreateVdevParam::default_instance());
-  vdev_ref_ = const_cast< ::knapp::CtrlRequest_VdevRefParam*>(&::knapp::CtrlRequest_VdevRefParam::default_instance());
+  _is_default_instance_ = true;
+  CtrlRequest_default_oneof_instance_->ping_param_ = const_cast< ::nba::knapp::CtrlRequest_PingParam*>(&::nba::knapp::CtrlRequest_PingParam::default_instance());
+  CtrlRequest_default_oneof_instance_->malloc_param_ = const_cast< ::nba::knapp::CtrlRequest_MallocParam*>(&::nba::knapp::CtrlRequest_MallocParam::default_instance());
+  CtrlRequest_default_oneof_instance_->create_vdev_param_ = const_cast< ::nba::knapp::CtrlRequest_CreateVdevParam*>(&::nba::knapp::CtrlRequest_CreateVdevParam::default_instance());
+  CtrlRequest_default_oneof_instance_->vdev_ref_ = const_cast< ::nba::knapp::CtrlRequest_VdevRefParam*>(&::nba::knapp::CtrlRequest_VdevRefParam::default_instance());
 }
 
 CtrlRequest::CtrlRequest(const CtrlRequest& from)
@@ -1491,30 +1378,26 @@ CtrlRequest::CtrlRequest(const CtrlRequest& from)
     _internal_metadata_(NULL) {
   SharedCtor();
   MergeFrom(from);
-  // @@protoc_insertion_point(copy_constructor:knapp.CtrlRequest)
+  // @@protoc_insertion_point(copy_constructor:nba.knapp.CtrlRequest)
 }
 
 void CtrlRequest::SharedCtor() {
+    _is_default_instance_ = false;
   _cached_size_ = 0;
   type_ = 0;
-  ping_param_ = NULL;
-  malloc_param_ = NULL;
-  create_vdev_param_ = NULL;
-  vdev_ref_ = NULL;
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  clear_has_params();
 }
 
 CtrlRequest::~CtrlRequest() {
-  // @@protoc_insertion_point(destructor:knapp.CtrlRequest)
+  // @@protoc_insertion_point(destructor:nba.knapp.CtrlRequest)
   SharedDtor();
 }
 
 void CtrlRequest::SharedDtor() {
+  if (has_params()) {
+    clear_params();
+  }
   if (this != default_instance_) {
-    delete ping_param_;
-    delete malloc_param_;
-    delete create_vdev_param_;
-    delete vdev_ref_;
   }
 }
 
@@ -1543,51 +1426,57 @@ CtrlRequest* CtrlRequest::New(::google::protobuf::Arena* arena) const {
   return n;
 }
 
+void CtrlRequest::clear_params() {
+// @@protoc_insertion_point(one_of_clear_start:nba.knapp.CtrlRequest)
+  switch(params_case()) {
+    case kPingParam: {
+      delete params_.ping_param_;
+      break;
+    }
+    case kMallocParam: {
+      delete params_.malloc_param_;
+      break;
+    }
+    case kCreateVdevParam: {
+      delete params_.create_vdev_param_;
+      break;
+    }
+    case kVdevRef: {
+      delete params_.vdev_ref_;
+      break;
+    }
+    case PARAMS_NOT_SET: {
+      break;
+    }
+  }
+  _oneof_case_[0] = PARAMS_NOT_SET;
+}
+
+
 void CtrlRequest::Clear() {
-// @@protoc_insertion_point(message_clear_start:knapp.CtrlRequest)
-  if (_has_bits_[0 / 32] & 31u) {
-    type_ = 0;
-    if (has_ping_param()) {
-      if (ping_param_ != NULL) ping_param_->::knapp::CtrlRequest_PingParam::Clear();
-    }
-    if (has_malloc_param()) {
-      if (malloc_param_ != NULL) malloc_param_->::knapp::CtrlRequest_MallocParam::Clear();
-    }
-    if (has_create_vdev_param()) {
-      if (create_vdev_param_ != NULL) create_vdev_param_->::knapp::CtrlRequest_CreateVdevParam::Clear();
-    }
-    if (has_vdev_ref()) {
-      if (vdev_ref_ != NULL) vdev_ref_->::knapp::CtrlRequest_VdevRefParam::Clear();
-    }
-  }
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+// @@protoc_insertion_point(message_clear_start:nba.knapp.CtrlRequest)
+  type_ = 0;
+  clear_params();
 }
 
 bool CtrlRequest::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  // @@protoc_insertion_point(parse_start:knapp.CtrlRequest)
+  // @@protoc_insertion_point(parse_start:nba.knapp.CtrlRequest)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required .knapp.CtrlRequest.Type type = 1;
+      // optional .nba.knapp.CtrlRequest.Type type = 1;
       case 1: {
         if (tag == 8) {
           int value;
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    int, ::google::protobuf::internal::WireFormatLite::TYPE_ENUM>(
                  input, &value)));
-          if (::knapp::CtrlRequest_Type_IsValid(value)) {
-            set_type(static_cast< ::knapp::CtrlRequest_Type >(value));
-          } else {
-            mutable_unknown_fields()->AddVarint(1, value);
-          }
+          set_type(static_cast< ::nba::knapp::CtrlRequest_Type >(value));
         } else {
           goto handle_unusual;
         }
@@ -1595,7 +1484,7 @@ bool CtrlRequest::MergePartialFromCodedStream(
         break;
       }
 
-      // optional .knapp.CtrlRequest.PingParam ping_param = 2;
+      // optional .nba.knapp.CtrlRequest.PingParam ping_param = 2;
       case 2: {
         if (tag == 18) {
          parse_ping_param:
@@ -1608,7 +1497,7 @@ bool CtrlRequest::MergePartialFromCodedStream(
         break;
       }
 
-      // optional .knapp.CtrlRequest.MallocParam malloc_param = 3;
+      // optional .nba.knapp.CtrlRequest.MallocParam malloc_param = 3;
       case 3: {
         if (tag == 26) {
          parse_malloc_param:
@@ -1621,7 +1510,7 @@ bool CtrlRequest::MergePartialFromCodedStream(
         break;
       }
 
-      // optional .knapp.CtrlRequest.CreateVdevParam create_vdev_param = 4;
+      // optional .nba.knapp.CtrlRequest.CreateVdevParam create_vdev_param = 4;
       case 4: {
         if (tag == 34) {
          parse_create_vdev_param:
@@ -1634,7 +1523,7 @@ bool CtrlRequest::MergePartialFromCodedStream(
         break;
       }
 
-      // optional .knapp.CtrlRequest.VdevRefParam vdev_ref = 5;
+      // optional .nba.knapp.CtrlRequest.VdevRefParam vdev_ref = 5;
       case 5: {
         if (tag == 42) {
          parse_vdev_ref:
@@ -1654,149 +1543,139 @@ bool CtrlRequest::MergePartialFromCodedStream(
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
           goto success;
         }
-        DO_(::google::protobuf::internal::WireFormat::SkipField(
-              input, tag, mutable_unknown_fields()));
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag));
         break;
       }
     }
   }
 success:
-  // @@protoc_insertion_point(parse_success:knapp.CtrlRequest)
+  // @@protoc_insertion_point(parse_success:nba.knapp.CtrlRequest)
   return true;
 failure:
-  // @@protoc_insertion_point(parse_failure:knapp.CtrlRequest)
+  // @@protoc_insertion_point(parse_failure:nba.knapp.CtrlRequest)
   return false;
 #undef DO_
 }
 
 void CtrlRequest::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // @@protoc_insertion_point(serialize_start:knapp.CtrlRequest)
-  // required .knapp.CtrlRequest.Type type = 1;
-  if (has_type()) {
+  // @@protoc_insertion_point(serialize_start:nba.knapp.CtrlRequest)
+  // optional .nba.knapp.CtrlRequest.Type type = 1;
+  if (this->type() != 0) {
     ::google::protobuf::internal::WireFormatLite::WriteEnum(
       1, this->type(), output);
   }
 
-  // optional .knapp.CtrlRequest.PingParam ping_param = 2;
+  // optional .nba.knapp.CtrlRequest.PingParam ping_param = 2;
   if (has_ping_param()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      2, *this->ping_param_, output);
+      2, *params_.ping_param_, output);
   }
 
-  // optional .knapp.CtrlRequest.MallocParam malloc_param = 3;
+  // optional .nba.knapp.CtrlRequest.MallocParam malloc_param = 3;
   if (has_malloc_param()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      3, *this->malloc_param_, output);
+      3, *params_.malloc_param_, output);
   }
 
-  // optional .knapp.CtrlRequest.CreateVdevParam create_vdev_param = 4;
+  // optional .nba.knapp.CtrlRequest.CreateVdevParam create_vdev_param = 4;
   if (has_create_vdev_param()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      4, *this->create_vdev_param_, output);
+      4, *params_.create_vdev_param_, output);
   }
 
-  // optional .knapp.CtrlRequest.VdevRefParam vdev_ref = 5;
+  // optional .nba.knapp.CtrlRequest.VdevRefParam vdev_ref = 5;
   if (has_vdev_ref()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      5, *this->vdev_ref_, output);
+      5, *params_.vdev_ref_, output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
-        unknown_fields(), output);
-  }
-  // @@protoc_insertion_point(serialize_end:knapp.CtrlRequest)
+  // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlRequest)
 }
 
 ::google::protobuf::uint8* CtrlRequest::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // @@protoc_insertion_point(serialize_to_array_start:knapp.CtrlRequest)
-  // required .knapp.CtrlRequest.Type type = 1;
-  if (has_type()) {
+  // @@protoc_insertion_point(serialize_to_array_start:nba.knapp.CtrlRequest)
+  // optional .nba.knapp.CtrlRequest.Type type = 1;
+  if (this->type() != 0) {
     target = ::google::protobuf::internal::WireFormatLite::WriteEnumToArray(
       1, this->type(), target);
   }
 
-  // optional .knapp.CtrlRequest.PingParam ping_param = 2;
+  // optional .nba.knapp.CtrlRequest.PingParam ping_param = 2;
   if (has_ping_param()) {
     target = ::google::protobuf::internal::WireFormatLite::
       WriteMessageNoVirtualToArray(
-        2, *this->ping_param_, target);
+        2, *params_.ping_param_, target);
   }
 
-  // optional .knapp.CtrlRequest.MallocParam malloc_param = 3;
+  // optional .nba.knapp.CtrlRequest.MallocParam malloc_param = 3;
   if (has_malloc_param()) {
     target = ::google::protobuf::internal::WireFormatLite::
       WriteMessageNoVirtualToArray(
-        3, *this->malloc_param_, target);
+        3, *params_.malloc_param_, target);
   }
 
-  // optional .knapp.CtrlRequest.CreateVdevParam create_vdev_param = 4;
+  // optional .nba.knapp.CtrlRequest.CreateVdevParam create_vdev_param = 4;
   if (has_create_vdev_param()) {
     target = ::google::protobuf::internal::WireFormatLite::
       WriteMessageNoVirtualToArray(
-        4, *this->create_vdev_param_, target);
+        4, *params_.create_vdev_param_, target);
   }
 
-  // optional .knapp.CtrlRequest.VdevRefParam vdev_ref = 5;
+  // optional .nba.knapp.CtrlRequest.VdevRefParam vdev_ref = 5;
   if (has_vdev_ref()) {
     target = ::google::protobuf::internal::WireFormatLite::
       WriteMessageNoVirtualToArray(
-        5, *this->vdev_ref_, target);
+        5, *params_.vdev_ref_, target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
-        unknown_fields(), target);
-  }
-  // @@protoc_insertion_point(serialize_to_array_end:knapp.CtrlRequest)
+  // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlRequest)
   return target;
 }
 
 int CtrlRequest::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:knapp.CtrlRequest)
+// @@protoc_insertion_point(message_byte_size_start:nba.knapp.CtrlRequest)
   int total_size = 0;
 
-  // required .knapp.CtrlRequest.Type type = 1;
-  if (has_type()) {
+  // optional .nba.knapp.CtrlRequest.Type type = 1;
+  if (this->type() != 0) {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::EnumSize(this->type());
   }
-  if (_has_bits_[1 / 32] & 30u) {
-    // optional .knapp.CtrlRequest.PingParam ping_param = 2;
-    if (has_ping_param()) {
+
+  switch (params_case()) {
+    // optional .nba.knapp.CtrlRequest.PingParam ping_param = 2;
+    case kPingParam: {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->ping_param_);
+          *params_.ping_param_);
+      break;
     }
-
-    // optional .knapp.CtrlRequest.MallocParam malloc_param = 3;
-    if (has_malloc_param()) {
+    // optional .nba.knapp.CtrlRequest.MallocParam malloc_param = 3;
+    case kMallocParam: {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->malloc_param_);
+          *params_.malloc_param_);
+      break;
     }
-
-    // optional .knapp.CtrlRequest.CreateVdevParam create_vdev_param = 4;
-    if (has_create_vdev_param()) {
+    // optional .nba.knapp.CtrlRequest.CreateVdevParam create_vdev_param = 4;
+    case kCreateVdevParam: {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->create_vdev_param_);
+          *params_.create_vdev_param_);
+      break;
     }
-
-    // optional .knapp.CtrlRequest.VdevRefParam vdev_ref = 5;
-    if (has_vdev_ref()) {
+    // optional .nba.knapp.CtrlRequest.VdevRefParam vdev_ref = 5;
+    case kVdevRef: {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->vdev_ref_);
+          *params_.vdev_ref_);
+      break;
     }
-
-  }
-  if (_internal_metadata_.have_unknown_fields()) {
-    total_size +=
-      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
-        unknown_fields());
+    case PARAMS_NOT_SET: {
+      break;
+    }
   }
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = total_size;
@@ -1805,74 +1684,65 @@ int CtrlRequest::ByteSize() const {
 }
 
 void CtrlRequest::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:knapp.CtrlRequest)
+// @@protoc_insertion_point(generalized_merge_from_start:nba.knapp.CtrlRequest)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
   const CtrlRequest* source = 
       ::google::protobuf::internal::DynamicCastToGenerated<const CtrlRequest>(
           &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:knapp.CtrlRequest)
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:nba.knapp.CtrlRequest)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:knapp.CtrlRequest)
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:nba.knapp.CtrlRequest)
     MergeFrom(*source);
   }
 }
 
 void CtrlRequest::MergeFrom(const CtrlRequest& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:knapp.CtrlRequest)
+// @@protoc_insertion_point(class_specific_merge_from_start:nba.knapp.CtrlRequest)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
-  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_type()) {
-      set_type(from.type());
+  switch (from.params_case()) {
+    case kPingParam: {
+      mutable_ping_param()->::nba::knapp::CtrlRequest_PingParam::MergeFrom(from.ping_param());
+      break;
     }
-    if (from.has_ping_param()) {
-      mutable_ping_param()->::knapp::CtrlRequest_PingParam::MergeFrom(from.ping_param());
+    case kMallocParam: {
+      mutable_malloc_param()->::nba::knapp::CtrlRequest_MallocParam::MergeFrom(from.malloc_param());
+      break;
     }
-    if (from.has_malloc_param()) {
-      mutable_malloc_param()->::knapp::CtrlRequest_MallocParam::MergeFrom(from.malloc_param());
+    case kCreateVdevParam: {
+      mutable_create_vdev_param()->::nba::knapp::CtrlRequest_CreateVdevParam::MergeFrom(from.create_vdev_param());
+      break;
     }
-    if (from.has_create_vdev_param()) {
-      mutable_create_vdev_param()->::knapp::CtrlRequest_CreateVdevParam::MergeFrom(from.create_vdev_param());
+    case kVdevRef: {
+      mutable_vdev_ref()->::nba::knapp::CtrlRequest_VdevRefParam::MergeFrom(from.vdev_ref());
+      break;
     }
-    if (from.has_vdev_ref()) {
-      mutable_vdev_ref()->::knapp::CtrlRequest_VdevRefParam::MergeFrom(from.vdev_ref());
+    case PARAMS_NOT_SET: {
+      break;
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+  if (from.type() != 0) {
+    set_type(from.type());
   }
 }
 
 void CtrlRequest::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:knapp.CtrlRequest)
+// @@protoc_insertion_point(generalized_copy_from_start:nba.knapp.CtrlRequest)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void CtrlRequest::CopyFrom(const CtrlRequest& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:knapp.CtrlRequest)
+// @@protoc_insertion_point(class_specific_copy_from_start:nba.knapp.CtrlRequest)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 bool CtrlRequest::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
-  if (has_ping_param()) {
-    if (!this->ping_param_->IsInitialized()) return false;
-  }
-  if (has_malloc_param()) {
-    if (!this->malloc_param_->IsInitialized()) return false;
-  }
-  if (has_create_vdev_param()) {
-    if (!this->create_vdev_param_->IsInitialized()) return false;
-  }
-  if (has_vdev_ref()) {
-    if (!this->vdev_ref_->IsInitialized()) return false;
-  }
   return true;
 }
 
@@ -1882,11 +1752,8 @@ void CtrlRequest::Swap(CtrlRequest* other) {
 }
 void CtrlRequest::InternalSwap(CtrlRequest* other) {
   std::swap(type_, other->type_);
-  std::swap(ping_param_, other->ping_param_);
-  std::swap(malloc_param_, other->malloc_param_);
-  std::swap(create_vdev_param_, other->create_vdev_param_);
-  std::swap(vdev_ref_, other->vdev_ref_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
+  std::swap(params_, other->params_);
+  std::swap(_oneof_case_[0], other->_oneof_case_[0]);
   _internal_metadata_.Swap(&other->_internal_metadata_);
   std::swap(_cached_size_, other->_cached_size_);
 }
@@ -1902,397 +1769,351 @@ void CtrlRequest::InternalSwap(CtrlRequest* other) {
 #if PROTOBUF_INLINE_NOT_IN_HEADERS
 // CtrlRequest_PingParam
 
-// required string msg = 1;
-bool CtrlRequest_PingParam::has_msg() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void CtrlRequest_PingParam::set_has_msg() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void CtrlRequest_PingParam::clear_has_msg() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional string msg = 1;
 void CtrlRequest_PingParam::clear_msg() {
   msg_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_msg();
 }
  const ::std::string& CtrlRequest_PingParam::msg() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.PingParam.msg)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.PingParam.msg)
   return msg_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
  void CtrlRequest_PingParam::set_msg(const ::std::string& value) {
-  set_has_msg();
+  
   msg_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:knapp.CtrlRequest.PingParam.msg)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.PingParam.msg)
 }
  void CtrlRequest_PingParam::set_msg(const char* value) {
-  set_has_msg();
+  
   msg_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:knapp.CtrlRequest.PingParam.msg)
+  // @@protoc_insertion_point(field_set_char:nba.knapp.CtrlRequest.PingParam.msg)
 }
  void CtrlRequest_PingParam::set_msg(const char* value, size_t size) {
-  set_has_msg();
+  
   msg_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:knapp.CtrlRequest.PingParam.msg)
+  // @@protoc_insertion_point(field_set_pointer:nba.knapp.CtrlRequest.PingParam.msg)
 }
  ::std::string* CtrlRequest_PingParam::mutable_msg() {
-  set_has_msg();
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlRequest.PingParam.msg)
+  
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.PingParam.msg)
   return msg_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
  ::std::string* CtrlRequest_PingParam::release_msg() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlRequest.PingParam.msg)
-  clear_has_msg();
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.PingParam.msg)
+  
   return msg_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
  void CtrlRequest_PingParam::set_allocated_msg(::std::string* msg) {
   if (msg != NULL) {
-    set_has_msg();
+    
   } else {
-    clear_has_msg();
+    
   }
   msg_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), msg);
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlRequest.PingParam.msg)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.PingParam.msg)
 }
 
 // -------------------------------------------------------------------
 
 // CtrlRequest_MallocParam
 
-// required uint64 size = 1;
-bool CtrlRequest_MallocParam::has_size() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void CtrlRequest_MallocParam::set_has_size() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void CtrlRequest_MallocParam::clear_has_size() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional uint64 size = 1;
 void CtrlRequest_MallocParam::clear_size() {
   size_ = GOOGLE_ULONGLONG(0);
-  clear_has_size();
 }
  ::google::protobuf::uint64 CtrlRequest_MallocParam::size() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.MallocParam.size)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.MallocParam.size)
   return size_;
 }
  void CtrlRequest_MallocParam::set_size(::google::protobuf::uint64 value) {
-  set_has_size();
+  
   size_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlRequest.MallocParam.size)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.MallocParam.size)
 }
 
-// required uint64 align = 2;
-bool CtrlRequest_MallocParam::has_align() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void CtrlRequest_MallocParam::set_has_align() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void CtrlRequest_MallocParam::clear_has_align() {
-  _has_bits_[0] &= ~0x00000002u;
-}
+// optional uint64 align = 2;
 void CtrlRequest_MallocParam::clear_align() {
   align_ = GOOGLE_ULONGLONG(0);
-  clear_has_align();
 }
  ::google::protobuf::uint64 CtrlRequest_MallocParam::align() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.MallocParam.align)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.MallocParam.align)
   return align_;
 }
  void CtrlRequest_MallocParam::set_align(::google::protobuf::uint64 value) {
-  set_has_align();
+  
   align_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlRequest.MallocParam.align)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.MallocParam.align)
 }
 
 // -------------------------------------------------------------------
 
 // CtrlRequest_CreateVdevParam
 
-// required uint32 num_pcores = 1;
-bool CtrlRequest_CreateVdevParam::has_num_pcores() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void CtrlRequest_CreateVdevParam::set_has_num_pcores() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void CtrlRequest_CreateVdevParam::clear_has_num_pcores() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional uint32 num_pcores = 1;
 void CtrlRequest_CreateVdevParam::clear_num_pcores() {
   num_pcores_ = 0u;
-  clear_has_num_pcores();
 }
  ::google::protobuf::uint32 CtrlRequest_CreateVdevParam::num_pcores() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.CreateVdevParam.num_pcores)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.CreateVdevParam.num_pcores)
   return num_pcores_;
 }
  void CtrlRequest_CreateVdevParam::set_num_pcores(::google::protobuf::uint32 value) {
-  set_has_num_pcores();
+  
   num_pcores_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlRequest.CreateVdevParam.num_pcores)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.CreateVdevParam.num_pcores)
 }
 
-// required uint32 num_lcores_per_pcore = 2;
-bool CtrlRequest_CreateVdevParam::has_num_lcores_per_pcore() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void CtrlRequest_CreateVdevParam::set_has_num_lcores_per_pcore() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void CtrlRequest_CreateVdevParam::clear_has_num_lcores_per_pcore() {
-  _has_bits_[0] &= ~0x00000002u;
-}
+// optional uint32 num_lcores_per_pcore = 2;
 void CtrlRequest_CreateVdevParam::clear_num_lcores_per_pcore() {
   num_lcores_per_pcore_ = 0u;
-  clear_has_num_lcores_per_pcore();
 }
  ::google::protobuf::uint32 CtrlRequest_CreateVdevParam::num_lcores_per_pcore() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.CreateVdevParam.num_lcores_per_pcore)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.CreateVdevParam.num_lcores_per_pcore)
   return num_lcores_per_pcore_;
 }
  void CtrlRequest_CreateVdevParam::set_num_lcores_per_pcore(::google::protobuf::uint32 value) {
-  set_has_num_lcores_per_pcore();
+  
   num_lcores_per_pcore_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlRequest.CreateVdevParam.num_lcores_per_pcore)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.CreateVdevParam.num_lcores_per_pcore)
 }
 
 // -------------------------------------------------------------------
 
 // CtrlRequest_VdevRefParam
 
-// required uint64 vdev_id = 1;
-bool CtrlRequest_VdevRefParam::has_vdev_id() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void CtrlRequest_VdevRefParam::set_has_vdev_id() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void CtrlRequest_VdevRefParam::clear_has_vdev_id() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional uint64 vdev_id = 1;
 void CtrlRequest_VdevRefParam::clear_vdev_id() {
   vdev_id_ = GOOGLE_ULONGLONG(0);
-  clear_has_vdev_id();
 }
  ::google::protobuf::uint64 CtrlRequest_VdevRefParam::vdev_id() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.VdevRefParam.vdev_id)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.VdevRefParam.vdev_id)
   return vdev_id_;
 }
  void CtrlRequest_VdevRefParam::set_vdev_id(::google::protobuf::uint64 value) {
-  set_has_vdev_id();
+  
   vdev_id_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlRequest.VdevRefParam.vdev_id)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.VdevRefParam.vdev_id)
 }
 
 // -------------------------------------------------------------------
 
 // CtrlRequest
 
-// required .knapp.CtrlRequest.Type type = 1;
-bool CtrlRequest::has_type() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void CtrlRequest::set_has_type() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void CtrlRequest::clear_has_type() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional .nba.knapp.CtrlRequest.Type type = 1;
 void CtrlRequest::clear_type() {
   type_ = 0;
-  clear_has_type();
 }
- ::knapp::CtrlRequest_Type CtrlRequest::type() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.type)
-  return static_cast< ::knapp::CtrlRequest_Type >(type_);
+ ::nba::knapp::CtrlRequest_Type CtrlRequest::type() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.type)
+  return static_cast< ::nba::knapp::CtrlRequest_Type >(type_);
 }
- void CtrlRequest::set_type(::knapp::CtrlRequest_Type value) {
-  assert(::knapp::CtrlRequest_Type_IsValid(value));
-  set_has_type();
+ void CtrlRequest::set_type(::nba::knapp::CtrlRequest_Type value) {
+  
   type_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlRequest.type)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.type)
 }
 
-// optional .knapp.CtrlRequest.PingParam ping_param = 2;
+// optional .nba.knapp.CtrlRequest.PingParam ping_param = 2;
 bool CtrlRequest::has_ping_param() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
+  return params_case() == kPingParam;
 }
 void CtrlRequest::set_has_ping_param() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void CtrlRequest::clear_has_ping_param() {
-  _has_bits_[0] &= ~0x00000002u;
+  _oneof_case_[0] = kPingParam;
 }
 void CtrlRequest::clear_ping_param() {
-  if (ping_param_ != NULL) ping_param_->::knapp::CtrlRequest_PingParam::Clear();
-  clear_has_ping_param();
-}
-const ::knapp::CtrlRequest_PingParam& CtrlRequest::ping_param() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.ping_param)
-  return ping_param_ != NULL ? *ping_param_ : *default_instance_->ping_param_;
-}
-::knapp::CtrlRequest_PingParam* CtrlRequest::mutable_ping_param() {
-  set_has_ping_param();
-  if (ping_param_ == NULL) {
-    ping_param_ = new ::knapp::CtrlRequest_PingParam;
+  if (has_ping_param()) {
+    delete params_.ping_param_;
+    clear_has_params();
   }
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlRequest.ping_param)
-  return ping_param_;
 }
-::knapp::CtrlRequest_PingParam* CtrlRequest::release_ping_param() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlRequest.ping_param)
-  clear_has_ping_param();
-  ::knapp::CtrlRequest_PingParam* temp = ping_param_;
-  ping_param_ = NULL;
-  return temp;
+ const ::nba::knapp::CtrlRequest_PingParam& CtrlRequest::ping_param() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.ping_param)
+  return has_ping_param()
+      ? *params_.ping_param_
+      : ::nba::knapp::CtrlRequest_PingParam::default_instance();
 }
-void CtrlRequest::set_allocated_ping_param(::knapp::CtrlRequest_PingParam* ping_param) {
-  delete ping_param_;
-  ping_param_ = ping_param;
+::nba::knapp::CtrlRequest_PingParam* CtrlRequest::mutable_ping_param() {
+  if (!has_ping_param()) {
+    clear_params();
+    set_has_ping_param();
+    params_.ping_param_ = new ::nba::knapp::CtrlRequest_PingParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.ping_param)
+  return params_.ping_param_;
+}
+::nba::knapp::CtrlRequest_PingParam* CtrlRequest::release_ping_param() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.ping_param)
+  if (has_ping_param()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_PingParam* temp = params_.ping_param_;
+    params_.ping_param_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+void CtrlRequest::set_allocated_ping_param(::nba::knapp::CtrlRequest_PingParam* ping_param) {
+  clear_params();
   if (ping_param) {
     set_has_ping_param();
-  } else {
-    clear_has_ping_param();
+    params_.ping_param_ = ping_param;
   }
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlRequest.ping_param)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.ping_param)
 }
 
-// optional .knapp.CtrlRequest.MallocParam malloc_param = 3;
+// optional .nba.knapp.CtrlRequest.MallocParam malloc_param = 3;
 bool CtrlRequest::has_malloc_param() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
+  return params_case() == kMallocParam;
 }
 void CtrlRequest::set_has_malloc_param() {
-  _has_bits_[0] |= 0x00000004u;
-}
-void CtrlRequest::clear_has_malloc_param() {
-  _has_bits_[0] &= ~0x00000004u;
+  _oneof_case_[0] = kMallocParam;
 }
 void CtrlRequest::clear_malloc_param() {
-  if (malloc_param_ != NULL) malloc_param_->::knapp::CtrlRequest_MallocParam::Clear();
-  clear_has_malloc_param();
-}
-const ::knapp::CtrlRequest_MallocParam& CtrlRequest::malloc_param() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.malloc_param)
-  return malloc_param_ != NULL ? *malloc_param_ : *default_instance_->malloc_param_;
-}
-::knapp::CtrlRequest_MallocParam* CtrlRequest::mutable_malloc_param() {
-  set_has_malloc_param();
-  if (malloc_param_ == NULL) {
-    malloc_param_ = new ::knapp::CtrlRequest_MallocParam;
+  if (has_malloc_param()) {
+    delete params_.malloc_param_;
+    clear_has_params();
   }
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlRequest.malloc_param)
-  return malloc_param_;
 }
-::knapp::CtrlRequest_MallocParam* CtrlRequest::release_malloc_param() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlRequest.malloc_param)
-  clear_has_malloc_param();
-  ::knapp::CtrlRequest_MallocParam* temp = malloc_param_;
-  malloc_param_ = NULL;
-  return temp;
+ const ::nba::knapp::CtrlRequest_MallocParam& CtrlRequest::malloc_param() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.malloc_param)
+  return has_malloc_param()
+      ? *params_.malloc_param_
+      : ::nba::knapp::CtrlRequest_MallocParam::default_instance();
 }
-void CtrlRequest::set_allocated_malloc_param(::knapp::CtrlRequest_MallocParam* malloc_param) {
-  delete malloc_param_;
-  malloc_param_ = malloc_param;
+::nba::knapp::CtrlRequest_MallocParam* CtrlRequest::mutable_malloc_param() {
+  if (!has_malloc_param()) {
+    clear_params();
+    set_has_malloc_param();
+    params_.malloc_param_ = new ::nba::knapp::CtrlRequest_MallocParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.malloc_param)
+  return params_.malloc_param_;
+}
+::nba::knapp::CtrlRequest_MallocParam* CtrlRequest::release_malloc_param() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.malloc_param)
+  if (has_malloc_param()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_MallocParam* temp = params_.malloc_param_;
+    params_.malloc_param_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+void CtrlRequest::set_allocated_malloc_param(::nba::knapp::CtrlRequest_MallocParam* malloc_param) {
+  clear_params();
   if (malloc_param) {
     set_has_malloc_param();
-  } else {
-    clear_has_malloc_param();
+    params_.malloc_param_ = malloc_param;
   }
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlRequest.malloc_param)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.malloc_param)
 }
 
-// optional .knapp.CtrlRequest.CreateVdevParam create_vdev_param = 4;
+// optional .nba.knapp.CtrlRequest.CreateVdevParam create_vdev_param = 4;
 bool CtrlRequest::has_create_vdev_param() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
+  return params_case() == kCreateVdevParam;
 }
 void CtrlRequest::set_has_create_vdev_param() {
-  _has_bits_[0] |= 0x00000008u;
-}
-void CtrlRequest::clear_has_create_vdev_param() {
-  _has_bits_[0] &= ~0x00000008u;
+  _oneof_case_[0] = kCreateVdevParam;
 }
 void CtrlRequest::clear_create_vdev_param() {
-  if (create_vdev_param_ != NULL) create_vdev_param_->::knapp::CtrlRequest_CreateVdevParam::Clear();
-  clear_has_create_vdev_param();
-}
-const ::knapp::CtrlRequest_CreateVdevParam& CtrlRequest::create_vdev_param() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.create_vdev_param)
-  return create_vdev_param_ != NULL ? *create_vdev_param_ : *default_instance_->create_vdev_param_;
-}
-::knapp::CtrlRequest_CreateVdevParam* CtrlRequest::mutable_create_vdev_param() {
-  set_has_create_vdev_param();
-  if (create_vdev_param_ == NULL) {
-    create_vdev_param_ = new ::knapp::CtrlRequest_CreateVdevParam;
+  if (has_create_vdev_param()) {
+    delete params_.create_vdev_param_;
+    clear_has_params();
   }
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlRequest.create_vdev_param)
-  return create_vdev_param_;
 }
-::knapp::CtrlRequest_CreateVdevParam* CtrlRequest::release_create_vdev_param() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlRequest.create_vdev_param)
-  clear_has_create_vdev_param();
-  ::knapp::CtrlRequest_CreateVdevParam* temp = create_vdev_param_;
-  create_vdev_param_ = NULL;
-  return temp;
+ const ::nba::knapp::CtrlRequest_CreateVdevParam& CtrlRequest::create_vdev_param() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.create_vdev_param)
+  return has_create_vdev_param()
+      ? *params_.create_vdev_param_
+      : ::nba::knapp::CtrlRequest_CreateVdevParam::default_instance();
 }
-void CtrlRequest::set_allocated_create_vdev_param(::knapp::CtrlRequest_CreateVdevParam* create_vdev_param) {
-  delete create_vdev_param_;
-  create_vdev_param_ = create_vdev_param;
+::nba::knapp::CtrlRequest_CreateVdevParam* CtrlRequest::mutable_create_vdev_param() {
+  if (!has_create_vdev_param()) {
+    clear_params();
+    set_has_create_vdev_param();
+    params_.create_vdev_param_ = new ::nba::knapp::CtrlRequest_CreateVdevParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.create_vdev_param)
+  return params_.create_vdev_param_;
+}
+::nba::knapp::CtrlRequest_CreateVdevParam* CtrlRequest::release_create_vdev_param() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.create_vdev_param)
+  if (has_create_vdev_param()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_CreateVdevParam* temp = params_.create_vdev_param_;
+    params_.create_vdev_param_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+void CtrlRequest::set_allocated_create_vdev_param(::nba::knapp::CtrlRequest_CreateVdevParam* create_vdev_param) {
+  clear_params();
   if (create_vdev_param) {
     set_has_create_vdev_param();
-  } else {
-    clear_has_create_vdev_param();
+    params_.create_vdev_param_ = create_vdev_param;
   }
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlRequest.create_vdev_param)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.create_vdev_param)
 }
 
-// optional .knapp.CtrlRequest.VdevRefParam vdev_ref = 5;
+// optional .nba.knapp.CtrlRequest.VdevRefParam vdev_ref = 5;
 bool CtrlRequest::has_vdev_ref() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
+  return params_case() == kVdevRef;
 }
 void CtrlRequest::set_has_vdev_ref() {
-  _has_bits_[0] |= 0x00000010u;
-}
-void CtrlRequest::clear_has_vdev_ref() {
-  _has_bits_[0] &= ~0x00000010u;
+  _oneof_case_[0] = kVdevRef;
 }
 void CtrlRequest::clear_vdev_ref() {
-  if (vdev_ref_ != NULL) vdev_ref_->::knapp::CtrlRequest_VdevRefParam::Clear();
-  clear_has_vdev_ref();
-}
-const ::knapp::CtrlRequest_VdevRefParam& CtrlRequest::vdev_ref() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlRequest.vdev_ref)
-  return vdev_ref_ != NULL ? *vdev_ref_ : *default_instance_->vdev_ref_;
-}
-::knapp::CtrlRequest_VdevRefParam* CtrlRequest::mutable_vdev_ref() {
-  set_has_vdev_ref();
-  if (vdev_ref_ == NULL) {
-    vdev_ref_ = new ::knapp::CtrlRequest_VdevRefParam;
+  if (has_vdev_ref()) {
+    delete params_.vdev_ref_;
+    clear_has_params();
   }
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlRequest.vdev_ref)
-  return vdev_ref_;
 }
-::knapp::CtrlRequest_VdevRefParam* CtrlRequest::release_vdev_ref() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlRequest.vdev_ref)
-  clear_has_vdev_ref();
-  ::knapp::CtrlRequest_VdevRefParam* temp = vdev_ref_;
-  vdev_ref_ = NULL;
-  return temp;
+ const ::nba::knapp::CtrlRequest_VdevRefParam& CtrlRequest::vdev_ref() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.vdev_ref)
+  return has_vdev_ref()
+      ? *params_.vdev_ref_
+      : ::nba::knapp::CtrlRequest_VdevRefParam::default_instance();
 }
-void CtrlRequest::set_allocated_vdev_ref(::knapp::CtrlRequest_VdevRefParam* vdev_ref) {
-  delete vdev_ref_;
-  vdev_ref_ = vdev_ref;
+::nba::knapp::CtrlRequest_VdevRefParam* CtrlRequest::mutable_vdev_ref() {
+  if (!has_vdev_ref()) {
+    clear_params();
+    set_has_vdev_ref();
+    params_.vdev_ref_ = new ::nba::knapp::CtrlRequest_VdevRefParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.vdev_ref)
+  return params_.vdev_ref_;
+}
+::nba::knapp::CtrlRequest_VdevRefParam* CtrlRequest::release_vdev_ref() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.vdev_ref)
+  if (has_vdev_ref()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_VdevRefParam* temp = params_.vdev_ref_;
+    params_.vdev_ref_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+void CtrlRequest::set_allocated_vdev_ref(::nba::knapp::CtrlRequest_VdevRefParam* vdev_ref) {
+  clear_params();
   if (vdev_ref) {
     set_has_vdev_ref();
-  } else {
-    clear_has_vdev_ref();
+    params_.vdev_ref_ = vdev_ref;
   }
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlRequest.vdev_ref)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.vdev_ref)
 }
 
+bool CtrlRequest::has_params() const {
+  return params_case() != PARAMS_NOT_SET;
+}
+void CtrlRequest::clear_has_params() {
+  _oneof_case_[0] = PARAMS_NOT_SET;
+}
+CtrlRequest::ParamsCase CtrlRequest::params_case() const {
+  return CtrlRequest::ParamsCase(_oneof_case_[0]);
+}
 #endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
@@ -2325,10 +2146,11 @@ const int CtrlResponse_TextResponse::kMsgFieldNumber;
 CtrlResponse_TextResponse::CtrlResponse_TextResponse()
   : ::google::protobuf::Message(), _internal_metadata_(NULL) {
   SharedCtor();
-  // @@protoc_insertion_point(constructor:knapp.CtrlResponse.TextResponse)
+  // @@protoc_insertion_point(constructor:nba.knapp.CtrlResponse.TextResponse)
 }
 
 void CtrlResponse_TextResponse::InitAsDefaultInstance() {
+  _is_default_instance_ = true;
 }
 
 CtrlResponse_TextResponse::CtrlResponse_TextResponse(const CtrlResponse_TextResponse& from)
@@ -2336,18 +2158,18 @@ CtrlResponse_TextResponse::CtrlResponse_TextResponse(const CtrlResponse_TextResp
     _internal_metadata_(NULL) {
   SharedCtor();
   MergeFrom(from);
-  // @@protoc_insertion_point(copy_constructor:knapp.CtrlResponse.TextResponse)
+  // @@protoc_insertion_point(copy_constructor:nba.knapp.CtrlResponse.TextResponse)
 }
 
 void CtrlResponse_TextResponse::SharedCtor() {
+    _is_default_instance_ = false;
   ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
   msg_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
 CtrlResponse_TextResponse::~CtrlResponse_TextResponse() {
-  // @@protoc_insertion_point(destructor:knapp.CtrlResponse.TextResponse)
+  // @@protoc_insertion_point(destructor:nba.knapp.CtrlResponse.TextResponse)
   SharedDtor();
 }
 
@@ -2383,35 +2205,29 @@ CtrlResponse_TextResponse* CtrlResponse_TextResponse::New(::google::protobuf::Ar
 }
 
 void CtrlResponse_TextResponse::Clear() {
-// @@protoc_insertion_point(message_clear_start:knapp.CtrlResponse.TextResponse)
-  if (has_msg()) {
-    msg_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  }
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+// @@protoc_insertion_point(message_clear_start:nba.knapp.CtrlResponse.TextResponse)
+  msg_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 
 bool CtrlResponse_TextResponse::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  // @@protoc_insertion_point(parse_start:knapp.CtrlResponse.TextResponse)
+  // @@protoc_insertion_point(parse_start:nba.knapp.CtrlResponse.TextResponse)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required string msg = 1;
+      // optional string msg = 1;
       case 1: {
         if (tag == 10) {
           DO_(::google::protobuf::internal::WireFormatLite::ReadString(
                 input, this->mutable_msg()));
-          ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+          DO_(::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
             this->msg().data(), this->msg().length(),
-            ::google::protobuf::internal::WireFormat::PARSE,
-            "knapp.CtrlResponse.TextResponse.msg");
+            ::google::protobuf::internal::WireFormatLite::PARSE,
+            "nba.knapp.CtrlResponse.TextResponse.msg"));
         } else {
           goto handle_unusual;
         }
@@ -2426,78 +2242,65 @@ bool CtrlResponse_TextResponse::MergePartialFromCodedStream(
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
           goto success;
         }
-        DO_(::google::protobuf::internal::WireFormat::SkipField(
-              input, tag, mutable_unknown_fields()));
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag));
         break;
       }
     }
   }
 success:
-  // @@protoc_insertion_point(parse_success:knapp.CtrlResponse.TextResponse)
+  // @@protoc_insertion_point(parse_success:nba.knapp.CtrlResponse.TextResponse)
   return true;
 failure:
-  // @@protoc_insertion_point(parse_failure:knapp.CtrlResponse.TextResponse)
+  // @@protoc_insertion_point(parse_failure:nba.knapp.CtrlResponse.TextResponse)
   return false;
 #undef DO_
 }
 
 void CtrlResponse_TextResponse::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // @@protoc_insertion_point(serialize_start:knapp.CtrlResponse.TextResponse)
-  // required string msg = 1;
-  if (has_msg()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+  // @@protoc_insertion_point(serialize_start:nba.knapp.CtrlResponse.TextResponse)
+  // optional string msg = 1;
+  if (this->msg().size() > 0) {
+    ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
       this->msg().data(), this->msg().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "knapp.CtrlResponse.TextResponse.msg");
+      ::google::protobuf::internal::WireFormatLite::SERIALIZE,
+      "nba.knapp.CtrlResponse.TextResponse.msg");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       1, this->msg(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
-        unknown_fields(), output);
-  }
-  // @@protoc_insertion_point(serialize_end:knapp.CtrlResponse.TextResponse)
+  // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlResponse.TextResponse)
 }
 
 ::google::protobuf::uint8* CtrlResponse_TextResponse::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // @@protoc_insertion_point(serialize_to_array_start:knapp.CtrlResponse.TextResponse)
-  // required string msg = 1;
-  if (has_msg()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+  // @@protoc_insertion_point(serialize_to_array_start:nba.knapp.CtrlResponse.TextResponse)
+  // optional string msg = 1;
+  if (this->msg().size() > 0) {
+    ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
       this->msg().data(), this->msg().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "knapp.CtrlResponse.TextResponse.msg");
+      ::google::protobuf::internal::WireFormatLite::SERIALIZE,
+      "nba.knapp.CtrlResponse.TextResponse.msg");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         1, this->msg(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
-        unknown_fields(), target);
-  }
-  // @@protoc_insertion_point(serialize_to_array_end:knapp.CtrlResponse.TextResponse)
+  // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlResponse.TextResponse)
   return target;
 }
 
 int CtrlResponse_TextResponse::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:knapp.CtrlResponse.TextResponse)
+// @@protoc_insertion_point(message_byte_size_start:nba.knapp.CtrlResponse.TextResponse)
   int total_size = 0;
 
-  // required string msg = 1;
-  if (has_msg()) {
+  // optional string msg = 1;
+  if (this->msg().size() > 0) {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::StringSize(
         this->msg());
   }
-  if (_internal_metadata_.have_unknown_fields()) {
-    total_size +=
-      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
-        unknown_fields());
-  }
+
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = total_size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
@@ -2505,50 +2308,44 @@ int CtrlResponse_TextResponse::ByteSize() const {
 }
 
 void CtrlResponse_TextResponse::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:knapp.CtrlResponse.TextResponse)
+// @@protoc_insertion_point(generalized_merge_from_start:nba.knapp.CtrlResponse.TextResponse)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
   const CtrlResponse_TextResponse* source = 
       ::google::protobuf::internal::DynamicCastToGenerated<const CtrlResponse_TextResponse>(
           &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:knapp.CtrlResponse.TextResponse)
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:nba.knapp.CtrlResponse.TextResponse)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:knapp.CtrlResponse.TextResponse)
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:nba.knapp.CtrlResponse.TextResponse)
     MergeFrom(*source);
   }
 }
 
 void CtrlResponse_TextResponse::MergeFrom(const CtrlResponse_TextResponse& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:knapp.CtrlResponse.TextResponse)
+// @@protoc_insertion_point(class_specific_merge_from_start:nba.knapp.CtrlResponse.TextResponse)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
-  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_msg()) {
-      set_has_msg();
-      msg_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.msg_);
-    }
-  }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+  if (from.msg().size() > 0) {
+
+    msg_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.msg_);
   }
 }
 
 void CtrlResponse_TextResponse::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:knapp.CtrlResponse.TextResponse)
+// @@protoc_insertion_point(generalized_copy_from_start:nba.knapp.CtrlResponse.TextResponse)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void CtrlResponse_TextResponse::CopyFrom(const CtrlResponse_TextResponse& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:knapp.CtrlResponse.TextResponse)
+// @@protoc_insertion_point(class_specific_copy_from_start:nba.knapp.CtrlResponse.TextResponse)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 bool CtrlResponse_TextResponse::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
   return true;
 }
@@ -2559,7 +2356,6 @@ void CtrlResponse_TextResponse::Swap(CtrlResponse_TextResponse* other) {
 }
 void CtrlResponse_TextResponse::InternalSwap(CtrlResponse_TextResponse* other) {
   msg_.Swap(&other->msg_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
   _internal_metadata_.Swap(&other->_internal_metadata_);
   std::swap(_cached_size_, other->_cached_size_);
 }
@@ -2582,10 +2378,11 @@ const int CtrlResponse_ResourceResponse::kHandleFieldNumber;
 CtrlResponse_ResourceResponse::CtrlResponse_ResourceResponse()
   : ::google::protobuf::Message(), _internal_metadata_(NULL) {
   SharedCtor();
-  // @@protoc_insertion_point(constructor:knapp.CtrlResponse.ResourceResponse)
+  // @@protoc_insertion_point(constructor:nba.knapp.CtrlResponse.ResourceResponse)
 }
 
 void CtrlResponse_ResourceResponse::InitAsDefaultInstance() {
+  _is_default_instance_ = true;
 }
 
 CtrlResponse_ResourceResponse::CtrlResponse_ResourceResponse(const CtrlResponse_ResourceResponse& from)
@@ -2593,17 +2390,17 @@ CtrlResponse_ResourceResponse::CtrlResponse_ResourceResponse(const CtrlResponse_
     _internal_metadata_(NULL) {
   SharedCtor();
   MergeFrom(from);
-  // @@protoc_insertion_point(copy_constructor:knapp.CtrlResponse.ResourceResponse)
+  // @@protoc_insertion_point(copy_constructor:nba.knapp.CtrlResponse.ResourceResponse)
 }
 
 void CtrlResponse_ResourceResponse::SharedCtor() {
+    _is_default_instance_ = false;
   _cached_size_ = 0;
   handle_ = GOOGLE_ULONGLONG(0);
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
 CtrlResponse_ResourceResponse::~CtrlResponse_ResourceResponse() {
-  // @@protoc_insertion_point(destructor:knapp.CtrlResponse.ResourceResponse)
+  // @@protoc_insertion_point(destructor:nba.knapp.CtrlResponse.ResourceResponse)
   SharedDtor();
 }
 
@@ -2638,31 +2435,27 @@ CtrlResponse_ResourceResponse* CtrlResponse_ResourceResponse::New(::google::prot
 }
 
 void CtrlResponse_ResourceResponse::Clear() {
-// @@protoc_insertion_point(message_clear_start:knapp.CtrlResponse.ResourceResponse)
+// @@protoc_insertion_point(message_clear_start:nba.knapp.CtrlResponse.ResourceResponse)
   handle_ = GOOGLE_ULONGLONG(0);
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
 }
 
 bool CtrlResponse_ResourceResponse::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  // @@protoc_insertion_point(parse_start:knapp.CtrlResponse.ResourceResponse)
+  // @@protoc_insertion_point(parse_start:nba.knapp.CtrlResponse.ResourceResponse)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required uint64 handle = 1;
+      // optional uint64 handle = 1;
       case 1: {
         if (tag == 8) {
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
                  input, &handle_)));
-          set_has_handle();
+
         } else {
           goto handle_unusual;
         }
@@ -2677,67 +2470,54 @@ bool CtrlResponse_ResourceResponse::MergePartialFromCodedStream(
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
           goto success;
         }
-        DO_(::google::protobuf::internal::WireFormat::SkipField(
-              input, tag, mutable_unknown_fields()));
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag));
         break;
       }
     }
   }
 success:
-  // @@protoc_insertion_point(parse_success:knapp.CtrlResponse.ResourceResponse)
+  // @@protoc_insertion_point(parse_success:nba.knapp.CtrlResponse.ResourceResponse)
   return true;
 failure:
-  // @@protoc_insertion_point(parse_failure:knapp.CtrlResponse.ResourceResponse)
+  // @@protoc_insertion_point(parse_failure:nba.knapp.CtrlResponse.ResourceResponse)
   return false;
 #undef DO_
 }
 
 void CtrlResponse_ResourceResponse::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // @@protoc_insertion_point(serialize_start:knapp.CtrlResponse.ResourceResponse)
-  // required uint64 handle = 1;
-  if (has_handle()) {
+  // @@protoc_insertion_point(serialize_start:nba.knapp.CtrlResponse.ResourceResponse)
+  // optional uint64 handle = 1;
+  if (this->handle() != 0) {
     ::google::protobuf::internal::WireFormatLite::WriteUInt64(1, this->handle(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
-        unknown_fields(), output);
-  }
-  // @@protoc_insertion_point(serialize_end:knapp.CtrlResponse.ResourceResponse)
+  // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlResponse.ResourceResponse)
 }
 
 ::google::protobuf::uint8* CtrlResponse_ResourceResponse::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // @@protoc_insertion_point(serialize_to_array_start:knapp.CtrlResponse.ResourceResponse)
-  // required uint64 handle = 1;
-  if (has_handle()) {
+  // @@protoc_insertion_point(serialize_to_array_start:nba.knapp.CtrlResponse.ResourceResponse)
+  // optional uint64 handle = 1;
+  if (this->handle() != 0) {
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(1, this->handle(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
-        unknown_fields(), target);
-  }
-  // @@protoc_insertion_point(serialize_to_array_end:knapp.CtrlResponse.ResourceResponse)
+  // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlResponse.ResourceResponse)
   return target;
 }
 
 int CtrlResponse_ResourceResponse::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:knapp.CtrlResponse.ResourceResponse)
+// @@protoc_insertion_point(message_byte_size_start:nba.knapp.CtrlResponse.ResourceResponse)
   int total_size = 0;
 
-  // required uint64 handle = 1;
-  if (has_handle()) {
+  // optional uint64 handle = 1;
+  if (this->handle() != 0) {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::UInt64Size(
         this->handle());
   }
-  if (_internal_metadata_.have_unknown_fields()) {
-    total_size +=
-      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
-        unknown_fields());
-  }
+
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = total_size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
@@ -2745,49 +2525,43 @@ int CtrlResponse_ResourceResponse::ByteSize() const {
 }
 
 void CtrlResponse_ResourceResponse::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:knapp.CtrlResponse.ResourceResponse)
+// @@protoc_insertion_point(generalized_merge_from_start:nba.knapp.CtrlResponse.ResourceResponse)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
   const CtrlResponse_ResourceResponse* source = 
       ::google::protobuf::internal::DynamicCastToGenerated<const CtrlResponse_ResourceResponse>(
           &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:knapp.CtrlResponse.ResourceResponse)
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:nba.knapp.CtrlResponse.ResourceResponse)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:knapp.CtrlResponse.ResourceResponse)
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:nba.knapp.CtrlResponse.ResourceResponse)
     MergeFrom(*source);
   }
 }
 
 void CtrlResponse_ResourceResponse::MergeFrom(const CtrlResponse_ResourceResponse& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:knapp.CtrlResponse.ResourceResponse)
+// @@protoc_insertion_point(class_specific_merge_from_start:nba.knapp.CtrlResponse.ResourceResponse)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
-  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_handle()) {
-      set_handle(from.handle());
-    }
-  }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+  if (from.handle() != 0) {
+    set_handle(from.handle());
   }
 }
 
 void CtrlResponse_ResourceResponse::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:knapp.CtrlResponse.ResourceResponse)
+// @@protoc_insertion_point(generalized_copy_from_start:nba.knapp.CtrlResponse.ResourceResponse)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void CtrlResponse_ResourceResponse::CopyFrom(const CtrlResponse_ResourceResponse& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:knapp.CtrlResponse.ResourceResponse)
+// @@protoc_insertion_point(class_specific_copy_from_start:nba.knapp.CtrlResponse.ResourceResponse)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 bool CtrlResponse_ResourceResponse::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
   return true;
 }
@@ -2798,7 +2572,6 @@ void CtrlResponse_ResourceResponse::Swap(CtrlResponse_ResourceResponse* other) {
 }
 void CtrlResponse_ResourceResponse::InternalSwap(CtrlResponse_ResourceResponse* other) {
   std::swap(handle_, other->handle_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
   _internal_metadata_.Swap(&other->_internal_metadata_);
   std::swap(_cached_size_, other->_cached_size_);
 }
@@ -2823,12 +2596,13 @@ const int CtrlResponse::kResourceFieldNumber;
 CtrlResponse::CtrlResponse()
   : ::google::protobuf::Message(), _internal_metadata_(NULL) {
   SharedCtor();
-  // @@protoc_insertion_point(constructor:knapp.CtrlResponse)
+  // @@protoc_insertion_point(constructor:nba.knapp.CtrlResponse)
 }
 
 void CtrlResponse::InitAsDefaultInstance() {
-  text_ = const_cast< ::knapp::CtrlResponse_TextResponse*>(&::knapp::CtrlResponse_TextResponse::default_instance());
-  resource_ = const_cast< ::knapp::CtrlResponse_ResourceResponse*>(&::knapp::CtrlResponse_ResourceResponse::default_instance());
+  _is_default_instance_ = true;
+  CtrlResponse_default_oneof_instance_->text_ = const_cast< ::nba::knapp::CtrlResponse_TextResponse*>(&::nba::knapp::CtrlResponse_TextResponse::default_instance());
+  CtrlResponse_default_oneof_instance_->resource_ = const_cast< ::nba::knapp::CtrlResponse_ResourceResponse*>(&::nba::knapp::CtrlResponse_ResourceResponse::default_instance());
 }
 
 CtrlResponse::CtrlResponse(const CtrlResponse& from)
@@ -2836,26 +2610,26 @@ CtrlResponse::CtrlResponse(const CtrlResponse& from)
     _internal_metadata_(NULL) {
   SharedCtor();
   MergeFrom(from);
-  // @@protoc_insertion_point(copy_constructor:knapp.CtrlResponse)
+  // @@protoc_insertion_point(copy_constructor:nba.knapp.CtrlResponse)
 }
 
 void CtrlResponse::SharedCtor() {
+    _is_default_instance_ = false;
   _cached_size_ = 0;
   reply_ = 0;
-  text_ = NULL;
-  resource_ = NULL;
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  clear_has_data();
 }
 
 CtrlResponse::~CtrlResponse() {
-  // @@protoc_insertion_point(destructor:knapp.CtrlResponse)
+  // @@protoc_insertion_point(destructor:nba.knapp.CtrlResponse)
   SharedDtor();
 }
 
 void CtrlResponse::SharedDtor() {
+  if (has_data()) {
+    clear_data();
+  }
   if (this != default_instance_) {
-    delete text_;
-    delete resource_;
   }
 }
 
@@ -2884,45 +2658,49 @@ CtrlResponse* CtrlResponse::New(::google::protobuf::Arena* arena) const {
   return n;
 }
 
+void CtrlResponse::clear_data() {
+// @@protoc_insertion_point(one_of_clear_start:nba.knapp.CtrlResponse)
+  switch(data_case()) {
+    case kText: {
+      delete data_.text_;
+      break;
+    }
+    case kResource: {
+      delete data_.resource_;
+      break;
+    }
+    case DATA_NOT_SET: {
+      break;
+    }
+  }
+  _oneof_case_[0] = DATA_NOT_SET;
+}
+
+
 void CtrlResponse::Clear() {
-// @@protoc_insertion_point(message_clear_start:knapp.CtrlResponse)
-  if (_has_bits_[0 / 32] & 7u) {
-    reply_ = 0;
-    if (has_text()) {
-      if (text_ != NULL) text_->::knapp::CtrlResponse_TextResponse::Clear();
-    }
-    if (has_resource()) {
-      if (resource_ != NULL) resource_->::knapp::CtrlResponse_ResourceResponse::Clear();
-    }
-  }
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+// @@protoc_insertion_point(message_clear_start:nba.knapp.CtrlResponse)
+  reply_ = 0;
+  clear_data();
 }
 
 bool CtrlResponse::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  // @@protoc_insertion_point(parse_start:knapp.CtrlResponse)
+  // @@protoc_insertion_point(parse_start:nba.knapp.CtrlResponse)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required .knapp.CtrlResponse.Reply reply = 1;
+      // optional .nba.knapp.CtrlResponse.Reply reply = 1;
       case 1: {
         if (tag == 8) {
           int value;
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    int, ::google::protobuf::internal::WireFormatLite::TYPE_ENUM>(
                  input, &value)));
-          if (::knapp::CtrlResponse_Reply_IsValid(value)) {
-            set_reply(static_cast< ::knapp::CtrlResponse_Reply >(value));
-          } else {
-            mutable_unknown_fields()->AddVarint(1, value);
-          }
+          set_reply(static_cast< ::nba::knapp::CtrlResponse_Reply >(value));
         } else {
           goto handle_unusual;
         }
@@ -2930,7 +2708,7 @@ bool CtrlResponse::MergePartialFromCodedStream(
         break;
       }
 
-      // optional .knapp.CtrlResponse.TextResponse text = 2;
+      // optional .nba.knapp.CtrlResponse.TextResponse text = 2;
       case 2: {
         if (tag == 18) {
          parse_text:
@@ -2943,7 +2721,7 @@ bool CtrlResponse::MergePartialFromCodedStream(
         break;
       }
 
-      // optional .knapp.CtrlResponse.ResourceResponse resource = 3;
+      // optional .nba.knapp.CtrlResponse.ResourceResponse resource = 3;
       case 3: {
         if (tag == 26) {
          parse_resource:
@@ -2963,109 +2741,99 @@ bool CtrlResponse::MergePartialFromCodedStream(
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
           goto success;
         }
-        DO_(::google::protobuf::internal::WireFormat::SkipField(
-              input, tag, mutable_unknown_fields()));
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag));
         break;
       }
     }
   }
 success:
-  // @@protoc_insertion_point(parse_success:knapp.CtrlResponse)
+  // @@protoc_insertion_point(parse_success:nba.knapp.CtrlResponse)
   return true;
 failure:
-  // @@protoc_insertion_point(parse_failure:knapp.CtrlResponse)
+  // @@protoc_insertion_point(parse_failure:nba.knapp.CtrlResponse)
   return false;
 #undef DO_
 }
 
 void CtrlResponse::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // @@protoc_insertion_point(serialize_start:knapp.CtrlResponse)
-  // required .knapp.CtrlResponse.Reply reply = 1;
-  if (has_reply()) {
+  // @@protoc_insertion_point(serialize_start:nba.knapp.CtrlResponse)
+  // optional .nba.knapp.CtrlResponse.Reply reply = 1;
+  if (this->reply() != 0) {
     ::google::protobuf::internal::WireFormatLite::WriteEnum(
       1, this->reply(), output);
   }
 
-  // optional .knapp.CtrlResponse.TextResponse text = 2;
+  // optional .nba.knapp.CtrlResponse.TextResponse text = 2;
   if (has_text()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      2, *this->text_, output);
+      2, *data_.text_, output);
   }
 
-  // optional .knapp.CtrlResponse.ResourceResponse resource = 3;
+  // optional .nba.knapp.CtrlResponse.ResourceResponse resource = 3;
   if (has_resource()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      3, *this->resource_, output);
+      3, *data_.resource_, output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
-        unknown_fields(), output);
-  }
-  // @@protoc_insertion_point(serialize_end:knapp.CtrlResponse)
+  // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlResponse)
 }
 
 ::google::protobuf::uint8* CtrlResponse::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // @@protoc_insertion_point(serialize_to_array_start:knapp.CtrlResponse)
-  // required .knapp.CtrlResponse.Reply reply = 1;
-  if (has_reply()) {
+  // @@protoc_insertion_point(serialize_to_array_start:nba.knapp.CtrlResponse)
+  // optional .nba.knapp.CtrlResponse.Reply reply = 1;
+  if (this->reply() != 0) {
     target = ::google::protobuf::internal::WireFormatLite::WriteEnumToArray(
       1, this->reply(), target);
   }
 
-  // optional .knapp.CtrlResponse.TextResponse text = 2;
+  // optional .nba.knapp.CtrlResponse.TextResponse text = 2;
   if (has_text()) {
     target = ::google::protobuf::internal::WireFormatLite::
       WriteMessageNoVirtualToArray(
-        2, *this->text_, target);
+        2, *data_.text_, target);
   }
 
-  // optional .knapp.CtrlResponse.ResourceResponse resource = 3;
+  // optional .nba.knapp.CtrlResponse.ResourceResponse resource = 3;
   if (has_resource()) {
     target = ::google::protobuf::internal::WireFormatLite::
       WriteMessageNoVirtualToArray(
-        3, *this->resource_, target);
+        3, *data_.resource_, target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
-    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
-        unknown_fields(), target);
-  }
-  // @@protoc_insertion_point(serialize_to_array_end:knapp.CtrlResponse)
+  // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlResponse)
   return target;
 }
 
 int CtrlResponse::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:knapp.CtrlResponse)
+// @@protoc_insertion_point(message_byte_size_start:nba.knapp.CtrlResponse)
   int total_size = 0;
 
-  // required .knapp.CtrlResponse.Reply reply = 1;
-  if (has_reply()) {
+  // optional .nba.knapp.CtrlResponse.Reply reply = 1;
+  if (this->reply() != 0) {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::EnumSize(this->reply());
   }
-  if (_has_bits_[1 / 32] & 6u) {
-    // optional .knapp.CtrlResponse.TextResponse text = 2;
-    if (has_text()) {
+
+  switch (data_case()) {
+    // optional .nba.knapp.CtrlResponse.TextResponse text = 2;
+    case kText: {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->text_);
+          *data_.text_);
+      break;
     }
-
-    // optional .knapp.CtrlResponse.ResourceResponse resource = 3;
-    if (has_resource()) {
+    // optional .nba.knapp.CtrlResponse.ResourceResponse resource = 3;
+    case kResource: {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->resource_);
+          *data_.resource_);
+      break;
     }
-
-  }
-  if (_internal_metadata_.have_unknown_fields()) {
-    total_size +=
-      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
-        unknown_fields());
+    case DATA_NOT_SET: {
+      break;
+    }
   }
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = total_size;
@@ -3074,62 +2842,57 @@ int CtrlResponse::ByteSize() const {
 }
 
 void CtrlResponse::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:knapp.CtrlResponse)
+// @@protoc_insertion_point(generalized_merge_from_start:nba.knapp.CtrlResponse)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
   const CtrlResponse* source = 
       ::google::protobuf::internal::DynamicCastToGenerated<const CtrlResponse>(
           &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:knapp.CtrlResponse)
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:nba.knapp.CtrlResponse)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:knapp.CtrlResponse)
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:nba.knapp.CtrlResponse)
     MergeFrom(*source);
   }
 }
 
 void CtrlResponse::MergeFrom(const CtrlResponse& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:knapp.CtrlResponse)
+// @@protoc_insertion_point(class_specific_merge_from_start:nba.knapp.CtrlResponse)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
-  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_reply()) {
-      set_reply(from.reply());
+  switch (from.data_case()) {
+    case kText: {
+      mutable_text()->::nba::knapp::CtrlResponse_TextResponse::MergeFrom(from.text());
+      break;
     }
-    if (from.has_text()) {
-      mutable_text()->::knapp::CtrlResponse_TextResponse::MergeFrom(from.text());
+    case kResource: {
+      mutable_resource()->::nba::knapp::CtrlResponse_ResourceResponse::MergeFrom(from.resource());
+      break;
     }
-    if (from.has_resource()) {
-      mutable_resource()->::knapp::CtrlResponse_ResourceResponse::MergeFrom(from.resource());
+    case DATA_NOT_SET: {
+      break;
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+  if (from.reply() != 0) {
+    set_reply(from.reply());
   }
 }
 
 void CtrlResponse::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:knapp.CtrlResponse)
+// @@protoc_insertion_point(generalized_copy_from_start:nba.knapp.CtrlResponse)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void CtrlResponse::CopyFrom(const CtrlResponse& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:knapp.CtrlResponse)
+// @@protoc_insertion_point(class_specific_copy_from_start:nba.knapp.CtrlResponse)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 bool CtrlResponse::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
-  if (has_text()) {
-    if (!this->text_->IsInitialized()) return false;
-  }
-  if (has_resource()) {
-    if (!this->resource_->IsInitialized()) return false;
-  }
   return true;
 }
 
@@ -3139,9 +2902,8 @@ void CtrlResponse::Swap(CtrlResponse* other) {
 }
 void CtrlResponse::InternalSwap(CtrlResponse* other) {
   std::swap(reply_, other->reply_);
-  std::swap(text_, other->text_);
-  std::swap(resource_, other->resource_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
+  std::swap(data_, other->data_);
+  std::swap(_oneof_case_[0], other->_oneof_case_[0]);
   _internal_metadata_.Swap(&other->_internal_metadata_);
   std::swap(_cached_size_, other->_cached_size_);
 }
@@ -3157,209 +2919,196 @@ void CtrlResponse::InternalSwap(CtrlResponse* other) {
 #if PROTOBUF_INLINE_NOT_IN_HEADERS
 // CtrlResponse_TextResponse
 
-// required string msg = 1;
-bool CtrlResponse_TextResponse::has_msg() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void CtrlResponse_TextResponse::set_has_msg() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void CtrlResponse_TextResponse::clear_has_msg() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional string msg = 1;
 void CtrlResponse_TextResponse::clear_msg() {
   msg_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_msg();
 }
  const ::std::string& CtrlResponse_TextResponse::msg() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlResponse.TextResponse.msg)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.TextResponse.msg)
   return msg_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
  void CtrlResponse_TextResponse::set_msg(const ::std::string& value) {
-  set_has_msg();
+  
   msg_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:knapp.CtrlResponse.TextResponse.msg)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.TextResponse.msg)
 }
  void CtrlResponse_TextResponse::set_msg(const char* value) {
-  set_has_msg();
+  
   msg_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:knapp.CtrlResponse.TextResponse.msg)
+  // @@protoc_insertion_point(field_set_char:nba.knapp.CtrlResponse.TextResponse.msg)
 }
  void CtrlResponse_TextResponse::set_msg(const char* value, size_t size) {
-  set_has_msg();
+  
   msg_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:knapp.CtrlResponse.TextResponse.msg)
+  // @@protoc_insertion_point(field_set_pointer:nba.knapp.CtrlResponse.TextResponse.msg)
 }
  ::std::string* CtrlResponse_TextResponse::mutable_msg() {
-  set_has_msg();
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlResponse.TextResponse.msg)
+  
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlResponse.TextResponse.msg)
   return msg_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
  ::std::string* CtrlResponse_TextResponse::release_msg() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlResponse.TextResponse.msg)
-  clear_has_msg();
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlResponse.TextResponse.msg)
+  
   return msg_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
  void CtrlResponse_TextResponse::set_allocated_msg(::std::string* msg) {
   if (msg != NULL) {
-    set_has_msg();
+    
   } else {
-    clear_has_msg();
+    
   }
   msg_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), msg);
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlResponse.TextResponse.msg)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlResponse.TextResponse.msg)
 }
 
 // -------------------------------------------------------------------
 
 // CtrlResponse_ResourceResponse
 
-// required uint64 handle = 1;
-bool CtrlResponse_ResourceResponse::has_handle() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void CtrlResponse_ResourceResponse::set_has_handle() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void CtrlResponse_ResourceResponse::clear_has_handle() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional uint64 handle = 1;
 void CtrlResponse_ResourceResponse::clear_handle() {
   handle_ = GOOGLE_ULONGLONG(0);
-  clear_has_handle();
 }
  ::google::protobuf::uint64 CtrlResponse_ResourceResponse::handle() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlResponse.ResourceResponse.handle)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.ResourceResponse.handle)
   return handle_;
 }
  void CtrlResponse_ResourceResponse::set_handle(::google::protobuf::uint64 value) {
-  set_has_handle();
+  
   handle_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlResponse.ResourceResponse.handle)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.ResourceResponse.handle)
 }
 
 // -------------------------------------------------------------------
 
 // CtrlResponse
 
-// required .knapp.CtrlResponse.Reply reply = 1;
-bool CtrlResponse::has_reply() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void CtrlResponse::set_has_reply() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void CtrlResponse::clear_has_reply() {
-  _has_bits_[0] &= ~0x00000001u;
-}
+// optional .nba.knapp.CtrlResponse.Reply reply = 1;
 void CtrlResponse::clear_reply() {
   reply_ = 0;
-  clear_has_reply();
 }
- ::knapp::CtrlResponse_Reply CtrlResponse::reply() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlResponse.reply)
-  return static_cast< ::knapp::CtrlResponse_Reply >(reply_);
+ ::nba::knapp::CtrlResponse_Reply CtrlResponse::reply() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.reply)
+  return static_cast< ::nba::knapp::CtrlResponse_Reply >(reply_);
 }
- void CtrlResponse::set_reply(::knapp::CtrlResponse_Reply value) {
-  assert(::knapp::CtrlResponse_Reply_IsValid(value));
-  set_has_reply();
+ void CtrlResponse::set_reply(::nba::knapp::CtrlResponse_Reply value) {
+  
   reply_ = value;
-  // @@protoc_insertion_point(field_set:knapp.CtrlResponse.reply)
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.reply)
 }
 
-// optional .knapp.CtrlResponse.TextResponse text = 2;
+// optional .nba.knapp.CtrlResponse.TextResponse text = 2;
 bool CtrlResponse::has_text() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
+  return data_case() == kText;
 }
 void CtrlResponse::set_has_text() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void CtrlResponse::clear_has_text() {
-  _has_bits_[0] &= ~0x00000002u;
+  _oneof_case_[0] = kText;
 }
 void CtrlResponse::clear_text() {
-  if (text_ != NULL) text_->::knapp::CtrlResponse_TextResponse::Clear();
-  clear_has_text();
-}
-const ::knapp::CtrlResponse_TextResponse& CtrlResponse::text() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlResponse.text)
-  return text_ != NULL ? *text_ : *default_instance_->text_;
-}
-::knapp::CtrlResponse_TextResponse* CtrlResponse::mutable_text() {
-  set_has_text();
-  if (text_ == NULL) {
-    text_ = new ::knapp::CtrlResponse_TextResponse;
+  if (has_text()) {
+    delete data_.text_;
+    clear_has_data();
   }
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlResponse.text)
-  return text_;
 }
-::knapp::CtrlResponse_TextResponse* CtrlResponse::release_text() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlResponse.text)
-  clear_has_text();
-  ::knapp::CtrlResponse_TextResponse* temp = text_;
-  text_ = NULL;
-  return temp;
+ const ::nba::knapp::CtrlResponse_TextResponse& CtrlResponse::text() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.text)
+  return has_text()
+      ? *data_.text_
+      : ::nba::knapp::CtrlResponse_TextResponse::default_instance();
 }
-void CtrlResponse::set_allocated_text(::knapp::CtrlResponse_TextResponse* text) {
-  delete text_;
-  text_ = text;
+::nba::knapp::CtrlResponse_TextResponse* CtrlResponse::mutable_text() {
+  if (!has_text()) {
+    clear_data();
+    set_has_text();
+    data_.text_ = new ::nba::knapp::CtrlResponse_TextResponse;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlResponse.text)
+  return data_.text_;
+}
+::nba::knapp::CtrlResponse_TextResponse* CtrlResponse::release_text() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlResponse.text)
+  if (has_text()) {
+    clear_has_data();
+    ::nba::knapp::CtrlResponse_TextResponse* temp = data_.text_;
+    data_.text_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+void CtrlResponse::set_allocated_text(::nba::knapp::CtrlResponse_TextResponse* text) {
+  clear_data();
   if (text) {
     set_has_text();
-  } else {
-    clear_has_text();
+    data_.text_ = text;
   }
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlResponse.text)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlResponse.text)
 }
 
-// optional .knapp.CtrlResponse.ResourceResponse resource = 3;
+// optional .nba.knapp.CtrlResponse.ResourceResponse resource = 3;
 bool CtrlResponse::has_resource() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
+  return data_case() == kResource;
 }
 void CtrlResponse::set_has_resource() {
-  _has_bits_[0] |= 0x00000004u;
-}
-void CtrlResponse::clear_has_resource() {
-  _has_bits_[0] &= ~0x00000004u;
+  _oneof_case_[0] = kResource;
 }
 void CtrlResponse::clear_resource() {
-  if (resource_ != NULL) resource_->::knapp::CtrlResponse_ResourceResponse::Clear();
-  clear_has_resource();
-}
-const ::knapp::CtrlResponse_ResourceResponse& CtrlResponse::resource() const {
-  // @@protoc_insertion_point(field_get:knapp.CtrlResponse.resource)
-  return resource_ != NULL ? *resource_ : *default_instance_->resource_;
-}
-::knapp::CtrlResponse_ResourceResponse* CtrlResponse::mutable_resource() {
-  set_has_resource();
-  if (resource_ == NULL) {
-    resource_ = new ::knapp::CtrlResponse_ResourceResponse;
+  if (has_resource()) {
+    delete data_.resource_;
+    clear_has_data();
   }
-  // @@protoc_insertion_point(field_mutable:knapp.CtrlResponse.resource)
-  return resource_;
 }
-::knapp::CtrlResponse_ResourceResponse* CtrlResponse::release_resource() {
-  // @@protoc_insertion_point(field_release:knapp.CtrlResponse.resource)
-  clear_has_resource();
-  ::knapp::CtrlResponse_ResourceResponse* temp = resource_;
-  resource_ = NULL;
-  return temp;
+ const ::nba::knapp::CtrlResponse_ResourceResponse& CtrlResponse::resource() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.resource)
+  return has_resource()
+      ? *data_.resource_
+      : ::nba::knapp::CtrlResponse_ResourceResponse::default_instance();
 }
-void CtrlResponse::set_allocated_resource(::knapp::CtrlResponse_ResourceResponse* resource) {
-  delete resource_;
-  resource_ = resource;
+::nba::knapp::CtrlResponse_ResourceResponse* CtrlResponse::mutable_resource() {
+  if (!has_resource()) {
+    clear_data();
+    set_has_resource();
+    data_.resource_ = new ::nba::knapp::CtrlResponse_ResourceResponse;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlResponse.resource)
+  return data_.resource_;
+}
+::nba::knapp::CtrlResponse_ResourceResponse* CtrlResponse::release_resource() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlResponse.resource)
+  if (has_resource()) {
+    clear_has_data();
+    ::nba::knapp::CtrlResponse_ResourceResponse* temp = data_.resource_;
+    data_.resource_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+void CtrlResponse::set_allocated_resource(::nba::knapp::CtrlResponse_ResourceResponse* resource) {
+  clear_data();
   if (resource) {
     set_has_resource();
-  } else {
-    clear_has_resource();
+    data_.resource_ = resource;
   }
-  // @@protoc_insertion_point(field_set_allocated:knapp.CtrlResponse.resource)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlResponse.resource)
 }
 
+bool CtrlResponse::has_data() const {
+  return data_case() != DATA_NOT_SET;
+}
+void CtrlResponse::clear_has_data() {
+  _oneof_case_[0] = DATA_NOT_SET;
+}
+CtrlResponse::DataCase CtrlResponse::data_case() const {
+  return CtrlResponse::DataCase(_oneof_case_[0]);
+}
 #endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // @@protoc_insertion_point(namespace_scope)
 
 }  // namespace knapp
+}  // namespace nba
 
 // @@protoc_insertion_point(global_scope)
