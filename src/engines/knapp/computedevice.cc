@@ -1,7 +1,8 @@
 #include <nba/core/intrinsic.hh>
 #include <nba/framework/logging.hh>
-#include <nba/engines/knapp/types.hh>
-#include <nba/engines/knapp/utils.hh>
+#include <nba/engines/knapp/defs.hh>
+#include <nba/engines/knapp/hosttypes.hh>
+#include <nba/engines/knapp/hostutils.hh>
 #include <nba/engines/knapp/computedevice.hh>
 #include <rte_memory.h>
 #include <scif.h>
@@ -13,9 +14,18 @@ KnappComputeDevice::KnappComputeDevice(
         unsigned node_id, unsigned device_id, size_t num_contexts
 ) : ComputeDevice(node_id, device_id, num_contexts)
 {
+    int rc;
     type_name = "knapp.phi";
     assert(num_contexts > 0);
     RTE_LOG(DEBUG, COPROC, "KnappComputeDevice: # contexts: %lu\n", num_contexts);
+
+    master_epd = scif_open();
+    master_port.node = knapp::local_node;
+    master_port.port = KNAPP_MASTER_PORT;
+    rc = scif_connect(master_epd, &master_port);
+
+    // TODO: handshake via MIC master channel.
+
     for (unsigned i = 0; i < num_contexts; i++) {
         KnappComputeContext *ctx = nullptr;
         NEW(node_id, ctx, KnappComputeContext, i, this);

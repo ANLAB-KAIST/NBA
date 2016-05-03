@@ -12,6 +12,8 @@
 #endif
 #define __cache_aligned __attribute__((__aligned__(CACHE_LINE_SIZE)))
 
+#define PAGE_SIZE 0x1000
+
 #define ALIGN_CEIL(x,a) (((x)+(a)-1)&~((a)-1))
 
 #define TARG(...) __VA_ARGS__

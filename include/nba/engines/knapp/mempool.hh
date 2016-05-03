@@ -1,7 +1,7 @@
 #ifndef __NBA_KNAPP_MEMPOOL_HH__
 #define __NBA_KNAPP_MEMPOOL_HH__
 
-#include <nba/engines/knapp/utils.hh>
+#include <nba/engines/knapp/hostutils.hh>
 #include <nba/core/mempool.hh>
 #include <nba/core/offloadtypes.hh>
 #include <cstdint>

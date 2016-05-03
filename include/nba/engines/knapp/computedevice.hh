@@ -8,8 +8,9 @@
 #include <nba/framework/computedevice.hh>
 #include <nba/framework/computecontext.hh>
 #include <nba/core/threading.hh>
-#include <nba/engines/knapp/utils.hh>
+#include <nba/engines/knapp/defs.hh>
 #include <nba/engines/knapp/computecontext.hh>
+#include <scif.h>
 
 namespace nba
 {
@@ -35,13 +36,16 @@ private:
     ComputeContext *_get_available_context();
     void _return_context(ComputeContext *ctx);
 
+    struct scif_portID master_port;
+    scif_epd_t master_epd;
+
     std::deque<KnappComputeContext *> _ready_contexts;
     std::deque<KnappComputeContext *> _active_contexts;
     Lock _lock;
     CondVar _ready_cond;
 };
 
-}
+} //endns(nba)
 
 #endif
 

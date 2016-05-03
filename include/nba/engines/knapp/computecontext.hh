@@ -6,8 +6,8 @@
 #include <nba/framework/computedevice.hh>
 #include <nba/framework/computecontext.hh>
 #include <nba/engines/knapp/mempool.hh>
-#include <nba/engines/knapp/utils.hh>
-#include <nba/engines/knapp/types.hh>
+#include <nba/engines/knapp/defs.hh>
+#include <scif.h>
 
 struct rte_memzone;
 

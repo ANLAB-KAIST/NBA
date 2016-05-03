@@ -28,7 +28,7 @@
 #endif
 #ifdef USE_KNAPP
 #include <scif.h>
-#include <nba/engines/knapp/utils.hh>
+#include <nba/engines/knapp/hostutils.hh>
 #endif
 #ifdef USE_PHI
 #include <CL/opencl.h>

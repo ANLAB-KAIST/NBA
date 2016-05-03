@@ -1,8 +1,9 @@
 #include <nba/core/intrinsic.hh>
 #include <nba/engines/knapp/defs.hh>
-#include <nba/engines/knapp/types.hh>
-#include <nba/engines/knapp/utils.hh>
+#include <nba/engines/knapp/hosttypes.hh>
+#include <nba/engines/knapp/hostutils.hh>
 #include <nba/engines/knapp/computecontext.hh>
+#include <nba/engines/knapp/computedevice.hh>
 #include <rte_memzone.h>
 #include <rte_memory.h>
 #include <unistd.h>
@@ -40,24 +41,25 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
     }
 
     /* Initialize vDev communication channels. */
+    vdev.master_port = (dynamic_cast<KnappComputeDevice*>(mother))->master_port;
     vdev.data_epd = scif_open();
     if (vdev.data_epd == SCIF_OPEN_FAILED)
         rte_exit(EXIT_FAILURE, "scif_open() for data_epd failed.");
     vdev.ctrl_epd = scif_open();
     if (vdev.ctrl_epd == SCIF_OPEN_FAILED)
         rte_exit(EXIT_FAILURE, "scif_open() for ctrl_epd failed.");
-    vdev.local_dataport.node = knapp::local_node;
-    vdev.local_dataport.port = knapp::get_host_dataport(ctx_id);
-    vdev.local_ctrlport.node = knapp::local_node;
-    vdev.local_ctrlport.port = knapp::get_host_ctrlport(ctx_id);
-    vdev.remote_ctrlport.node = knapp::remote_scif_nodes[0];
-    vdev.remote_ctrlport.port = knapp::get_mic_dataport(ctx_id);
-    vdev.remote_ctrlport.node = knapp::remote_scif_nodes[0];
-    vdev.remote_ctrlport.port = knapp::get_mic_ctrlport(ctx_id);
-    rc = scif_bind(vdev.data_epd, vdev.local_dataport.port);
-    assert(rc == vdev.local_dataport.port);
-    rc = scif_bind(vdev.ctrl_epd, vdev.local_ctrlport.port);
-    assert(rc == vdev.local_ctrlport.port);
+    vdev.local_data_port.node = knapp::local_node;
+    vdev.local_data_port.port = knapp::get_host_data_port(ctx_id);
+    vdev.local_ctrl_port.node = knapp::local_node;
+    vdev.local_ctrl_port.port = knapp::get_host_ctrl_port(ctx_id);
+    vdev.remote_ctrl_port.node = knapp::remote_scif_nodes[0];
+    vdev.remote_ctrl_port.port = knapp::get_mic_data_port(ctx_id);
+    vdev.remote_ctrl_port.node = knapp::remote_scif_nodes[0];
+    vdev.remote_ctrl_port.port = knapp::get_mic_ctrl_port(ctx_id);
+    rc = scif_bind(vdev.data_epd, vdev.local_data_port.port);
+    assert(rc == vdev.local_data_port.port);
+    rc = scif_bind(vdev.ctrl_epd, vdev.local_ctrl_port.port);
+    assert(rc == vdev.local_ctrl_port.port);
 
     vdev.ctrlbuf = (uint8_t *) rte_zmalloc_socket(nullptr,
             KNAPP_OFFLOAD_CTRLBUF_SIZE,

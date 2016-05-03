@@ -117,8 +117,8 @@ CC   = 'gcc'
 CXX  = 'g++ ' + CXXSTD
 if USE_KNAPP:
     MIC_CC     = 'icpc -std=c++11 -mmic -fPIC'
-    MIC_CFLAGS = '-Wall'
-    MIC_LIBS   = '-pthread -lscif -lrt'
+    MIC_CFLAGS = '-Wall -Iinclude'
+    MIC_LIBS   = '-pthread -lscif -lrt -L{DPDK_PATH}/lib'
 NVCC = 'nvcc'
 SUPPRESSED_CC_WARNINGS = (
     'unused-function',
@@ -254,9 +254,12 @@ LIBS   += ' -L{DPDK_PATH}/lib' \
 LIBS += ' -lnuma -ldl'
 
 # Expand variables
-CFLAGS = fmt(CFLAGS)
+CFLAGS   = fmt(CFLAGS)
 CXXFLAGS = fmt(CFLAGS) + ' -Wno-literal-suffix'
-LIBS = fmt(LIBS)
+LIBS     = fmt(LIBS)
+if USE_KNAPP:
+    MIC_CFLAGS = fmt(MIC_CFLAGS)
+    MIC_LIBS   = fmt(MIC_LIBS)
 
 # Embedded 3rd party libraries to generate rules to build them
 THIRD_PARTY_LIBS = [
