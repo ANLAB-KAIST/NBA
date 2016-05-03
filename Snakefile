@@ -117,8 +117,9 @@ CC   = 'gcc'
 CXX  = 'g++ ' + CXXSTD
 if USE_KNAPP:
     MIC_CC     = 'icpc -std=c++11 -mmic -fPIC'
-    MIC_CFLAGS = '-Wall -Iinclude'
-    MIC_LIBS   = '-pthread -lscif -lrt -L{DPDK_PATH}/lib'
+    MIC_CFLAGS = '-Wall -Iinclude -I{THIRD_PARTY_DIR}/protobuf-mic/src'
+    # We link protobuf statically to make the knapp-mic binary portable.
+    MIC_LIBS   = '-pthread -lscif -lrt {THIRD_PARTY_DIR}/protobuf-mic/src/.libs/libprotobuf.a'
 NVCC = 'nvcc'
 SUPPRESSED_CC_WARNINGS = (
     'unused-function',
@@ -186,8 +187,8 @@ if USE_CUDA:
                   + ' -gencode arch=compute_20,code=compute_21'
 
 if USE_KNAPP:
-    CFLAGS += ''
-    LIBS   += ' -lscif'
+    CFLAGS += ' -I{THIRD_PARTY_DIR}/protobuf/src'
+    LIBS   += ' -lscif -L{THIRD_PARTY_DIR}/protobuf/src/.libs -lprotobuf'
 
 # NVIDIA Profiler configurations
 if USE_NVPROF:
@@ -284,6 +285,16 @@ if USE_KNAPP:
         input: MIC_OBJ_FILES
         output: 'bin/knapp-mic'
         shell: '{MIC_CC} -o {output} {MIC_OBJ_FILES} {MIC_LIBS}'
+
+    rule pbgen:
+        input: 'include/nba/engines/knapp/ctrl.proto'
+        output: 'include/nba/engines/knapp/ctrl.pb.h', 'src/engines/knapp/ctrl.pb.cc', 'src/engines/knapp-mic/ctrl.pb.cc'
+        shell: "cd include/nba/engines/knapp;" \
+               "protoc --cpp_out . ctrl.proto && " \
+               "sed -i 's/^#include \"ctrl.pb.h\"/#include <nba\\/engines\\/knapp\\/ctrl.pb.h>/' ctrl.pb.cc;" \
+               "cp ctrl.pb.cc ../../../../src/engines/knapp;" \
+               "cp ctrl.pb.cc ../../../../src/engines/knapp-mic;" \
+               "rm ctrl.pb.cc"
 
     for srcfile in MIC_SOURCE_FILES:
         includes = [f for f in compilelib.get_includes(srcfile, 'include')]

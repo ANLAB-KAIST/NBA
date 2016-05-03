@@ -1,6 +1,7 @@
 #include <nba/engines/knapp/hosttypes.hh>
 #include <nba/engines/knapp/sharedtypes.hh>
 #include <nba/engines/knapp/hostutils.hh>
+#include <nba/engines/knapp/ctrl.pb.h>
 #include <cstdint>
 #include <cstdio>
 #include <cassert>

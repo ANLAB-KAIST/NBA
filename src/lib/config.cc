@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <string>
+#include <fstream>
 #include <vector>
 #include <set>
 #include <unordered_map>
@@ -95,6 +96,18 @@ static PyObject *comp_thread_type;
 static PyObject *coproc_thread_type;
 static PyObject *queue_type;
 
+static void read_sysfs(string &content, const char *pathfmt, ...)
+{
+    char path[FILENAME_MAX];
+    va_list args;
+    va_start(args, pathfmt);
+    vsnprintf(path, FILENAME_MAX, pathfmt, args);
+    va_end(args);
+    ifstream infile(path);
+    getline(infile, content);
+    infile.close();
+}
+
 static PyObject*
 nba_get_netdevices(PyObject *self, PyObject *args)
 {
@@ -164,7 +177,7 @@ nba_get_coprocessors(PyObject *self, PyObject *args)
         PyObject *pnamedtuple = PyStructSequence_New(&coprocdevice_type);
         assert(pnamedtuple != NULL);
 
-        char syspath[FILENAME_MAX], pciid[16], buf[16];
+        char pciid[16];
         PyObject *po;
         cudaDeviceProp prop;
         cutilSafeCall(cudaGetDeviceProperties(&prop, i));
@@ -179,12 +192,12 @@ nba_get_coprocessors(PyObject *self, PyObject *args)
         po = PyUnicode_FromString(pciid);
         PyStructSequence_SetItem(pnamedtuple, 2, po);
 
-        sprintf(syspath, "/sys/bus/pci/devices/%s/numa_node", pciid);
-        FILE *f = fopen(syspath, "r");
-        fread(buf, 16, 1, f);
-        assert(feof(f));
-        fclose(f);
-        int numa_node = atoi(buf);
+        int numa_node = 0;
+        {
+            string text;
+            read_sysfs(text, "/sys/bus/pci/devices/%s/numa_node", pciid);
+            numa_node = stoi(text, nullptr, 10);
+        }
         po = PyLong_FromLong((long) numa_node);
         PyStructSequence_SetItem(pnamedtuple, 3, po);
 
@@ -220,7 +233,7 @@ nba_get_coprocessors(PyObject *self, PyObject *args)
         PyObject *pnamedtuple = PyStructSequence_New(&coprocdevice_type);
         assert(pnamedtuple != NULL);
 
-        char syspath[FILENAME_MAX], pciid[16], buf[16];
+        char pciid[16];
         PyObject *po;
 
         po = PyLong_FromLong(scif_nodes[i]);
@@ -247,12 +260,11 @@ nba_get_coprocessors(PyObject *self, PyObject *args)
                 if (!strcmp(d->d_name, ".") || !strcmp(d->d_name, ".."))
                     continue;
                 uint16_t device_id = 0;
-                sprintf(syspath, "/sys/bus/pci/devices/%s/device", d->d_name);
-                FILE *f = fopen(syspath, "r");
-                fread(buf, 16, 1, f);
-                string sbuf = buf;
-                device_id = stoi(sbuf, nullptr, 16);
-                fclose(f);
+                {
+                    string text;
+                    read_sysfs(text, "/sys/bus/pci/devices/%s/device", d->d_name);
+                    device_id = stoi(text, nullptr, 16);
+                }
                 auto search = xeon_phi_names.find(device_id);
                 if (search == xeon_phi_names.end()) {
                     continue;
@@ -273,12 +285,12 @@ nba_get_coprocessors(PyObject *self, PyObject *args)
         po = PyUnicode_FromString(pciid);
         PyStructSequence_SetItem(pnamedtuple, 2, po);
 
-        sprintf(syspath, "/sys/bus/pci/devices/%s/numa_node", pciid);
-        FILE *f = fopen(syspath, "r");
-        fread(buf, 16, 1, f);
-        assert(feof(f));
-        fclose(f);
-        int numa_node = atoi(buf);
+        int numa_node = 0;
+        {
+            string text;
+            read_sysfs(text, "/sys/bus/pci/devices/%s/numa_node", pciid);
+            numa_node = stoi(text, nullptr, 10);
+        }
         po = PyLong_FromLong((long) numa_node);
         PyStructSequence_SetItem(pnamedtuple, 3, po);
 
@@ -288,7 +300,13 @@ nba_get_coprocessors(PyObject *self, PyObject *args)
         po = PyBool_FromLong((long) true);
         PyStructSequence_SetItem(pnamedtuple, 5, po);
 
-        po = PyLong_FromLong((long) 8589934592); // FIXME: implement correctly
+        long memsize = 0;
+        {
+            string text;
+            read_sysfs(text, "/sys/bus/pci/devices/%s/mic/mic0/memsize", pciid);
+            memsize = stoi(text, nullptr, 16); // in kbytes
+        }
+        po = PyLong_FromLong((long) memsize * 1024);
         PyStructSequence_SetItem(pnamedtuple, 6, po);
 
         PyList_Append(plist, pnamedtuple);

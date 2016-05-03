@@ -1,0 +1,53 @@
+syntax = "proto2";
+package knapp;
+
+message CtrlRequest {
+    enum Type {
+	PING   = 0;
+	MALLOC = 1;
+	FREE   = 2;
+	CREATE_VDEV  = 3;
+	DESTROY_VDEV = 4;
+    }
+    required Type type = 1;
+
+    message PingParam {
+	required string msg = 1;
+    }
+    optional PingParam ping_param = 2;
+
+    message MallocParam {
+	required uint64 size  = 1;
+	required uint64 align = 2;
+    }
+    optional MallocParam malloc_param = 3;
+
+    message CreateVdevParam {
+	required uint32 num_pcores	    = 1;
+	required uint32 num_lcores_per_pcore = 2;
+    }
+    optional CreateVdevParam create_vdev_param = 4;
+
+    message VdevRefParam {
+	required uint64 vdev_id = 1;
+    }
+    optional VdevRefParam vdev_ref = 5;
+}
+
+message CtrlResponse {
+    enum Reply {
+	SUCCESS = 0;
+	FAILURE = 1;
+    }
+    required Reply reply = 1;
+
+    message TextResponse {
+	required string msg = 1;
+    }
+    optional TextResponse text = 2;
+
+    message ResourceResponse {
+	required uint64 handle = 1;
+    }
+    optional ResourceResponse resource = 3;
+}

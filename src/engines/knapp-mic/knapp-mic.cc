@@ -215,19 +215,22 @@ static void *nba::knapp::master_thread_loop(void *arg) {
 
 static void *nba::knapp::control_thread_loop(void *arg)
 {
-    struct vdevice *vdev = (struct vdevice *) arg;
-    int backlog = 16;
+    std::vector<struct vdevice *> vdevs;
+    scif_epd_t master_epd;
+    struct scif_portID master_port;
+    int backlog = 1;
     int rc = 0;
-    log_device(vdev->device_id, "Listening on the master channel...\n");
+    log_info("Listening on the control channel...\n");
 
-    rc = scif_listen(vdev->master_epd, backlog);
+    rc = scif_listen(master_epd, backlog);
     assert(0 == rc);
-    rc = scif_accept(vdev->master_epd, &vdev->master_port,
-                     &vdev->master_epd, SCIF_ACCEPT_SYNC);
+    rc = scif_accept(master_epd, &master_port,
+                     &master_epd, SCIF_ACCEPT_SYNC);
     assert(0 == rc);
 
     // TODO: implement a control protocol loop.
     while (true) {
+        //recv_ctrlmsg(master_epd, ctrlbuf, );
     }
 
     return nullptr;
@@ -252,17 +255,11 @@ int num_bubble_cycles = 100;
 
 int main (int argc, char *argv[])
 {
-    //if (check_collision(PROGRAM_NAME, COLLISION_USE_TEMP | COLLISION_NOWAIT) < 0)
-    //    return -1;
+    int rc;
     long num_lcores = sysconf(_SC_NPROCESSORS_ONLN);
     long num_pcores = sysconf(_SC_NPROCESSORS_ONLN) / KNAPP_MAX_THREADS_PER_CORE;
     setlocale(LC_NUMERIC, "");
     log_info("%ld lcores (%ld pcores) detected.\n", num_lcores, num_pcores);
-
-    cpuset_per_lcore = (cpu_set_t **)     _mm_malloc(sizeof(cpu_set_t *) * num_lcores, CACHE_LINE_SIZE);
-    attr_per_lcore   = (pthread_attr_t *) _mm_malloc(sizeof(pthread_attr_t) * num_lcores, CACHE_LINE_SIZE);
-    size_t cpu_setsize = CPU_ALLOC_SIZE(num_lcores);
-    memset(core_util, 0, sizeof(core_util));
 
 #ifdef EMPTY_CYCLES
     if (argc > 1) {
@@ -274,33 +271,49 @@ int main (int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 #endif
-    for (int lcore = 0; lcore < num_lcores; lcore++) {
-        int rc;
-        cpuset_per_lcore[lcore] = CPU_ALLOC(num_lcores);
-        if (cpuset_per_lcore[lcore] == NULL) {
-            perror("CPU_ALLOC");
-            exit(EXIT_FAILURE);
-        }
-        CPU_ZERO_S(cpu_setsize, cpuset_per_lcore[lcore]);
-        CPU_SET_S(lcore, cpu_setsize, cpuset_per_lcore[lcore]); // ROTATE BY 1 (Knights Corner specific)
-        pthread_attr_init(&attr_per_lcore[lcore]);
-        assert(0 == pthread_attr_setdetachstate(&attr_per_lcore[lcore], PTHREAD_CREATE_JOINABLE));
-        assert(0 == pthread_attr_setaffinity_np(&attr_per_lcore[lcore], cpu_setsize, cpuset_per_lcore[lcore]));
+    pthread_attr_t attr;
+    pthread_t control_thread;
+    {
+        pthread_attr_init(&attr);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+        size_t cpuset_sz = CPU_ALLOC_SIZE(num_lcores);
+        cpu_set_t *cpuset_master = CPU_ALLOC(num_lcores);
+        CPU_ZERO_S(cpuset_sz, cpuset_master);
+        CPU_SET_S(0, cpuset_sz, cpuset_master); // pin to the first core.
+        pthread_attr_setaffinity_np(&attr, cpuset_sz, cpuset_master);
+        CPU_FREE(cpuset_master);
     }
+    rc = pthread_create(&control_thread, &attr, control_thread_loop, nullptr);
+    assert(0 == rc);
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
-    for ( unsigned ivdev = 0; ivdev < vdevs.size(); ivdev++ ) {
-        struct vdevice *vdev = vdevs[ivdev];
-        int pcore_to_pin = vdev->cores[0];
-        int ht_to_pin = get_least_utilized_ht(pcore_to_pin);
-        int lcore = mic_pcore_to_lcore(pcore_to_pin, ht_to_pin);
-        vdev->master_cpu = lcore;
-        assert ( 0 == pthread_create(&vdev->master_thread, &attr_per_lcore[lcore], master_thread_loop, (void *) vdev) );
-        core_util[pcore_to_pin][ht_to_pin]++;
-    }
-    for ( unsigned i = 0; i < vdevs.size(); i++ ) {
-        pthread_join(vdevs[i]->master_thread, NULL);
-    }
+    pthread_join(control_thread, nullptr);
+    //for (int lcore = 0; lcore < num_lcores; lcore++) {
+    //    int rc;
+    //    cpuset_per_lcore[lcore] = CPU_ALLOC(num_lcores);
+    //    if (cpuset_per_lcore[lcore] == NULL) {
+    //        perror("CPU_ALLOC");
+    //        exit(EXIT_FAILURE);
+    //    }
+    //    CPU_ZERO_S(cpu_setsize, cpuset_per_lcore[lcore]);
+    //    CPU_SET_S(lcore, cpu_setsize, cpuset_per_lcore[lcore]); // ROTATE BY 1 (Knights Corner specific)
+    //    pthread_attr_init(&attr_per_lcore[lcore]);
+    //    assert(0 == pthread_attr_setdetachstate(&attr_per_lcore[lcore], PTHREAD_CREATE_JOINABLE));
+    //    assert(0 == pthread_attr_setaffinity_np(&attr_per_lcore[lcore], cpu_setsize, cpuset_per_lcore[lcore]));
+    //}
+    //memset(core_util, 0, sizeof(core_util));
+    //for ( unsigned ivdev = 0; ivdev < vdevs.size(); ivdev++ ) {
+    //    struct vdevice *vdev = vdevs[ivdev];
+    //    int pcore_to_pin = vdev->cores[0];
+    //    int ht_to_pin = get_least_utilized_ht(pcore_to_pin);
+    //    int lcore = mic_pcore_to_lcore(pcore_to_pin, ht_to_pin);
+    //    vdev->master_cpu = lcore;
+    //    assert ( 0 == pthread_create(&vdev->master_thread, &attr_per_lcore[lcore], master_thread_loop, (void *) vdev) );
+    //    core_util[pcore_to_pin][ht_to_pin]++;
+    //}
+    //for ( unsigned i = 0; i < vdevs.size(); i++ ) {
+    //    pthread_join(vdevs[i]->master_thread, NULL);
+    //}
     return 0;
 }
 

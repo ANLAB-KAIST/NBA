@@ -2,6 +2,7 @@
 #include <nba/engines/knapp/micintrinsic.hh>
 #include <nba/engines/knapp/micutils.hh>
 #include <nba/engines/knapp/sharedtypes.hh>
+#include <nba/engines/knapp/ctrl.pb.h>
 #include <cstdint>
 #include <cassert>
 #include <cstring>
