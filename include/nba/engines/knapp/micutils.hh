@@ -2,9 +2,11 @@
 #define __NBA_KNAPP_MICUTILS_HH__
 
 #include <nba/engines/knapp/sharedtypes.hh>
+#include <nba/engines/knapp/ctrl.pb.h>
 #include <cstdio>
 #include <cstdint>
 #include <scif.h>
+#include <signal.h>
 
 namespace nba {
 namespace knapp {
@@ -17,7 +19,7 @@ static inline void log_error(const char *format, ... )
     va_end(args);
 }
 
-static inline void log_info(const char *format, ... ) 
+static inline void log_info(const char *format, ... )
 {
     va_list args;
     va_start(args, format);
@@ -69,11 +71,9 @@ int get_least_utilized_ht(int pcore);
 
 int pollring_init(struct poll_ring *r, int32_t n, scif_epd_t epd);
 
-void recv_ctrlmsg(scif_epd_t epd, uint8_t *buf, nba::knapp::ctrl_msg_t msg,
-                  void *p1, void *p2, void *p3, void *p4);
+bool recv_ctrlmsg(scif_epd_t epd, CtrlRequest &req, sigset_t *orig_sigmask = nullptr);
 
-void send_ctrlresp(scif_epd_t epd, uint8_t *buf, nba::knapp::ctrl_msg_t msg_recvd,
-                   void *p1, void *p2, void *p3, void *p4);
+bool send_ctrlresp(scif_epd_t epd, const CtrlResponse &resp);
 
 static inline uint8_t *bufarray_get_va(struct bufarray *ba, int index) {
     if (ba->initialized && index >= 0 && index < (int) ba->size) {

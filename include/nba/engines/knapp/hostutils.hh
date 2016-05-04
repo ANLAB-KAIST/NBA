@@ -9,9 +9,9 @@
 #include <nba/engines/knapp/defs.hh>
 #include <nba/engines/knapp/hosttypes.hh>
 #include <nba/engines/knapp/sharedtypes.hh>
+#include <nba/knapp/engines/ctrl.pb.h>
 
-namespace nba {
-namespace knapp {
+namespace nba { namespace knapp {
 
 extern std::vector<uint16_t> remote_scif_nodes;
 extern uint16_t local_node;
@@ -36,12 +36,13 @@ constexpr uint16_t get_mic_ctrl_port(unsigned vdev_id)
     return KNAPP_MIC_CTRL_PORT_BASE + vdev_id;
 }
 
+void ctrl_invoke(scif_epd_t ep, const CtrlRequest &req, CtrlResponse &resp);
+
 void connect_with_retry(struct vdevice *vdev);
 
 int pollring_init(struct poll_ring *r, int32_t n, scif_epd_t epd, int node);
 
-} // endns(knapp)
-} // endns(nba)
+}} // endns(nba::knapp)
 
 
 extern "C" {

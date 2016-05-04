@@ -9,6 +9,8 @@
 #include <map>
 #include <string>
 #include <scif.h>
+#include <signal.h>
+#include <poll.h>
 
 namespace nba { namespace knapp {
 
@@ -44,90 +46,45 @@ int nba::knapp::get_least_utilized_ht(int pcore)
     return ret;
 }
 
-void nba::knapp::recv_ctrlmsg(
-        scif_epd_t epd, uint8_t *buf, ctrl_msg_t msg,
-        void *p1, void *p2, void *p3, void *p4)
+bool nba::knapp::recv_ctrlmsg(scif_epd_t epd, CtrlRequest &req, sigset_t *orig_sigmask)
 {
-    int size;
-    int32_t msg_recvd;
-    size = scif_recv(epd, buf, KNAPP_OFFLOAD_CTRLBUF_SIZE, SCIF_RECV_BLOCK);
-    assert ( size == KNAPP_OFFLOAD_CTRLBUF_SIZE );
-    msg_recvd = (ctrl_msg_t) *((int32_t *) buf);
-    if ( msg_recvd != msg ) {
-        fprintf(stderr, "Error - received ctrlmsg type (%d) does not match expected (%d)\n", msg_recvd, msg);
-    }
-    buf += sizeof(int32_t);
-    if ( msg == OP_SET_WORKLOAD_TYPE ) {
-        *((int32_t *) p1) = *((int32_t *) buf);
-        buf += sizeof(int32_t);
-        *((uint32_t *) p2) = *((uint32_t *) buf);
-    } else if ( msg == OP_MALLOC ) {
-        *((uint64_t *) p1) = *((uint64_t *) buf);
-        buf += sizeof(uint64_t);
-        *((uint64_t *) p2) = *((uint64_t *) buf);
-        buf += sizeof(uint64_t);
-        *((uint32_t *) p3) = *((uint32_t *) buf);
-        buf += sizeof(uint32_t);
-        *((off_t *) p4) = *((off_t *) buf);
-        // Expects uint64_t remote offset and pipeline depth in return
-    } else if ( msg == OP_REG_DATA ) {
-        *((off_t *) buf) = *((off_t *) p1);
-        // Expects ctrl_resp_t (rc) in return
-    } else if ( msg == OP_REG_POLLRING ) {
-        *((int32_t *) p1) = *((int32_t *) buf); // number of max poll ring elements
-        buf += sizeof(int32_t);
-        *((off_t *) p2) = *((off_t *) buf); // poll ring base offset
-        // Expects ctrl_resp_t and remote poll-ring offset (off_t) in return
-    } else if ( msg == OP_SEND_DATA ) {
-        *((uint64_t *) p1) = *((uint64_t *) buf); // data size
-        buf += sizeof(uint64_t);
-        *((off_t *) p2) = *((off_t *) buf); //
-        buf += sizeof(off_t);
-        *((int32_t *) p3) = *((int32_t *) buf); // poll-ring index to use
-        buf += sizeof(int32_t);
-        *((int32_t *) p4) = *((int32_t *) buf);
-    } else {
-        log_error("Invalid control message: %d!\n", msg);
-        exit(EXIT_FAILURE);
-        return;
-    }
+    int rc;
+    char buf[1024];
+    uint32_t msgsz = 0;
+    req.Clear();
+    struct pollfd p = {epd, POLLIN, 0};
+    rc = ppoll(&p, 1, nullptr, orig_sigmask);
+    if (rc == -1) // errno is set
+        return false;
+    rc = scif_recv(epd, &msgsz, sizeof(msgsz), SCIF_RECV_BLOCK);
+    if (rc == -1) // errno is set
+        return false;
+    assert(sizeof(msgsz) == rc);
+    assert(msgsz < 1024);
+    rc = scif_recv(epd, buf, msgsz, SCIF_RECV_BLOCK);
+    if (rc == -1) // errno is set
+        return false;
+    assert(msgsz == rc);
+    req.ParseFromArray(buf, msgsz);
+    return true;
 }
 
-void nba::knapp::send_ctrlresp(
-        scif_epd_t epd, uint8_t *buf, ctrl_msg_t msg_recvd,
-        void *p1, void *p2, void *p3, void *p4)
+bool nba::knapp::send_ctrlresp(scif_epd_t epd, const CtrlResponse &resp)
 {
-    uint8_t *buf_orig = buf;
-    ctrl_msg_t msg = msg_recvd;
-    int size;
-    *((int32_t *) buf) = RESP_SUCCESS;
-    buf += sizeof(int32_t);
-    if ( msg == OP_SET_WORKLOAD_TYPE ) {
-
-    } else if ( msg == OP_MALLOC ) {
-        *((off_t *) buf) = *((off_t *) p1);
-        // Expects uint64_t remote offset in return
-        //buf += sizeof(off_t);
-        //*((off_t *) buf) = *((off_t *) p2);
-    } else if ( msg == OP_REG_DATA ) {
-        // not used yet.
-        //*((off_t *) buf)  = *((off_t *) p1);
-        // Expects ctrl_resp_t (rc) in return
-    } else if ( msg == OP_REG_POLLRING ) {
-        *((off_t *) buf) = *((off_t *) p1); // mic's registered poll ring base offset
-    } else if ( msg == OP_SEND_DATA ) {
-
-    } else {
-        log_error("Invalid control message: %d!\n", msg);
-        exit(EXIT_FAILURE);
-        return;
-    }
-    size = scif_send(epd, buf_orig, KNAPP_OFFLOAD_CTRLBUF_SIZE, SCIF_SEND_BLOCK);
-    if ( size != KNAPP_OFFLOAD_CTRLBUF_SIZE ) {
-        log_error("Error while sending ctrl msg %d - error code %d\n", msg, size);
-        return;
-    }
-    //log_info("Sent %d bytes as ctrl resp (SUCCESS)\n", KNAPP_OFFLOAD_CTRLBUF_SIZE);
+    int rc;
+    char buf[1024];
+    uint32_t msgsz = resp.ByteSize();
+    assert(msgsz < 1024);
+    resp.SerializeToArray(buf, msgsz);
+    rc = scif_send(epd, &msgsz, sizeof(msgsz), SCIF_SEND_BLOCK);
+    if (rc == -1) // errno is set
+        return false;
+    assert(sizeof(msgsz) == rc);
+    rc = scif_send(epd, buf, msgsz, SCIF_SEND_BLOCK);
+    if (rc == -1) // errno is set
+        return false;
+    assert(msgsz == rc);
+    return true;
 }
 
 int nba::knapp::pollring_init(

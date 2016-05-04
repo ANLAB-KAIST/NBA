@@ -74,12 +74,13 @@ inline bool CtrlRequest_Type_Parse(
 enum CtrlResponse_Reply {
   CtrlResponse_Reply_SUCCESS = 0,
   CtrlResponse_Reply_FAILURE = 1,
+  CtrlResponse_Reply_INVALID = 2,
   CtrlResponse_Reply_CtrlResponse_Reply_INT_MIN_SENTINEL_DO_NOT_USE_ = ::google::protobuf::kint32min,
   CtrlResponse_Reply_CtrlResponse_Reply_INT_MAX_SENTINEL_DO_NOT_USE_ = ::google::protobuf::kint32max
 };
 bool CtrlResponse_Reply_IsValid(int value);
 const CtrlResponse_Reply CtrlResponse_Reply_Reply_MIN = CtrlResponse_Reply_SUCCESS;
-const CtrlResponse_Reply CtrlResponse_Reply_Reply_MAX = CtrlResponse_Reply_FAILURE;
+const CtrlResponse_Reply CtrlResponse_Reply_Reply_MAX = CtrlResponse_Reply_INVALID;
 const int CtrlResponse_Reply_Reply_ARRAYSIZE = CtrlResponse_Reply_Reply_MAX + 1;
 
 const ::google::protobuf::EnumDescriptor* CtrlResponse_Reply_descriptor();
@@ -831,6 +832,8 @@ class CtrlResponse : public ::google::protobuf::Message {
     CtrlResponse_Reply_SUCCESS;
   static const Reply FAILURE =
     CtrlResponse_Reply_FAILURE;
+  static const Reply INVALID =
+    CtrlResponse_Reply_INVALID;
   static inline bool Reply_IsValid(int value) {
     return CtrlResponse_Reply_IsValid(value);
   }

@@ -19,6 +19,25 @@ uint16_t nba::knapp::local_node;
 static int _global_pollring_counter = 0;
 
 
+void nba::knapp::ctrl_invoke(scif_epd_t ep, const CtrlRequest &req, CtrlResponse &resp)
+{
+    char buf[1024];
+    uint32_t msgsz = req.ByteSize();
+    assert(msgsz < 1024);
+    req.SerializeToArray(buf, msgsz);
+    rc = scif_send(ep, &msgsz, sizeof(msgsz), SCIF_SEND_BLOCK);
+    assert(sizeof(msgsz) == rc);
+    rc = scif_send(ep, buf, msgsz, SCIF_SEND_BLOCK);
+    assert(msgsz == rc);
+    resp.Clear();
+    rc = scif_recv(ep, &msgsz, sizeof(msgsz), SCIF_RECV_BLOCK);
+    assert(sizeof(msgsz) == rc);
+    assert(msgsz < 1024);
+    rc = scif_recv(ep, buf, msgsz, SCIF_RECV_BLOCK);
+    assert(msgsz == rc);
+    resp.ParseFromArray(buf, msgsz);
+}
+
 void nba::knapp::connect_with_retry(struct vdevice *vdev)
 {
     int rc = 0;

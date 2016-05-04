@@ -33,7 +33,7 @@ cpu_set_t **cpuset_per_lcore;
 pthread_attr_t *attr_per_lcore;
 int core_util[KNAPP_NUM_CORES][KNAPP_MAX_THREADS_PER_CORE];
 static pthread_t control_thread;
-static volatile bool exit_flag;
+static volatile bool exit_flag = false;
 
 /* MIC daemon consists of 3 types of threads:
  * (1) control_thread_loop: global state mgmt (e.g., "cudaMalloc", "cudaMmecpy")
@@ -96,11 +96,6 @@ static void *nba::knapp::master_thread_loop(void *arg) {
                vdev->local_ctrl_port.node, vdev->local_ctrl_port.port,
                vdev->remote_ctrl_port.node, vdev->remote_ctrl_port.port);
 
-    // REWRITE: Receive and set vdev workload type
-    //recv_ctrlmsg(vdev->ctrl_epd, vdev->ctrlbuf, OP_SET_WORKLOAD_TYPE, &vdev->workload_type, &vdev->offload_batch_size, NULL, NULL);
-    //log_device(vdev->device_id, "Workload type set to %s, offload batch size set to %u\n", proto_to_appstring[(knapp_proto_t) vdev->workload_type].c_str(), vdev->offload_batch_size);
-    //send_ctrlresp(vdev->ctrl_epd, vdev->ctrlbuf, OP_SET_WORKLOAD_TYPE, NULL, NULL, NULL, NULL);
-
     // REWRITE: Receive malloc size, allocate, and return remote window
     //recv_ctrlmsg(vdev->ctrl_epd, vdev->ctrlbuf, OP_MALLOC, &vdev->inputbuf_size, &vdev->resultbuf_size, &vdev->pipeline_depth, &vdev->remote_writebuf_base_ra);
     //log_device(vdev->device_id, "writebuf_base: %ld\n", vdev->remote_writebuf_base_ra);
@@ -119,7 +114,7 @@ static void *nba::knapp::master_thread_loop(void *arg) {
     // Receive base RA offset for remote poll ring, and return ras poll ring
 
     int32_t pollring_len;
-    recv_ctrlmsg(vdev->ctrl_epd, vdev->ctrlbuf, OP_REG_POLLRING, &pollring_len, &vdev->remote_poll_ring_window, NULL, NULL);
+    //recv_ctrlmsg(vdev->ctrl_epd, vdev->ctrlbuf, OP_REG_POLLRING, &pollring_len, &vdev->remote_poll_ring_window, NULL, NULL);
 
     assert ( 0 == pollring_init(&vdev->poll_ring, pollring_len, vdev->data_epd) );
     uint64_t volatile *pollring = vdev->poll_ring.ring;
@@ -130,7 +125,7 @@ static void *nba::knapp::master_thread_loop(void *arg) {
 
     log_device(vdev->device_id, "Allocating local poll ring of length %u. (Page-aligned to %d bytes) Remote poll ring window at %lld\n", vdev->poll_ring.len, vdev->poll_ring.alloc_bytes, vdev->remote_poll_ring_window);
     log_device(vdev->device_id, "Local poll ring registered at RA %lld\n", vdev->poll_ring.ring_ra);
-    send_ctrlresp(vdev->ctrl_epd, vdev->ctrlbuf, OP_REG_POLLRING, &vdev->poll_ring.ring_ra, NULL, NULL, NULL);
+    //send_ctrlresp(vdev->ctrl_epd, vdev->ctrlbuf, OP_REG_POLLRING, &vdev->poll_ring.ring_ra, NULL, NULL, NULL);
     vdev->worker_threads = (pthread_t *) _mm_malloc(sizeof(pthread_t) * vdev->num_worker_threads, CACHE_LINE_SIZE);
     assert ( vdev->worker_threads != NULL );
 	vdev->thread_info_array = (struct worker_thread_info *) _mm_malloc(sizeof(struct worker_thread_info) * vdev->num_worker_threads, CACHE_LINE_SIZE);
@@ -240,56 +235,43 @@ static void *nba::knapp::control_thread_loop(void *arg)
     rc = scif_listen(master_listen_epd, backlog);
     assert(0 == rc);
 
-    log_info("Listening on the control channel...\n");
-    struct pollfd p = {master_listen_epd, POLLIN, 0};
-    rc = ppoll(&p, 1, nullptr, &orig_mask);
-    if (rc == -1 && errno == EINTR && exit_flag)
-        goto terminate;
-    rc = scif_accept(master_listen_epd, &accepted_master_port,
-                     &master_epd, SCIF_ACCEPT_SYNC);
-    assert(0 == rc);
-    exit_flag = false;
-
-    // TODO: implement a control protocol loop.
+    log_info("Starting the control channel...\n");
+    /* For simplicty, we allow only a single concurrent connection. */
     while (!exit_flag) {
-        uint32_t msgsz;
-        char buf[1024];
-
-        struct pollfd p = {master_epd, POLLIN, 0};
+        struct pollfd p = {master_listen_epd, POLLIN, 0};
         rc = ppoll(&p, 1, nullptr, &orig_mask);
         if (rc == -1 && errno == EINTR && exit_flag)
             break;
-        rc = scif_recv(master_epd, &msgsz, sizeof(msgsz), SCIF_RECV_BLOCK);
-        if (rc == -1 && errno == ECONNRESET)
-            break;
-        assert(rc == sizeof(msgsz));
-        assert(msgsz < 1024);
-        rc = scif_recv(master_epd, &buf, msgsz, SCIF_RECV_BLOCK);
-        assert(rc == msgsz);
+        rc = scif_accept(master_listen_epd, &accepted_master_port,
+                         &master_epd, SCIF_ACCEPT_SYNC);
+        assert(0 == rc);
 
-        CtrlRequest request;
-        CtrlResponse resp;
-        request.ParseFromArray((void *) buf, msgsz);
-
-        switch (request.type()) {
-        case CtrlRequest::PING:
-            resp.set_reply(CtrlResponse::SUCCESS);
-            const std::string &msg = request.text().msg();
-            log_info("PING request with \"%s\"\n", msg.c_str());
-            resp.mutable_text()->set_msg(msg);
-            break;
-        default:
-            log_error("Not implemented request type: %d\n", request.type());
+        log_info("A control session started.\n");
+        while (!exit_flag) {
+            CtrlRequest request;
+            CtrlResponse resp;
+            if (!recv_ctrlmsg(master_epd, request))
+                // usually, EINTR or ECONNRESET.
+                break;
+            switch (request.type()) {
+            case CtrlRequest::PING:
+                resp.set_reply(CtrlResponse::SUCCESS);
+                const std::string &msg = request.text().msg();
+                log_info("CONTROL: PING with \"%s\"\n", msg.c_str());
+                resp.mutable_text()->set_msg(msg);
+                send_ctrlresp(master_epd, resp);
+                break;
+            default:
+                log_error("CONTROL: Not implemented request type: %d\n", request.type());
+                resp.set_reply(CtrlResponse::INVALID);
+                resp.mutable_text()->set_msg("Invalid request type.");
+                break;
+            }
         }
-
-        msgsz = resp.ByteSize();
-        resp.SerializeToArray(buf, msgsz);
-        scif_send(master_epd, &msgsz, sizeof(msgsz), SCIF_SEND_BLOCK);
-        scif_send(master_epd, buf, msgsz, SCIF_SEND_BLOCK);
+        scif_close(master_epd);
+        log_info("The control session terminated.\n");
     }
-terminate:
     log_info("Terminating the control channel...\n");
-    scif_close(master_epd);
     scif_close(master_listen_epd);
 
     return nullptr;
@@ -338,6 +320,7 @@ int main (int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 #endif
+    exit_flag = false;
     pthread_attr_t attr;
     {
         pthread_attr_init(&attr);
@@ -354,32 +337,6 @@ int main (int argc, char *argv[])
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
     pthread_join(control_thread, nullptr);
-    //for (int lcore = 0; lcore < num_lcores; lcore++) {
-    //    int rc;
-    //    cpuset_per_lcore[lcore] = CPU_ALLOC(num_lcores);
-    //    if (cpuset_per_lcore[lcore] == NULL) {
-    //        perror("CPU_ALLOC");
-    //        exit(EXIT_FAILURE);
-    //    }
-    //    CPU_ZERO_S(cpu_setsize, cpuset_per_lcore[lcore]);
-    //    CPU_SET_S(lcore, cpu_setsize, cpuset_per_lcore[lcore]); // ROTATE BY 1 (Knights Corner specific)
-    //    pthread_attr_init(&attr_per_lcore[lcore]);
-    //    assert(0 == pthread_attr_setdetachstate(&attr_per_lcore[lcore], PTHREAD_CREATE_JOINABLE));
-    //    assert(0 == pthread_attr_setaffinity_np(&attr_per_lcore[lcore], cpu_setsize, cpuset_per_lcore[lcore]));
-    //}
-    //memset(core_util, 0, sizeof(core_util));
-    //for ( unsigned ivdev = 0; ivdev < vdevs.size(); ivdev++ ) {
-    //    struct vdevice *vdev = vdevs[ivdev];
-    //    int pcore_to_pin = vdev->cores[0];
-    //    int ht_to_pin = get_least_utilized_ht(pcore_to_pin);
-    //    int lcore = mic_pcore_to_lcore(pcore_to_pin, ht_to_pin);
-    //    vdev->master_cpu = lcore;
-    //    assert ( 0 == pthread_create(&vdev->master_thread, &attr_per_lcore[lcore], master_thread_loop, (void *) vdev) );
-    //    core_util[pcore_to_pin][ht_to_pin]++;
-    //}
-    //for ( unsigned i = 0; i < vdevs.size(); i++ ) {
-    //    pthread_join(vdevs[i]->master_thread, NULL);
-    //}
     return 0;
 }
 

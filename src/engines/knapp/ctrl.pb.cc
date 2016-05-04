@@ -278,14 +278,14 @@ void protobuf_AddDesc_ctrl_2eproto() {
     "\002 \001(\r\032\037\n\rResourceParam\022\016\n\006handle\030\001 \001(\004\"I"
     "\n\004Type\022\010\n\004PING\020\000\022\n\n\006MALLOC\020\001\022\010\n\004FREE\020\002\022\017"
     "\n\013CREATE_VDEV\020\003\022\020\n\014DESTROY_VDEV\020\004B\010\n\006par"
-    "ams\"\234\002\n\014CtrlResponse\022,\n\005reply\030\001 \001(\0162\035.nb"
+    "ams\"\251\002\n\014CtrlResponse\022,\n\005reply\030\001 \001(\0162\035.nb"
     "a.knapp.CtrlResponse.Reply\0224\n\004text\030\002 \001(\013"
     "2$.nba.knapp.CtrlResponse.TextResponseH\000"
     "\022<\n\010resource\030\003 \001(\0132(.nba.knapp.CtrlRespo"
     "nse.ResourceResponseH\000\032\033\n\014TextResponse\022\013"
     "\n\003msg\030\001 \001(\t\032\"\n\020ResourceResponse\022\016\n\006handl"
-    "e\030\001 \001(\004\"!\n\005Reply\022\013\n\007SUCCESS\020\000\022\013\n\007FAILURE"
-    "\020\001B\006\n\004datab\006proto3", 858);
+    "e\030\001 \001(\004\".\n\005Reply\022\013\n\007SUCCESS\020\000\022\013\n\007FAILURE"
+    "\020\001\022\013\n\007INVALID\020\002B\006\n\004datab\006proto3", 871);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "ctrl.proto", &protobuf_RegisterTypes);
   CtrlRequest::default_instance_ = new CtrlRequest();
@@ -2126,6 +2126,7 @@ bool CtrlResponse_Reply_IsValid(int value) {
   switch(value) {
     case 0:
     case 1:
+    case 2:
       return true;
     default:
       return false;
@@ -2135,6 +2136,7 @@ bool CtrlResponse_Reply_IsValid(int value) {
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 const CtrlResponse_Reply CtrlResponse::SUCCESS;
 const CtrlResponse_Reply CtrlResponse::FAILURE;
+const CtrlResponse_Reply CtrlResponse::INVALID;
 const CtrlResponse_Reply CtrlResponse::Reply_MIN;
 const CtrlResponse_Reply CtrlResponse::Reply_MAX;
 const int CtrlResponse::Reply_ARRAYSIZE;
