@@ -211,6 +211,8 @@ int CUDAComputeContext::enqueue_kernel_launch(dev_kernel_t kernel, struct resour
     if (unlikely(res->num_workgroups == 0))
         res->num_workgroups = 1;
 
+    num_workgroups = res->num_workgroups;
+
     void *raw_args[num_kernel_args];
     for (unsigned i = 0; i < num_kernel_args; i++) {
         raw_args[i] = kernel_args[i].ptr;
@@ -241,7 +243,7 @@ bool CUDAComputeContext::poll_kernel_finished()
     if (checkbits_h == nullptr) {
         return true;
     }
-    for (unsigned i = 0; i < res.num_workgroups; i++) {
+    for (unsigned i = 0; i < num_workgroups; i++) {
         if (checkbits_h[i] == 0) {
             return false;
         }

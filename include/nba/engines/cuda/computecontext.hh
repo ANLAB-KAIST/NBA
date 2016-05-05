@@ -68,6 +68,7 @@ private:
 
     uint8_t *checkbits_d;
     uint8_t *checkbits_h;
+    uint32_t num_workgroups;
     cudaStream_t _stream;
     CUDAMemoryPool *_cuda_mempool_in[NBA_MAX_IO_BASES];
     CUDAMemoryPool *_cuda_mempool_out[NBA_MAX_IO_BASES];
