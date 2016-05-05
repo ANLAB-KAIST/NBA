@@ -16,8 +16,6 @@ using namespace nba::knapp;
 std::vector<uint16_t> nba::knapp::remote_scif_nodes;
 uint16_t nba::knapp::local_node;
 
-static int _global_pollring_counter = 0;
-
 
 void nba::knapp::ctrl_invoke(scif_epd_t ep, const CtrlRequest &req, CtrlResponse &resp)
 {
@@ -79,37 +77,5 @@ void nba::knapp::connect_with_retry(struct vdevice *vdev)
     }
 }
 
-int nba::knapp::pollring_init(
-        struct poll_ring *r, int32_t n, scif_epd_t epd, int node)
-{
-    int rc;
-    assert(n > 0);
-    r->len = n;
-    r->alloc_bytes = ALIGN_CEIL(n * sizeof(uint64_t), PAGE_SIZE);
-    r->ring =
-        (uint64_t volatile *) rte_malloc_socket("poll_ring",
-                                                r->alloc_bytes,
-                                                PAGE_SIZE, node);
-    if (r->ring == nullptr) {
-        return -1;
-    }
-    char ringname[32];
-    uintptr_t local_ring[n];
-    snprintf(ringname, 32, "poll-id-pool-%d", _global_pollring_counter++);
-    r->id_pool = rte_ring_create(ringname, n + 1, node, 0);
-    assert(r->id_pool != nullptr);
-    for (int i = 0; i < n; i++) {
-        local_ring[i] = i;
-    }
-    rc = rte_ring_enqueue_bulk(r->id_pool, (void **)local_ring, n);
-    assert(0 == rc);
-    memset((void *) r->ring, 0, r->alloc_bytes);
-    r->ring_ra = scif_register(epd, (void *) r->ring,
-                               r->alloc_bytes, 0, SCIF_PROT_WRITE, 0);
-    if (r->ring_ra < 0) {
-        return -1;
-    }
-    return 0;
-}
 
 // vim: ts=8 sts=4 sw=4 et

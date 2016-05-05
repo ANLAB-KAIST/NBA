@@ -14,14 +14,6 @@
 
 namespace nba { namespace knapp {
 
-static inline void insert_pause() {
-#ifdef __MIC__
-    _mm_delay_32(10);
-#else
-    __asm volatile ("pause" ::: "memory");
-#endif
-}
-
 #ifdef _USE_ATOMIC_BARRIER_
 class Barrier
 {
@@ -44,7 +36,7 @@ public:
             num_used(0), ts(0), stat_interval(_stat_interval),
             device_id(_device_id), entry_count(0)
     { }
-    
+
     virtual ~Barrier()
     { }
 

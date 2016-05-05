@@ -20,6 +20,7 @@ namespace nba { namespace knapp {
 
 /* Forward decls. */
 struct worker;
+class PollRing;
 
 /* Callback defs. */
 typedef void (*worker_func_t)(struct worker *work);
@@ -47,7 +48,8 @@ struct vdevice {
     struct scif_portID local_ctrl_port;
     struct scif_portID remote_data_port;
     struct scif_portID remote_ctrl_port;
-    struct poll_ring poll_ring;
+    //struct poll_ring poll_ring;
+    PollRing *poll_ring;
 
     off_t remote_writebuf_base_ra;
     off_t remote_poll_ring_window;
@@ -61,11 +63,11 @@ struct vdevice {
     pthread_t *worker_threads;
 
     struct worker_thread_info *thread_info_array;
-    int master_cpu;
-    int num_worker_threads;
-    int next_task_id;
-    int cur_task_id;
-    int num_packets_in_cur_task;
+    unsigned master_core; //former masteR_cpu
+    unsigned num_worker_threads;
+    unsigned next_task_id;
+    unsigned cur_task_id;
+    //unsigned num_packets_in_cur_task;
 
     struct bufarray inputbuf_array;
     struct bufarray resultbuf_array;
@@ -100,8 +102,8 @@ struct worker {
     Barrier *data_ready_barrier;
     Barrier *task_done_barrier;
 
-    uint32_t max_num_packets;
-    volatile int num_packets;
+    uint32_t max_num_items;
+    volatile int num_items;
     std::atomic<bool> exit;
     union u_worker u;
 } __cache_aligned;
@@ -109,7 +111,6 @@ struct worker {
 struct worker_thread_info {
      int thread_id;
      struct vdevice *vdev;
-     worker_func_t pktproc_func;
 } __cache_aligned;
 
 }} // endns(nba::knapp)

@@ -29,7 +29,7 @@ typedef enum : uint8_t {
 struct taskitem {
     int32_t task_id;      // doubles as poll/buffer index
     uint64_t input_size;
-    int32_t num_packets;
+    uint32_t num_items;
 } __cache_aligned;
 
 struct bufarray {
@@ -42,7 +42,7 @@ struct bufarray {
     bool initialized;
 } __cache_aligned;
 
-struct poll_ring {
+struct poll_ring { //TODO: replace with PollRing
     uint64_t volatile *ring;
     int32_t alloc_bytes;
     off_t ring_ra;

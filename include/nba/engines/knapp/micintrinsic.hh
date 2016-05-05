@@ -33,6 +33,14 @@
 
 namespace nba { namespace knapp {
 
+static inline void insert_pause() {
+#ifdef __MIC__
+    _mm_delay_32(10);
+#else
+    __asm volatile ("pause" ::: "memory");
+#endif
+}
+
 }} // endns(nba::knapp)
 
 #endif //__NBA_KNAPP_MICINTRINSIC_HH__

@@ -22,6 +22,8 @@
     new (ptr) cls(__VA_ARGS__); \
 }
 
+#define compiler_fence() __asm__ __volatile__ ("" : : : "memory")
+
 namespace nba {
 
 template<typename T>
@@ -93,6 +95,10 @@ static inline uint64_t rdtscp(void)
 }
 
 #define memzero(ptr, n) memset((ptr), 0, sizeof(decltype((ptr)[0])) * (n))
+
+static inline void insert_pause() {
+    __asm volatile ("pause" ::: "memory");
+}
 
 }
 

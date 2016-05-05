@@ -60,23 +60,4 @@ bool nba::knapp::send_ctrlresp(scif_epd_t epd, const CtrlResponse &resp)
     return true;
 }
 
-int nba::knapp::pollring_init(
-    struct poll_ring *r, int32_t n, scif_epd_t epd)
-{
-    assert(n > 0);
-    r->len = n;
-    r->alloc_bytes = ALIGN_CEIL(n * sizeof(uint64_t), PAGE_SIZE);
-    r->ring = (uint64_t volatile *) _mm_malloc(r->alloc_bytes, PAGE_SIZE);
-    if (r->ring == nullptr) {
-        return -1;
-    }
-    memset((void *) r->ring, 0, r->alloc_bytes);
-    r->ring_ra = scif_register(epd, (void *) r->ring,
-                               r->alloc_bytes, 0, SCIF_PROT_WRITE, 0);
-    if (r->ring_ra < 0) {
-        return -1;
-    }
-    return 0;
-}
-
 // vim: ts=8 sts=4 sw=4 et
