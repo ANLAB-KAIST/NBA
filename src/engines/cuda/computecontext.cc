@@ -195,7 +195,7 @@ void CUDAComputeContext::push_kernel_arg(struct kernel_arg &arg)
     kernel_args[num_kernel_args ++] = arg;  /* Copied to the array. */
 }
 
-int CUDAComputeContext::push_common_kernel_args()
+void CUDAComputeContext::push_common_kernel_args()
 {
     struct kernel_arg arg = {(void *) &checkbits_d, sizeof(void *), alignof(void *)};
     this->push_kernel_arg(arg);

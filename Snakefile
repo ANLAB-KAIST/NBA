@@ -49,7 +49,7 @@ USE_OPENSSL_EVP = bool(int(os.getenv('NBA_USE_OPENSSL_EVP', 1)))
 
 NO_HUGEPAGES = bool(int(os.getenv('NBA_NO_HUGE', 0)))
 # Values for batching scheme - 0: traditional, 1: continuous, 2: bitvector, 3: linkedlist
-BATCHING_SCHEME   = int(os.getenv('NBA_BATCHING_SCHEME', 0))
+BATCHING_SCHEME   = int(os.getenv('NBA_BATCHING_SCHEME', 2))
 # Values for branchpred scheme - 0: disabled, 1: enabled, 2: always
 BRANCHPRED_SCHEME = int(os.getenv('NBA_BRANCHPRED_SCHEME', 0))
 # Values for reuse datablocks - 0: disabled, 1: enabled
