@@ -87,13 +87,6 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
         //_cpu_mempool_out[i]->init_with_flags(nullptr, cudaHostAllocPortable);
     }
 
-    // TODO: replace wtih scif_register() & scif_mmap()
-    //cutilSafeCall(cudaHostAlloc((void **) &checkbits_h, MAX_BLOCKS, cudaHostAllocMapped));
-    //cutilSafeCall(cudaHostGetDevicePointer((void **) &checkbits_d, checkbits_h, 0));
-    assert(checkbits_h != NULL);
-    assert(checkbits_d != NULL);
-    memset(checkbits_h, 0, MAX_BLOCKS);
-
     /* Connect to the MIC-side daemon. */
     knapp::connect_with_retry(&vdev);
 }
@@ -118,7 +111,6 @@ KnappComputeContext::~KnappComputeContext()
     scif_close(vdev.ctrl_epd);
     rte_free(vdev.ctrlbuf);
     rte_free(vdev.tasks_in_flight);
-    //cutilSafeCall(cudaFreeHost(checkbits_h));
 }
 
 io_base_t KnappComputeContext::alloc_io_base()
@@ -205,8 +197,7 @@ int KnappComputeContext::enqueue_memwrite_op(const host_mem_t host_buf,
                                             const dev_mem_t dev_buf,
                                             size_t offset, size_t size)
 {
-    //cutilSafeCall(cudaMemcpyAsync(dev_buf.ptr, host_buf.ptr, size,
-    //                              cudaMemcpyHostToDevice, _stream));
+    /* TODO: scif_writeto() to the vDevice's input RMA. */
     return 0;
 }
 
@@ -214,8 +205,7 @@ int KnappComputeContext::enqueue_memread_op(const host_mem_t host_buf,
                                            const dev_mem_t dev_buf,
                                            size_t offset, size_t size)
 {
-    //cutilSafeCall(cudaMemcpyAsync(host_buf.ptr, dev_buf.ptr, size,
-    //                              cudaMemcpyDeviceToHost, _stream));
+    /* TODO: scif_send() the params to the vDevice's master. */
     return 0;
 }
 
@@ -230,13 +220,13 @@ void KnappComputeContext::push_kernel_arg(struct kernel_arg &arg)
     kernel_args[num_kernel_args ++] = arg;  /* Copied to the array. */
 }
 
+void KnappComputeContext::push_common_kernel_args()
+{
+    // TODO: implement?
+}
+
 int KnappComputeContext::enqueue_kernel_launch(dev_kernel_t kernel, struct resource_param *res)
 {
-    assert(checkbits_d != nullptr);
-    // TODO: considerations for cudaFuncSetCacheConfig() and
-    //       cudaSetDoubleFor*()?
-    //cudaFuncAttributes attr;
-    //cudaFuncGetAttributes(&attr, kernel.ptr);
     if (unlikely(res->num_workgroups == 0))
         res->num_workgroups = 1;
     void *raw_args[num_kernel_args];
@@ -247,26 +237,32 @@ int KnappComputeContext::enqueue_kernel_launch(dev_kernel_t kernel, struct resou
     //cutilSafeCall(cudaLaunchKernel(kernel.ptr, dim3(res->num_workgroups),
     //                               dim3(res->num_threads_per_workgroup),
     //                               (void **) &raw_args[0], 1024, _stream));
+    // TODO: scif_fence_signal() to the vDevice's input pollring.
     return 0;
+}
+
+bool KnappComputeContext::poll_input_finished()
+{
+    /* Proceed to kernel launch without waiting. */
+    return true;
+}
+
+bool KnappComputeContext::poll_kernel_finished()
+{
+    /* Proceed to D2H copy initiation without waiting. */
+    return true;
+}
+
+bool KnappComputeContext::poll_output_finished()
+{
+    // TODO: compiler_fence() + check vDevice's output pollring.
 }
 
 int KnappComputeContext::enqueue_event_callback(
         void (*func_ptr)(ComputeContext *ctx, void *user_arg),
         void *user_arg)
 {
-    //auto cb = [](cudaStream_t stream, cudaError_t status, void *user_data)
-    {
-        //assert(status == cudaSuccess);
-        //struct cuda_event_context *cectx = (struct cuda_event_context *) user_data;
-        //cectx->callback(cectx->computectx, cectx->user_arg);
-        //delete cectx;
-    };
-    // TODO: how to avoid using new/delete?
-    //struct cuda_event_context *cectx = new struct cuda_event_context;
-    //cectx->computectx = this;
-    //cectx->callback = func_ptr;
-    //cectx->user_arg = user_arg;
-    //cutilSafeCall(cudaStreamAddCallback(_stream, cb, cectx, 0));
+    /* Not implemented. */
     return 0;
 }
 

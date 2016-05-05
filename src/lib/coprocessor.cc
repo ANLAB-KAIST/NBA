@@ -90,6 +90,10 @@ static void coproc_task_d2h_cb(struct ev_loop *loop, struct ev_async *watcher, i
     #ifdef USE_NVPROF
     nvtxRangePush("task_d2h_cb");
     #endif
+    // FIXME: add poll_h2d_copy_finished() to OffloadTask which calls
+    //        cctx->poll_input_finished().
+    //        We currently skip this as all compute devices we support
+    //        can pipeline d2h-copy and kernel execution.
     if (ctx->d2h_pending_queue->size() > 0) {
         OffloadTask *task = ctx->d2h_pending_queue->front();
         ctx->d2h_pending_queue->pop_front();

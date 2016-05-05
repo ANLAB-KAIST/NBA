@@ -43,6 +43,7 @@ public:
 
     void clear_kernel_args();
     void push_kernel_arg(struct kernel_arg &arg);
+    void push_common_kernel_args();
 
     int enqueue_memwrite_op(const host_mem_t host_buf, const dev_mem_t dev_buf,
                             size_t offset, size_t size);
@@ -52,36 +53,13 @@ public:
     int enqueue_event_callback(void (*func_ptr)(ComputeContext *ctx, void *user_arg),
                                void *user_arg);
 
+    bool poll_input_finished();
+    bool poll_kernel_finished();
+    bool poll_output_finished();
+
     void sync()
     {
         cutilSafeCall(cudaStreamSynchronize(_stream));
-    }
-
-    bool query()
-    {
-        cudaError_t ret = cudaStreamQuery(_stream);
-        if (ret == cudaErrorNotReady)
-            return false;
-        // ignore non-cudaSuccess results...
-        // (may happend on termination)
-        return true;
-    }
-
-    uint8_t *get_device_checkbits()
-    {
-        return checkbits_d;
-    }
-
-    uint8_t *get_host_checkbits()
-    {
-        return checkbits_h;
-    }
-
-    void clear_checkbits(unsigned num_workgroups = 0)
-    {
-        unsigned n = (num_workgroups == 0) ? MAX_BLOCKS : num_workgroups;
-        for (unsigned i = 0; i < num_workgroups; i++)
-            checkbits_h[i] = 0;
     }
 
     static const int MAX_BLOCKS = 16384;

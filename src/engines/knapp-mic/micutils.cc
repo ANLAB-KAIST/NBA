@@ -14,37 +14,10 @@
 
 namespace nba { namespace knapp {
 
-static std::map<nba::knapp::ctrl_msg_t, std::string>
-ctrltype_to_ctrlstring = {
-    { OP_SET_WORKLOAD_TYPE, "OP_SET_WORKLOAD_TYPE" },
-    { OP_MALLOC, "OP_MALLOC" },
-    { OP_REG_DATA, "OP_REG_DATA" },
-    { OP_REG_POLLRING, "OP_REG_POLLRING" },
-    { OP_SEND_DATA, "OP_SEND_DATA" }
-};
-
 }} // endns(nba::knapp);
 
 using namespace nba::knapp;
 
-extern int core_util[][KNAPP_MAX_THREADS_PER_CORE];
-
-int nba::knapp::get_least_utilized_ht(int pcore)
-{
-    int min_util = 0x7fffffff;
-    int ret = 0;
-    assert ( pcore >= 0 && pcore < KNAPP_NUM_CORES );
-    for ( int i = 0; i < KNAPP_MAX_THREADS_PER_CORE; i++ ) {
-        if ( core_util[pcore][i] == 0 ) {
-            return i;
-        }
-        if ( core_util[pcore][i] < min_util ) {
-            min_util = core_util[pcore][i];
-            ret = i;
-        }
-    }
-    return ret;
-}
 
 bool nba::knapp::recv_ctrlmsg(scif_epd_t epd, CtrlRequest &req, sigset_t *orig_sigmask)
 {

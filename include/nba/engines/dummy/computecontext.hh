@@ -37,6 +37,7 @@ public:
 
     void clear_kernel_args() { }
     void push_kernel_arg(struct kernel_arg &arg) { }
+    void push_common_kernel_args() { }
 
     int enqueue_memwrite_op(const host_mem_t host_buf, const dev_mem_t dev_buf,
                             size_t offset, size_t size);
@@ -46,30 +47,11 @@ public:
     int enqueue_event_callback(void (*func_ptr)(ComputeContext *ctx, void *user_arg),
                                void *user_arg);
 
-    void sync()
-    {
-        return;
-    }
+    void sync() { return; }
+    bool poll_input_finished() { return true; }
+    bool poll_kernel_finished() { return true; }
+    bool poll_output_finished() { return true; }
 
-    bool query()
-    {
-        return true;
-    }
-
-    uint8_t *get_device_checkbits()
-    {
-        return nullptr;
-    }
-
-    uint8_t *get_host_checkbits()
-    {
-        return nullptr;
-    }
-
-    void clear_checkbits(unsigned num_workgroups)
-    {
-        return;
-    }
 
 private:
     DummyCPUMemoryPool *_dev_mempool_in[NBA_MAX_IO_BASES];

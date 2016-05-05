@@ -122,9 +122,10 @@ void protobuf_AssignDesc_ctrl_2eproto() {
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_MallocParam, _internal_metadata_),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_MallocParam, _is_default_instance_));
   CtrlRequest_vDeviceInfoParam_descriptor_ = CtrlRequest_descriptor_->nested_type(2);
-  static const int CtrlRequest_vDeviceInfoParam_offsets_[2] = {
+  static const int CtrlRequest_vDeviceInfoParam_offsets_[3] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_vDeviceInfoParam, num_pcores_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_vDeviceInfoParam, num_lcores_per_pcore_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_vDeviceInfoParam, pipeline_depth_),
   };
   CtrlRequest_vDeviceInfoParam_reflection_ =
     ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
@@ -264,28 +265,29 @@ void protobuf_AddDesc_ctrl_2eproto() {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-    "\n\nctrl.proto\022\tnba.knapp\"\231\004\n\013CtrlRequest\022"
+    "\n\nctrl.proto\022\tnba.knapp\"\261\004\n\013CtrlRequest\022"
     ")\n\004type\030\001 \001(\0162\033.nba.knapp.CtrlRequest.Ty"
     "pe\0220\n\004text\030\002 \001(\0132 .nba.knapp.CtrlRequest"
     ".TextParamH\000\0224\n\006malloc\030\003 \001(\0132\".nba.knapp"
-    ".CtrlRequest.MallocParamH\000\022;\n\010vdevInfo\030\004"
+    ".CtrlRequest.MallocParamH\000\022;\n\010vDevInfo\030\004"
     " \001(\0132\'.nba.knapp.CtrlRequest.vDeviceInfo"
     "ParamH\000\0228\n\010resource\030\005 \001(\0132$.nba.knapp.Ct"
     "rlRequest.ResourceParamH\000\032\030\n\tTextParam\022\013"
     "\n\003msg\030\001 \001(\t\032*\n\013MallocParam\022\014\n\004size\030\001 \001(\004"
-    "\022\r\n\005align\030\002 \001(\004\032D\n\020vDeviceInfoParam\022\022\n\nn"
+    "\022\r\n\005align\030\002 \001(\004\032\\\n\020vDeviceInfoParam\022\022\n\nn"
     "um_pcores\030\001 \001(\r\022\034\n\024num_lcores_per_pcore\030"
-    "\002 \001(\r\032\037\n\rResourceParam\022\016\n\006handle\030\001 \001(\004\"I"
-    "\n\004Type\022\010\n\004PING\020\000\022\n\n\006MALLOC\020\001\022\010\n\004FREE\020\002\022\017"
-    "\n\013CREATE_VDEV\020\003\022\020\n\014DESTROY_VDEV\020\004B\010\n\006par"
-    "ams\"\251\002\n\014CtrlResponse\022,\n\005reply\030\001 \001(\0162\035.nb"
-    "a.knapp.CtrlResponse.Reply\0224\n\004text\030\002 \001(\013"
-    "2$.nba.knapp.CtrlResponse.TextResponseH\000"
-    "\022<\n\010resource\030\003 \001(\0132(.nba.knapp.CtrlRespo"
-    "nse.ResourceResponseH\000\032\033\n\014TextResponse\022\013"
-    "\n\003msg\030\001 \001(\t\032\"\n\020ResourceResponse\022\016\n\006handl"
-    "e\030\001 \001(\004\".\n\005Reply\022\013\n\007SUCCESS\020\000\022\013\n\007FAILURE"
-    "\020\001\022\013\n\007INVALID\020\002B\006\n\004datab\006proto3", 871);
+    "\002 \001(\r\022\026\n\016pipeline_depth\030\003 \001(\r\032\037\n\rResourc"
+    "eParam\022\016\n\006handle\030\001 \001(\004\"I\n\004Type\022\010\n\004PING\020\000"
+    "\022\n\n\006MALLOC\020\001\022\010\n\004FREE\020\002\022\017\n\013CREATE_VDEV\020\003\022"
+    "\020\n\014DESTROY_VDEV\020\004B\010\n\006params\"\251\002\n\014CtrlResp"
+    "onse\022,\n\005reply\030\001 \001(\0162\035.nba.knapp.CtrlResp"
+    "onse.Reply\0224\n\004text\030\002 \001(\0132$.nba.knapp.Ctr"
+    "lResponse.TextResponseH\000\022<\n\010resource\030\003 \001"
+    "(\0132(.nba.knapp.CtrlResponse.ResourceResp"
+    "onseH\000\032\033\n\014TextResponse\022\013\n\003msg\030\001 \001(\t\032\"\n\020R"
+    "esourceResponse\022\016\n\006handle\030\001 \001(\004\".\n\005Reply"
+    "\022\013\n\007SUCCESS\020\000\022\013\n\007FAILURE\020\001\022\013\n\007INVALID\020\002B"
+    "\006\n\004datab\006proto3", 895);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "ctrl.proto", &protobuf_RegisterTypes);
   CtrlRequest::default_instance_ = new CtrlRequest();
@@ -864,6 +866,7 @@ void CtrlRequest_MallocParam::InternalSwap(CtrlRequest_MallocParam* other) {
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int CtrlRequest_vDeviceInfoParam::kNumPcoresFieldNumber;
 const int CtrlRequest_vDeviceInfoParam::kNumLcoresPerPcoreFieldNumber;
+const int CtrlRequest_vDeviceInfoParam::kPipelineDepthFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 CtrlRequest_vDeviceInfoParam::CtrlRequest_vDeviceInfoParam()
@@ -889,6 +892,7 @@ void CtrlRequest_vDeviceInfoParam::SharedCtor() {
   _cached_size_ = 0;
   num_pcores_ = 0u;
   num_lcores_per_pcore_ = 0u;
+  pipeline_depth_ = 0u;
 }
 
 CtrlRequest_vDeviceInfoParam::~CtrlRequest_vDeviceInfoParam() {
@@ -944,7 +948,7 @@ void CtrlRequest_vDeviceInfoParam::Clear() {
            ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
 } while (0)
 
-  ZR_(num_pcores_, num_lcores_per_pcore_);
+  ZR_(num_pcores_, pipeline_depth_);
 
 #undef ZR_HELPER_
 #undef ZR_
@@ -982,6 +986,21 @@ bool CtrlRequest_vDeviceInfoParam::MergePartialFromCodedStream(
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
                  input, &num_lcores_per_pcore_)));
+
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(24)) goto parse_pipeline_depth;
+        break;
+      }
+
+      // optional uint32 pipeline_depth = 3;
+      case 3: {
+        if (tag == 24) {
+         parse_pipeline_depth:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &pipeline_depth_)));
 
         } else {
           goto handle_unusual;
@@ -1024,6 +1043,11 @@ void CtrlRequest_vDeviceInfoParam::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteUInt32(2, this->num_lcores_per_pcore(), output);
   }
 
+  // optional uint32 pipeline_depth = 3;
+  if (this->pipeline_depth() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(3, this->pipeline_depth(), output);
+  }
+
   // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlRequest.vDeviceInfoParam)
 }
 
@@ -1038,6 +1062,11 @@ void CtrlRequest_vDeviceInfoParam::SerializeWithCachedSizes(
   // optional uint32 num_lcores_per_pcore = 2;
   if (this->num_lcores_per_pcore() != 0) {
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(2, this->num_lcores_per_pcore(), target);
+  }
+
+  // optional uint32 pipeline_depth = 3;
+  if (this->pipeline_depth() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(3, this->pipeline_depth(), target);
   }
 
   // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlRequest.vDeviceInfoParam)
@@ -1060,6 +1089,13 @@ int CtrlRequest_vDeviceInfoParam::ByteSize() const {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::UInt32Size(
         this->num_lcores_per_pcore());
+  }
+
+  // optional uint32 pipeline_depth = 3;
+  if (this->pipeline_depth() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt32Size(
+        this->pipeline_depth());
   }
 
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
@@ -1092,6 +1128,9 @@ void CtrlRequest_vDeviceInfoParam::MergeFrom(const CtrlRequest_vDeviceInfoParam&
   if (from.num_lcores_per_pcore() != 0) {
     set_num_lcores_per_pcore(from.num_lcores_per_pcore());
   }
+  if (from.pipeline_depth() != 0) {
+    set_pipeline_depth(from.pipeline_depth());
+  }
 }
 
 void CtrlRequest_vDeviceInfoParam::CopyFrom(const ::google::protobuf::Message& from) {
@@ -1120,6 +1159,7 @@ void CtrlRequest_vDeviceInfoParam::Swap(CtrlRequest_vDeviceInfoParam* other) {
 void CtrlRequest_vDeviceInfoParam::InternalSwap(CtrlRequest_vDeviceInfoParam* other) {
   std::swap(num_pcores_, other->num_pcores_);
   std::swap(num_lcores_per_pcore_, other->num_lcores_per_pcore_);
+  std::swap(pipeline_depth_, other->pipeline_depth_);
   _internal_metadata_.Swap(&other->_internal_metadata_);
   std::swap(_cached_size_, other->_cached_size_);
 }
@@ -1355,7 +1395,7 @@ void CtrlRequest_ResourceParam::InternalSwap(CtrlRequest_ResourceParam* other) {
 const int CtrlRequest::kTypeFieldNumber;
 const int CtrlRequest::kTextFieldNumber;
 const int CtrlRequest::kMallocFieldNumber;
-const int CtrlRequest::kVdevInfoFieldNumber;
+const int CtrlRequest::kVDevInfoFieldNumber;
 const int CtrlRequest::kResourceFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
@@ -1437,7 +1477,7 @@ void CtrlRequest::clear_params() {
       delete params_.malloc_;
       break;
     }
-    case kVdevInfo: {
+    case kVDevInfo: {
       delete params_.vdevinfo_;
       break;
     }
@@ -1506,14 +1546,14 @@ bool CtrlRequest::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(34)) goto parse_vdevInfo;
+        if (input->ExpectTag(34)) goto parse_vDevInfo;
         break;
       }
 
-      // optional .nba.knapp.CtrlRequest.vDeviceInfoParam vdevInfo = 4;
+      // optional .nba.knapp.CtrlRequest.vDeviceInfoParam vDevInfo = 4;
       case 4: {
         if (tag == 34) {
-         parse_vdevInfo:
+         parse_vDevInfo:
           DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
                input, mutable_vdevinfo()));
         } else {
@@ -1578,7 +1618,7 @@ void CtrlRequest::SerializeWithCachedSizes(
       3, *params_.malloc_, output);
   }
 
-  // optional .nba.knapp.CtrlRequest.vDeviceInfoParam vdevInfo = 4;
+  // optional .nba.knapp.CtrlRequest.vDeviceInfoParam vDevInfo = 4;
   if (has_vdevinfo()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
       4, *params_.vdevinfo_, output);
@@ -1616,7 +1656,7 @@ void CtrlRequest::SerializeWithCachedSizes(
         3, *params_.malloc_, target);
   }
 
-  // optional .nba.knapp.CtrlRequest.vDeviceInfoParam vdevInfo = 4;
+  // optional .nba.knapp.CtrlRequest.vDeviceInfoParam vDevInfo = 4;
   if (has_vdevinfo()) {
     target = ::google::protobuf::internal::WireFormatLite::
       WriteMessageNoVirtualToArray(
@@ -1659,8 +1699,8 @@ int CtrlRequest::ByteSize() const {
           *params_.malloc_);
       break;
     }
-    // optional .nba.knapp.CtrlRequest.vDeviceInfoParam vdevInfo = 4;
-    case kVdevInfo: {
+    // optional .nba.knapp.CtrlRequest.vDeviceInfoParam vDevInfo = 4;
+    case kVDevInfo: {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
           *params_.vdevinfo_);
@@ -1710,7 +1750,7 @@ void CtrlRequest::MergeFrom(const CtrlRequest& from) {
       mutable_malloc()->::nba::knapp::CtrlRequest_MallocParam::MergeFrom(from.malloc());
       break;
     }
-    case kVdevInfo: {
+    case kVDevInfo: {
       mutable_vdevinfo()->::nba::knapp::CtrlRequest_vDeviceInfoParam::MergeFrom(from.vdevinfo());
       break;
     }
@@ -1877,6 +1917,20 @@ void CtrlRequest_vDeviceInfoParam::clear_num_lcores_per_pcore() {
   // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.vDeviceInfoParam.num_lcores_per_pcore)
 }
 
+// optional uint32 pipeline_depth = 3;
+void CtrlRequest_vDeviceInfoParam::clear_pipeline_depth() {
+  pipeline_depth_ = 0u;
+}
+ ::google::protobuf::uint32 CtrlRequest_vDeviceInfoParam::pipeline_depth() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.vDeviceInfoParam.pipeline_depth)
+  return pipeline_depth_;
+}
+ void CtrlRequest_vDeviceInfoParam::set_pipeline_depth(::google::protobuf::uint32 value) {
+  
+  pipeline_depth_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.vDeviceInfoParam.pipeline_depth)
+}
+
 // -------------------------------------------------------------------
 
 // CtrlRequest_ResourceParam
@@ -2009,12 +2063,12 @@ void CtrlRequest::set_allocated_malloc(::nba::knapp::CtrlRequest_MallocParam* ma
   // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.malloc)
 }
 
-// optional .nba.knapp.CtrlRequest.vDeviceInfoParam vdevInfo = 4;
+// optional .nba.knapp.CtrlRequest.vDeviceInfoParam vDevInfo = 4;
 bool CtrlRequest::has_vdevinfo() const {
-  return params_case() == kVdevInfo;
+  return params_case() == kVDevInfo;
 }
 void CtrlRequest::set_has_vdevinfo() {
-  _oneof_case_[0] = kVdevInfo;
+  _oneof_case_[0] = kVDevInfo;
 }
 void CtrlRequest::clear_vdevinfo() {
   if (has_vdevinfo()) {
@@ -2023,7 +2077,7 @@ void CtrlRequest::clear_vdevinfo() {
   }
 }
  const ::nba::knapp::CtrlRequest_vDeviceInfoParam& CtrlRequest::vdevinfo() const {
-  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.vdevInfo)
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.vDevInfo)
   return has_vdevinfo()
       ? *params_.vdevinfo_
       : ::nba::knapp::CtrlRequest_vDeviceInfoParam::default_instance();
@@ -2034,11 +2088,11 @@ void CtrlRequest::clear_vdevinfo() {
     set_has_vdevinfo();
     params_.vdevinfo_ = new ::nba::knapp::CtrlRequest_vDeviceInfoParam;
   }
-  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.vdevInfo)
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.vDevInfo)
   return params_.vdevinfo_;
 }
 ::nba::knapp::CtrlRequest_vDeviceInfoParam* CtrlRequest::release_vdevinfo() {
-  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.vdevInfo)
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.vDevInfo)
   if (has_vdevinfo()) {
     clear_has_params();
     ::nba::knapp::CtrlRequest_vDeviceInfoParam* temp = params_.vdevinfo_;
@@ -2054,7 +2108,7 @@ void CtrlRequest::set_allocated_vdevinfo(::nba::knapp::CtrlRequest_vDeviceInfoPa
     set_has_vdevinfo();
     params_.vdevinfo_ = vdevinfo;
   }
-  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.vdevInfo)
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.vDevInfo)
 }
 
 // optional .nba.knapp.CtrlRequest.ResourceParam resource = 5;

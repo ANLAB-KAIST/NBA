@@ -21,6 +21,7 @@ static int _global_pollring_counter = 0;
 
 void nba::knapp::ctrl_invoke(scif_epd_t ep, const CtrlRequest &req, CtrlResponse &resp)
 {
+    int rc;
     char buf[1024];
     uint32_t msgsz = req.ByteSize();
     assert(msgsz < 1024);

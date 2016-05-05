@@ -5,13 +5,16 @@
 #error "This header should be used by MIC-side codes only."
 #endif
 
+#include <nba/engines/knapp/micintrinsic.hh>
 #include <cstdint>
 #include <pthread.h>
-#include <sys/time.h>
+#include <time.h>
 
 #define _USE_ATOMIC_BARRIER_
 
-inline void insert_pause() {
+namespace nba { namespace knapp {
+
+static inline void insert_pause() {
 #ifdef __MIC__
     _mm_delay_32(10);
 #else
@@ -32,7 +35,7 @@ private:
     int num_used;
     int entry_count;
     //bool is_first;
-    volatile intptr_t c1 __attribute__ ((aligned (64)));
+    volatile intptr_t c1 __cache_aligned;
     //volatile intptr_t c2 __attribute__ ((aligned (64)));
 
 public:
@@ -40,6 +43,9 @@ public:
             nThreads(_nThreads), c1(0), /*c2(0),*/ acc_us(0), acc_us_sq(0),
             num_used(0), ts(0), stat_interval(_stat_interval),
             device_id(_device_id), entry_count(0)
+    { }
+    
+    virtual ~Barrier()
     { }
 
     uint64_t get_usec(void)
@@ -117,6 +123,8 @@ public:
 
 };
 #endif
+
+}} //endns(nba::knapp)
 
 #endif //__NBA_KNAPP_MICBARRIER__HH
 

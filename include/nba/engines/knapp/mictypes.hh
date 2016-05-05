@@ -33,11 +33,11 @@ union u_worker {
 /* MIC-side vDevice context */
 struct vdevice {
     int device_id;
+    uint32_t pipeline_depth;
+    uint32_t ht_per_core;
 
     scif_epd_t data_epd;
     scif_epd_t ctrl_epd;
-    uint32_t pipeline_depth;
-    size_t ht_per_core;
 
     scif_epd_t master_epd;
     scif_epd_t data_listen_epd;
@@ -76,7 +76,8 @@ struct vdevice {
     uint32_t offload_batch_size;
     union u_worker u;
     std::atomic<bool> exit;
-    std::vector<int> cores;
+    std::vector<int> pcores;
+    std::vector<int> lcores;
 
     /* stats-related */
     bool first_entry;
@@ -109,7 +110,7 @@ struct worker_thread_info {
      int thread_id;
      struct vdevice *vdev;
      worker_func_t pktproc_func;
-} CACHE_ALIGNED;
+} __cache_aligned;
 
 }} // endns(nba::knapp)
 

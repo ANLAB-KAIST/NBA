@@ -8,6 +8,8 @@
 #define KNAPP_OFFLOAD_COMPLETE (0xdeadbeefull)
 #define KNAPP_TASK_READY (0xcafebabeull)
 #define KNAPP_COPY_PENDING (~((uint64_t)0))
+#define KNAPP_VDEV_PROFILE_INTERVAL 1000
+#define KNAPP_BARRIER_PROFILE_INTERVAL 100
 
 /* Hardware limits. */
 #define KNAPP_THREADS_LIMIT (240)

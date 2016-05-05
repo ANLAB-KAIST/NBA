@@ -21,6 +21,7 @@ message CtrlRequest {
     message vDeviceInfoParam {
 	uint32 num_pcores	    = 1;
 	uint32 num_lcores_per_pcore = 2;
+	uint32 pipeline_depth       = 3;
     }
     message ResourceParam {
 	uint64 handle = 1;
@@ -28,7 +29,7 @@ message CtrlRequest {
     oneof params {
 	TextParam text = 2;
 	MallocParam malloc = 3;
-	vDeviceInfoParam vdevInfo = 4;
+	vDeviceInfoParam vDevInfo = 4;
 	ResourceParam resource = 5;
     }
 }

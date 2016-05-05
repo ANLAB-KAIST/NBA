@@ -42,6 +42,7 @@ OffloadTask::OffloadTask()
     // for debugging
     last_input_size = 0;
     last_output_size = 0;
+    kernel_skipped = false;
 }
 
 OffloadTask::~OffloadTask()
@@ -312,16 +313,14 @@ void OffloadTask::execute()
                                host_input, dev_input);
         cctx->enqueue_memwrite_op(host_input, dev_input, 0, total_input_size);
 
-        cctx->clear_checkbits();
         cctx->clear_kernel_args();
 
         state = TASK_EXECUTING;
 
-        /* Framework-provided kernel arguments:
+        /* Add framework-provided kernel arguments:
          * (1) array of datablock_kernel_arg[] indexed by datablock ID
          * (2) the number of batches
          */
-        void *checkbits_d = cctx->get_device_checkbits();
         void *ptr_args[3]; // storage for rvalue
         struct kernel_arg arg;
 
@@ -339,25 +338,19 @@ void OffloadTask::execute()
         arg = {(void *) &num_batches, sizeof(uint32_t), alignof(uint32_t)};
         cctx->push_kernel_arg(arg);
 
-        arg = {(void *) &checkbits_d, sizeof(void *), alignof(void *)};
-        cctx->push_kernel_arg(arg);
+        /* Add ComputeContext-provided kernel arguments. */
+        cctx->push_common_kernel_args();
 
+        /* Add element-provided kernel arguments and let the element
+         * initate launch. */
+        kernel_skipped = false;
         offload_compute_handler &handler = elem->offload_compute_handlers[cctx->type_name];
         handler(cctx, &res);
-
-        /* Skip kernel execution. */
-        //res.num_workitems = 0;
-        //res.num_threads_per_workgroup = 1;
-        //res.num_workgroups = 1;
-        //cctx->get_host_checkbits()[0] = 1;
 
     } else {
 
         /* Skip kernel execution. */
-        res.num_workitems = 0;
-        res.num_threads_per_workgroup = 1;
-        res.num_workgroups = 1;
-        cctx->get_host_checkbits()[0] = 1;
+        kernel_skipped = true;
     }
 }
 
@@ -377,22 +370,12 @@ bool OffloadTask::copy_d2h()
 
 bool OffloadTask::poll_kernel_finished()
 {
-    uint8_t *checkbits = cctx->get_host_checkbits();
-    if (checkbits == nullptr) {
-        return true;
-    }
-    for (unsigned i = 0; i < res.num_workgroups; i++) {
-        if (checkbits[i] == 0) {
-            return false;
-        }
-    }
-    return true;
+    return kernel_skipped || cctx->poll_kernel_finished();
 }
 
 bool OffloadTask::poll_d2h_copy_finished()
 {
-    bool result = cctx->query();
-    return result;
+    return cctx->poll_output_finished();
 }
 
 void OffloadTask::notify_completion()

@@ -51,6 +51,7 @@ public:
 
     virtual void clear_kernel_args() = 0;
     virtual void push_kernel_arg(struct kernel_arg &arg) = 0;
+    virtual void push_common_kernel_args() = 0;
 
     /* All methods below must be implemented using non-blocking APIs provided
      * by device runtimes. */
@@ -62,11 +63,10 @@ public:
     virtual int enqueue_event_callback(void (*func_ptr)(ComputeContext *ctx, void *user_arg),
                                        void *user_arg) = 0;
 
-    virtual uint8_t *get_device_checkbits() = 0;
-    virtual uint8_t *get_host_checkbits() = 0;
-    virtual void clear_checkbits(unsigned num_workgroups = 0) = 0;
-    virtual void sync() = 0;
-    virtual bool query() = 0;
+    virtual bool poll_input_finished() = 0;
+    virtual bool poll_kernel_finished() = 0;
+    virtual bool poll_output_finished() = 0;
+
     unsigned get_id()
     {
         return ctx_id;

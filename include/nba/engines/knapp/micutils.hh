@@ -11,6 +11,8 @@
 namespace nba {
 namespace knapp {
 
+struct vdevice;
+
 static inline void log_error(const char *format, ... )
 {
     va_list args;

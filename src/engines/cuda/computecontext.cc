@@ -195,6 +195,12 @@ void CUDAComputeContext::push_kernel_arg(struct kernel_arg &arg)
     kernel_args[num_kernel_args ++] = arg;  /* Copied to the array. */
 }
 
+int CUDAComputeContext::push_common_kernel_args()
+{
+    struct kernel_arg arg = {(void *) &checkbits_d, sizeof(void *), alignof(void *)};
+    this->push_kernel_arg(arg);
+}
+
 int CUDAComputeContext::enqueue_kernel_launch(dev_kernel_t kernel, struct resource_param *res)
 {
     assert(checkbits_d != nullptr);
@@ -204,16 +210,55 @@ int CUDAComputeContext::enqueue_kernel_launch(dev_kernel_t kernel, struct resour
     //cudaFuncGetAttributes(&attr, kernel.ptr);
     if (unlikely(res->num_workgroups == 0))
         res->num_workgroups = 1;
+
     void *raw_args[num_kernel_args];
     for (unsigned i = 0; i < num_kernel_args; i++) {
         raw_args[i] = kernel_args[i].ptr;
     }
+
+    /* Clear checkbits. */
+    unsigned n = (num_workgroups == 0) ? MAX_BLOCKS : num_workgroups;
+    for (unsigned i = 0; i < num_workgroups; i++)
+        checkbits_h[i] = 0;
+
+    /* Launch! */
     state = ComputeContext::RUNNING;
     cutilSafeCall(cudaLaunchKernel(kernel.ptr, dim3(res->num_workgroups),
                                    dim3(res->num_threads_per_workgroup),
                                    (void **) &raw_args[0], 1024, _stream));
     return 0;
 }
+
+bool CUDAComputeContext::poll_input_finished()
+{
+    /* Proceed to kernel launch without waiting. */
+    return true;
+}
+
+bool CUDAComputeContext::poll_kernel_finished()
+{
+    /* Check the checkbits if kernel has finished. */
+    if (checkbits_h == nullptr) {
+        return true;
+    }
+    for (unsigned i = 0; i < res.num_workgroups; i++) {
+        if (checkbits_h[i] == 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool CUDAComputeContext::poll_output_finished()
+{
+    cudaError_t ret = cudaStreamQuery(_stream);
+    if (ret == cudaErrorNotReady)
+        return false;
+    // ignore non-cudaSuccess results...
+    // (may happend on termination)
+    return true;
+}
+
 
 int CUDAComputeContext::enqueue_event_callback(
         void (*func_ptr)(ComputeContext *ctx, void *user_arg),

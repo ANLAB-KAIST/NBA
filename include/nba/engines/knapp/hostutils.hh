@@ -9,7 +9,7 @@
 #include <nba/engines/knapp/defs.hh>
 #include <nba/engines/knapp/hosttypes.hh>
 #include <nba/engines/knapp/sharedtypes.hh>
-#include <nba/knapp/engines/ctrl.pb.h>
+#include <nba/engines/knapp/ctrl.pb.h>
 
 namespace nba { namespace knapp {
 
@@ -51,6 +51,6 @@ extern "C" {
 
 }
 
-#endif // __KNAPP_HOSTUTILS_HH__
+#endif // __NBA_KNAPP_HOSTUTILS_HH__
 
 // vim: ts=8 sts=4 sw=4 et

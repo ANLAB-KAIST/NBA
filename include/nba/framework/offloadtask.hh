@@ -89,6 +89,8 @@ public:
 private:
     friend class OffloadableElement;
 
+    bool kernel_skipped;
+
     size_t input_begin;
     size_t output_begin;
 
