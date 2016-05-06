@@ -2,6 +2,7 @@
 #include <nba/engines/knapp/defs.hh>
 #include <nba/engines/knapp/hosttypes.hh>
 #include <nba/engines/knapp/hostutils.hh>
+#include <nba/engines/knapp/sharedutils.hh>
 #include <nba/engines/knapp/computecontext.hh>
 #include <nba/engines/knapp/computedevice.hh>
 #include <rte_memzone.h>
@@ -61,10 +62,6 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
     rc = scif_bind(vdev.ctrl_epd, vdev.local_ctrl_port.port);
     assert(rc == vdev.local_ctrl_port.port);
 
-    vdev.ctrlbuf = (uint8_t *) rte_zmalloc_socket(nullptr,
-            KNAPP_OFFLOAD_CTRLBUF_SIZE,
-            CACHE_LINE_SIZE, node_id);
-    assert(vdev.ctrlbuf != nullptr);
     vdev.tasks_in_flight = (struct knapp::offload_task *) rte_zmalloc_socket(nullptr,
             sizeof(struct knapp::offload_task) * vdev.pipeline_depth,
             CACHE_LINE_SIZE, node_id);
@@ -257,6 +254,7 @@ bool KnappComputeContext::poll_output_finished()
 {
     // TODO: compiler_fence() + check vDevice's output pollring.
     //vdev.poll_ring->wait();
+    return true;
 }
 
 int KnappComputeContext::enqueue_event_callback(

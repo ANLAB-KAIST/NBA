@@ -12,6 +12,7 @@
 #include <atomic>
 #include <vector>
 #include <scif.h>
+#include <nba/engines/knapp/defs.hh>
 #include <nba/engines/knapp/sharedtypes.hh>
 #include <nba/engines/knapp/micintrinsic.hh>
 #include <nba/engines/knapp/micbarrier.hh>
@@ -21,6 +22,7 @@ namespace nba { namespace knapp {
 /* Forward decls. */
 struct worker;
 class PollRing;
+class RMABuffer;
 
 /* Callback defs. */
 typedef void (*worker_func_t)(struct worker *work);
@@ -48,8 +50,8 @@ struct vdevice {
     struct scif_portID local_ctrl_port;
     struct scif_portID remote_data_port;
     struct scif_portID remote_ctrl_port;
-    //struct poll_ring poll_ring;
-    PollRing *poll_ring;
+    PollRing *poll_rings[KNAPP_VDEV_MAX_POLLRINGS];
+    RMABuffer *rma_buffers[KNAPP_VDEV_MAX_RMABUFFERS];
 
     off_t remote_writebuf_base_ra;
     off_t remote_poll_ring_window;
@@ -61,6 +63,7 @@ struct vdevice {
 
     pthread_t master_thread;
     pthread_t *worker_threads;
+    bool threads_alive;
 
     struct worker_thread_info *thread_info_array;
     unsigned master_core; //former masteR_cpu

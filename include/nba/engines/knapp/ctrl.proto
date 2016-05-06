@@ -8,6 +8,10 @@ message CtrlRequest {
 	FREE   = 2;
 	CREATE_VDEV  = 3;
 	DESTROY_VDEV = 4;
+	CREATE_POLLRING  = 5;
+	DESTROY_POLLRING = 6;
+	CREATE_RMABUFFER  = 7;
+	DESTROY_RMABUFFER = 8;
     }
     Type type = 1;
 
@@ -26,11 +30,35 @@ message CtrlRequest {
     message ResourceParam {
 	uint64 handle = 1;
     }
+    message PollRingParam {
+	uint64 vdev_handle = 1;
+	uint32 ring_id     = 2;
+	uint32 len         = 3;
+	uint64 local_ra    = 4;
+    }
+    message PollRingRefParam {
+	uint64 vdev_handle = 1;
+	uint32 ring_id	   = 2;
+    }
+    message RMABufferParam {
+	uint64 vdev_handle = 1;
+	uint32 buffer_id   = 2;
+	uint32 size	   = 3;
+	uint64 local_ra	   = 4;
+    }
+    message RMABufferRefParam {
+	uint64 vdev_handle = 1;
+	uint32 buffer_id   = 2;
+    }
     oneof params {
 	TextParam text = 2;
 	MallocParam malloc = 3;
 	vDeviceInfoParam vDevInfo = 4;
 	ResourceParam resource = 5;
+	PollRingParam pollring        = 6;
+	PollRingRefParam pollring_ref = 7;
+	RMABufferParam rma        = 8;
+	RMABufferRefParam rma_ref = 9;
     }
 }
 
@@ -47,6 +75,8 @@ message CtrlResponse {
     }
     message ResourceResponse {
 	uint64 handle = 1;
+	uint32 id     = 2;  // used for CREATE_VDEVICE
+	uint64 peer_ra = 3; // used for CREATE_{POLLRING|RMABUFFER}
     }
 
     oneof data {

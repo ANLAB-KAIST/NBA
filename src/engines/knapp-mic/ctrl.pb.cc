@@ -30,6 +30,10 @@ struct CtrlRequestOneofInstance {
   const ::nba::knapp::CtrlRequest_MallocParam* malloc_;
   const ::nba::knapp::CtrlRequest_vDeviceInfoParam* vdevinfo_;
   const ::nba::knapp::CtrlRequest_ResourceParam* resource_;
+  const ::nba::knapp::CtrlRequest_PollRingParam* pollring_;
+  const ::nba::knapp::CtrlRequest_PollRingRefParam* pollring_ref_;
+  const ::nba::knapp::CtrlRequest_RMABufferParam* rma_;
+  const ::nba::knapp::CtrlRequest_RMABufferRefParam* rma_ref_;
 }* CtrlRequest_default_oneof_instance_ = NULL;
 const ::google::protobuf::Descriptor* CtrlRequest_TextParam_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
@@ -43,6 +47,18 @@ const ::google::protobuf::internal::GeneratedMessageReflection*
 const ::google::protobuf::Descriptor* CtrlRequest_ResourceParam_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   CtrlRequest_ResourceParam_reflection_ = NULL;
+const ::google::protobuf::Descriptor* CtrlRequest_PollRingParam_descriptor_ = NULL;
+const ::google::protobuf::internal::GeneratedMessageReflection*
+  CtrlRequest_PollRingParam_reflection_ = NULL;
+const ::google::protobuf::Descriptor* CtrlRequest_PollRingRefParam_descriptor_ = NULL;
+const ::google::protobuf::internal::GeneratedMessageReflection*
+  CtrlRequest_PollRingRefParam_reflection_ = NULL;
+const ::google::protobuf::Descriptor* CtrlRequest_RMABufferParam_descriptor_ = NULL;
+const ::google::protobuf::internal::GeneratedMessageReflection*
+  CtrlRequest_RMABufferParam_reflection_ = NULL;
+const ::google::protobuf::Descriptor* CtrlRequest_RMABufferRefParam_descriptor_ = NULL;
+const ::google::protobuf::internal::GeneratedMessageReflection*
+  CtrlRequest_RMABufferRefParam_reflection_ = NULL;
 const ::google::protobuf::EnumDescriptor* CtrlRequest_Type_descriptor_ = NULL;
 const ::google::protobuf::Descriptor* CtrlResponse_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
@@ -69,12 +85,16 @@ void protobuf_AssignDesc_ctrl_2eproto() {
       "ctrl.proto");
   GOOGLE_CHECK(file != NULL);
   CtrlRequest_descriptor_ = file->message_type(0);
-  static const int CtrlRequest_offsets_[6] = {
+  static const int CtrlRequest_offsets_[10] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest, type_),
     PROTO2_GENERATED_DEFAULT_ONEOF_FIELD_OFFSET(CtrlRequest_default_oneof_instance_, text_),
     PROTO2_GENERATED_DEFAULT_ONEOF_FIELD_OFFSET(CtrlRequest_default_oneof_instance_, malloc_),
     PROTO2_GENERATED_DEFAULT_ONEOF_FIELD_OFFSET(CtrlRequest_default_oneof_instance_, vdevinfo_),
     PROTO2_GENERATED_DEFAULT_ONEOF_FIELD_OFFSET(CtrlRequest_default_oneof_instance_, resource_),
+    PROTO2_GENERATED_DEFAULT_ONEOF_FIELD_OFFSET(CtrlRequest_default_oneof_instance_, pollring_),
+    PROTO2_GENERATED_DEFAULT_ONEOF_FIELD_OFFSET(CtrlRequest_default_oneof_instance_, pollring_ref_),
+    PROTO2_GENERATED_DEFAULT_ONEOF_FIELD_OFFSET(CtrlRequest_default_oneof_instance_, rma_),
+    PROTO2_GENERATED_DEFAULT_ONEOF_FIELD_OFFSET(CtrlRequest_default_oneof_instance_, rma_ref_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest, params_),
   };
   CtrlRequest_reflection_ =
@@ -153,6 +173,74 @@ void protobuf_AssignDesc_ctrl_2eproto() {
       sizeof(CtrlRequest_ResourceParam),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_ResourceParam, _internal_metadata_),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_ResourceParam, _is_default_instance_));
+  CtrlRequest_PollRingParam_descriptor_ = CtrlRequest_descriptor_->nested_type(4);
+  static const int CtrlRequest_PollRingParam_offsets_[4] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_PollRingParam, vdev_handle_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_PollRingParam, ring_id_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_PollRingParam, len_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_PollRingParam, local_ra_),
+  };
+  CtrlRequest_PollRingParam_reflection_ =
+    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+      CtrlRequest_PollRingParam_descriptor_,
+      CtrlRequest_PollRingParam::default_instance_,
+      CtrlRequest_PollRingParam_offsets_,
+      -1,
+      -1,
+      -1,
+      sizeof(CtrlRequest_PollRingParam),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_PollRingParam, _internal_metadata_),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_PollRingParam, _is_default_instance_));
+  CtrlRequest_PollRingRefParam_descriptor_ = CtrlRequest_descriptor_->nested_type(5);
+  static const int CtrlRequest_PollRingRefParam_offsets_[2] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_PollRingRefParam, vdev_handle_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_PollRingRefParam, ring_id_),
+  };
+  CtrlRequest_PollRingRefParam_reflection_ =
+    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+      CtrlRequest_PollRingRefParam_descriptor_,
+      CtrlRequest_PollRingRefParam::default_instance_,
+      CtrlRequest_PollRingRefParam_offsets_,
+      -1,
+      -1,
+      -1,
+      sizeof(CtrlRequest_PollRingRefParam),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_PollRingRefParam, _internal_metadata_),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_PollRingRefParam, _is_default_instance_));
+  CtrlRequest_RMABufferParam_descriptor_ = CtrlRequest_descriptor_->nested_type(6);
+  static const int CtrlRequest_RMABufferParam_offsets_[4] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_RMABufferParam, vdev_handle_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_RMABufferParam, buffer_id_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_RMABufferParam, size_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_RMABufferParam, local_ra_),
+  };
+  CtrlRequest_RMABufferParam_reflection_ =
+    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+      CtrlRequest_RMABufferParam_descriptor_,
+      CtrlRequest_RMABufferParam::default_instance_,
+      CtrlRequest_RMABufferParam_offsets_,
+      -1,
+      -1,
+      -1,
+      sizeof(CtrlRequest_RMABufferParam),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_RMABufferParam, _internal_metadata_),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_RMABufferParam, _is_default_instance_));
+  CtrlRequest_RMABufferRefParam_descriptor_ = CtrlRequest_descriptor_->nested_type(7);
+  static const int CtrlRequest_RMABufferRefParam_offsets_[2] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_RMABufferRefParam, vdev_handle_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_RMABufferRefParam, buffer_id_),
+  };
+  CtrlRequest_RMABufferRefParam_reflection_ =
+    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+      CtrlRequest_RMABufferRefParam_descriptor_,
+      CtrlRequest_RMABufferRefParam::default_instance_,
+      CtrlRequest_RMABufferRefParam_offsets_,
+      -1,
+      -1,
+      -1,
+      sizeof(CtrlRequest_RMABufferRefParam),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_RMABufferRefParam, _internal_metadata_),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlRequest_RMABufferRefParam, _is_default_instance_));
   CtrlRequest_Type_descriptor_ = CtrlRequest_descriptor_->enum_type(0);
   CtrlResponse_descriptor_ = file->message_type(1);
   static const int CtrlResponse_offsets_[4] = {
@@ -190,8 +278,10 @@ void protobuf_AssignDesc_ctrl_2eproto() {
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_TextResponse, _internal_metadata_),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_TextResponse, _is_default_instance_));
   CtrlResponse_ResourceResponse_descriptor_ = CtrlResponse_descriptor_->nested_type(1);
-  static const int CtrlResponse_ResourceResponse_offsets_[1] = {
+  static const int CtrlResponse_ResourceResponse_offsets_[3] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_ResourceResponse, handle_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_ResourceResponse, id_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_ResourceResponse, peer_ra_),
   };
   CtrlResponse_ResourceResponse_reflection_ =
     ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
@@ -228,6 +318,14 @@ void protobuf_RegisterTypes(const ::std::string&) {
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
       CtrlRequest_ResourceParam_descriptor_, &CtrlRequest_ResourceParam::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
+      CtrlRequest_PollRingParam_descriptor_, &CtrlRequest_PollRingParam::default_instance());
+  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
+      CtrlRequest_PollRingRefParam_descriptor_, &CtrlRequest_PollRingRefParam::default_instance());
+  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
+      CtrlRequest_RMABufferParam_descriptor_, &CtrlRequest_RMABufferParam::default_instance());
+  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
+      CtrlRequest_RMABufferRefParam_descriptor_, &CtrlRequest_RMABufferRefParam::default_instance());
+  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
       CtrlResponse_descriptor_, &CtrlResponse::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
       CtrlResponse_TextResponse_descriptor_, &CtrlResponse_TextResponse::default_instance());
@@ -249,6 +347,14 @@ void protobuf_ShutdownFile_ctrl_2eproto() {
   delete CtrlRequest_vDeviceInfoParam_reflection_;
   delete CtrlRequest_ResourceParam::default_instance_;
   delete CtrlRequest_ResourceParam_reflection_;
+  delete CtrlRequest_PollRingParam::default_instance_;
+  delete CtrlRequest_PollRingParam_reflection_;
+  delete CtrlRequest_PollRingRefParam::default_instance_;
+  delete CtrlRequest_PollRingRefParam_reflection_;
+  delete CtrlRequest_RMABufferParam::default_instance_;
+  delete CtrlRequest_RMABufferParam_reflection_;
+  delete CtrlRequest_RMABufferRefParam::default_instance_;
+  delete CtrlRequest_RMABufferRefParam_reflection_;
   delete CtrlResponse::default_instance_;
   delete CtrlResponse_default_oneof_instance_;
   delete CtrlResponse_reflection_;
@@ -265,29 +371,45 @@ void protobuf_AddDesc_ctrl_2eproto() {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-    "\n\nctrl.proto\022\tnba.knapp\"\261\004\n\013CtrlRequest\022"
+    "\n\nctrl.proto\022\tnba.knapp\"\237\t\n\013CtrlRequest\022"
     ")\n\004type\030\001 \001(\0162\033.nba.knapp.CtrlRequest.Ty"
     "pe\0220\n\004text\030\002 \001(\0132 .nba.knapp.CtrlRequest"
     ".TextParamH\000\0224\n\006malloc\030\003 \001(\0132\".nba.knapp"
     ".CtrlRequest.MallocParamH\000\022;\n\010vDevInfo\030\004"
     " \001(\0132\'.nba.knapp.CtrlRequest.vDeviceInfo"
     "ParamH\000\0228\n\010resource\030\005 \001(\0132$.nba.knapp.Ct"
-    "rlRequest.ResourceParamH\000\032\030\n\tTextParam\022\013"
-    "\n\003msg\030\001 \001(\t\032*\n\013MallocParam\022\014\n\004size\030\001 \001(\004"
-    "\022\r\n\005align\030\002 \001(\004\032\\\n\020vDeviceInfoParam\022\022\n\nn"
-    "um_pcores\030\001 \001(\r\022\034\n\024num_lcores_per_pcore\030"
-    "\002 \001(\r\022\026\n\016pipeline_depth\030\003 \001(\r\032\037\n\rResourc"
-    "eParam\022\016\n\006handle\030\001 \001(\004\"I\n\004Type\022\010\n\004PING\020\000"
-    "\022\n\n\006MALLOC\020\001\022\010\n\004FREE\020\002\022\017\n\013CREATE_VDEV\020\003\022"
-    "\020\n\014DESTROY_VDEV\020\004B\010\n\006params\"\251\002\n\014CtrlResp"
-    "onse\022,\n\005reply\030\001 \001(\0162\035.nba.knapp.CtrlResp"
-    "onse.Reply\0224\n\004text\030\002 \001(\0132$.nba.knapp.Ctr"
-    "lResponse.TextResponseH\000\022<\n\010resource\030\003 \001"
-    "(\0132(.nba.knapp.CtrlResponse.ResourceResp"
-    "onseH\000\032\033\n\014TextResponse\022\013\n\003msg\030\001 \001(\t\032\"\n\020R"
-    "esourceResponse\022\016\n\006handle\030\001 \001(\004\".\n\005Reply"
-    "\022\013\n\007SUCCESS\020\000\022\013\n\007FAILURE\020\001\022\013\n\007INVALID\020\002B"
-    "\006\n\004datab\006proto3", 895);
+    "rlRequest.ResourceParamH\000\0228\n\010pollring\030\006 "
+    "\001(\0132$.nba.knapp.CtrlRequest.PollRingPara"
+    "mH\000\022\?\n\014pollring_ref\030\007 \001(\0132\'.nba.knapp.Ct"
+    "rlRequest.PollRingRefParamH\000\0224\n\003rma\030\010 \001("
+    "\0132%.nba.knapp.CtrlRequest.RMABufferParam"
+    "H\000\022;\n\007rma_ref\030\t \001(\0132(.nba.knapp.CtrlRequ"
+    "est.RMABufferRefParamH\000\032\030\n\tTextParam\022\013\n\003"
+    "msg\030\001 \001(\t\032*\n\013MallocParam\022\014\n\004size\030\001 \001(\004\022\r"
+    "\n\005align\030\002 \001(\004\032\\\n\020vDeviceInfoParam\022\022\n\nnum"
+    "_pcores\030\001 \001(\r\022\034\n\024num_lcores_per_pcore\030\002 "
+    "\001(\r\022\026\n\016pipeline_depth\030\003 \001(\r\032\037\n\rResourceP"
+    "aram\022\016\n\006handle\030\001 \001(\004\032T\n\rPollRingParam\022\023\n"
+    "\013vdev_handle\030\001 \001(\004\022\017\n\007ring_id\030\002 \001(\r\022\013\n\003l"
+    "en\030\003 \001(\r\022\020\n\010local_ra\030\004 \001(\004\0328\n\020PollRingRe"
+    "fParam\022\023\n\013vdev_handle\030\001 \001(\004\022\017\n\007ring_id\030\002"
+    " \001(\r\032X\n\016RMABufferParam\022\023\n\013vdev_handle\030\001 "
+    "\001(\004\022\021\n\tbuffer_id\030\002 \001(\r\022\014\n\004size\030\003 \001(\r\022\020\n\010"
+    "local_ra\030\004 \001(\004\032;\n\021RMABufferRefParam\022\023\n\013v"
+    "dev_handle\030\001 \001(\004\022\021\n\tbuffer_id\030\002 \001(\r\"\241\001\n\004"
+    "Type\022\010\n\004PING\020\000\022\n\n\006MALLOC\020\001\022\010\n\004FREE\020\002\022\017\n\013"
+    "CREATE_VDEV\020\003\022\020\n\014DESTROY_VDEV\020\004\022\023\n\017CREAT"
+    "E_POLLRING\020\005\022\024\n\020DESTROY_POLLRING\020\006\022\024\n\020CR"
+    "EATE_RMABUFFER\020\007\022\025\n\021DESTROY_RMABUFFER\020\010B"
+    "\010\n\006params\"\306\002\n\014CtrlResponse\022,\n\005reply\030\001 \001("
+    "\0162\035.nba.knapp.CtrlResponse.Reply\0224\n\004text"
+    "\030\002 \001(\0132$.nba.knapp.CtrlResponse.TextResp"
+    "onseH\000\022<\n\010resource\030\003 \001(\0132(.nba.knapp.Ctr"
+    "lResponse.ResourceResponseH\000\032\033\n\014TextResp"
+    "onse\022\013\n\003msg\030\001 \001(\t\032\?\n\020ResourceResponse\022\016\n"
+    "\006handle\030\001 \001(\004\022\n\n\002id\030\002 \001(\r\022\017\n\007peer_ra\030\003 \001"
+    "(\004\".\n\005Reply\022\013\n\007SUCCESS\020\000\022\013\n\007FAILURE\020\001\022\013\n"
+    "\007INVALID\020\002B\006\n\004datab\006proto3", 1546);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "ctrl.proto", &protobuf_RegisterTypes);
   CtrlRequest::default_instance_ = new CtrlRequest();
@@ -296,6 +418,10 @@ void protobuf_AddDesc_ctrl_2eproto() {
   CtrlRequest_MallocParam::default_instance_ = new CtrlRequest_MallocParam();
   CtrlRequest_vDeviceInfoParam::default_instance_ = new CtrlRequest_vDeviceInfoParam();
   CtrlRequest_ResourceParam::default_instance_ = new CtrlRequest_ResourceParam();
+  CtrlRequest_PollRingParam::default_instance_ = new CtrlRequest_PollRingParam();
+  CtrlRequest_PollRingRefParam::default_instance_ = new CtrlRequest_PollRingRefParam();
+  CtrlRequest_RMABufferParam::default_instance_ = new CtrlRequest_RMABufferParam();
+  CtrlRequest_RMABufferRefParam::default_instance_ = new CtrlRequest_RMABufferRefParam();
   CtrlResponse::default_instance_ = new CtrlResponse();
   CtrlResponse_default_oneof_instance_ = new CtrlResponseOneofInstance();
   CtrlResponse_TextResponse::default_instance_ = new CtrlResponse_TextResponse();
@@ -305,6 +431,10 @@ void protobuf_AddDesc_ctrl_2eproto() {
   CtrlRequest_MallocParam::default_instance_->InitAsDefaultInstance();
   CtrlRequest_vDeviceInfoParam::default_instance_->InitAsDefaultInstance();
   CtrlRequest_ResourceParam::default_instance_->InitAsDefaultInstance();
+  CtrlRequest_PollRingParam::default_instance_->InitAsDefaultInstance();
+  CtrlRequest_PollRingRefParam::default_instance_->InitAsDefaultInstance();
+  CtrlRequest_RMABufferParam::default_instance_->InitAsDefaultInstance();
+  CtrlRequest_RMABufferRefParam::default_instance_->InitAsDefaultInstance();
   CtrlResponse::default_instance_->InitAsDefaultInstance();
   CtrlResponse_TextResponse::default_instance_->InitAsDefaultInstance();
   CtrlResponse_ResourceResponse::default_instance_->InitAsDefaultInstance();
@@ -341,6 +471,10 @@ bool CtrlRequest_Type_IsValid(int value) {
     case 2:
     case 3:
     case 4:
+    case 5:
+    case 6:
+    case 7:
+    case 8:
       return true;
     default:
       return false;
@@ -353,6 +487,10 @@ const CtrlRequest_Type CtrlRequest::MALLOC;
 const CtrlRequest_Type CtrlRequest::FREE;
 const CtrlRequest_Type CtrlRequest::CREATE_VDEV;
 const CtrlRequest_Type CtrlRequest::DESTROY_VDEV;
+const CtrlRequest_Type CtrlRequest::CREATE_POLLRING;
+const CtrlRequest_Type CtrlRequest::DESTROY_POLLRING;
+const CtrlRequest_Type CtrlRequest::CREATE_RMABUFFER;
+const CtrlRequest_Type CtrlRequest::DESTROY_RMABUFFER;
 const CtrlRequest_Type CtrlRequest::Type_MIN;
 const CtrlRequest_Type CtrlRequest::Type_MAX;
 const int CtrlRequest::Type_ARRAYSIZE;
@@ -1392,11 +1530,1263 @@ void CtrlRequest_ResourceParam::InternalSwap(CtrlRequest_ResourceParam* other) {
 // -------------------------------------------------------------------
 
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
+const int CtrlRequest_PollRingParam::kVdevHandleFieldNumber;
+const int CtrlRequest_PollRingParam::kRingIdFieldNumber;
+const int CtrlRequest_PollRingParam::kLenFieldNumber;
+const int CtrlRequest_PollRingParam::kLocalRaFieldNumber;
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+
+CtrlRequest_PollRingParam::CtrlRequest_PollRingParam()
+  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  SharedCtor();
+  // @@protoc_insertion_point(constructor:nba.knapp.CtrlRequest.PollRingParam)
+}
+
+void CtrlRequest_PollRingParam::InitAsDefaultInstance() {
+  _is_default_instance_ = true;
+}
+
+CtrlRequest_PollRingParam::CtrlRequest_PollRingParam(const CtrlRequest_PollRingParam& from)
+  : ::google::protobuf::Message(),
+    _internal_metadata_(NULL) {
+  SharedCtor();
+  MergeFrom(from);
+  // @@protoc_insertion_point(copy_constructor:nba.knapp.CtrlRequest.PollRingParam)
+}
+
+void CtrlRequest_PollRingParam::SharedCtor() {
+    _is_default_instance_ = false;
+  _cached_size_ = 0;
+  vdev_handle_ = GOOGLE_ULONGLONG(0);
+  ring_id_ = 0u;
+  len_ = 0u;
+  local_ra_ = GOOGLE_ULONGLONG(0);
+}
+
+CtrlRequest_PollRingParam::~CtrlRequest_PollRingParam() {
+  // @@protoc_insertion_point(destructor:nba.knapp.CtrlRequest.PollRingParam)
+  SharedDtor();
+}
+
+void CtrlRequest_PollRingParam::SharedDtor() {
+  if (this != default_instance_) {
+  }
+}
+
+void CtrlRequest_PollRingParam::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const ::google::protobuf::Descriptor* CtrlRequest_PollRingParam::descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return CtrlRequest_PollRingParam_descriptor_;
+}
+
+const CtrlRequest_PollRingParam& CtrlRequest_PollRingParam::default_instance() {
+  if (default_instance_ == NULL) protobuf_AddDesc_ctrl_2eproto();
+  return *default_instance_;
+}
+
+CtrlRequest_PollRingParam* CtrlRequest_PollRingParam::default_instance_ = NULL;
+
+CtrlRequest_PollRingParam* CtrlRequest_PollRingParam::New(::google::protobuf::Arena* arena) const {
+  CtrlRequest_PollRingParam* n = new CtrlRequest_PollRingParam;
+  if (arena != NULL) {
+    arena->Own(n);
+  }
+  return n;
+}
+
+void CtrlRequest_PollRingParam::Clear() {
+// @@protoc_insertion_point(message_clear_start:nba.knapp.CtrlRequest.PollRingParam)
+#if defined(__clang__)
+#define ZR_HELPER_(f) \
+  _Pragma("clang diagnostic push") \
+  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
+  __builtin_offsetof(CtrlRequest_PollRingParam, f) \
+  _Pragma("clang diagnostic pop")
+#else
+#define ZR_HELPER_(f) reinterpret_cast<char*>(\
+  &reinterpret_cast<CtrlRequest_PollRingParam*>(16)->f)
+#endif
+
+#define ZR_(first, last) do {\
+  ::memset(&first, 0,\
+           ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
+} while (0)
+
+  ZR_(vdev_handle_, local_ra_);
+
+#undef ZR_HELPER_
+#undef ZR_
+
+}
+
+bool CtrlRequest_PollRingParam::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+  ::google::protobuf::uint32 tag;
+  // @@protoc_insertion_point(parse_start:nba.knapp.CtrlRequest.PollRingParam)
+  for (;;) {
+    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // optional uint64 vdev_handle = 1;
+      case 1: {
+        if (tag == 8) {
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
+                 input, &vdev_handle_)));
+
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(16)) goto parse_ring_id;
+        break;
+      }
+
+      // optional uint32 ring_id = 2;
+      case 2: {
+        if (tag == 16) {
+         parse_ring_id:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &ring_id_)));
+
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(24)) goto parse_len;
+        break;
+      }
+
+      // optional uint32 len = 3;
+      case 3: {
+        if (tag == 24) {
+         parse_len:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &len_)));
+
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(32)) goto parse_local_ra;
+        break;
+      }
+
+      // optional uint64 local_ra = 4;
+      case 4: {
+        if (tag == 32) {
+         parse_local_ra:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
+                 input, &local_ra_)));
+
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectAtEnd()) goto success;
+        break;
+      }
+
+      default: {
+      handle_unusual:
+        if (tag == 0 ||
+            ::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          goto success;
+        }
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag));
+        break;
+      }
+    }
+  }
+success:
+  // @@protoc_insertion_point(parse_success:nba.knapp.CtrlRequest.PollRingParam)
+  return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:nba.knapp.CtrlRequest.PollRingParam)
+  return false;
+#undef DO_
+}
+
+void CtrlRequest_PollRingParam::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:nba.knapp.CtrlRequest.PollRingParam)
+  // optional uint64 vdev_handle = 1;
+  if (this->vdev_handle() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(1, this->vdev_handle(), output);
+  }
+
+  // optional uint32 ring_id = 2;
+  if (this->ring_id() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(2, this->ring_id(), output);
+  }
+
+  // optional uint32 len = 3;
+  if (this->len() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(3, this->len(), output);
+  }
+
+  // optional uint64 local_ra = 4;
+  if (this->local_ra() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(4, this->local_ra(), output);
+  }
+
+  // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlRequest.PollRingParam)
+}
+
+::google::protobuf::uint8* CtrlRequest_PollRingParam::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nba.knapp.CtrlRequest.PollRingParam)
+  // optional uint64 vdev_handle = 1;
+  if (this->vdev_handle() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(1, this->vdev_handle(), target);
+  }
+
+  // optional uint32 ring_id = 2;
+  if (this->ring_id() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(2, this->ring_id(), target);
+  }
+
+  // optional uint32 len = 3;
+  if (this->len() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(3, this->len(), target);
+  }
+
+  // optional uint64 local_ra = 4;
+  if (this->local_ra() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(4, this->local_ra(), target);
+  }
+
+  // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlRequest.PollRingParam)
+  return target;
+}
+
+int CtrlRequest_PollRingParam::ByteSize() const {
+// @@protoc_insertion_point(message_byte_size_start:nba.knapp.CtrlRequest.PollRingParam)
+  int total_size = 0;
+
+  // optional uint64 vdev_handle = 1;
+  if (this->vdev_handle() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt64Size(
+        this->vdev_handle());
+  }
+
+  // optional uint32 ring_id = 2;
+  if (this->ring_id() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt32Size(
+        this->ring_id());
+  }
+
+  // optional uint32 len = 3;
+  if (this->len() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt32Size(
+        this->len());
+  }
+
+  // optional uint64 local_ra = 4;
+  if (this->local_ra() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt64Size(
+        this->local_ra());
+  }
+
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = total_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
+void CtrlRequest_PollRingParam::MergeFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:nba.knapp.CtrlRequest.PollRingParam)
+  if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
+  const CtrlRequest_PollRingParam* source = 
+      ::google::protobuf::internal::DynamicCastToGenerated<const CtrlRequest_PollRingParam>(
+          &from);
+  if (source == NULL) {
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:nba.knapp.CtrlRequest.PollRingParam)
+    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
+  } else {
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:nba.knapp.CtrlRequest.PollRingParam)
+    MergeFrom(*source);
+  }
+}
+
+void CtrlRequest_PollRingParam::MergeFrom(const CtrlRequest_PollRingParam& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:nba.knapp.CtrlRequest.PollRingParam)
+  if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
+  if (from.vdev_handle() != 0) {
+    set_vdev_handle(from.vdev_handle());
+  }
+  if (from.ring_id() != 0) {
+    set_ring_id(from.ring_id());
+  }
+  if (from.len() != 0) {
+    set_len(from.len());
+  }
+  if (from.local_ra() != 0) {
+    set_local_ra(from.local_ra());
+  }
+}
+
+void CtrlRequest_PollRingParam::CopyFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:nba.knapp.CtrlRequest.PollRingParam)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void CtrlRequest_PollRingParam::CopyFrom(const CtrlRequest_PollRingParam& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nba.knapp.CtrlRequest.PollRingParam)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool CtrlRequest_PollRingParam::IsInitialized() const {
+
+  return true;
+}
+
+void CtrlRequest_PollRingParam::Swap(CtrlRequest_PollRingParam* other) {
+  if (other == this) return;
+  InternalSwap(other);
+}
+void CtrlRequest_PollRingParam::InternalSwap(CtrlRequest_PollRingParam* other) {
+  std::swap(vdev_handle_, other->vdev_handle_);
+  std::swap(ring_id_, other->ring_id_);
+  std::swap(len_, other->len_);
+  std::swap(local_ra_, other->local_ra_);
+  _internal_metadata_.Swap(&other->_internal_metadata_);
+  std::swap(_cached_size_, other->_cached_size_);
+}
+
+::google::protobuf::Metadata CtrlRequest_PollRingParam::GetMetadata() const {
+  protobuf_AssignDescriptorsOnce();
+  ::google::protobuf::Metadata metadata;
+  metadata.descriptor = CtrlRequest_PollRingParam_descriptor_;
+  metadata.reflection = CtrlRequest_PollRingParam_reflection_;
+  return metadata;
+}
+
+
+// -------------------------------------------------------------------
+
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
+const int CtrlRequest_PollRingRefParam::kVdevHandleFieldNumber;
+const int CtrlRequest_PollRingRefParam::kRingIdFieldNumber;
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+
+CtrlRequest_PollRingRefParam::CtrlRequest_PollRingRefParam()
+  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  SharedCtor();
+  // @@protoc_insertion_point(constructor:nba.knapp.CtrlRequest.PollRingRefParam)
+}
+
+void CtrlRequest_PollRingRefParam::InitAsDefaultInstance() {
+  _is_default_instance_ = true;
+}
+
+CtrlRequest_PollRingRefParam::CtrlRequest_PollRingRefParam(const CtrlRequest_PollRingRefParam& from)
+  : ::google::protobuf::Message(),
+    _internal_metadata_(NULL) {
+  SharedCtor();
+  MergeFrom(from);
+  // @@protoc_insertion_point(copy_constructor:nba.knapp.CtrlRequest.PollRingRefParam)
+}
+
+void CtrlRequest_PollRingRefParam::SharedCtor() {
+    _is_default_instance_ = false;
+  _cached_size_ = 0;
+  vdev_handle_ = GOOGLE_ULONGLONG(0);
+  ring_id_ = 0u;
+}
+
+CtrlRequest_PollRingRefParam::~CtrlRequest_PollRingRefParam() {
+  // @@protoc_insertion_point(destructor:nba.knapp.CtrlRequest.PollRingRefParam)
+  SharedDtor();
+}
+
+void CtrlRequest_PollRingRefParam::SharedDtor() {
+  if (this != default_instance_) {
+  }
+}
+
+void CtrlRequest_PollRingRefParam::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const ::google::protobuf::Descriptor* CtrlRequest_PollRingRefParam::descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return CtrlRequest_PollRingRefParam_descriptor_;
+}
+
+const CtrlRequest_PollRingRefParam& CtrlRequest_PollRingRefParam::default_instance() {
+  if (default_instance_ == NULL) protobuf_AddDesc_ctrl_2eproto();
+  return *default_instance_;
+}
+
+CtrlRequest_PollRingRefParam* CtrlRequest_PollRingRefParam::default_instance_ = NULL;
+
+CtrlRequest_PollRingRefParam* CtrlRequest_PollRingRefParam::New(::google::protobuf::Arena* arena) const {
+  CtrlRequest_PollRingRefParam* n = new CtrlRequest_PollRingRefParam;
+  if (arena != NULL) {
+    arena->Own(n);
+  }
+  return n;
+}
+
+void CtrlRequest_PollRingRefParam::Clear() {
+// @@protoc_insertion_point(message_clear_start:nba.knapp.CtrlRequest.PollRingRefParam)
+#if defined(__clang__)
+#define ZR_HELPER_(f) \
+  _Pragma("clang diagnostic push") \
+  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
+  __builtin_offsetof(CtrlRequest_PollRingRefParam, f) \
+  _Pragma("clang diagnostic pop")
+#else
+#define ZR_HELPER_(f) reinterpret_cast<char*>(\
+  &reinterpret_cast<CtrlRequest_PollRingRefParam*>(16)->f)
+#endif
+
+#define ZR_(first, last) do {\
+  ::memset(&first, 0,\
+           ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
+} while (0)
+
+  ZR_(vdev_handle_, ring_id_);
+
+#undef ZR_HELPER_
+#undef ZR_
+
+}
+
+bool CtrlRequest_PollRingRefParam::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+  ::google::protobuf::uint32 tag;
+  // @@protoc_insertion_point(parse_start:nba.knapp.CtrlRequest.PollRingRefParam)
+  for (;;) {
+    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // optional uint64 vdev_handle = 1;
+      case 1: {
+        if (tag == 8) {
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
+                 input, &vdev_handle_)));
+
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(16)) goto parse_ring_id;
+        break;
+      }
+
+      // optional uint32 ring_id = 2;
+      case 2: {
+        if (tag == 16) {
+         parse_ring_id:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &ring_id_)));
+
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectAtEnd()) goto success;
+        break;
+      }
+
+      default: {
+      handle_unusual:
+        if (tag == 0 ||
+            ::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          goto success;
+        }
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag));
+        break;
+      }
+    }
+  }
+success:
+  // @@protoc_insertion_point(parse_success:nba.knapp.CtrlRequest.PollRingRefParam)
+  return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:nba.knapp.CtrlRequest.PollRingRefParam)
+  return false;
+#undef DO_
+}
+
+void CtrlRequest_PollRingRefParam::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:nba.knapp.CtrlRequest.PollRingRefParam)
+  // optional uint64 vdev_handle = 1;
+  if (this->vdev_handle() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(1, this->vdev_handle(), output);
+  }
+
+  // optional uint32 ring_id = 2;
+  if (this->ring_id() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(2, this->ring_id(), output);
+  }
+
+  // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlRequest.PollRingRefParam)
+}
+
+::google::protobuf::uint8* CtrlRequest_PollRingRefParam::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nba.knapp.CtrlRequest.PollRingRefParam)
+  // optional uint64 vdev_handle = 1;
+  if (this->vdev_handle() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(1, this->vdev_handle(), target);
+  }
+
+  // optional uint32 ring_id = 2;
+  if (this->ring_id() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(2, this->ring_id(), target);
+  }
+
+  // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlRequest.PollRingRefParam)
+  return target;
+}
+
+int CtrlRequest_PollRingRefParam::ByteSize() const {
+// @@protoc_insertion_point(message_byte_size_start:nba.knapp.CtrlRequest.PollRingRefParam)
+  int total_size = 0;
+
+  // optional uint64 vdev_handle = 1;
+  if (this->vdev_handle() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt64Size(
+        this->vdev_handle());
+  }
+
+  // optional uint32 ring_id = 2;
+  if (this->ring_id() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt32Size(
+        this->ring_id());
+  }
+
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = total_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
+void CtrlRequest_PollRingRefParam::MergeFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:nba.knapp.CtrlRequest.PollRingRefParam)
+  if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
+  const CtrlRequest_PollRingRefParam* source = 
+      ::google::protobuf::internal::DynamicCastToGenerated<const CtrlRequest_PollRingRefParam>(
+          &from);
+  if (source == NULL) {
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:nba.knapp.CtrlRequest.PollRingRefParam)
+    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
+  } else {
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:nba.knapp.CtrlRequest.PollRingRefParam)
+    MergeFrom(*source);
+  }
+}
+
+void CtrlRequest_PollRingRefParam::MergeFrom(const CtrlRequest_PollRingRefParam& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:nba.knapp.CtrlRequest.PollRingRefParam)
+  if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
+  if (from.vdev_handle() != 0) {
+    set_vdev_handle(from.vdev_handle());
+  }
+  if (from.ring_id() != 0) {
+    set_ring_id(from.ring_id());
+  }
+}
+
+void CtrlRequest_PollRingRefParam::CopyFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:nba.knapp.CtrlRequest.PollRingRefParam)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void CtrlRequest_PollRingRefParam::CopyFrom(const CtrlRequest_PollRingRefParam& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nba.knapp.CtrlRequest.PollRingRefParam)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool CtrlRequest_PollRingRefParam::IsInitialized() const {
+
+  return true;
+}
+
+void CtrlRequest_PollRingRefParam::Swap(CtrlRequest_PollRingRefParam* other) {
+  if (other == this) return;
+  InternalSwap(other);
+}
+void CtrlRequest_PollRingRefParam::InternalSwap(CtrlRequest_PollRingRefParam* other) {
+  std::swap(vdev_handle_, other->vdev_handle_);
+  std::swap(ring_id_, other->ring_id_);
+  _internal_metadata_.Swap(&other->_internal_metadata_);
+  std::swap(_cached_size_, other->_cached_size_);
+}
+
+::google::protobuf::Metadata CtrlRequest_PollRingRefParam::GetMetadata() const {
+  protobuf_AssignDescriptorsOnce();
+  ::google::protobuf::Metadata metadata;
+  metadata.descriptor = CtrlRequest_PollRingRefParam_descriptor_;
+  metadata.reflection = CtrlRequest_PollRingRefParam_reflection_;
+  return metadata;
+}
+
+
+// -------------------------------------------------------------------
+
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
+const int CtrlRequest_RMABufferParam::kVdevHandleFieldNumber;
+const int CtrlRequest_RMABufferParam::kBufferIdFieldNumber;
+const int CtrlRequest_RMABufferParam::kSizeFieldNumber;
+const int CtrlRequest_RMABufferParam::kLocalRaFieldNumber;
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+
+CtrlRequest_RMABufferParam::CtrlRequest_RMABufferParam()
+  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  SharedCtor();
+  // @@protoc_insertion_point(constructor:nba.knapp.CtrlRequest.RMABufferParam)
+}
+
+void CtrlRequest_RMABufferParam::InitAsDefaultInstance() {
+  _is_default_instance_ = true;
+}
+
+CtrlRequest_RMABufferParam::CtrlRequest_RMABufferParam(const CtrlRequest_RMABufferParam& from)
+  : ::google::protobuf::Message(),
+    _internal_metadata_(NULL) {
+  SharedCtor();
+  MergeFrom(from);
+  // @@protoc_insertion_point(copy_constructor:nba.knapp.CtrlRequest.RMABufferParam)
+}
+
+void CtrlRequest_RMABufferParam::SharedCtor() {
+    _is_default_instance_ = false;
+  _cached_size_ = 0;
+  vdev_handle_ = GOOGLE_ULONGLONG(0);
+  buffer_id_ = 0u;
+  size_ = 0u;
+  local_ra_ = GOOGLE_ULONGLONG(0);
+}
+
+CtrlRequest_RMABufferParam::~CtrlRequest_RMABufferParam() {
+  // @@protoc_insertion_point(destructor:nba.knapp.CtrlRequest.RMABufferParam)
+  SharedDtor();
+}
+
+void CtrlRequest_RMABufferParam::SharedDtor() {
+  if (this != default_instance_) {
+  }
+}
+
+void CtrlRequest_RMABufferParam::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const ::google::protobuf::Descriptor* CtrlRequest_RMABufferParam::descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return CtrlRequest_RMABufferParam_descriptor_;
+}
+
+const CtrlRequest_RMABufferParam& CtrlRequest_RMABufferParam::default_instance() {
+  if (default_instance_ == NULL) protobuf_AddDesc_ctrl_2eproto();
+  return *default_instance_;
+}
+
+CtrlRequest_RMABufferParam* CtrlRequest_RMABufferParam::default_instance_ = NULL;
+
+CtrlRequest_RMABufferParam* CtrlRequest_RMABufferParam::New(::google::protobuf::Arena* arena) const {
+  CtrlRequest_RMABufferParam* n = new CtrlRequest_RMABufferParam;
+  if (arena != NULL) {
+    arena->Own(n);
+  }
+  return n;
+}
+
+void CtrlRequest_RMABufferParam::Clear() {
+// @@protoc_insertion_point(message_clear_start:nba.knapp.CtrlRequest.RMABufferParam)
+#if defined(__clang__)
+#define ZR_HELPER_(f) \
+  _Pragma("clang diagnostic push") \
+  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
+  __builtin_offsetof(CtrlRequest_RMABufferParam, f) \
+  _Pragma("clang diagnostic pop")
+#else
+#define ZR_HELPER_(f) reinterpret_cast<char*>(\
+  &reinterpret_cast<CtrlRequest_RMABufferParam*>(16)->f)
+#endif
+
+#define ZR_(first, last) do {\
+  ::memset(&first, 0,\
+           ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
+} while (0)
+
+  ZR_(vdev_handle_, local_ra_);
+
+#undef ZR_HELPER_
+#undef ZR_
+
+}
+
+bool CtrlRequest_RMABufferParam::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+  ::google::protobuf::uint32 tag;
+  // @@protoc_insertion_point(parse_start:nba.knapp.CtrlRequest.RMABufferParam)
+  for (;;) {
+    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // optional uint64 vdev_handle = 1;
+      case 1: {
+        if (tag == 8) {
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
+                 input, &vdev_handle_)));
+
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(16)) goto parse_buffer_id;
+        break;
+      }
+
+      // optional uint32 buffer_id = 2;
+      case 2: {
+        if (tag == 16) {
+         parse_buffer_id:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &buffer_id_)));
+
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(24)) goto parse_size;
+        break;
+      }
+
+      // optional uint32 size = 3;
+      case 3: {
+        if (tag == 24) {
+         parse_size:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &size_)));
+
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(32)) goto parse_local_ra;
+        break;
+      }
+
+      // optional uint64 local_ra = 4;
+      case 4: {
+        if (tag == 32) {
+         parse_local_ra:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
+                 input, &local_ra_)));
+
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectAtEnd()) goto success;
+        break;
+      }
+
+      default: {
+      handle_unusual:
+        if (tag == 0 ||
+            ::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          goto success;
+        }
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag));
+        break;
+      }
+    }
+  }
+success:
+  // @@protoc_insertion_point(parse_success:nba.knapp.CtrlRequest.RMABufferParam)
+  return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:nba.knapp.CtrlRequest.RMABufferParam)
+  return false;
+#undef DO_
+}
+
+void CtrlRequest_RMABufferParam::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:nba.knapp.CtrlRequest.RMABufferParam)
+  // optional uint64 vdev_handle = 1;
+  if (this->vdev_handle() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(1, this->vdev_handle(), output);
+  }
+
+  // optional uint32 buffer_id = 2;
+  if (this->buffer_id() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(2, this->buffer_id(), output);
+  }
+
+  // optional uint32 size = 3;
+  if (this->size() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(3, this->size(), output);
+  }
+
+  // optional uint64 local_ra = 4;
+  if (this->local_ra() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(4, this->local_ra(), output);
+  }
+
+  // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlRequest.RMABufferParam)
+}
+
+::google::protobuf::uint8* CtrlRequest_RMABufferParam::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nba.knapp.CtrlRequest.RMABufferParam)
+  // optional uint64 vdev_handle = 1;
+  if (this->vdev_handle() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(1, this->vdev_handle(), target);
+  }
+
+  // optional uint32 buffer_id = 2;
+  if (this->buffer_id() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(2, this->buffer_id(), target);
+  }
+
+  // optional uint32 size = 3;
+  if (this->size() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(3, this->size(), target);
+  }
+
+  // optional uint64 local_ra = 4;
+  if (this->local_ra() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(4, this->local_ra(), target);
+  }
+
+  // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlRequest.RMABufferParam)
+  return target;
+}
+
+int CtrlRequest_RMABufferParam::ByteSize() const {
+// @@protoc_insertion_point(message_byte_size_start:nba.knapp.CtrlRequest.RMABufferParam)
+  int total_size = 0;
+
+  // optional uint64 vdev_handle = 1;
+  if (this->vdev_handle() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt64Size(
+        this->vdev_handle());
+  }
+
+  // optional uint32 buffer_id = 2;
+  if (this->buffer_id() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt32Size(
+        this->buffer_id());
+  }
+
+  // optional uint32 size = 3;
+  if (this->size() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt32Size(
+        this->size());
+  }
+
+  // optional uint64 local_ra = 4;
+  if (this->local_ra() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt64Size(
+        this->local_ra());
+  }
+
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = total_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
+void CtrlRequest_RMABufferParam::MergeFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:nba.knapp.CtrlRequest.RMABufferParam)
+  if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
+  const CtrlRequest_RMABufferParam* source = 
+      ::google::protobuf::internal::DynamicCastToGenerated<const CtrlRequest_RMABufferParam>(
+          &from);
+  if (source == NULL) {
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:nba.knapp.CtrlRequest.RMABufferParam)
+    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
+  } else {
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:nba.knapp.CtrlRequest.RMABufferParam)
+    MergeFrom(*source);
+  }
+}
+
+void CtrlRequest_RMABufferParam::MergeFrom(const CtrlRequest_RMABufferParam& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:nba.knapp.CtrlRequest.RMABufferParam)
+  if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
+  if (from.vdev_handle() != 0) {
+    set_vdev_handle(from.vdev_handle());
+  }
+  if (from.buffer_id() != 0) {
+    set_buffer_id(from.buffer_id());
+  }
+  if (from.size() != 0) {
+    set_size(from.size());
+  }
+  if (from.local_ra() != 0) {
+    set_local_ra(from.local_ra());
+  }
+}
+
+void CtrlRequest_RMABufferParam::CopyFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:nba.knapp.CtrlRequest.RMABufferParam)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void CtrlRequest_RMABufferParam::CopyFrom(const CtrlRequest_RMABufferParam& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nba.knapp.CtrlRequest.RMABufferParam)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool CtrlRequest_RMABufferParam::IsInitialized() const {
+
+  return true;
+}
+
+void CtrlRequest_RMABufferParam::Swap(CtrlRequest_RMABufferParam* other) {
+  if (other == this) return;
+  InternalSwap(other);
+}
+void CtrlRequest_RMABufferParam::InternalSwap(CtrlRequest_RMABufferParam* other) {
+  std::swap(vdev_handle_, other->vdev_handle_);
+  std::swap(buffer_id_, other->buffer_id_);
+  std::swap(size_, other->size_);
+  std::swap(local_ra_, other->local_ra_);
+  _internal_metadata_.Swap(&other->_internal_metadata_);
+  std::swap(_cached_size_, other->_cached_size_);
+}
+
+::google::protobuf::Metadata CtrlRequest_RMABufferParam::GetMetadata() const {
+  protobuf_AssignDescriptorsOnce();
+  ::google::protobuf::Metadata metadata;
+  metadata.descriptor = CtrlRequest_RMABufferParam_descriptor_;
+  metadata.reflection = CtrlRequest_RMABufferParam_reflection_;
+  return metadata;
+}
+
+
+// -------------------------------------------------------------------
+
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
+const int CtrlRequest_RMABufferRefParam::kVdevHandleFieldNumber;
+const int CtrlRequest_RMABufferRefParam::kBufferIdFieldNumber;
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+
+CtrlRequest_RMABufferRefParam::CtrlRequest_RMABufferRefParam()
+  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  SharedCtor();
+  // @@protoc_insertion_point(constructor:nba.knapp.CtrlRequest.RMABufferRefParam)
+}
+
+void CtrlRequest_RMABufferRefParam::InitAsDefaultInstance() {
+  _is_default_instance_ = true;
+}
+
+CtrlRequest_RMABufferRefParam::CtrlRequest_RMABufferRefParam(const CtrlRequest_RMABufferRefParam& from)
+  : ::google::protobuf::Message(),
+    _internal_metadata_(NULL) {
+  SharedCtor();
+  MergeFrom(from);
+  // @@protoc_insertion_point(copy_constructor:nba.knapp.CtrlRequest.RMABufferRefParam)
+}
+
+void CtrlRequest_RMABufferRefParam::SharedCtor() {
+    _is_default_instance_ = false;
+  _cached_size_ = 0;
+  vdev_handle_ = GOOGLE_ULONGLONG(0);
+  buffer_id_ = 0u;
+}
+
+CtrlRequest_RMABufferRefParam::~CtrlRequest_RMABufferRefParam() {
+  // @@protoc_insertion_point(destructor:nba.knapp.CtrlRequest.RMABufferRefParam)
+  SharedDtor();
+}
+
+void CtrlRequest_RMABufferRefParam::SharedDtor() {
+  if (this != default_instance_) {
+  }
+}
+
+void CtrlRequest_RMABufferRefParam::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const ::google::protobuf::Descriptor* CtrlRequest_RMABufferRefParam::descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return CtrlRequest_RMABufferRefParam_descriptor_;
+}
+
+const CtrlRequest_RMABufferRefParam& CtrlRequest_RMABufferRefParam::default_instance() {
+  if (default_instance_ == NULL) protobuf_AddDesc_ctrl_2eproto();
+  return *default_instance_;
+}
+
+CtrlRequest_RMABufferRefParam* CtrlRequest_RMABufferRefParam::default_instance_ = NULL;
+
+CtrlRequest_RMABufferRefParam* CtrlRequest_RMABufferRefParam::New(::google::protobuf::Arena* arena) const {
+  CtrlRequest_RMABufferRefParam* n = new CtrlRequest_RMABufferRefParam;
+  if (arena != NULL) {
+    arena->Own(n);
+  }
+  return n;
+}
+
+void CtrlRequest_RMABufferRefParam::Clear() {
+// @@protoc_insertion_point(message_clear_start:nba.knapp.CtrlRequest.RMABufferRefParam)
+#if defined(__clang__)
+#define ZR_HELPER_(f) \
+  _Pragma("clang diagnostic push") \
+  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
+  __builtin_offsetof(CtrlRequest_RMABufferRefParam, f) \
+  _Pragma("clang diagnostic pop")
+#else
+#define ZR_HELPER_(f) reinterpret_cast<char*>(\
+  &reinterpret_cast<CtrlRequest_RMABufferRefParam*>(16)->f)
+#endif
+
+#define ZR_(first, last) do {\
+  ::memset(&first, 0,\
+           ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
+} while (0)
+
+  ZR_(vdev_handle_, buffer_id_);
+
+#undef ZR_HELPER_
+#undef ZR_
+
+}
+
+bool CtrlRequest_RMABufferRefParam::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+  ::google::protobuf::uint32 tag;
+  // @@protoc_insertion_point(parse_start:nba.knapp.CtrlRequest.RMABufferRefParam)
+  for (;;) {
+    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // optional uint64 vdev_handle = 1;
+      case 1: {
+        if (tag == 8) {
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
+                 input, &vdev_handle_)));
+
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(16)) goto parse_buffer_id;
+        break;
+      }
+
+      // optional uint32 buffer_id = 2;
+      case 2: {
+        if (tag == 16) {
+         parse_buffer_id:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &buffer_id_)));
+
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectAtEnd()) goto success;
+        break;
+      }
+
+      default: {
+      handle_unusual:
+        if (tag == 0 ||
+            ::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          goto success;
+        }
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag));
+        break;
+      }
+    }
+  }
+success:
+  // @@protoc_insertion_point(parse_success:nba.knapp.CtrlRequest.RMABufferRefParam)
+  return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:nba.knapp.CtrlRequest.RMABufferRefParam)
+  return false;
+#undef DO_
+}
+
+void CtrlRequest_RMABufferRefParam::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:nba.knapp.CtrlRequest.RMABufferRefParam)
+  // optional uint64 vdev_handle = 1;
+  if (this->vdev_handle() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(1, this->vdev_handle(), output);
+  }
+
+  // optional uint32 buffer_id = 2;
+  if (this->buffer_id() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(2, this->buffer_id(), output);
+  }
+
+  // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlRequest.RMABufferRefParam)
+}
+
+::google::protobuf::uint8* CtrlRequest_RMABufferRefParam::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nba.knapp.CtrlRequest.RMABufferRefParam)
+  // optional uint64 vdev_handle = 1;
+  if (this->vdev_handle() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(1, this->vdev_handle(), target);
+  }
+
+  // optional uint32 buffer_id = 2;
+  if (this->buffer_id() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(2, this->buffer_id(), target);
+  }
+
+  // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlRequest.RMABufferRefParam)
+  return target;
+}
+
+int CtrlRequest_RMABufferRefParam::ByteSize() const {
+// @@protoc_insertion_point(message_byte_size_start:nba.knapp.CtrlRequest.RMABufferRefParam)
+  int total_size = 0;
+
+  // optional uint64 vdev_handle = 1;
+  if (this->vdev_handle() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt64Size(
+        this->vdev_handle());
+  }
+
+  // optional uint32 buffer_id = 2;
+  if (this->buffer_id() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt32Size(
+        this->buffer_id());
+  }
+
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = total_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
+void CtrlRequest_RMABufferRefParam::MergeFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:nba.knapp.CtrlRequest.RMABufferRefParam)
+  if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
+  const CtrlRequest_RMABufferRefParam* source = 
+      ::google::protobuf::internal::DynamicCastToGenerated<const CtrlRequest_RMABufferRefParam>(
+          &from);
+  if (source == NULL) {
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:nba.knapp.CtrlRequest.RMABufferRefParam)
+    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
+  } else {
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:nba.knapp.CtrlRequest.RMABufferRefParam)
+    MergeFrom(*source);
+  }
+}
+
+void CtrlRequest_RMABufferRefParam::MergeFrom(const CtrlRequest_RMABufferRefParam& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:nba.knapp.CtrlRequest.RMABufferRefParam)
+  if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
+  if (from.vdev_handle() != 0) {
+    set_vdev_handle(from.vdev_handle());
+  }
+  if (from.buffer_id() != 0) {
+    set_buffer_id(from.buffer_id());
+  }
+}
+
+void CtrlRequest_RMABufferRefParam::CopyFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:nba.knapp.CtrlRequest.RMABufferRefParam)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void CtrlRequest_RMABufferRefParam::CopyFrom(const CtrlRequest_RMABufferRefParam& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nba.knapp.CtrlRequest.RMABufferRefParam)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool CtrlRequest_RMABufferRefParam::IsInitialized() const {
+
+  return true;
+}
+
+void CtrlRequest_RMABufferRefParam::Swap(CtrlRequest_RMABufferRefParam* other) {
+  if (other == this) return;
+  InternalSwap(other);
+}
+void CtrlRequest_RMABufferRefParam::InternalSwap(CtrlRequest_RMABufferRefParam* other) {
+  std::swap(vdev_handle_, other->vdev_handle_);
+  std::swap(buffer_id_, other->buffer_id_);
+  _internal_metadata_.Swap(&other->_internal_metadata_);
+  std::swap(_cached_size_, other->_cached_size_);
+}
+
+::google::protobuf::Metadata CtrlRequest_RMABufferRefParam::GetMetadata() const {
+  protobuf_AssignDescriptorsOnce();
+  ::google::protobuf::Metadata metadata;
+  metadata.descriptor = CtrlRequest_RMABufferRefParam_descriptor_;
+  metadata.reflection = CtrlRequest_RMABufferRefParam_reflection_;
+  return metadata;
+}
+
+
+// -------------------------------------------------------------------
+
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int CtrlRequest::kTypeFieldNumber;
 const int CtrlRequest::kTextFieldNumber;
 const int CtrlRequest::kMallocFieldNumber;
 const int CtrlRequest::kVDevInfoFieldNumber;
 const int CtrlRequest::kResourceFieldNumber;
+const int CtrlRequest::kPollringFieldNumber;
+const int CtrlRequest::kPollringRefFieldNumber;
+const int CtrlRequest::kRmaFieldNumber;
+const int CtrlRequest::kRmaRefFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 CtrlRequest::CtrlRequest()
@@ -1411,6 +2801,10 @@ void CtrlRequest::InitAsDefaultInstance() {
   CtrlRequest_default_oneof_instance_->malloc_ = const_cast< ::nba::knapp::CtrlRequest_MallocParam*>(&::nba::knapp::CtrlRequest_MallocParam::default_instance());
   CtrlRequest_default_oneof_instance_->vdevinfo_ = const_cast< ::nba::knapp::CtrlRequest_vDeviceInfoParam*>(&::nba::knapp::CtrlRequest_vDeviceInfoParam::default_instance());
   CtrlRequest_default_oneof_instance_->resource_ = const_cast< ::nba::knapp::CtrlRequest_ResourceParam*>(&::nba::knapp::CtrlRequest_ResourceParam::default_instance());
+  CtrlRequest_default_oneof_instance_->pollring_ = const_cast< ::nba::knapp::CtrlRequest_PollRingParam*>(&::nba::knapp::CtrlRequest_PollRingParam::default_instance());
+  CtrlRequest_default_oneof_instance_->pollring_ref_ = const_cast< ::nba::knapp::CtrlRequest_PollRingRefParam*>(&::nba::knapp::CtrlRequest_PollRingRefParam::default_instance());
+  CtrlRequest_default_oneof_instance_->rma_ = const_cast< ::nba::knapp::CtrlRequest_RMABufferParam*>(&::nba::knapp::CtrlRequest_RMABufferParam::default_instance());
+  CtrlRequest_default_oneof_instance_->rma_ref_ = const_cast< ::nba::knapp::CtrlRequest_RMABufferRefParam*>(&::nba::knapp::CtrlRequest_RMABufferRefParam::default_instance());
 }
 
 CtrlRequest::CtrlRequest(const CtrlRequest& from)
@@ -1483,6 +2877,22 @@ void CtrlRequest::clear_params() {
     }
     case kResource: {
       delete params_.resource_;
+      break;
+    }
+    case kPollring: {
+      delete params_.pollring_;
+      break;
+    }
+    case kPollringRef: {
+      delete params_.pollring_ref_;
+      break;
+    }
+    case kRma: {
+      delete params_.rma_;
+      break;
+    }
+    case kRmaRef: {
+      delete params_.rma_ref_;
       break;
     }
     case PARAMS_NOT_SET: {
@@ -1572,6 +2982,58 @@ bool CtrlRequest::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
+        if (input->ExpectTag(50)) goto parse_pollring;
+        break;
+      }
+
+      // optional .nba.knapp.CtrlRequest.PollRingParam pollring = 6;
+      case 6: {
+        if (tag == 50) {
+         parse_pollring:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
+               input, mutable_pollring()));
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(58)) goto parse_pollring_ref;
+        break;
+      }
+
+      // optional .nba.knapp.CtrlRequest.PollRingRefParam pollring_ref = 7;
+      case 7: {
+        if (tag == 58) {
+         parse_pollring_ref:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
+               input, mutable_pollring_ref()));
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(66)) goto parse_rma;
+        break;
+      }
+
+      // optional .nba.knapp.CtrlRequest.RMABufferParam rma = 8;
+      case 8: {
+        if (tag == 66) {
+         parse_rma:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
+               input, mutable_rma()));
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(74)) goto parse_rma_ref;
+        break;
+      }
+
+      // optional .nba.knapp.CtrlRequest.RMABufferRefParam rma_ref = 9;
+      case 9: {
+        if (tag == 74) {
+         parse_rma_ref:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
+               input, mutable_rma_ref()));
+        } else {
+          goto handle_unusual;
+        }
         if (input->ExpectAtEnd()) goto success;
         break;
       }
@@ -1630,6 +3092,30 @@ void CtrlRequest::SerializeWithCachedSizes(
       5, *params_.resource_, output);
   }
 
+  // optional .nba.knapp.CtrlRequest.PollRingParam pollring = 6;
+  if (has_pollring()) {
+    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
+      6, *params_.pollring_, output);
+  }
+
+  // optional .nba.knapp.CtrlRequest.PollRingRefParam pollring_ref = 7;
+  if (has_pollring_ref()) {
+    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
+      7, *params_.pollring_ref_, output);
+  }
+
+  // optional .nba.knapp.CtrlRequest.RMABufferParam rma = 8;
+  if (has_rma()) {
+    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
+      8, *params_.rma_, output);
+  }
+
+  // optional .nba.knapp.CtrlRequest.RMABufferRefParam rma_ref = 9;
+  if (has_rma_ref()) {
+    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
+      9, *params_.rma_ref_, output);
+  }
+
   // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlRequest)
 }
 
@@ -1668,6 +3154,34 @@ void CtrlRequest::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::
       WriteMessageNoVirtualToArray(
         5, *params_.resource_, target);
+  }
+
+  // optional .nba.knapp.CtrlRequest.PollRingParam pollring = 6;
+  if (has_pollring()) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteMessageNoVirtualToArray(
+        6, *params_.pollring_, target);
+  }
+
+  // optional .nba.knapp.CtrlRequest.PollRingRefParam pollring_ref = 7;
+  if (has_pollring_ref()) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteMessageNoVirtualToArray(
+        7, *params_.pollring_ref_, target);
+  }
+
+  // optional .nba.knapp.CtrlRequest.RMABufferParam rma = 8;
+  if (has_rma()) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteMessageNoVirtualToArray(
+        8, *params_.rma_, target);
+  }
+
+  // optional .nba.knapp.CtrlRequest.RMABufferRefParam rma_ref = 9;
+  if (has_rma_ref()) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteMessageNoVirtualToArray(
+        9, *params_.rma_ref_, target);
   }
 
   // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlRequest)
@@ -1713,6 +3227,34 @@ int CtrlRequest::ByteSize() const {
           *params_.resource_);
       break;
     }
+    // optional .nba.knapp.CtrlRequest.PollRingParam pollring = 6;
+    case kPollring: {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          *params_.pollring_);
+      break;
+    }
+    // optional .nba.knapp.CtrlRequest.PollRingRefParam pollring_ref = 7;
+    case kPollringRef: {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          *params_.pollring_ref_);
+      break;
+    }
+    // optional .nba.knapp.CtrlRequest.RMABufferParam rma = 8;
+    case kRma: {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          *params_.rma_);
+      break;
+    }
+    // optional .nba.knapp.CtrlRequest.RMABufferRefParam rma_ref = 9;
+    case kRmaRef: {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          *params_.rma_ref_);
+      break;
+    }
     case PARAMS_NOT_SET: {
       break;
     }
@@ -1756,6 +3298,22 @@ void CtrlRequest::MergeFrom(const CtrlRequest& from) {
     }
     case kResource: {
       mutable_resource()->::nba::knapp::CtrlRequest_ResourceParam::MergeFrom(from.resource());
+      break;
+    }
+    case kPollring: {
+      mutable_pollring()->::nba::knapp::CtrlRequest_PollRingParam::MergeFrom(from.pollring());
+      break;
+    }
+    case kPollringRef: {
+      mutable_pollring_ref()->::nba::knapp::CtrlRequest_PollRingRefParam::MergeFrom(from.pollring_ref());
+      break;
+    }
+    case kRma: {
+      mutable_rma()->::nba::knapp::CtrlRequest_RMABufferParam::MergeFrom(from.rma());
+      break;
+    }
+    case kRmaRef: {
+      mutable_rma_ref()->::nba::knapp::CtrlRequest_RMABufferRefParam::MergeFrom(from.rma_ref());
       break;
     }
     case PARAMS_NOT_SET: {
@@ -1947,6 +3505,190 @@ void CtrlRequest_ResourceParam::clear_handle() {
   
   handle_ = value;
   // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.ResourceParam.handle)
+}
+
+// -------------------------------------------------------------------
+
+// CtrlRequest_PollRingParam
+
+// optional uint64 vdev_handle = 1;
+void CtrlRequest_PollRingParam::clear_vdev_handle() {
+  vdev_handle_ = GOOGLE_ULONGLONG(0);
+}
+ ::google::protobuf::uint64 CtrlRequest_PollRingParam::vdev_handle() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.PollRingParam.vdev_handle)
+  return vdev_handle_;
+}
+ void CtrlRequest_PollRingParam::set_vdev_handle(::google::protobuf::uint64 value) {
+  
+  vdev_handle_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.PollRingParam.vdev_handle)
+}
+
+// optional uint32 ring_id = 2;
+void CtrlRequest_PollRingParam::clear_ring_id() {
+  ring_id_ = 0u;
+}
+ ::google::protobuf::uint32 CtrlRequest_PollRingParam::ring_id() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.PollRingParam.ring_id)
+  return ring_id_;
+}
+ void CtrlRequest_PollRingParam::set_ring_id(::google::protobuf::uint32 value) {
+  
+  ring_id_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.PollRingParam.ring_id)
+}
+
+// optional uint32 len = 3;
+void CtrlRequest_PollRingParam::clear_len() {
+  len_ = 0u;
+}
+ ::google::protobuf::uint32 CtrlRequest_PollRingParam::len() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.PollRingParam.len)
+  return len_;
+}
+ void CtrlRequest_PollRingParam::set_len(::google::protobuf::uint32 value) {
+  
+  len_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.PollRingParam.len)
+}
+
+// optional uint64 local_ra = 4;
+void CtrlRequest_PollRingParam::clear_local_ra() {
+  local_ra_ = GOOGLE_ULONGLONG(0);
+}
+ ::google::protobuf::uint64 CtrlRequest_PollRingParam::local_ra() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.PollRingParam.local_ra)
+  return local_ra_;
+}
+ void CtrlRequest_PollRingParam::set_local_ra(::google::protobuf::uint64 value) {
+  
+  local_ra_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.PollRingParam.local_ra)
+}
+
+// -------------------------------------------------------------------
+
+// CtrlRequest_PollRingRefParam
+
+// optional uint64 vdev_handle = 1;
+void CtrlRequest_PollRingRefParam::clear_vdev_handle() {
+  vdev_handle_ = GOOGLE_ULONGLONG(0);
+}
+ ::google::protobuf::uint64 CtrlRequest_PollRingRefParam::vdev_handle() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.PollRingRefParam.vdev_handle)
+  return vdev_handle_;
+}
+ void CtrlRequest_PollRingRefParam::set_vdev_handle(::google::protobuf::uint64 value) {
+  
+  vdev_handle_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.PollRingRefParam.vdev_handle)
+}
+
+// optional uint32 ring_id = 2;
+void CtrlRequest_PollRingRefParam::clear_ring_id() {
+  ring_id_ = 0u;
+}
+ ::google::protobuf::uint32 CtrlRequest_PollRingRefParam::ring_id() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.PollRingRefParam.ring_id)
+  return ring_id_;
+}
+ void CtrlRequest_PollRingRefParam::set_ring_id(::google::protobuf::uint32 value) {
+  
+  ring_id_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.PollRingRefParam.ring_id)
+}
+
+// -------------------------------------------------------------------
+
+// CtrlRequest_RMABufferParam
+
+// optional uint64 vdev_handle = 1;
+void CtrlRequest_RMABufferParam::clear_vdev_handle() {
+  vdev_handle_ = GOOGLE_ULONGLONG(0);
+}
+ ::google::protobuf::uint64 CtrlRequest_RMABufferParam::vdev_handle() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.RMABufferParam.vdev_handle)
+  return vdev_handle_;
+}
+ void CtrlRequest_RMABufferParam::set_vdev_handle(::google::protobuf::uint64 value) {
+  
+  vdev_handle_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.RMABufferParam.vdev_handle)
+}
+
+// optional uint32 buffer_id = 2;
+void CtrlRequest_RMABufferParam::clear_buffer_id() {
+  buffer_id_ = 0u;
+}
+ ::google::protobuf::uint32 CtrlRequest_RMABufferParam::buffer_id() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.RMABufferParam.buffer_id)
+  return buffer_id_;
+}
+ void CtrlRequest_RMABufferParam::set_buffer_id(::google::protobuf::uint32 value) {
+  
+  buffer_id_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.RMABufferParam.buffer_id)
+}
+
+// optional uint32 size = 3;
+void CtrlRequest_RMABufferParam::clear_size() {
+  size_ = 0u;
+}
+ ::google::protobuf::uint32 CtrlRequest_RMABufferParam::size() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.RMABufferParam.size)
+  return size_;
+}
+ void CtrlRequest_RMABufferParam::set_size(::google::protobuf::uint32 value) {
+  
+  size_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.RMABufferParam.size)
+}
+
+// optional uint64 local_ra = 4;
+void CtrlRequest_RMABufferParam::clear_local_ra() {
+  local_ra_ = GOOGLE_ULONGLONG(0);
+}
+ ::google::protobuf::uint64 CtrlRequest_RMABufferParam::local_ra() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.RMABufferParam.local_ra)
+  return local_ra_;
+}
+ void CtrlRequest_RMABufferParam::set_local_ra(::google::protobuf::uint64 value) {
+  
+  local_ra_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.RMABufferParam.local_ra)
+}
+
+// -------------------------------------------------------------------
+
+// CtrlRequest_RMABufferRefParam
+
+// optional uint64 vdev_handle = 1;
+void CtrlRequest_RMABufferRefParam::clear_vdev_handle() {
+  vdev_handle_ = GOOGLE_ULONGLONG(0);
+}
+ ::google::protobuf::uint64 CtrlRequest_RMABufferRefParam::vdev_handle() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.RMABufferRefParam.vdev_handle)
+  return vdev_handle_;
+}
+ void CtrlRequest_RMABufferRefParam::set_vdev_handle(::google::protobuf::uint64 value) {
+  
+  vdev_handle_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.RMABufferRefParam.vdev_handle)
+}
+
+// optional uint32 buffer_id = 2;
+void CtrlRequest_RMABufferRefParam::clear_buffer_id() {
+  buffer_id_ = 0u;
+}
+ ::google::protobuf::uint32 CtrlRequest_RMABufferRefParam::buffer_id() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.RMABufferRefParam.buffer_id)
+  return buffer_id_;
+}
+ void CtrlRequest_RMABufferRefParam::set_buffer_id(::google::protobuf::uint32 value) {
+  
+  buffer_id_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.RMABufferRefParam.buffer_id)
 }
 
 // -------------------------------------------------------------------
@@ -2157,6 +3899,198 @@ void CtrlRequest::set_allocated_resource(::nba::knapp::CtrlRequest_ResourceParam
     params_.resource_ = resource;
   }
   // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.resource)
+}
+
+// optional .nba.knapp.CtrlRequest.PollRingParam pollring = 6;
+bool CtrlRequest::has_pollring() const {
+  return params_case() == kPollring;
+}
+void CtrlRequest::set_has_pollring() {
+  _oneof_case_[0] = kPollring;
+}
+void CtrlRequest::clear_pollring() {
+  if (has_pollring()) {
+    delete params_.pollring_;
+    clear_has_params();
+  }
+}
+ const ::nba::knapp::CtrlRequest_PollRingParam& CtrlRequest::pollring() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.pollring)
+  return has_pollring()
+      ? *params_.pollring_
+      : ::nba::knapp::CtrlRequest_PollRingParam::default_instance();
+}
+::nba::knapp::CtrlRequest_PollRingParam* CtrlRequest::mutable_pollring() {
+  if (!has_pollring()) {
+    clear_params();
+    set_has_pollring();
+    params_.pollring_ = new ::nba::knapp::CtrlRequest_PollRingParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.pollring)
+  return params_.pollring_;
+}
+::nba::knapp::CtrlRequest_PollRingParam* CtrlRequest::release_pollring() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.pollring)
+  if (has_pollring()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_PollRingParam* temp = params_.pollring_;
+    params_.pollring_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+void CtrlRequest::set_allocated_pollring(::nba::knapp::CtrlRequest_PollRingParam* pollring) {
+  clear_params();
+  if (pollring) {
+    set_has_pollring();
+    params_.pollring_ = pollring;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.pollring)
+}
+
+// optional .nba.knapp.CtrlRequest.PollRingRefParam pollring_ref = 7;
+bool CtrlRequest::has_pollring_ref() const {
+  return params_case() == kPollringRef;
+}
+void CtrlRequest::set_has_pollring_ref() {
+  _oneof_case_[0] = kPollringRef;
+}
+void CtrlRequest::clear_pollring_ref() {
+  if (has_pollring_ref()) {
+    delete params_.pollring_ref_;
+    clear_has_params();
+  }
+}
+ const ::nba::knapp::CtrlRequest_PollRingRefParam& CtrlRequest::pollring_ref() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.pollring_ref)
+  return has_pollring_ref()
+      ? *params_.pollring_ref_
+      : ::nba::knapp::CtrlRequest_PollRingRefParam::default_instance();
+}
+::nba::knapp::CtrlRequest_PollRingRefParam* CtrlRequest::mutable_pollring_ref() {
+  if (!has_pollring_ref()) {
+    clear_params();
+    set_has_pollring_ref();
+    params_.pollring_ref_ = new ::nba::knapp::CtrlRequest_PollRingRefParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.pollring_ref)
+  return params_.pollring_ref_;
+}
+::nba::knapp::CtrlRequest_PollRingRefParam* CtrlRequest::release_pollring_ref() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.pollring_ref)
+  if (has_pollring_ref()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_PollRingRefParam* temp = params_.pollring_ref_;
+    params_.pollring_ref_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+void CtrlRequest::set_allocated_pollring_ref(::nba::knapp::CtrlRequest_PollRingRefParam* pollring_ref) {
+  clear_params();
+  if (pollring_ref) {
+    set_has_pollring_ref();
+    params_.pollring_ref_ = pollring_ref;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.pollring_ref)
+}
+
+// optional .nba.knapp.CtrlRequest.RMABufferParam rma = 8;
+bool CtrlRequest::has_rma() const {
+  return params_case() == kRma;
+}
+void CtrlRequest::set_has_rma() {
+  _oneof_case_[0] = kRma;
+}
+void CtrlRequest::clear_rma() {
+  if (has_rma()) {
+    delete params_.rma_;
+    clear_has_params();
+  }
+}
+ const ::nba::knapp::CtrlRequest_RMABufferParam& CtrlRequest::rma() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.rma)
+  return has_rma()
+      ? *params_.rma_
+      : ::nba::knapp::CtrlRequest_RMABufferParam::default_instance();
+}
+::nba::knapp::CtrlRequest_RMABufferParam* CtrlRequest::mutable_rma() {
+  if (!has_rma()) {
+    clear_params();
+    set_has_rma();
+    params_.rma_ = new ::nba::knapp::CtrlRequest_RMABufferParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.rma)
+  return params_.rma_;
+}
+::nba::knapp::CtrlRequest_RMABufferParam* CtrlRequest::release_rma() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.rma)
+  if (has_rma()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_RMABufferParam* temp = params_.rma_;
+    params_.rma_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+void CtrlRequest::set_allocated_rma(::nba::knapp::CtrlRequest_RMABufferParam* rma) {
+  clear_params();
+  if (rma) {
+    set_has_rma();
+    params_.rma_ = rma;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.rma)
+}
+
+// optional .nba.knapp.CtrlRequest.RMABufferRefParam rma_ref = 9;
+bool CtrlRequest::has_rma_ref() const {
+  return params_case() == kRmaRef;
+}
+void CtrlRequest::set_has_rma_ref() {
+  _oneof_case_[0] = kRmaRef;
+}
+void CtrlRequest::clear_rma_ref() {
+  if (has_rma_ref()) {
+    delete params_.rma_ref_;
+    clear_has_params();
+  }
+}
+ const ::nba::knapp::CtrlRequest_RMABufferRefParam& CtrlRequest::rma_ref() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.rma_ref)
+  return has_rma_ref()
+      ? *params_.rma_ref_
+      : ::nba::knapp::CtrlRequest_RMABufferRefParam::default_instance();
+}
+::nba::knapp::CtrlRequest_RMABufferRefParam* CtrlRequest::mutable_rma_ref() {
+  if (!has_rma_ref()) {
+    clear_params();
+    set_has_rma_ref();
+    params_.rma_ref_ = new ::nba::knapp::CtrlRequest_RMABufferRefParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.rma_ref)
+  return params_.rma_ref_;
+}
+::nba::knapp::CtrlRequest_RMABufferRefParam* CtrlRequest::release_rma_ref() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.rma_ref)
+  if (has_rma_ref()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_RMABufferRefParam* temp = params_.rma_ref_;
+    params_.rma_ref_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+void CtrlRequest::set_allocated_rma_ref(::nba::knapp::CtrlRequest_RMABufferRefParam* rma_ref) {
+  clear_params();
+  if (rma_ref) {
+    set_has_rma_ref();
+    params_.rma_ref_ = rma_ref;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.rma_ref)
 }
 
 bool CtrlRequest::has_params() const {
@@ -2429,6 +4363,8 @@ void CtrlResponse_TextResponse::InternalSwap(CtrlResponse_TextResponse* other) {
 
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int CtrlResponse_ResourceResponse::kHandleFieldNumber;
+const int CtrlResponse_ResourceResponse::kIdFieldNumber;
+const int CtrlResponse_ResourceResponse::kPeerRaFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 CtrlResponse_ResourceResponse::CtrlResponse_ResourceResponse()
@@ -2453,6 +4389,8 @@ void CtrlResponse_ResourceResponse::SharedCtor() {
     _is_default_instance_ = false;
   _cached_size_ = 0;
   handle_ = GOOGLE_ULONGLONG(0);
+  id_ = 0u;
+  peer_ra_ = GOOGLE_ULONGLONG(0);
 }
 
 CtrlResponse_ResourceResponse::~CtrlResponse_ResourceResponse() {
@@ -2492,7 +4430,27 @@ CtrlResponse_ResourceResponse* CtrlResponse_ResourceResponse::New(::google::prot
 
 void CtrlResponse_ResourceResponse::Clear() {
 // @@protoc_insertion_point(message_clear_start:nba.knapp.CtrlResponse.ResourceResponse)
-  handle_ = GOOGLE_ULONGLONG(0);
+#if defined(__clang__)
+#define ZR_HELPER_(f) \
+  _Pragma("clang diagnostic push") \
+  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
+  __builtin_offsetof(CtrlResponse_ResourceResponse, f) \
+  _Pragma("clang diagnostic pop")
+#else
+#define ZR_HELPER_(f) reinterpret_cast<char*>(\
+  &reinterpret_cast<CtrlResponse_ResourceResponse*>(16)->f)
+#endif
+
+#define ZR_(first, last) do {\
+  ::memset(&first, 0,\
+           ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
+} while (0)
+
+  ZR_(handle_, id_);
+
+#undef ZR_HELPER_
+#undef ZR_
+
 }
 
 bool CtrlResponse_ResourceResponse::MergePartialFromCodedStream(
@@ -2511,6 +4469,36 @@ bool CtrlResponse_ResourceResponse::MergePartialFromCodedStream(
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
                  input, &handle_)));
+
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(16)) goto parse_id;
+        break;
+      }
+
+      // optional uint32 id = 2;
+      case 2: {
+        if (tag == 16) {
+         parse_id:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &id_)));
+
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(24)) goto parse_peer_ra;
+        break;
+      }
+
+      // optional uint64 peer_ra = 3;
+      case 3: {
+        if (tag == 24) {
+         parse_peer_ra:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
+                 input, &peer_ra_)));
 
         } else {
           goto handle_unusual;
@@ -2548,6 +4536,16 @@ void CtrlResponse_ResourceResponse::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteUInt64(1, this->handle(), output);
   }
 
+  // optional uint32 id = 2;
+  if (this->id() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(2, this->id(), output);
+  }
+
+  // optional uint64 peer_ra = 3;
+  if (this->peer_ra() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(3, this->peer_ra(), output);
+  }
+
   // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlResponse.ResourceResponse)
 }
 
@@ -2557,6 +4555,16 @@ void CtrlResponse_ResourceResponse::SerializeWithCachedSizes(
   // optional uint64 handle = 1;
   if (this->handle() != 0) {
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(1, this->handle(), target);
+  }
+
+  // optional uint32 id = 2;
+  if (this->id() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(2, this->id(), target);
+  }
+
+  // optional uint64 peer_ra = 3;
+  if (this->peer_ra() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(3, this->peer_ra(), target);
   }
 
   // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlResponse.ResourceResponse)
@@ -2572,6 +4580,20 @@ int CtrlResponse_ResourceResponse::ByteSize() const {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::UInt64Size(
         this->handle());
+  }
+
+  // optional uint32 id = 2;
+  if (this->id() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt32Size(
+        this->id());
+  }
+
+  // optional uint64 peer_ra = 3;
+  if (this->peer_ra() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt64Size(
+        this->peer_ra());
   }
 
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
@@ -2601,6 +4623,12 @@ void CtrlResponse_ResourceResponse::MergeFrom(const CtrlResponse_ResourceRespons
   if (from.handle() != 0) {
     set_handle(from.handle());
   }
+  if (from.id() != 0) {
+    set_id(from.id());
+  }
+  if (from.peer_ra() != 0) {
+    set_peer_ra(from.peer_ra());
+  }
 }
 
 void CtrlResponse_ResourceResponse::CopyFrom(const ::google::protobuf::Message& from) {
@@ -2628,6 +4656,8 @@ void CtrlResponse_ResourceResponse::Swap(CtrlResponse_ResourceResponse* other) {
 }
 void CtrlResponse_ResourceResponse::InternalSwap(CtrlResponse_ResourceResponse* other) {
   std::swap(handle_, other->handle_);
+  std::swap(id_, other->id_);
+  std::swap(peer_ra_, other->peer_ra_);
   _internal_metadata_.Swap(&other->_internal_metadata_);
   std::swap(_cached_size_, other->_cached_size_);
 }
@@ -3035,6 +5065,34 @@ void CtrlResponse_ResourceResponse::clear_handle() {
   
   handle_ = value;
   // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.ResourceResponse.handle)
+}
+
+// optional uint32 id = 2;
+void CtrlResponse_ResourceResponse::clear_id() {
+  id_ = 0u;
+}
+ ::google::protobuf::uint32 CtrlResponse_ResourceResponse::id() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.ResourceResponse.id)
+  return id_;
+}
+ void CtrlResponse_ResourceResponse::set_id(::google::protobuf::uint32 value) {
+  
+  id_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.ResourceResponse.id)
+}
+
+// optional uint64 peer_ra = 3;
+void CtrlResponse_ResourceResponse::clear_peer_ra() {
+  peer_ra_ = GOOGLE_ULONGLONG(0);
+}
+ ::google::protobuf::uint64 CtrlResponse_ResourceResponse::peer_ra() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.ResourceResponse.peer_ra)
+  return peer_ra_;
+}
+ void CtrlResponse_ResourceResponse::set_peer_ra(::google::protobuf::uint64 value) {
+  
+  peer_ra_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.ResourceResponse.peer_ra)
 }
 
 // -------------------------------------------------------------------

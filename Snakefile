@@ -117,7 +117,7 @@ CC   = 'gcc'
 CXX  = 'g++ ' + CXXSTD
 if USE_KNAPP:
     MIC_CC     = 'icpc -std=c++11 -mmic -fPIC'
-    MIC_CFLAGS = '-Wall -Iinclude -I{THIRD_PARTY_DIR}/protobuf-mic/src'
+    MIC_CFLAGS = '-Wall -g -Iinclude -I{THIRD_PARTY_DIR}/protobuf-mic/src'
     # We link protobuf statically to make the knapp-mic binary portable.
     MIC_LIBS   = '-pthread -lscif -lrt {THIRD_PARTY_DIR}/protobuf-mic/src/.libs/libprotobuf.a'
 NVCC = 'nvcc'

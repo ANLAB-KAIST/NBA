@@ -40,6 +40,10 @@ void protobuf_ShutdownFile_ctrl_2eproto();
 
 class CtrlRequest;
 class CtrlRequest_MallocParam;
+class CtrlRequest_PollRingParam;
+class CtrlRequest_PollRingRefParam;
+class CtrlRequest_RMABufferParam;
+class CtrlRequest_RMABufferRefParam;
 class CtrlRequest_ResourceParam;
 class CtrlRequest_TextParam;
 class CtrlRequest_vDeviceInfoParam;
@@ -53,12 +57,16 @@ enum CtrlRequest_Type {
   CtrlRequest_Type_FREE = 2,
   CtrlRequest_Type_CREATE_VDEV = 3,
   CtrlRequest_Type_DESTROY_VDEV = 4,
+  CtrlRequest_Type_CREATE_POLLRING = 5,
+  CtrlRequest_Type_DESTROY_POLLRING = 6,
+  CtrlRequest_Type_CREATE_RMABUFFER = 7,
+  CtrlRequest_Type_DESTROY_RMABUFFER = 8,
   CtrlRequest_Type_CtrlRequest_Type_INT_MIN_SENTINEL_DO_NOT_USE_ = ::google::protobuf::kint32min,
   CtrlRequest_Type_CtrlRequest_Type_INT_MAX_SENTINEL_DO_NOT_USE_ = ::google::protobuf::kint32max
 };
 bool CtrlRequest_Type_IsValid(int value);
 const CtrlRequest_Type CtrlRequest_Type_Type_MIN = CtrlRequest_Type_PING;
-const CtrlRequest_Type CtrlRequest_Type_Type_MAX = CtrlRequest_Type_DESTROY_VDEV;
+const CtrlRequest_Type CtrlRequest_Type_Type_MAX = CtrlRequest_Type_DESTROY_RMABUFFER;
 const int CtrlRequest_Type_Type_ARRAYSIZE = CtrlRequest_Type_Type_MAX + 1;
 
 const ::google::protobuf::EnumDescriptor* CtrlRequest_Type_descriptor();
@@ -433,6 +441,374 @@ class CtrlRequest_ResourceParam : public ::google::protobuf::Message {
 };
 // -------------------------------------------------------------------
 
+class CtrlRequest_PollRingParam : public ::google::protobuf::Message {
+ public:
+  CtrlRequest_PollRingParam();
+  virtual ~CtrlRequest_PollRingParam();
+
+  CtrlRequest_PollRingParam(const CtrlRequest_PollRingParam& from);
+
+  inline CtrlRequest_PollRingParam& operator=(const CtrlRequest_PollRingParam& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const CtrlRequest_PollRingParam& default_instance();
+
+  void Swap(CtrlRequest_PollRingParam* other);
+
+  // implements Message ----------------------------------------------
+
+  inline CtrlRequest_PollRingParam* New() const { return New(NULL); }
+
+  CtrlRequest_PollRingParam* New(::google::protobuf::Arena* arena) const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const CtrlRequest_PollRingParam& from);
+  void MergeFrom(const CtrlRequest_PollRingParam& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  void InternalSwap(CtrlRequest_PollRingParam* other);
+  private:
+  inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
+    return _internal_metadata_.arena();
+  }
+  inline void* MaybeArenaPtr() const {
+    return _internal_metadata_.raw_arena_ptr();
+  }
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // optional uint64 vdev_handle = 1;
+  void clear_vdev_handle();
+  static const int kVdevHandleFieldNumber = 1;
+  ::google::protobuf::uint64 vdev_handle() const;
+  void set_vdev_handle(::google::protobuf::uint64 value);
+
+  // optional uint32 ring_id = 2;
+  void clear_ring_id();
+  static const int kRingIdFieldNumber = 2;
+  ::google::protobuf::uint32 ring_id() const;
+  void set_ring_id(::google::protobuf::uint32 value);
+
+  // optional uint32 len = 3;
+  void clear_len();
+  static const int kLenFieldNumber = 3;
+  ::google::protobuf::uint32 len() const;
+  void set_len(::google::protobuf::uint32 value);
+
+  // optional uint64 local_ra = 4;
+  void clear_local_ra();
+  static const int kLocalRaFieldNumber = 4;
+  ::google::protobuf::uint64 local_ra() const;
+  void set_local_ra(::google::protobuf::uint64 value);
+
+  // @@protoc_insertion_point(class_scope:nba.knapp.CtrlRequest.PollRingParam)
+ private:
+
+  ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
+  bool _is_default_instance_;
+  ::google::protobuf::uint64 vdev_handle_;
+  ::google::protobuf::uint32 ring_id_;
+  ::google::protobuf::uint32 len_;
+  ::google::protobuf::uint64 local_ra_;
+  mutable int _cached_size_;
+  friend void  protobuf_AddDesc_ctrl_2eproto();
+  friend void protobuf_AssignDesc_ctrl_2eproto();
+  friend void protobuf_ShutdownFile_ctrl_2eproto();
+
+  void InitAsDefaultInstance();
+  static CtrlRequest_PollRingParam* default_instance_;
+};
+// -------------------------------------------------------------------
+
+class CtrlRequest_PollRingRefParam : public ::google::protobuf::Message {
+ public:
+  CtrlRequest_PollRingRefParam();
+  virtual ~CtrlRequest_PollRingRefParam();
+
+  CtrlRequest_PollRingRefParam(const CtrlRequest_PollRingRefParam& from);
+
+  inline CtrlRequest_PollRingRefParam& operator=(const CtrlRequest_PollRingRefParam& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const CtrlRequest_PollRingRefParam& default_instance();
+
+  void Swap(CtrlRequest_PollRingRefParam* other);
+
+  // implements Message ----------------------------------------------
+
+  inline CtrlRequest_PollRingRefParam* New() const { return New(NULL); }
+
+  CtrlRequest_PollRingRefParam* New(::google::protobuf::Arena* arena) const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const CtrlRequest_PollRingRefParam& from);
+  void MergeFrom(const CtrlRequest_PollRingRefParam& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  void InternalSwap(CtrlRequest_PollRingRefParam* other);
+  private:
+  inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
+    return _internal_metadata_.arena();
+  }
+  inline void* MaybeArenaPtr() const {
+    return _internal_metadata_.raw_arena_ptr();
+  }
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // optional uint64 vdev_handle = 1;
+  void clear_vdev_handle();
+  static const int kVdevHandleFieldNumber = 1;
+  ::google::protobuf::uint64 vdev_handle() const;
+  void set_vdev_handle(::google::protobuf::uint64 value);
+
+  // optional uint32 ring_id = 2;
+  void clear_ring_id();
+  static const int kRingIdFieldNumber = 2;
+  ::google::protobuf::uint32 ring_id() const;
+  void set_ring_id(::google::protobuf::uint32 value);
+
+  // @@protoc_insertion_point(class_scope:nba.knapp.CtrlRequest.PollRingRefParam)
+ private:
+
+  ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
+  bool _is_default_instance_;
+  ::google::protobuf::uint64 vdev_handle_;
+  ::google::protobuf::uint32 ring_id_;
+  mutable int _cached_size_;
+  friend void  protobuf_AddDesc_ctrl_2eproto();
+  friend void protobuf_AssignDesc_ctrl_2eproto();
+  friend void protobuf_ShutdownFile_ctrl_2eproto();
+
+  void InitAsDefaultInstance();
+  static CtrlRequest_PollRingRefParam* default_instance_;
+};
+// -------------------------------------------------------------------
+
+class CtrlRequest_RMABufferParam : public ::google::protobuf::Message {
+ public:
+  CtrlRequest_RMABufferParam();
+  virtual ~CtrlRequest_RMABufferParam();
+
+  CtrlRequest_RMABufferParam(const CtrlRequest_RMABufferParam& from);
+
+  inline CtrlRequest_RMABufferParam& operator=(const CtrlRequest_RMABufferParam& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const CtrlRequest_RMABufferParam& default_instance();
+
+  void Swap(CtrlRequest_RMABufferParam* other);
+
+  // implements Message ----------------------------------------------
+
+  inline CtrlRequest_RMABufferParam* New() const { return New(NULL); }
+
+  CtrlRequest_RMABufferParam* New(::google::protobuf::Arena* arena) const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const CtrlRequest_RMABufferParam& from);
+  void MergeFrom(const CtrlRequest_RMABufferParam& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  void InternalSwap(CtrlRequest_RMABufferParam* other);
+  private:
+  inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
+    return _internal_metadata_.arena();
+  }
+  inline void* MaybeArenaPtr() const {
+    return _internal_metadata_.raw_arena_ptr();
+  }
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // optional uint64 vdev_handle = 1;
+  void clear_vdev_handle();
+  static const int kVdevHandleFieldNumber = 1;
+  ::google::protobuf::uint64 vdev_handle() const;
+  void set_vdev_handle(::google::protobuf::uint64 value);
+
+  // optional uint32 buffer_id = 2;
+  void clear_buffer_id();
+  static const int kBufferIdFieldNumber = 2;
+  ::google::protobuf::uint32 buffer_id() const;
+  void set_buffer_id(::google::protobuf::uint32 value);
+
+  // optional uint32 size = 3;
+  void clear_size();
+  static const int kSizeFieldNumber = 3;
+  ::google::protobuf::uint32 size() const;
+  void set_size(::google::protobuf::uint32 value);
+
+  // optional uint64 local_ra = 4;
+  void clear_local_ra();
+  static const int kLocalRaFieldNumber = 4;
+  ::google::protobuf::uint64 local_ra() const;
+  void set_local_ra(::google::protobuf::uint64 value);
+
+  // @@protoc_insertion_point(class_scope:nba.knapp.CtrlRequest.RMABufferParam)
+ private:
+
+  ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
+  bool _is_default_instance_;
+  ::google::protobuf::uint64 vdev_handle_;
+  ::google::protobuf::uint32 buffer_id_;
+  ::google::protobuf::uint32 size_;
+  ::google::protobuf::uint64 local_ra_;
+  mutable int _cached_size_;
+  friend void  protobuf_AddDesc_ctrl_2eproto();
+  friend void protobuf_AssignDesc_ctrl_2eproto();
+  friend void protobuf_ShutdownFile_ctrl_2eproto();
+
+  void InitAsDefaultInstance();
+  static CtrlRequest_RMABufferParam* default_instance_;
+};
+// -------------------------------------------------------------------
+
+class CtrlRequest_RMABufferRefParam : public ::google::protobuf::Message {
+ public:
+  CtrlRequest_RMABufferRefParam();
+  virtual ~CtrlRequest_RMABufferRefParam();
+
+  CtrlRequest_RMABufferRefParam(const CtrlRequest_RMABufferRefParam& from);
+
+  inline CtrlRequest_RMABufferRefParam& operator=(const CtrlRequest_RMABufferRefParam& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const CtrlRequest_RMABufferRefParam& default_instance();
+
+  void Swap(CtrlRequest_RMABufferRefParam* other);
+
+  // implements Message ----------------------------------------------
+
+  inline CtrlRequest_RMABufferRefParam* New() const { return New(NULL); }
+
+  CtrlRequest_RMABufferRefParam* New(::google::protobuf::Arena* arena) const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const CtrlRequest_RMABufferRefParam& from);
+  void MergeFrom(const CtrlRequest_RMABufferRefParam& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  void InternalSwap(CtrlRequest_RMABufferRefParam* other);
+  private:
+  inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
+    return _internal_metadata_.arena();
+  }
+  inline void* MaybeArenaPtr() const {
+    return _internal_metadata_.raw_arena_ptr();
+  }
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // optional uint64 vdev_handle = 1;
+  void clear_vdev_handle();
+  static const int kVdevHandleFieldNumber = 1;
+  ::google::protobuf::uint64 vdev_handle() const;
+  void set_vdev_handle(::google::protobuf::uint64 value);
+
+  // optional uint32 buffer_id = 2;
+  void clear_buffer_id();
+  static const int kBufferIdFieldNumber = 2;
+  ::google::protobuf::uint32 buffer_id() const;
+  void set_buffer_id(::google::protobuf::uint32 value);
+
+  // @@protoc_insertion_point(class_scope:nba.knapp.CtrlRequest.RMABufferRefParam)
+ private:
+
+  ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
+  bool _is_default_instance_;
+  ::google::protobuf::uint64 vdev_handle_;
+  ::google::protobuf::uint32 buffer_id_;
+  mutable int _cached_size_;
+  friend void  protobuf_AddDesc_ctrl_2eproto();
+  friend void protobuf_AssignDesc_ctrl_2eproto();
+  friend void protobuf_ShutdownFile_ctrl_2eproto();
+
+  void InitAsDefaultInstance();
+  static CtrlRequest_RMABufferRefParam* default_instance_;
+};
+// -------------------------------------------------------------------
+
 class CtrlRequest : public ::google::protobuf::Message {
  public:
   CtrlRequest();
@@ -453,6 +829,10 @@ class CtrlRequest : public ::google::protobuf::Message {
     kMalloc = 3,
     kVDevInfo = 4,
     kResource = 5,
+    kPollring = 6,
+    kPollringRef = 7,
+    kRma = 8,
+    kRmaRef = 9,
     PARAMS_NOT_SET = 0,
   };
 
@@ -499,6 +879,10 @@ class CtrlRequest : public ::google::protobuf::Message {
   typedef CtrlRequest_MallocParam MallocParam;
   typedef CtrlRequest_vDeviceInfoParam vDeviceInfoParam;
   typedef CtrlRequest_ResourceParam ResourceParam;
+  typedef CtrlRequest_PollRingParam PollRingParam;
+  typedef CtrlRequest_PollRingRefParam PollRingRefParam;
+  typedef CtrlRequest_RMABufferParam RMABufferParam;
+  typedef CtrlRequest_RMABufferRefParam RMABufferRefParam;
 
   typedef CtrlRequest_Type Type;
   static const Type PING =
@@ -511,6 +895,14 @@ class CtrlRequest : public ::google::protobuf::Message {
     CtrlRequest_Type_CREATE_VDEV;
   static const Type DESTROY_VDEV =
     CtrlRequest_Type_DESTROY_VDEV;
+  static const Type CREATE_POLLRING =
+    CtrlRequest_Type_CREATE_POLLRING;
+  static const Type DESTROY_POLLRING =
+    CtrlRequest_Type_DESTROY_POLLRING;
+  static const Type CREATE_RMABUFFER =
+    CtrlRequest_Type_CREATE_RMABUFFER;
+  static const Type DESTROY_RMABUFFER =
+    CtrlRequest_Type_DESTROY_RMABUFFER;
   static inline bool Type_IsValid(int value) {
     return CtrlRequest_Type_IsValid(value);
   }
@@ -576,6 +968,42 @@ class CtrlRequest : public ::google::protobuf::Message {
   ::nba::knapp::CtrlRequest_ResourceParam* release_resource();
   void set_allocated_resource(::nba::knapp::CtrlRequest_ResourceParam* resource);
 
+  // optional .nba.knapp.CtrlRequest.PollRingParam pollring = 6;
+  bool has_pollring() const;
+  void clear_pollring();
+  static const int kPollringFieldNumber = 6;
+  const ::nba::knapp::CtrlRequest_PollRingParam& pollring() const;
+  ::nba::knapp::CtrlRequest_PollRingParam* mutable_pollring();
+  ::nba::knapp::CtrlRequest_PollRingParam* release_pollring();
+  void set_allocated_pollring(::nba::knapp::CtrlRequest_PollRingParam* pollring);
+
+  // optional .nba.knapp.CtrlRequest.PollRingRefParam pollring_ref = 7;
+  bool has_pollring_ref() const;
+  void clear_pollring_ref();
+  static const int kPollringRefFieldNumber = 7;
+  const ::nba::knapp::CtrlRequest_PollRingRefParam& pollring_ref() const;
+  ::nba::knapp::CtrlRequest_PollRingRefParam* mutable_pollring_ref();
+  ::nba::knapp::CtrlRequest_PollRingRefParam* release_pollring_ref();
+  void set_allocated_pollring_ref(::nba::knapp::CtrlRequest_PollRingRefParam* pollring_ref);
+
+  // optional .nba.knapp.CtrlRequest.RMABufferParam rma = 8;
+  bool has_rma() const;
+  void clear_rma();
+  static const int kRmaFieldNumber = 8;
+  const ::nba::knapp::CtrlRequest_RMABufferParam& rma() const;
+  ::nba::knapp::CtrlRequest_RMABufferParam* mutable_rma();
+  ::nba::knapp::CtrlRequest_RMABufferParam* release_rma();
+  void set_allocated_rma(::nba::knapp::CtrlRequest_RMABufferParam* rma);
+
+  // optional .nba.knapp.CtrlRequest.RMABufferRefParam rma_ref = 9;
+  bool has_rma_ref() const;
+  void clear_rma_ref();
+  static const int kRmaRefFieldNumber = 9;
+  const ::nba::knapp::CtrlRequest_RMABufferRefParam& rma_ref() const;
+  ::nba::knapp::CtrlRequest_RMABufferRefParam* mutable_rma_ref();
+  ::nba::knapp::CtrlRequest_RMABufferRefParam* release_rma_ref();
+  void set_allocated_rma_ref(::nba::knapp::CtrlRequest_RMABufferRefParam* rma_ref);
+
   ParamsCase params_case() const;
   // @@protoc_insertion_point(class_scope:nba.knapp.CtrlRequest)
  private:
@@ -583,6 +1011,10 @@ class CtrlRequest : public ::google::protobuf::Message {
   inline void set_has_malloc();
   inline void set_has_vdevinfo();
   inline void set_has_resource();
+  inline void set_has_pollring();
+  inline void set_has_pollring_ref();
+  inline void set_has_rma();
+  inline void set_has_rma_ref();
 
   inline bool has_params() const;
   void clear_params();
@@ -597,6 +1029,10 @@ class CtrlRequest : public ::google::protobuf::Message {
     ::nba::knapp::CtrlRequest_MallocParam* malloc_;
     ::nba::knapp::CtrlRequest_vDeviceInfoParam* vdevinfo_;
     ::nba::knapp::CtrlRequest_ResourceParam* resource_;
+    ::nba::knapp::CtrlRequest_PollRingParam* pollring_;
+    ::nba::knapp::CtrlRequest_PollRingRefParam* pollring_ref_;
+    ::nba::knapp::CtrlRequest_RMABufferParam* rma_;
+    ::nba::knapp::CtrlRequest_RMABufferRefParam* rma_ref_;
   } params_;
   mutable int _cached_size_;
   ::google::protobuf::uint32 _oneof_case_[1];
@@ -755,12 +1191,26 @@ class CtrlResponse_ResourceResponse : public ::google::protobuf::Message {
   ::google::protobuf::uint64 handle() const;
   void set_handle(::google::protobuf::uint64 value);
 
+  // optional uint32 id = 2;
+  void clear_id();
+  static const int kIdFieldNumber = 2;
+  ::google::protobuf::uint32 id() const;
+  void set_id(::google::protobuf::uint32 value);
+
+  // optional uint64 peer_ra = 3;
+  void clear_peer_ra();
+  static const int kPeerRaFieldNumber = 3;
+  ::google::protobuf::uint64 peer_ra() const;
+  void set_peer_ra(::google::protobuf::uint64 value);
+
   // @@protoc_insertion_point(class_scope:nba.knapp.CtrlResponse.ResourceResponse)
  private:
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
   bool _is_default_instance_;
   ::google::protobuf::uint64 handle_;
+  ::google::protobuf::uint64 peer_ra_;
+  ::google::protobuf::uint32 id_;
   mutable int _cached_size_;
   friend void  protobuf_AddDesc_ctrl_2eproto();
   friend void protobuf_AssignDesc_ctrl_2eproto();
@@ -1066,6 +1516,190 @@ inline void CtrlRequest_ResourceParam::set_handle(::google::protobuf::uint64 val
 
 // -------------------------------------------------------------------
 
+// CtrlRequest_PollRingParam
+
+// optional uint64 vdev_handle = 1;
+inline void CtrlRequest_PollRingParam::clear_vdev_handle() {
+  vdev_handle_ = GOOGLE_ULONGLONG(0);
+}
+inline ::google::protobuf::uint64 CtrlRequest_PollRingParam::vdev_handle() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.PollRingParam.vdev_handle)
+  return vdev_handle_;
+}
+inline void CtrlRequest_PollRingParam::set_vdev_handle(::google::protobuf::uint64 value) {
+  
+  vdev_handle_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.PollRingParam.vdev_handle)
+}
+
+// optional uint32 ring_id = 2;
+inline void CtrlRequest_PollRingParam::clear_ring_id() {
+  ring_id_ = 0u;
+}
+inline ::google::protobuf::uint32 CtrlRequest_PollRingParam::ring_id() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.PollRingParam.ring_id)
+  return ring_id_;
+}
+inline void CtrlRequest_PollRingParam::set_ring_id(::google::protobuf::uint32 value) {
+  
+  ring_id_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.PollRingParam.ring_id)
+}
+
+// optional uint32 len = 3;
+inline void CtrlRequest_PollRingParam::clear_len() {
+  len_ = 0u;
+}
+inline ::google::protobuf::uint32 CtrlRequest_PollRingParam::len() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.PollRingParam.len)
+  return len_;
+}
+inline void CtrlRequest_PollRingParam::set_len(::google::protobuf::uint32 value) {
+  
+  len_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.PollRingParam.len)
+}
+
+// optional uint64 local_ra = 4;
+inline void CtrlRequest_PollRingParam::clear_local_ra() {
+  local_ra_ = GOOGLE_ULONGLONG(0);
+}
+inline ::google::protobuf::uint64 CtrlRequest_PollRingParam::local_ra() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.PollRingParam.local_ra)
+  return local_ra_;
+}
+inline void CtrlRequest_PollRingParam::set_local_ra(::google::protobuf::uint64 value) {
+  
+  local_ra_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.PollRingParam.local_ra)
+}
+
+// -------------------------------------------------------------------
+
+// CtrlRequest_PollRingRefParam
+
+// optional uint64 vdev_handle = 1;
+inline void CtrlRequest_PollRingRefParam::clear_vdev_handle() {
+  vdev_handle_ = GOOGLE_ULONGLONG(0);
+}
+inline ::google::protobuf::uint64 CtrlRequest_PollRingRefParam::vdev_handle() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.PollRingRefParam.vdev_handle)
+  return vdev_handle_;
+}
+inline void CtrlRequest_PollRingRefParam::set_vdev_handle(::google::protobuf::uint64 value) {
+  
+  vdev_handle_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.PollRingRefParam.vdev_handle)
+}
+
+// optional uint32 ring_id = 2;
+inline void CtrlRequest_PollRingRefParam::clear_ring_id() {
+  ring_id_ = 0u;
+}
+inline ::google::protobuf::uint32 CtrlRequest_PollRingRefParam::ring_id() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.PollRingRefParam.ring_id)
+  return ring_id_;
+}
+inline void CtrlRequest_PollRingRefParam::set_ring_id(::google::protobuf::uint32 value) {
+  
+  ring_id_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.PollRingRefParam.ring_id)
+}
+
+// -------------------------------------------------------------------
+
+// CtrlRequest_RMABufferParam
+
+// optional uint64 vdev_handle = 1;
+inline void CtrlRequest_RMABufferParam::clear_vdev_handle() {
+  vdev_handle_ = GOOGLE_ULONGLONG(0);
+}
+inline ::google::protobuf::uint64 CtrlRequest_RMABufferParam::vdev_handle() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.RMABufferParam.vdev_handle)
+  return vdev_handle_;
+}
+inline void CtrlRequest_RMABufferParam::set_vdev_handle(::google::protobuf::uint64 value) {
+  
+  vdev_handle_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.RMABufferParam.vdev_handle)
+}
+
+// optional uint32 buffer_id = 2;
+inline void CtrlRequest_RMABufferParam::clear_buffer_id() {
+  buffer_id_ = 0u;
+}
+inline ::google::protobuf::uint32 CtrlRequest_RMABufferParam::buffer_id() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.RMABufferParam.buffer_id)
+  return buffer_id_;
+}
+inline void CtrlRequest_RMABufferParam::set_buffer_id(::google::protobuf::uint32 value) {
+  
+  buffer_id_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.RMABufferParam.buffer_id)
+}
+
+// optional uint32 size = 3;
+inline void CtrlRequest_RMABufferParam::clear_size() {
+  size_ = 0u;
+}
+inline ::google::protobuf::uint32 CtrlRequest_RMABufferParam::size() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.RMABufferParam.size)
+  return size_;
+}
+inline void CtrlRequest_RMABufferParam::set_size(::google::protobuf::uint32 value) {
+  
+  size_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.RMABufferParam.size)
+}
+
+// optional uint64 local_ra = 4;
+inline void CtrlRequest_RMABufferParam::clear_local_ra() {
+  local_ra_ = GOOGLE_ULONGLONG(0);
+}
+inline ::google::protobuf::uint64 CtrlRequest_RMABufferParam::local_ra() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.RMABufferParam.local_ra)
+  return local_ra_;
+}
+inline void CtrlRequest_RMABufferParam::set_local_ra(::google::protobuf::uint64 value) {
+  
+  local_ra_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.RMABufferParam.local_ra)
+}
+
+// -------------------------------------------------------------------
+
+// CtrlRequest_RMABufferRefParam
+
+// optional uint64 vdev_handle = 1;
+inline void CtrlRequest_RMABufferRefParam::clear_vdev_handle() {
+  vdev_handle_ = GOOGLE_ULONGLONG(0);
+}
+inline ::google::protobuf::uint64 CtrlRequest_RMABufferRefParam::vdev_handle() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.RMABufferRefParam.vdev_handle)
+  return vdev_handle_;
+}
+inline void CtrlRequest_RMABufferRefParam::set_vdev_handle(::google::protobuf::uint64 value) {
+  
+  vdev_handle_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.RMABufferRefParam.vdev_handle)
+}
+
+// optional uint32 buffer_id = 2;
+inline void CtrlRequest_RMABufferRefParam::clear_buffer_id() {
+  buffer_id_ = 0u;
+}
+inline ::google::protobuf::uint32 CtrlRequest_RMABufferRefParam::buffer_id() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.RMABufferRefParam.buffer_id)
+  return buffer_id_;
+}
+inline void CtrlRequest_RMABufferRefParam::set_buffer_id(::google::protobuf::uint32 value) {
+  
+  buffer_id_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlRequest.RMABufferRefParam.buffer_id)
+}
+
+// -------------------------------------------------------------------
+
 // CtrlRequest
 
 // optional .nba.knapp.CtrlRequest.Type type = 1;
@@ -1274,6 +1908,198 @@ inline void CtrlRequest::set_allocated_resource(::nba::knapp::CtrlRequest_Resour
   // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.resource)
 }
 
+// optional .nba.knapp.CtrlRequest.PollRingParam pollring = 6;
+inline bool CtrlRequest::has_pollring() const {
+  return params_case() == kPollring;
+}
+inline void CtrlRequest::set_has_pollring() {
+  _oneof_case_[0] = kPollring;
+}
+inline void CtrlRequest::clear_pollring() {
+  if (has_pollring()) {
+    delete params_.pollring_;
+    clear_has_params();
+  }
+}
+inline  const ::nba::knapp::CtrlRequest_PollRingParam& CtrlRequest::pollring() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.pollring)
+  return has_pollring()
+      ? *params_.pollring_
+      : ::nba::knapp::CtrlRequest_PollRingParam::default_instance();
+}
+inline ::nba::knapp::CtrlRequest_PollRingParam* CtrlRequest::mutable_pollring() {
+  if (!has_pollring()) {
+    clear_params();
+    set_has_pollring();
+    params_.pollring_ = new ::nba::knapp::CtrlRequest_PollRingParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.pollring)
+  return params_.pollring_;
+}
+inline ::nba::knapp::CtrlRequest_PollRingParam* CtrlRequest::release_pollring() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.pollring)
+  if (has_pollring()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_PollRingParam* temp = params_.pollring_;
+    params_.pollring_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+inline void CtrlRequest::set_allocated_pollring(::nba::knapp::CtrlRequest_PollRingParam* pollring) {
+  clear_params();
+  if (pollring) {
+    set_has_pollring();
+    params_.pollring_ = pollring;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.pollring)
+}
+
+// optional .nba.knapp.CtrlRequest.PollRingRefParam pollring_ref = 7;
+inline bool CtrlRequest::has_pollring_ref() const {
+  return params_case() == kPollringRef;
+}
+inline void CtrlRequest::set_has_pollring_ref() {
+  _oneof_case_[0] = kPollringRef;
+}
+inline void CtrlRequest::clear_pollring_ref() {
+  if (has_pollring_ref()) {
+    delete params_.pollring_ref_;
+    clear_has_params();
+  }
+}
+inline  const ::nba::knapp::CtrlRequest_PollRingRefParam& CtrlRequest::pollring_ref() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.pollring_ref)
+  return has_pollring_ref()
+      ? *params_.pollring_ref_
+      : ::nba::knapp::CtrlRequest_PollRingRefParam::default_instance();
+}
+inline ::nba::knapp::CtrlRequest_PollRingRefParam* CtrlRequest::mutable_pollring_ref() {
+  if (!has_pollring_ref()) {
+    clear_params();
+    set_has_pollring_ref();
+    params_.pollring_ref_ = new ::nba::knapp::CtrlRequest_PollRingRefParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.pollring_ref)
+  return params_.pollring_ref_;
+}
+inline ::nba::knapp::CtrlRequest_PollRingRefParam* CtrlRequest::release_pollring_ref() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.pollring_ref)
+  if (has_pollring_ref()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_PollRingRefParam* temp = params_.pollring_ref_;
+    params_.pollring_ref_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+inline void CtrlRequest::set_allocated_pollring_ref(::nba::knapp::CtrlRequest_PollRingRefParam* pollring_ref) {
+  clear_params();
+  if (pollring_ref) {
+    set_has_pollring_ref();
+    params_.pollring_ref_ = pollring_ref;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.pollring_ref)
+}
+
+// optional .nba.knapp.CtrlRequest.RMABufferParam rma = 8;
+inline bool CtrlRequest::has_rma() const {
+  return params_case() == kRma;
+}
+inline void CtrlRequest::set_has_rma() {
+  _oneof_case_[0] = kRma;
+}
+inline void CtrlRequest::clear_rma() {
+  if (has_rma()) {
+    delete params_.rma_;
+    clear_has_params();
+  }
+}
+inline  const ::nba::knapp::CtrlRequest_RMABufferParam& CtrlRequest::rma() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.rma)
+  return has_rma()
+      ? *params_.rma_
+      : ::nba::knapp::CtrlRequest_RMABufferParam::default_instance();
+}
+inline ::nba::knapp::CtrlRequest_RMABufferParam* CtrlRequest::mutable_rma() {
+  if (!has_rma()) {
+    clear_params();
+    set_has_rma();
+    params_.rma_ = new ::nba::knapp::CtrlRequest_RMABufferParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.rma)
+  return params_.rma_;
+}
+inline ::nba::knapp::CtrlRequest_RMABufferParam* CtrlRequest::release_rma() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.rma)
+  if (has_rma()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_RMABufferParam* temp = params_.rma_;
+    params_.rma_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+inline void CtrlRequest::set_allocated_rma(::nba::knapp::CtrlRequest_RMABufferParam* rma) {
+  clear_params();
+  if (rma) {
+    set_has_rma();
+    params_.rma_ = rma;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.rma)
+}
+
+// optional .nba.knapp.CtrlRequest.RMABufferRefParam rma_ref = 9;
+inline bool CtrlRequest::has_rma_ref() const {
+  return params_case() == kRmaRef;
+}
+inline void CtrlRequest::set_has_rma_ref() {
+  _oneof_case_[0] = kRmaRef;
+}
+inline void CtrlRequest::clear_rma_ref() {
+  if (has_rma_ref()) {
+    delete params_.rma_ref_;
+    clear_has_params();
+  }
+}
+inline  const ::nba::knapp::CtrlRequest_RMABufferRefParam& CtrlRequest::rma_ref() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlRequest.rma_ref)
+  return has_rma_ref()
+      ? *params_.rma_ref_
+      : ::nba::knapp::CtrlRequest_RMABufferRefParam::default_instance();
+}
+inline ::nba::knapp::CtrlRequest_RMABufferRefParam* CtrlRequest::mutable_rma_ref() {
+  if (!has_rma_ref()) {
+    clear_params();
+    set_has_rma_ref();
+    params_.rma_ref_ = new ::nba::knapp::CtrlRequest_RMABufferRefParam;
+  }
+  // @@protoc_insertion_point(field_mutable:nba.knapp.CtrlRequest.rma_ref)
+  return params_.rma_ref_;
+}
+inline ::nba::knapp::CtrlRequest_RMABufferRefParam* CtrlRequest::release_rma_ref() {
+  // @@protoc_insertion_point(field_release:nba.knapp.CtrlRequest.rma_ref)
+  if (has_rma_ref()) {
+    clear_has_params();
+    ::nba::knapp::CtrlRequest_RMABufferRefParam* temp = params_.rma_ref_;
+    params_.rma_ref_ = NULL;
+    return temp;
+  } else {
+    return NULL;
+  }
+}
+inline void CtrlRequest::set_allocated_rma_ref(::nba::knapp::CtrlRequest_RMABufferRefParam* rma_ref) {
+  clear_params();
+  if (rma_ref) {
+    set_has_rma_ref();
+    params_.rma_ref_ = rma_ref;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nba.knapp.CtrlRequest.rma_ref)
+}
+
 inline bool CtrlRequest::has_params() const {
   return params_case() != PARAMS_NOT_SET;
 }
@@ -1347,6 +2173,34 @@ inline void CtrlResponse_ResourceResponse::set_handle(::google::protobuf::uint64
   
   handle_ = value;
   // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.ResourceResponse.handle)
+}
+
+// optional uint32 id = 2;
+inline void CtrlResponse_ResourceResponse::clear_id() {
+  id_ = 0u;
+}
+inline ::google::protobuf::uint32 CtrlResponse_ResourceResponse::id() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.ResourceResponse.id)
+  return id_;
+}
+inline void CtrlResponse_ResourceResponse::set_id(::google::protobuf::uint32 value) {
+  
+  id_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.ResourceResponse.id)
+}
+
+// optional uint64 peer_ra = 3;
+inline void CtrlResponse_ResourceResponse::clear_peer_ra() {
+  peer_ra_ = GOOGLE_ULONGLONG(0);
+}
+inline ::google::protobuf::uint64 CtrlResponse_ResourceResponse::peer_ra() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.ResourceResponse.peer_ra)
+  return peer_ra_;
+}
+inline void CtrlResponse_ResourceResponse::set_peer_ra(::google::protobuf::uint64 value) {
+  
+  peer_ra_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.ResourceResponse.peer_ra)
 }
 
 // -------------------------------------------------------------------
@@ -1473,6 +2327,14 @@ inline CtrlResponse::DataCase CtrlResponse::data_case() const {
   return CtrlResponse::DataCase(_oneof_case_[0]);
 }
 #endif  // !PROTOBUF_INLINE_NOT_IN_HEADERS
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------

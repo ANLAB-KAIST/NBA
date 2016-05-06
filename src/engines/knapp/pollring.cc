@@ -13,54 +13,53 @@ static int _global_pollring_counter = 0;
 
 
 PollRing::PollRing(scif_epd_t epd, size_t len, int node_id)
-    : epd(epd), _len(len), node_id(node_id)
+    : _epd(epd), _len(len), _peer_ra(-1)
 {
     int rc;
     char ringname[32];
 
     assert(len > 0);
-    alloc_bytes = ALIGN_CEIL(len * sizeof(poll_item_t), PAGE_SIZE);
+    _alloc_bytes = ALIGN_CEIL(len * sizeof(poll_item_t), PAGE_SIZE);
 
     /* Create a ring to keep track of slot IDs. */
     snprintf(ringname, 32, "poll-id-pool-%d", _global_pollring_counter++);
-    id_pool = rte_ring_create(ringname, len + 1, node_id, 0);
-    assert(nullptr != id_pool);
+    _id_pool = rte_ring_create(ringname, len + 1, node_id, 0);
+    assert(nullptr != _id_pool);
 
     /* Fill the slot ID pool initially. */
-    uintptr_t id_pool_content[len];
+    uintptr_t _id_pool_content[len];
     for (unsigned i = 0; i < len; i++) {
-        id_pool_content[i] = i;
+        _id_pool_content[i] = i;
     }
-    rc = rte_ring_enqueue_bulk(id_pool, (void **) id_pool_content, len);
+    rc = rte_ring_enqueue_bulk(_id_pool, (void **) _id_pool_content, len);
     assert(0 == rc);
 
     /* Clear the RMA area. */
-    ring = (poll_item_t *) rte_malloc_socket("poll_ring",
-                                             alloc_bytes,
-                                             PAGE_SIZE, node_id);
-    assert(nullptr != ring);
-    volatile poll_item_t *_ring = ring;
-    memset((void *) _ring, 0, alloc_bytes);
+    _local_va = (poll_item_t *) rte_malloc_socket("poll_ring",
+                                                  _alloc_bytes,
+                                                  PAGE_SIZE, node_id);
+    assert(nullptr != _local_va);
+    memset((void *) _local_va, 0, _alloc_bytes);
     off_t reg_result;
-    reg_result = scif_register(epd, (void *) _ring,
-                               alloc_bytes, 0, SCIF_PROT_WRITE, 0);
+    reg_result = scif_register(_epd, (void *) _local_va,
+                               _alloc_bytes, 0, SCIF_PROT_WRITE, 0);
     assert(SCIF_REGISTER_FAILED != reg_result);
-    ring_ra = (poll_item_t *) reg_result;
+    _local_ra = (poll_item_t *) reg_result;
 }
 
 PollRing::~PollRing()
 {
     int rc;
-    rc = scif_unregister(epd, (off_t) ring_ra, alloc_bytes);
+    rc = scif_unregister(_epd, (off_t) _local_ra, _alloc_bytes);
     assert(0 == rc);
-    rte_free(ring);
+    rte_free(_local_va);
 }
 
 void PollRing::get(poll_item_t &value)
 {
     int rc;
     uintptr_t item;
-    while (0 != (rc = rte_ring_dequeue(id_pool, (void **) &item))) {
+    while (0 != (rc = rte_ring_dequeue(_id_pool, (void **) &item))) {
         rte_pause();
     }
     value = (poll_item_t) item;
@@ -68,12 +67,12 @@ void PollRing::get(poll_item_t &value)
 
 void PollRing::put(const poll_item_t value)
 {
-    rte_ring_enqueue(id_pool, (void *) value);
+    rte_ring_enqueue(_id_pool, (void *) value);
 }
 
 void PollRing::wait(const unsigned idx, const poll_item_t value)
 {
-    poll_item_t volatile *_ring = ring;
+    poll_item_t volatile *_ring = _local_va;
     compiler_fence();
     while (_ring[idx] != value)
         insert_pause();
@@ -81,7 +80,7 @@ void PollRing::wait(const unsigned idx, const poll_item_t value)
 
 bool PollRing::poll(const unsigned idx, const poll_item_t value)
 {
-    poll_item_t volatile *_ring = ring;
+    poll_item_t volatile *_ring = _local_va;
     compiler_fence();
     return (_ring[idx] == value);
 }
@@ -89,19 +88,19 @@ bool PollRing::poll(const unsigned idx, const poll_item_t value)
 void PollRing::notify(const unsigned idx, const poll_item_t value)
 {
     compiler_fence();
-    ring[idx] = value;
+    _local_va[idx] = value;
 }
 
 void PollRing::remote_notify(const unsigned idx, const poll_item_t value)
 {
     int rc;
-    ring[idx] = value;
-    rc = scif_fence_signal(epd, 0, 0,
-                           (off_t) &ring_ra[idx],
+    _local_va[idx] = value;
+    rc = scif_fence_signal(_epd, 0, 0,
+                           _peer_ra + sizeof(poll_item_t) * idx,
                            (uint64_t) value,
                            SCIF_FENCE_INIT_SELF | SCIF_SIGNAL_REMOTE);
     if (rc < 0)
-        perror("remote_notify");
+        perror("PollRing: scif_fence_signal");
     assert(rc == 0);
 }
 

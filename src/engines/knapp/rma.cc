@@ -8,38 +8,43 @@
 using namespace nba::knapp;
 
 RMABuffer::RMABuffer(
-        scif_epd_t epd, size_t sz, int node_id)
-    : epd(epd), size(sz), extern_base(false)
+        scif_epd_t epd, size_t size, int node_id)
+    : _epd(epd), _size(size), _extern_base(false)
 {
-    va_base = (off_t) rte_malloc_socket("rma", sz, PAGE_SIZE, node_id);
-    assert(0 != va_base);
-    ra_base = scif_register(epd, (void *) va_base, sz, 0,
+    _local_va = (off_t) rte_malloc_socket("rma", size, PAGE_SIZE, node_id);
+    assert(0 != _local_va);
+    _local_ra = scif_register(_epd, (void *) _local_va, size, 0,
                             SCIF_PROT_READ | SCIF_PROT_WRITE, 0);
-    assert(0 != ra_base);
+    assert(0 != _local_ra);
 }
 
-RMABuffer::RMABuffer(scif_epd_t epd, void *extern_arena, size_t sz)
-    : epd(epd), size(sz), extern_base(true)
+RMABuffer::RMABuffer(scif_epd_t epd, void *extern_arena, size_t size)
+    : _epd(epd), _size(size), _extern_base(true)
 {
-    va_base = (off_t) extern_arena;
-    assert(0 != va_base);
-    ra_base = scif_register(epd, (void *) va_base, sz, 0,
+    _local_va = (off_t) extern_arena;
+    assert(0 != _local_va);
+    _local_ra = scif_register(_epd, (void *) _local_va, size, 0,
                             SCIF_PROT_READ | SCIF_PROT_WRITE, 0);
-    assert(0 != ra_base);
+    assert(0 != _local_ra);
 }
 
 RMABuffer::~RMABuffer()
 {
     int rc;
-    rc = scif_unregister(epd, ra_base, size);
+    rc = scif_unregister(_epd, _local_ra, _size);
     assert(0 == rc);
-    if (!extern_base)
-        rte_free((void *) va_base);
+    if (!_extern_base)
+        rte_free((void *) _local_va);
 }
 
-void RMABuffer::write(off_t offset, size_t len)
+void RMABuffer::write(off_t offset, size_t size)
 {
-    scif_writeto(epd, va_base + offset, len, ra_base + offset, 0);
+    int rc;
+    assert(size <= _size);
+    rc = scif_writeto(_epd, _local_ra + offset, size, _peer_ra + offset, 0);
+    if (rc < 0)
+        perror("RMABuffer: scif_writeto");
+    assert(0 == rc);
 }
 
 

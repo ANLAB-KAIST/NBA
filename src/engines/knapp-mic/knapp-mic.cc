@@ -1,10 +1,12 @@
 #include <nba/engines/knapp/defs.hh>
 #include <nba/engines/knapp/mictypes.hh>
 #include <nba/engines/knapp/sharedtypes.hh>
+#include <nba/engines/knapp/sharedutils.hh>
 #include <nba/engines/knapp/micbarrier.hh>
 #include <nba/engines/knapp/micutils.hh>
 #include <nba/engines/knapp/ctrl.pb.h>
 #include <nba/engines/knapp/pollring.hh>
+#include <nba/engines/knapp/rma.hh>
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -51,6 +53,20 @@ struct vdevice *create_vdev(
         uint32_t pipeline_depth);
 void destroy_vdev(struct vdevice *vdev);
 
+bool create_pollring(
+        struct vdevice *vdev, uint32_t ring_id,
+        size_t len, off_t peer_ra);
+
+bool destroy_pollring(
+        struct vdevice *vdev, uint32_t ring_id);
+
+bool create_rma(
+        struct vdevice *vdev, uint32_t buffer_id,
+        size_t size, off_t peer_ra);
+
+bool destroy_rma(
+        struct vdevice *vdev, uint32_t buffer_id);
+
 }} // endns(nba::knapp)
 
 using namespace nba;
@@ -68,8 +84,9 @@ static struct vdevice *nba::knapp::create_vdev(
 
     /* Find available slots and allocate among MIC cores. */
     for (uint32_t i = 0; i < mic_num_pcores - num_pcores; i++) {
-        for (uint32_t j = i; j < num_pcores; j++) {
-            if (pcore_used[j]) {
+        avail = true;
+        for (uint32_t j = 0; j < num_pcores; j++) {
+            if (pcore_used[i + j]) {
                 avail = false;
                 break;
             }
@@ -81,7 +98,6 @@ static struct vdevice *nba::knapp::create_vdev(
     }
     if (avail) {
         vdev = new struct vdevice();
-        memzero(vdev, 1);
         vdev->pcores.clear();
         vdev->lcores.clear();
         for (uint32_t i = 0; i < num_pcores; i++) {
@@ -99,6 +115,8 @@ static struct vdevice *nba::knapp::create_vdev(
     vdev->ht_per_core = num_lcores_per_pcore;
     vdev->num_worker_threads = vdev->pcores.size() * num_lcores_per_pcore;
     vdev->master_core = pcore_begin;
+    vdev->threads_alive = false;
+    log_device(vdev->device_id, "created (pcore_begin=%d, num_workers=%d)\n", pcore_begin, vdev->num_worker_threads);
 
     /* Initialize barriers. */
     vdev->data_ready_barriers = (Barrier **) _mm_malloc(sizeof(Barrier *) * vdev->pipeline_depth, CACHE_LINE_SIZE);
@@ -108,34 +126,30 @@ static struct vdevice *nba::knapp::create_vdev(
         vdev->task_done_barriers[i]  = new Barrier(vdev->num_worker_threads, vdev->device_id, KNAPP_BARRIER_PROFILE_INTERVAL);
     }
 
-    //recv_ctrlmsg(vdev->ctrl_epd, vdev->ctrlbuf, OP_MALLOC, &vdev->inputbuf_size, &vdev->resultbuf_size, &vdev->pipeline_depth, &vdev->remote_writebuf_base_ra);
-    //assert ( 0 == bufarray_ra_init(&vdev->inputbuf_array, vdev->pipeline_depth, vdev->inputbuf_size, PAGE_SIZE, vdev->data_epd, SCIF_PROT_READ | SCIF_PROT_WRITE) );
-    //assert ( 0 == bufarray_ra_init(&vdev->resultbuf_array, vdev->pipeline_depth, vdev->resultbuf_size, PAGE_SIZE, vdev->data_epd, SCIF_PROT_READ | SCIF_PROT_WRITE) );
-
-#if 0
-    /* Initialize pollring. */
-    // TODO: init vdev->data_epd
-    int32_t pollring_len = vdev->pipeline_depth;
-    rc = pollring_init(&vdev->poll_ring, pollring_len, vdev->data_epd);
+    /* Spawn master/worker threads. */
+    // TODO: attr
+    vdev->threads_alive = true;
+    rc = pthread_create(&vdev->master_thread, nullptr, master_thread_loop, (void *) vdev);
     assert(0 == rc);
-    uint64_t volatile *pollring = vdev->poll_ring.ring;
-    for (int i = 0; i < pollring_len; i++) {
-        pollring[i] = KNAPP_COPY_PENDING;
-    }
-    //send_ctrlresp(vdev->ctrl_epd, vdev->ctrlbuf, OP_REG_POLLRING, &vdev->poll_ring.ring_ra, NULL, NULL, NULL);
+    log_device(vdev->device_id, "spawned master thread.\n");
 
-    /* Initialize input buffers. */
-    // TODO: implement
-
-    /* Initialize output buffers. */
-    // TODO: implement
-#endif
     return vdev;
 }
 
 static void nba::knapp::destroy_vdev(struct vdevice *vdev)
 {
-    // TODO: destroy threads.
+    /* Destroy master and worker threads. */
+    vdev->exit = true;
+    if (vdev->threads_alive) {
+        pthread_kill(vdev->master_thread, SIGINT);
+        //for (int i = 0; i < vdev->num_worker_threads; i++)
+        //    pthread_kill(vdev->worker_threads[i], SIGINT);
+        pthread_join(vdev->master_thread, nullptr);
+        //for (int i = 0; i < vdev->num_worker_threads; i++)
+        //    pthread_join(vdev->worker_threads[i], nullptr);
+        vdev->threads_alive = false;
+    }
+
     for (uint32_t i = 0; i < vdev->pipeline_depth; i++) {
         delete vdev->data_ready_barriers[i];
         delete vdev->task_done_barriers[i];
@@ -145,6 +159,47 @@ static void nba::knapp::destroy_vdev(struct vdevice *vdev)
     delete vdev;
 }
 
+static bool nba::knapp::create_pollring(
+        struct vdevice *vdev, uint32_t ring_id,
+        size_t len, off_t peer_ra)
+{
+    PollRing *r = new PollRing(vdev->data_epd, len);
+    log_device(vdev->device_id, "Creating PollRing[%u] "
+               "(length %u, ra %p, peer_ra %p).\n",
+               ring_id, len, r->ra(), peer_ra);
+    r->set_peer_ra(peer_ra);
+    vdev->poll_rings[ring_id] = r;
+    return true;
+}
+
+static bool nba::knapp::destroy_pollring(
+        struct vdevice *vdev, uint32_t ring_id)
+{
+    delete vdev->poll_rings[ring_id];
+    vdev->poll_rings[ring_id] = nullptr;
+    return true;
+}
+
+static bool nba::knapp::create_rma(
+        struct vdevice *vdev, uint32_t buffer_id,
+        size_t size, off_t peer_ra)
+{
+    RMABuffer *b = new RMABuffer(vdev->data_epd, size);
+    log_device(vdev->device_id, "Creating RMABuffer[%u] "
+               "(size %'u bytes, ra %p, peer_ra %p).\n",
+               buffer_id, size, b->ra(), peer_ra);
+    b->set_peer_ra(peer_ra);
+    vdev->rma_buffers[buffer_id] = b;
+    return true;
+}
+
+static bool nba::knapp::destroy_rma(
+        struct vdevice *vdev, uint32_t buffer_id)
+{
+    delete vdev->rma_buffers[buffer_id];
+    vdev->rma_buffers[buffer_id] = nullptr;
+    return true;
+}
 
 static void *nba::knapp::worker_thread_loop(void *arg)
 {
@@ -167,14 +222,14 @@ static void *nba::knapp::worker_thread_loop(void *arg)
                 uint32_t task_id = vdev->next_task_id;
                 vdev->cur_task_id = task_id;
 
-                vdev->poll_ring->wait(task_id, KNAPP_TASK_READY);
+                vdev->poll_rings[0]->wait(task_id, KNAPP_TASK_READY);
 
                 /* init latency/stat measurement */
 
-                vdev->poll_ring->notify(task_id, KNAPP_COPY_PENDING);
+                vdev->poll_rings[0]->notify(task_id, KNAPP_COPY_PENDING);
 
                 w->data_ready_barrier->here(0);
-                vdev->next_task_id = (task_id + 1) % vdev->poll_ring->len();
+                vdev->next_task_id = (task_id + 1) % vdev->poll_rings[0]->len();
             }
         }
 
@@ -191,7 +246,7 @@ static void *nba::knapp::worker_thread_loop(void *arg)
 
             //TODO: vdev->output_rma->write();
 
-            vdev->poll_ring->remote_notify(task_id, KNAPP_OFFLOAD_COMPLETE);
+            vdev->poll_rings[0]->remote_notify(task_id, KNAPP_OFFLOAD_COMPLETE);
         }
     }
     return nullptr;
@@ -202,29 +257,39 @@ static void *nba::knapp::master_thread_loop(void *arg)
     struct vdevice *vdev = (struct vdevice *) arg;
     /* At this point, vdev is already initialized completely. */
 
-    int backlog = 16;
+    int backlog = 1;
     int rc = 0;
-    log_device(vdev->device_id, "Listening on control/data channels...\n");
+    uint16_t data_port = get_mic_data_port(vdev->device_id);
 
+    log_device(vdev->device_id, "Listening on data channel (port %u)\n", data_port);
+    vdev->data_listen_epd = scif_open();
+    assert(SCIF_OPEN_FAILED != vdev->data_listen_epd);
+    rc = scif_bind(vdev->data_listen_epd, data_port);
+    assert(data_port == (uint16_t) rc);
     rc = scif_listen(vdev->data_listen_epd, backlog);
     assert(0 == rc);
-    rc == scif_listen(vdev->ctrl_listen_epd, backlog);
-    assert(0 == rc);
-    rc = scif_accept(vdev->data_listen_epd, &vdev->remote_data_port,
+    //vdev->ctrl_listen_epd = scif_open();
+    //assert(SCIF_OPEN_FAILED != vdev->ctrl_listen_epd);
+    //rc == scif_listen(vdev->ctrl_listen_epd, backlog);
+    //assert(0 == rc);
+
+    struct scif_portID temp;
+    rc = scif_accept(vdev->data_listen_epd, &temp,
                      &vdev->data_epd, SCIF_ACCEPT_SYNC);
     assert(0 == rc);
     log_device(vdev->device_id, "Connection established between "
                "local dataport (%d, %d) and remote dataport (%d, %d)\n",
-               vdev->local_data_port.node, vdev->local_data_port.port,
-               vdev->remote_data_port.node, vdev->remote_data_port.port);
-    rc = scif_accept(vdev->ctrl_listen_epd, &vdev->remote_ctrl_port,
-                     &vdev->ctrl_epd, SCIF_ACCEPT_SYNC);
-    assert(0 == rc);
-    log_device(vdev->device_id, "Connection established between "
-               "local ctrlport (%d, %d) and remote ctrlport (%d, %d)\n",
-               vdev->local_ctrl_port.node, vdev->local_ctrl_port.port,
-               vdev->remote_ctrl_port.node, vdev->remote_ctrl_port.port);
+               1, data_port,
+               temp.node, temp.port);
+    //rc = scif_accept(vdev->ctrl_listen_epd, &vdev->remote_ctrl_port,
+    //                 &vdev->ctrl_epd, SCIF_ACCEPT_SYNC);
+    //assert(0 == rc);
+    //log_device(vdev->device_id, "Connection established between "
+    //           "local ctrlport (%d, %d) and remote ctrlport (%d, %d)\n",
+    //           vdev->local_ctrl_port.node, vdev->local_ctrl_port.port,
+    //           vdev->remote_ctrl_port.node, vdev->remote_ctrl_port.port);
 
+#if 0
     /* Initialize worker thread info. */
     vdev->worker_threads = (pthread_t *) _mm_malloc(
             sizeof(pthread_t) * vdev->num_worker_threads,
@@ -274,14 +339,15 @@ static void *nba::knapp::master_thread_loop(void *arg)
         rc = pthread_create(&vdev->worker_threads[i], &attr,
                             worker_thread_loop,
                             (void *) &vdev->thread_info_array[i]);
+        assert(0 == rc);
     }
+#endif
 
     log_device(vdev->device_id, "Running processing daemon...\n");
-
     uint32_t cur_task_id = 0;
-    while (true) {
-
-        vdev->poll_ring->wait(cur_task_id, KNAPP_OFFLOAD_COMPLETE);
+    while (!vdev->exit) {
+#if 0
+        vdev->poll_rings[0]->wait(cur_task_id, KNAPP_OFFLOAD_COMPLETE);
 
         // TODO: read taskitem from vdev->input_rma.
         //uint8_t *inputbuf_va = bufarray_get_va(&vdev->inputbuf_array, cur_task_id);
@@ -302,7 +368,7 @@ static void *nba::knapp::master_thread_loop(void *arg)
         }
 
         /* Now we are ready to run the processing function. */
-        vdev->poll_ring->notify(cur_task_id, KNAPP_TASK_READY);
+        vdev->poll_rings[0]->notify(cur_task_id, KNAPP_TASK_READY);
 
         /* If we are terminating, inform worker threads as well. */
         if (vdev->exit == true) {
@@ -314,16 +380,16 @@ static void *nba::knapp::master_thread_loop(void *arg)
             break;
         }
 
-        cur_task_id = (cur_task_id + 1) % (vdev->poll_ring->len());
+        cur_task_id = (cur_task_id + 1) % (vdev->poll_rings[0]->len());
+#endif
+        insert_pause();
     }
 
-    for ( int i = 0; i < vdev->num_worker_threads; i++ ) {
-        pthread_join(vdev->worker_threads[i], NULL);
-    }
+    log_device(vdev->device_id, "Terminating master thread.\n");
     scif_close(vdev->data_epd);
     scif_close(vdev->data_listen_epd);
-    scif_close(vdev->ctrl_epd);
-    scif_close(vdev->ctrl_listen_epd);
+    //scif_close(vdev->ctrl_epd);
+    //scif_close(vdev->ctrl_listen_epd);
     return nullptr;
 }
 
@@ -418,6 +484,7 @@ static void *nba::knapp::control_thread_loop(void *arg)
                     } else {
                         resp.set_reply(CtrlResponse::SUCCESS);
                         resp.mutable_resource()->set_handle((uintptr_t) vdev);
+                        resp.mutable_resource()->set_id(vdev->device_id);
                     }
                 } else {
                     resp.set_reply(CtrlResponse::INVALID);
@@ -434,6 +501,60 @@ static void *nba::knapp::control_thread_loop(void *arg)
                     resp.mutable_text()->set_msg("Invalid parameter.");
                 }
                 break;
+            case CtrlRequest::CREATE_POLLRING:
+                if (request.has_pollring()) {
+                    struct vdevice *vdev = (struct vdevice *) request.pollring().vdev_handle();
+                    uint32_t id = request.pollring().ring_id();
+                    if (create_pollring(vdev, id, request.pollring().len(),
+                                        request.pollring().local_ra())) {
+                        resp.set_reply(CtrlResponse::SUCCESS);
+                        resp.mutable_resource()->set_peer_ra((uint64_t) vdev->poll_rings[id]->ra());
+                    } else
+                        resp.set_reply(CtrlResponse::FAILURE);
+                } else {
+                    resp.set_reply(CtrlResponse::INVALID);
+                    resp.mutable_text()->set_msg("Invalid parameter.");
+                }
+                break;
+            case CtrlRequest::DESTROY_POLLRING:
+                if (request.has_pollring_ref()) {
+                    struct vdevice *vdev = (struct vdevice *) request.pollring_ref().vdev_handle();
+                    if (destroy_pollring(vdev, request.pollring_ref().ring_id())) {
+                        resp.set_reply(CtrlResponse::SUCCESS);
+                    } else
+                        resp.set_reply(CtrlResponse::FAILURE);
+                } else {
+                    resp.set_reply(CtrlResponse::INVALID);
+                    resp.mutable_text()->set_msg("Invalid parameter.");
+                }
+                break;
+            case CtrlRequest::CREATE_RMABUFFER:
+                if (request.has_rma()) {
+                    struct vdevice *vdev = (struct vdevice *) request.rma().vdev_handle();
+                    uint32_t id = request.rma().buffer_id();
+                    if (create_rma(vdev, id, request.rma().size(),
+                                   request.rma().local_ra())) {
+                        resp.mutable_resource()->set_peer_ra((uint64_t) vdev->rma_buffers[id]->ra());
+                        resp.set_reply(CtrlResponse::SUCCESS);
+                    } else
+                        resp.set_reply(CtrlResponse::FAILURE);
+                } else {
+                    resp.set_reply(CtrlResponse::INVALID);
+                    resp.mutable_text()->set_msg("Invalid parameter.");
+                }
+                break;
+            case CtrlRequest::DESTROY_RMABUFFER:
+                if (request.has_rma_ref()) {
+                    struct vdevice *vdev = (struct vdevice *) request.rma_ref().vdev_handle();
+                    if (destroy_rma(vdev, request.rma_ref().buffer_id()))
+                        resp.set_reply(CtrlResponse::SUCCESS);
+                    else
+                        resp.set_reply(CtrlResponse::FAILURE);
+                } else {
+                    resp.set_reply(CtrlResponse::INVALID);
+                    resp.mutable_text()->set_msg("Invalid parameter.");
+                }
+                break;
             default:
                 log_error("CONTROL: Not implemented request type: %d\n", request.type());
                 resp.set_reply(CtrlResponse::INVALID);
@@ -442,10 +563,10 @@ static void *nba::knapp::control_thread_loop(void *arg)
             }
             if (!send_ctrlresp(master_epd, resp))
                 break;
-        }
+        } // endwhile
         scif_close(master_epd);
         log_info("The control session terminated.\n");
-    }
+    } // endwhile
     log_info("Terminating the control channel...\n");
     scif_close(master_listen_epd);
 
@@ -461,13 +582,19 @@ static void nba::knapp::stop_all() {
     log_info("Stopping...\n");
 
     /* Ensure propagation of signals. */
-    pthread_kill(control_thread, SIGINT);
     for (auto vdev : vdevs)
-        pthread_kill(vdev->master_thread, SIGINT);
+        if (vdev->threads_alive) {
+            pthread_kill(vdev->master_thread, SIGINT);
+            vdev->threads_alive = false;
+        }
+    pthread_kill(control_thread, SIGINT);
 
     /* Wait until all finishes. */
     for (auto vdev : vdevs)
-        pthread_join(vdev->master_thread, nullptr);
+        if (vdev->threads_alive) {
+            pthread_join(vdev->master_thread, nullptr);
+            vdev->threads_alive = false;
+        }
     pthread_join(control_thread, nullptr);
 }
 

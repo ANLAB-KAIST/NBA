@@ -34,22 +34,21 @@ public:
     void remote_notify(const unsigned idx, const poll_item_t value);
 
     size_t len() const { return _len; }
-    poll_item_t *get_va() const { return ring; }
-    poll_item_t *get_ra() const { return ring_ra; }
+    poll_item_t *va() const { return _local_va; }
+    poll_item_t *ra() const { return _local_ra; }
+    void set_peer_ra(off_t value) { this->_peer_ra = value; }
+    off_t peer_ra() const { return _peer_ra; }
 
 private:
-    scif_epd_t epd;
+    scif_epd_t _epd;
     size_t _len;
+    size_t _alloc_bytes;
 #ifndef __MIC__
-    int node_id;
+    struct rte_ring *_id_pool;
 #endif
-
-    size_t alloc_bytes;
-#ifndef __MIC__
-    struct rte_ring *id_pool;
-#endif
-    poll_item_t *ring;
-    poll_item_t *ring_ra;
+    poll_item_t *_local_va;
+    poll_item_t *_local_ra;
+    off_t _peer_ra;
 };
 
 }} //endns(nba::knapp)

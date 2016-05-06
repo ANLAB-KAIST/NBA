@@ -10,26 +10,29 @@ class RMABuffer
 {
 public:
 #ifdef __MIC__
-    RMABuffer(scif_epd_t epd, size_t sz);
+    RMABuffer(scif_epd_t epd, size_t size);
 #else
-    RMABuffer(scif_epd_t epd, size_t sz, int node_id);
+    RMABuffer(scif_epd_t epd, size_t size, int node_id);
 #endif
-    RMABuffer(scif_epd_t epd, void *extern_arena, size_t sz);
+    RMABuffer(scif_epd_t epd, void *extern_arena, size_t size);
 
     virtual ~RMABuffer();
 
-    void write(off_t offset, size_t len);
+    void write(off_t offset, size_t size);
 
-    off_t get_va() const { return va_base; }
-    off_t get_ra() const { return ra_base; }
+    off_t va() const { return _local_va; }
+    off_t ra() const { return _local_ra; }
+    void set_peer_ra(off_t value) { this->_peer_ra = value; }
+    off_t peer_ra() const { return _peer_ra; }
 
 private:
-    scif_epd_t epd;
-    size_t size;
-    bool extern_base;
+    scif_epd_t _epd;
+    size_t _size;
+    bool _extern_base;
 
-    off_t va_base;
-    off_t ra_base;
+    off_t _local_va;
+    off_t _local_ra;
+    off_t _peer_ra;
 };
 
 }} //endns(nba::knapp)

@@ -7,6 +7,7 @@
 #include <nba/engines/knapp/sharedtypes.hh>
 #include <nba/engines/knapp/hosttypes.hh>
 #include <nba/engines/knapp/hostutils.hh>
+#include <nba/engines/knapp/sharedutils.hh>
 #include <nba/engines/knapp/pollring.hh>
 #include <nba/engines/knapp/rma.hh>
 #if 0
@@ -188,9 +189,9 @@ TEST(KnappMallocTest, Large) {
 
 TEST(KnappvDeviceTest, Single) {
     int rc;
-    scif_epd_t sock = scif_open();
+    scif_epd_t api_epd = scif_open();
     struct scif_portID remote = { 1, KNAPP_MASTER_PORT };
-    rc = scif_connect(sock, &remote);
+    rc = scif_connect(api_epd, &remote);
     ASSERT_LT(0, rc);
 
     CtrlRequest request;
@@ -201,46 +202,124 @@ TEST(KnappvDeviceTest, Single) {
     v->set_num_pcores(1);
     v->set_num_lcores_per_pcore(4);
     v->set_pipeline_depth(32);
-    ctrl_invoke(sock, request, response);
+    ctrl_invoke(api_epd, request, response);
     EXPECT_EQ(CtrlResponse::SUCCESS, response.reply());
     EXPECT_TRUE(response.has_resource());
     EXPECT_LE(0u, response.resource().handle());
     void *vdev_handle = (void *) response.resource().handle();
+    uint32_t vdev_id  = response.resource().id();
+
+    usleep(100000); /* wait until the vDevice master thread starts. */
+    // FIXME: use barrier in MIC-side
+
+    scif_epd_t vdev_data_epd = scif_open();
+    ASSERT_NE(SCIF_OPEN_FAILED, vdev_data_epd);
+    remote = { 1, get_mic_data_port(vdev_id) };
+    rc = scif_connect(vdev_data_epd, &remote);
+    ASSERT_LT(0, rc);
+
+    scif_close(vdev_data_epd);
 
     request.Clear();
     request.set_type(CtrlRequest::DESTROY_VDEV);
     request.mutable_resource()->set_handle((uintptr_t) vdev_handle);
-    ctrl_invoke(sock, request, response);
+    ctrl_invoke(api_epd, request, response);
     EXPECT_EQ(CtrlResponse::SUCCESS, response.reply());
 
-    scif_close(sock);
+    scif_close(api_epd);
 }
 
 TEST(KnappRMATest, H2DWrite) {
     int rc;
-    scif_epd_t sock = scif_open();
+    scif_epd_t api_epd = scif_open();
+    ASSERT_NE(SCIF_OPEN_FAILED, api_epd);
     struct scif_portID remote = { 1, KNAPP_MASTER_PORT };
-    rc = scif_connect(sock, &remote);
+    rc = scif_connect(api_epd, &remote);
     ASSERT_LT(0, rc);
+
+    CtrlRequest request;
+    CtrlResponse response;
+
+    request.set_type(CtrlRequest::CREATE_VDEV);
+    CtrlRequest::vDeviceInfoParam *v = request.mutable_vdevinfo();
+    v->set_num_pcores(1);
+    v->set_num_lcores_per_pcore(4);
+    v->set_pipeline_depth(32);
+    ctrl_invoke(api_epd, request, response);
+    EXPECT_EQ(CtrlResponse::SUCCESS, response.reply());
+    EXPECT_TRUE(response.has_resource());
+    EXPECT_LE(0u, response.resource().handle());
+    void *vdev_handle = (void *) response.resource().handle();
+    uint32_t vdev_id  = response.resource().id();
+
+    usleep(100000); /* wait until the vDevice master thread starts. */
+    // FIXME: use barrier in MIC-side
+
+    scif_epd_t vdev_data_epd = scif_open();
+    ASSERT_NE(SCIF_OPEN_FAILED, vdev_data_epd);
+    remote = { 1, get_mic_data_port(vdev_id) };
+    rc = scif_connect(vdev_data_epd, &remote);
+    ASSERT_LT(0, rc);
+
     {
-        PollRing r(sock, 15, 0);
-        RMABuffer buf(sock, 4096, 0);
+        PollRing ring(vdev_data_epd, 15, 0);
+        RMABuffer buf(vdev_data_epd, 4096, 0);
 
-        void *ring_va = (void *) r.get_va();
-        void *ring_ra = (void *) r.get_ra();
-        printf("ring: va=%p, ra=%p\n", ring_va, ring_ra);
-        void *buf_va = (void *) buf.get_va();
-        void *buf_ra = (void *) buf.get_ra();
-        printf("buf: va=%p, ra=%p\n", buf_va, buf_ra);
+        request.Clear();
+        request.set_type(CtrlRequest::CREATE_POLLRING);
+        CtrlRequest::PollRingParam *ring_param = request.mutable_pollring();
+        ring_param->set_vdev_handle((uintptr_t) vdev_handle);
+        ring_param->set_ring_id(0);
+        ring_param->set_len(15);
+        ring_param->set_local_ra((uint64_t) ring.ra());
+        ctrl_invoke(api_epd, request, response);
+        EXPECT_EQ(CtrlResponse::SUCCESS, response.reply());
+        ring.set_peer_ra(response.resource().peer_ra());
+        printf("ring: va=%p, ra=%p, peer_ra=%p\n", ring.va(), ring.ra(), ring.peer_ra());
 
-        EXPECT_FALSE(r.poll(0, 99));
-        r.notify(0, 99);
-        EXPECT_TRUE(r.poll(0, 99));
-        memset(buf_va, 1, sizeof(int));
+        request.Clear();
+        request.set_type(CtrlRequest::CREATE_RMABUFFER);
+        CtrlRequest::RMABufferParam *rma_param = request.mutable_rma();
+        rma_param->set_vdev_handle((uintptr_t) vdev_handle);
+        rma_param->set_buffer_id(0);
+        rma_param->set_size(4096);
+        rma_param->set_local_ra((uint64_t) buf.ra());
+        ctrl_invoke(api_epd, request, response);
+        EXPECT_EQ(CtrlResponse::SUCCESS, response.reply());
+        buf.set_peer_ra(response.resource().peer_ra());
+        printf("rma: va=%p, ra=%p, peer_ra=%p\n", buf.va(), buf.ra(), buf.peer_ra());
+
+        EXPECT_FALSE(ring.poll(0, 99));
+        ring.notify(0, 99);
+        EXPECT_TRUE(ring.poll(0, 99));
+        memset((void *) buf.va(), 1, sizeof(int));
         buf.write(0, sizeof(int));
-        r.remote_notify(0, 99);
+        ring.remote_notify(0, 99);
+
+        // TODO: take back the RMA buffer and check the content.
+
+        request.Clear();
+        request.set_type(CtrlRequest::DESTROY_POLLRING);
+        request.mutable_pollring_ref()->set_vdev_handle((uintptr_t) vdev_handle);
+        request.mutable_pollring_ref()->set_ring_id(0);
+        ctrl_invoke(api_epd, request, response);
+        EXPECT_EQ(CtrlResponse::SUCCESS, response.reply());
+
+        request.Clear();
+        request.set_type(CtrlRequest::DESTROY_RMABUFFER);
+        request.mutable_rma_ref()->set_vdev_handle((uintptr_t) vdev_handle);
+        request.mutable_rma_ref()->set_buffer_id(0);
+        ctrl_invoke(api_epd, request, response);
+        EXPECT_EQ(CtrlResponse::SUCCESS, response.reply());
     }
-    scif_close(sock);
+
+    request.Clear();
+    request.set_type(CtrlRequest::DESTROY_VDEV);
+    request.mutable_resource()->set_handle((uintptr_t) vdev_handle);
+    ctrl_invoke(api_epd, request, response);
+    EXPECT_EQ(CtrlResponse::SUCCESS, response.reply());
+
+    scif_close(api_epd);
 }
 
 // vim: ts=8 sts=4 sw=4 et
