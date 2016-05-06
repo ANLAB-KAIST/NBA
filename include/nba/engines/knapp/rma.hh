@@ -6,28 +6,30 @@
 
 namespace nba { namespace knapp {
 
-constexpr unsigned poll_itemsz = sizeof(uint64_t);
-
 class RMABuffer
 {
 public:
-    RMABuffer(scif_epd_t ep, size_t len, size_t elemsz);
+#ifdef __MIC__
+    RMABuffer(scif_epd_t epd, size_t sz);
+#else
+    RMABuffer(scif_epd_t epd, size_t sz, int node_id);
+#endif
+    RMABuffer(scif_epd_t epd, void *extern_arena, size_t sz);
 
     virtual ~RMABuffer();
 
-    void *get_va(unsigned slot_id);
-    void *get_ra(unsigned slot_id);
+    void write(off_t offset, size_t len);
 
-    void poll(unsigned slot_id);
-    void write(unsigned slot_id);
-    void signal(unsigned slot_id);
+    off_t get_va() const { return va_base; }
+    off_t get_ra() const { return ra_base; }
 
 private:
-    scif_epd_t ep;
-    size_t _len;
-    size_t elemsz;
+    scif_epd_t epd;
+    size_t size;
+    bool extern_base;
 
-    off_t base_addr;
+    off_t va_base;
+    off_t ra_base;
 };
 
 }} //endns(nba::knapp)

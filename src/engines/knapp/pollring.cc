@@ -21,12 +21,12 @@ PollRing::PollRing(scif_epd_t epd, size_t len, int node_id)
     assert(len > 0);
     alloc_bytes = ALIGN_CEIL(len * sizeof(poll_item_t), PAGE_SIZE);
 
-    /* Create a ring to keep track of item values. */
+    /* Create a ring to keep track of slot IDs. */
     snprintf(ringname, 32, "poll-id-pool-%d", _global_pollring_counter++);
     id_pool = rte_ring_create(ringname, len + 1, node_id, 0);
     assert(nullptr != id_pool);
 
-    /* Fill the ring initially. */
+    /* Fill the slot ID pool initially. */
     uintptr_t id_pool_content[len];
     for (unsigned i = 0; i < len; i++) {
         id_pool_content[i] = i;
@@ -41,14 +41,19 @@ PollRing::PollRing(scif_epd_t epd, size_t len, int node_id)
     assert(nullptr != ring);
     volatile poll_item_t *_ring = ring;
     memset((void *) _ring, 0, alloc_bytes);
-    ring_ra = (poll_item_t*) scif_register(epd, (void *) _ring,
-                                           alloc_bytes, 0, SCIF_PROT_WRITE, 0);
-    assert(ring_ra > 0);
+    off_t reg_result;
+    reg_result = scif_register(epd, (void *) _ring,
+                               alloc_bytes, 0, SCIF_PROT_WRITE, 0);
+    assert(SCIF_REGISTER_FAILED != reg_result);
+    ring_ra = (poll_item_t *) reg_result;
 }
 
 PollRing::~PollRing()
 {
-    scif_unregister(epd, (off_t) ring, alloc_bytes);
+    int rc;
+    rc = scif_unregister(epd, (off_t) ring_ra, alloc_bytes);
+    assert(0 == rc);
+    rte_free(ring);
 }
 
 void PollRing::get(poll_item_t &value)
@@ -66,6 +71,21 @@ void PollRing::put(const poll_item_t value)
     rte_ring_enqueue(id_pool, (void *) value);
 }
 
+void PollRing::wait(const unsigned idx, const poll_item_t value)
+{
+    poll_item_t volatile *_ring = ring;
+    compiler_fence();
+    while (_ring[idx] != value)
+        insert_pause();
+}
+
+bool PollRing::poll(const unsigned idx, const poll_item_t value)
+{
+    poll_item_t volatile *_ring = ring;
+    compiler_fence();
+    return (_ring[idx] == value);
+}
+
 void PollRing::notify(const unsigned idx, const poll_item_t value)
 {
     compiler_fence();
@@ -74,10 +94,15 @@ void PollRing::notify(const unsigned idx, const poll_item_t value)
 
 void PollRing::remote_notify(const unsigned idx, const poll_item_t value)
 {
-    scif_fence_signal(epd, 0, 0,
-                      (off_t) &ring_ra[idx],
-                      (uint64_t) value,
-                      SCIF_FENCE_INIT_SELF | SCIF_SIGNAL_REMOTE);
+    int rc;
+    ring[idx] = value;
+    rc = scif_fence_signal(epd, 0, 0,
+                           (off_t) &ring_ra[idx],
+                           (uint64_t) value,
+                           SCIF_FENCE_INIT_SELF | SCIF_SIGNAL_REMOTE);
+    if (rc < 0)
+        perror("remote_notify");
+    assert(rc == 0);
 }
 
 // vim: ts=8 sts=4 sw=4 et

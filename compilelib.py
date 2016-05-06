@@ -62,6 +62,16 @@ def find_all(dirlist, filepattern):
                 results.append(joinpath(root, fname))
     return results
 
+def has_string(filepath, search):
+    with open(filepath, 'r') as fin:
+        for line in fin:
+            if isinstance(search, str) and search in line:
+                return True
+            elif isinstance(search, re._pattern_type) and search.search(line) is not None:
+                return True
+        else:
+            return False
+
 def _find_deps_with_regex(srcfile, base_dir, regexs, visited=None):
     results = set()
     visited = visited if visited else set()

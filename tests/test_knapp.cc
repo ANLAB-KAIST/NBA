@@ -1,17 +1,51 @@
 #include <cstdint>
 #include <cstdio>
+#include <cassert>
 #include <gtest/gtest.h>
 #include <scif.h>
 #include <nba/engines/knapp/defs.hh>
 #include <nba/engines/knapp/sharedtypes.hh>
 #include <nba/engines/knapp/hosttypes.hh>
 #include <nba/engines/knapp/hostutils.hh>
+#include <nba/engines/knapp/pollring.hh>
+#include <nba/engines/knapp/rma.hh>
 #if 0
 #require <engines/knapp/ctrl.pb.o>
 #require <engines/knapp/hostutils.o>
+#require <engines/knapp/pollring.o>
+#require <engines/knapp/rma.o>
 #endif
 
 using namespace nba::knapp;
+
+class RTEEnvironment : public ::testing::Environment {
+    int argc;
+    char **argv;
+
+public:
+    RTEEnvironment(int argc, char **argv)
+        : ::testing::Environment(), argc(argc), argv(argv)
+    { }
+
+    void SetUp()
+    {
+        int rc;
+        rc = rte_eal_init(argc, argv);
+        assert(rc == 0);
+    }
+
+    void TearDown()
+    {
+        return;
+    }
+};
+
+int main(int argc, char **argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    RTEEnvironment *env = new RTEEnvironment(argc, argv);
+    ::testing::AddGlobalTestEnvironment(env);
+    return RUN_ALL_TESTS();
+}
 
 TEST(KnappCommunicationTest, RawPing) {
     std::string msg = "hello world";
@@ -179,6 +213,33 @@ TEST(KnappvDeviceTest, Single) {
     ctrl_invoke(sock, request, response);
     EXPECT_EQ(CtrlResponse::SUCCESS, response.reply());
 
+    scif_close(sock);
+}
+
+TEST(KnappRMATest, H2DWrite) {
+    int rc;
+    scif_epd_t sock = scif_open();
+    struct scif_portID remote = { 1, KNAPP_MASTER_PORT };
+    rc = scif_connect(sock, &remote);
+    ASSERT_LT(0, rc);
+    {
+        PollRing r(sock, 15, 0);
+        RMABuffer buf(sock, 4096, 0);
+
+        void *ring_va = (void *) r.get_va();
+        void *ring_ra = (void *) r.get_ra();
+        printf("ring: va=%p, ra=%p\n", ring_va, ring_ra);
+        void *buf_va = (void *) buf.get_va();
+        void *buf_ra = (void *) buf.get_ra();
+        printf("buf: va=%p, ra=%p\n", buf_va, buf_ra);
+
+        EXPECT_FALSE(r.poll(0, 99));
+        r.notify(0, 99);
+        EXPECT_TRUE(r.poll(0, 99));
+        memset(buf_va, 1, sizeof(int));
+        buf.write(0, sizeof(int));
+        r.remote_notify(0, 99);
+    }
     scif_close(sock);
 }
 

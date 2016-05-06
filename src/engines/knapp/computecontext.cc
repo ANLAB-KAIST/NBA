@@ -256,6 +256,7 @@ bool KnappComputeContext::poll_kernel_finished()
 bool KnappComputeContext::poll_output_finished()
 {
     // TODO: compiler_fence() + check vDevice's output pollring.
+    //vdev.poll_ring->wait();
 }
 
 int KnappComputeContext::enqueue_event_callback(

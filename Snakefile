@@ -345,14 +345,24 @@ rule testall:  # build a unified test suite
 for case in _test_cases:
     includes = [f for f in compilelib.get_includes(fmt('tests/test_{case}.cc'), 'include')]
     requires = [joinpath(OBJ_DIR, f) for f in compilelib.get_requires(fmt('tests/test_{case}.cc'), 'src')]
-    rule:  # for individual tests
-        input: fmt('tests/test_{case}.cc'), includes, GTEST_FUSED_OBJ, GTEST_MAIN_OBJ, req=requires
-        output: fmt('tests/test_{case}')
-        shell: '{CXX} {CXXFLAGS} -DTESTING -o {output} {input[0]} {input.req} {GTEST_FUSED_OBJ} {GTEST_MAIN_OBJ} {LIBS}'
-    rule:  # for unified test suite
-        input: fmt('tests/test_{case}.cc'), includes
-        output: joinpath(OBJ_DIR, fmt('tests/test_{case}.o'))
-        shell: '{CXX} {CXXFLAGS} -DTESTING -o {output} -c {input[0]}'
+    src = fmt('tests/test_{case}.cc')
+    if compilelib.has_string(src, 'int main'):
+        print("TEST {} has main!".format(case))
+        rule:  # for individual tests
+            input: src, includes, GTEST_FUSED_OBJ, req=requires
+            output: fmt('tests/test_{case}')
+            shell: '{CXX} {CXXFLAGS} -DTESTING -o {output} {input[0]} {input.req} {GTEST_FUSED_OBJ} {LIBS}'
+        # This should be excluded from unified test because it will
+        # duplicate the main() function.
+    else:
+        rule:  # for individual tests
+            input: src, includes, GTEST_FUSED_OBJ, GTEST_MAIN_OBJ, req=requires
+            output: fmt('tests/test_{case}')
+            shell: '{CXX} {CXXFLAGS} -DTESTING -o {output} {input[0]} {input.req} {GTEST_FUSED_OBJ} {GTEST_MAIN_OBJ} {LIBS}'
+        rule:  # for unified test suite
+            input: src, includes
+            output: joinpath(OBJ_DIR, fmt('tests/test_{case}.o'))
+            shell: '{CXX} {CXXFLAGS} -DTESTING -o {output} -c {input[0]}'
 
 for srcfile in SOURCE_FILES:
     # We generate build rules dynamically depending on the actual header
