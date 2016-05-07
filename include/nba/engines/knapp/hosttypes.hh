@@ -10,6 +10,7 @@
 
 #include <nba/core/intrinsic.hh>
 #include <nba/core/queue.hh>
+#include <nba/engines/knapp/defs.hh>
 #include <nba/engines/knapp/sharedtypes.hh>
 #include <cstdint>
 #include <scif.h>
@@ -17,12 +18,14 @@
 #include <rte_memory.h>
 #include <rte_mempool.h>
 
-namespace nba {
-namespace knapp {
+namespace nba { namespace knapp {
 
 /* Forwrad decls. */
 struct offload_task;
 class comp_thread_ctx;
+
+class PollRing;
+class RMABuffer;
 
 /* Host-side vDevice context */
 struct vdevice {
@@ -38,7 +41,8 @@ struct vdevice {
     struct scif_portID master_port;
     struct scif_portID mic_data_port;
 
-    // ---
+    PollRing *poll_rings[KNAPP_VDEV_MAX_POLLRINGS];
+    RMABuffer *rma_buffers[KNAPP_VDEV_MAX_RMABUFFERS];
     int next_poll;
 };
 
@@ -160,8 +164,7 @@ struct offload_task {
     //uint64_t ts_first_queued;
 } __cache_aligned;
 
-} // endns(knapp)
-} // endns(nba)
+}} // endns(nba::knapp)
 
 #endif //__NBA_KNAPP_HOSTTYPES_HH__
 

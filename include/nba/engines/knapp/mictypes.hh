@@ -50,6 +50,8 @@ struct vdevice {
 
     PollRing *poll_rings[KNAPP_VDEV_MAX_POLLRINGS];
     RMABuffer *rma_buffers[KNAPP_VDEV_MAX_RMABUFFERS];
+
+    pthread_barrier_t *ready_barrier;
     Barrier **data_ready_barriers;
     Barrier **task_done_barriers;
 

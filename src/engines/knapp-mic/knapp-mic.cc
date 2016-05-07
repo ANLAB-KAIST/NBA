@@ -50,7 +50,8 @@ void handle_signal(int signal);
 struct vdevice *create_vdev(
         uint32_t num_pcores,
         uint32_t num_lcores_per_pcore,
-        uint32_t pipeline_depth);
+        uint32_t pipeline_depth,
+        pthread_barrier_t *ready_barrier);
 void destroy_vdev(struct vdevice *vdev);
 
 bool create_pollring(
@@ -75,7 +76,8 @@ using namespace nba::knapp;
 static struct vdevice *nba::knapp::create_vdev(
         uint32_t num_pcores,
         uint32_t num_lcores_per_pcore,
-        uint32_t pipeline_depth)
+        uint32_t pipeline_depth,
+        pthread_barrier_t *ready_barrier)
 {
     int rc;
     bool avail = true;
@@ -129,6 +131,7 @@ static struct vdevice *nba::knapp::create_vdev(
     /* Spawn master/worker threads. */
     // TODO: attr
     vdev->threads_alive = true;
+    vdev->ready_barrier = ready_barrier;
     rc = pthread_create(&vdev->master_thread, nullptr, master_thread_loop, (void *) vdev);
     assert(0 == rc);
     log_device(vdev->device_id, "spawned master thread.\n");
@@ -267,6 +270,9 @@ static void *nba::knapp::master_thread_loop(void *arg)
     assert(data_port == (uint16_t) rc);
     rc = scif_listen(vdev->data_listen_epd, backlog);
     assert(0 == rc);
+
+    pthread_barrier_wait(vdev->ready_barrier);
+    vdev->ready_barrier = nullptr;
 
     struct scif_portID temp;
     rc = scif_accept(vdev->data_listen_epd, &temp,
@@ -456,9 +462,14 @@ static void *nba::knapp::control_thread_loop(void *arg)
                 break;
             case CtrlRequest::CREATE_VDEV:
                 if (request.has_vdevinfo()) {
+                    pthread_barrier_t ready_barrier;
+                    pthread_barrier_init(&ready_barrier, nullptr, 2);
                     struct vdevice *vdev = create_vdev(request.vdevinfo().num_pcores(),
                                                        request.vdevinfo().num_lcores_per_pcore(),
-                                                       request.vdevinfo().pipeline_depth());
+                                                       request.vdevinfo().pipeline_depth(),
+                                                       &ready_barrier);
+                    pthread_barrier_wait(&ready_barrier);
+                    pthread_barrier_destroy(&ready_barrier);
                     if (vdev == nullptr) {
                         resp.set_reply(CtrlResponse::FAILURE);
                         resp.mutable_text()->set_msg("vDevice creation failed.");

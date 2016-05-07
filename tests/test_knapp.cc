@@ -209,9 +209,6 @@ TEST(KnappvDeviceTest, Single) {
     void *vdev_handle = (void *) response.resource().handle();
     uint32_t vdev_id  = response.resource().id();
 
-    usleep(100000); /* wait until the vDevice master thread starts. */
-    // FIXME: use barrier in MIC-side
-
     scif_epd_t vdev_data_epd = scif_open();
     ASSERT_NE(SCIF_OPEN_FAILED, vdev_data_epd);
     remote = { 1, get_mic_data_port(vdev_id) };
@@ -251,9 +248,6 @@ TEST(KnappRMATest, H2DWrite) {
     EXPECT_LE(0u, response.resource().handle());
     void *vdev_handle = (void *) response.resource().handle();
     uint32_t vdev_id  = response.resource().id();
-
-    usleep(100000); /* wait until the vDevice master thread starts. */
-    // FIXME: use barrier in MIC-side
 
     scif_epd_t vdev_data_epd = scif_open();
     ASSERT_NE(SCIF_OPEN_FAILED, vdev_data_epd);
