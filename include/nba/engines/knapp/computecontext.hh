@@ -70,6 +70,9 @@ private:
 
     /* vDevice context. */
     struct knapp::vdevice vdev;
+    
+    /* Inherited from KnappComputeDevice. */
+    scif_epd_t ctrl_epd;
 
     //KnappMemoryPool *_cuda_mempool_in[NBA_MAX_IO_BASES];
     //KnappMemoryPool *_cuda_mempool_out[NBA_MAX_IO_BASES];

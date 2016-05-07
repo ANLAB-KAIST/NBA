@@ -45,7 +45,7 @@ struct vdevice {
     scif_epd_t master_epd;
     scif_epd_t data_listen_epd;
     scif_epd_t ctrl_listen_epd;
-    struct scif_portID master_port;
+    struct scif_portID ctrl_port;
     struct scif_portID mic_data_port;
 
     PollRing *poll_rings[KNAPP_VDEV_MAX_POLLRINGS];

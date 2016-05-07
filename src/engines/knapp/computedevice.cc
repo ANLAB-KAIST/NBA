@@ -4,6 +4,7 @@
 #include <nba/engines/knapp/hosttypes.hh>
 #include <nba/engines/knapp/hostutils.hh>
 #include <nba/engines/knapp/computedevice.hh>
+#include <nba/engines/knapp/ctrl.pb.h>
 #include <rte_memory.h>
 #include <scif.h>
 
@@ -19,12 +20,23 @@ KnappComputeDevice::KnappComputeDevice(
     assert(num_contexts > 0);
     RTE_LOG(DEBUG, COPROC, "KnappComputeDevice: # contexts: %lu\n", num_contexts);
 
-    master_epd = scif_open();
-    master_port.node = knapp::local_node;
-    master_port.port = KNAPP_MASTER_PORT;
-    rc = scif_connect(master_epd, &master_port);
+    ctrl_epd = scif_open();
+    struct scif_portID peer;
+    peer.node = knapp::remote_scif_nodes[0];
+    peer.port = KNAPP_CTRL_PORT;
+    rc = scif_connect(ctrl_epd, &peer);
+    assert(0 < rc);
 
-    // TODO: handshake via MIC master channel.
+    /* Check availability. */
+    {
+        knapp::CtrlRequest request;
+        knapp::CtrlResponse response;
+        request.set_type(knapp::CtrlRequest::PING);
+        request.mutable_text()->set_msg("hello");
+        ctrl_invoke(ctrl_epd, request, response);
+        assert(knapp::CtrlResponse::SUCCESS == response.reply());
+        assert("hello" == response.text().msg());
+    }
 
     for (unsigned i = 0; i < num_contexts; i++) {
         KnappComputeContext *ctx = nullptr;
@@ -36,16 +48,13 @@ KnappComputeDevice::KnappComputeDevice(
 
 KnappComputeDevice::~KnappComputeDevice()
 {
-    for (auto it = _ready_contexts.begin(); it != _ready_contexts.end(); it++) {
-        KnappComputeContext *ctx = *it;
+    for (auto ctx : _ready_contexts) {
         delete ctx;
-        *it = NULL;
     }
-    for (auto it = _active_contexts.begin(); it != _active_contexts.end(); it++) {
-        KnappComputeContext *ctx = *it;
+    for (auto ctx : _active_contexts) {
         delete ctx;
-        *it = NULL;
     }
+    scif_close(ctrl_epd);
 }
 
 int KnappComputeDevice::get_spec(struct compute_device_spec *spec)

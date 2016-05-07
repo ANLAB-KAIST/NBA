@@ -392,8 +392,8 @@ static void *nba::knapp::master_thread_loop(void *arg)
 
 static void *nba::knapp::control_thread_loop(void *arg)
 {
-    scif_epd_t master_listen_epd, master_epd;
-    struct scif_portID accepted_master_port;
+    scif_epd_t ctrl_listen_epd, ctrl_epd;
+    struct scif_portID accepted_ctrl_port;
     int backlog = 1;
     int rc = 0;
     sigset_t intr_mask, orig_mask;
@@ -407,21 +407,21 @@ static void *nba::knapp::control_thread_loop(void *arg)
     size_t num_nodes;
     num_nodes = scif_get_nodeIDs(scif_nodes, 32, &local_node);
 
-    master_listen_epd = scif_open();
-    rc = scif_bind(master_listen_epd, KNAPP_MASTER_PORT);
-    assert(KNAPP_MASTER_PORT == rc);
-    rc = scif_listen(master_listen_epd, backlog);
+    ctrl_listen_epd = scif_open();
+    rc = scif_bind(ctrl_listen_epd, KNAPP_CTRL_PORT);
+    assert(KNAPP_CTRL_PORT == rc);
+    rc = scif_listen(ctrl_listen_epd, backlog);
     assert(0 == rc);
 
     log_info("Starting the control channel...\n");
     /* For simplicty, we allow only a single concurrent connection. */
     while (!exit_flag) {
-        struct pollfd p = {master_listen_epd, POLLIN, 0};
+        struct pollfd p = {ctrl_listen_epd, POLLIN, 0};
         rc = ppoll(&p, 1, nullptr, &orig_mask);
         if (rc == -1 && errno == EINTR && exit_flag)
             break;
-        rc = scif_accept(master_listen_epd, &accepted_master_port,
-                         &master_epd, SCIF_ACCEPT_SYNC);
+        rc = scif_accept(ctrl_listen_epd, &accepted_ctrl_port,
+                         &ctrl_epd, SCIF_ACCEPT_SYNC);
         assert(0 == rc);
 
         log_info("A control session started.\n");
@@ -430,7 +430,7 @@ static void *nba::knapp::control_thread_loop(void *arg)
 
         while (!exit_flag) {
             resp.Clear();
-            if (!recv_ctrlmsg(master_epd, request, &orig_mask))
+            if (!recv_ctrlmsg(ctrl_epd, request, &orig_mask))
                 // usually, EINTR or ECONNRESET.
                 break;
             switch (request.type()) {
@@ -564,14 +564,14 @@ static void *nba::knapp::control_thread_loop(void *arg)
                 resp.mutable_text()->set_msg("Invalid request type.");
                 break;
             }
-            if (!send_ctrlresp(master_epd, resp))
+            if (!send_ctrlresp(ctrl_epd, resp))
                 break;
         } // endwhile
-        scif_close(master_epd);
+        scif_close(ctrl_epd);
         log_info("The control session terminated.\n");
     } // endwhile
     log_info("Terminating the control channel...\n");
-    scif_close(master_listen_epd);
+    scif_close(ctrl_listen_epd);
 
     return nullptr;
 }

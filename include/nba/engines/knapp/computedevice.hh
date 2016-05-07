@@ -36,8 +36,7 @@ private:
     ComputeContext *_get_available_context();
     void _return_context(ComputeContext *ctx);
 
-    struct scif_portID master_port;
-    scif_epd_t master_epd;
+    scif_epd_t ctrl_epd;
 
     std::deque<KnappComputeContext *> _ready_contexts;
     std::deque<KnappComputeContext *> _active_contexts;

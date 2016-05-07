@@ -36,18 +36,18 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
     vdev.pipeline_depth = NBA_MAX_IO_BASES; // Key adaptation: app-specific I/O buffers -> io_base_t
     const unsigned num_cores_per_vdev = 2;  // FIXME: set from config
 
+    /* Take ctrl_epd from the mother device. */
+    ctrl_epd = (dynamic_cast<KnappComputeDevice*>(mother))->ctrl_epd;
+    vdev.ctrl_epd = ctrl_epd;
+
     /* TODO: Create vDevice. */
     // We don't have know which MIC cores vDevice is using.
     // It is just matter of MIC-side daemon.
 
     /* Initialize vDev communication channels. */
-    vdev.master_port = (dynamic_cast<KnappComputeDevice*>(mother))->master_port;
     vdev.data_epd = scif_open();
     if (vdev.data_epd == SCIF_OPEN_FAILED)
         rte_exit(EXIT_FAILURE, "scif_open() for data_epd failed.");
-    vdev.ctrl_epd = scif_open();
-    if (vdev.ctrl_epd == SCIF_OPEN_FAILED)
-        rte_exit(EXIT_FAILURE, "scif_open() for ctrl_epd failed.");
     vdev.mic_data_port.node = knapp::remote_scif_nodes[0];
     vdev.mic_data_port.port = knapp::get_mic_data_port(ctx_id);
     rc = scif_connect(vdev.data_epd, &vdev.mic_data_port);
@@ -95,7 +95,6 @@ KnappComputeContext::~KnappComputeContext()
     if (mz != nullptr)
         rte_memzone_free(mz);
     scif_close(vdev.data_epd);
-    scif_close(vdev.ctrl_epd);
     rte_free(vdev.tasks_in_flight);
 }
 
