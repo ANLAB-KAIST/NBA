@@ -6,6 +6,7 @@
 /* Behavioral limits. */
 #define KNAPP_MAX_KERNEL_ARGS (16)
 #define KNAPP_SCIF_MAX_CONN_RETRY (5)
+#define KNAPP_SYNC_CYCLES (1000000u)
 #define KNAPP_VDEV_PROFILE_INTERVAL 1000
 #define KNAPP_BARRIER_PROFILE_INTERVAL 100
 
@@ -34,7 +35,8 @@ namespace nba { namespace knapp {
 enum poll_ring_state : uint64_t {
     KNAPP_OFFLOAD_COMPLETE = 0xdeadbeefull,
     KNAPP_TASK_READY = 0xcafebabeull,
-    KNAPP_COPY_PENDING = (~((uint64_t)0))
+    KNAPP_COPY_PENDING = (~((uint64_t)0)),
+    KNAPP_TERMINATE = 0xfff0f0cccull
 };
 
 enum rma_resource_ids : unsigned {

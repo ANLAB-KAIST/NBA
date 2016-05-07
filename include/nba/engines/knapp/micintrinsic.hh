@@ -22,6 +22,9 @@
 #endif
 #define __cache_aligned __attribute__((__aligned__(CACHE_LINE_SIZE)))
 
+#define likely(cond)   __builtin_expect(!!(cond), 1)
+#define unlikely(cond) __builtin_expect(!!(cond), 0)
+
 #define ALIGN_CEIL(x,a) (((x)+(a)-1)&~((a)-1))
 
 #define MAX(x,y) (((x) > (y)) ? (x) : (y))

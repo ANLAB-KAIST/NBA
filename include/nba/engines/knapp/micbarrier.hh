@@ -5,6 +5,7 @@
 #error "This header should be used by MIC-side codes only."
 #endif
 
+#include <nba/engines/knapp/defs.hh>
 #include <nba/engines/knapp/micintrinsic.hh>
 #include <cstdint>
 #include <pthread.h>
@@ -48,16 +49,23 @@ public:
         return now.tv_sec * 1000000L + now.tv_nsec / 1000L;
     }
 
-    void here(intptr_t iThread)
+    bool here(intptr_t iThread)
     {
+        uint32_t count = 0;
         if (iThread) {
             __sync_add_and_fetch((volatile int64_t*)&c1, 1);
-            while (c1)
+            while (c1 && count < KNAPP_SYNC_CYCLES) {
                 insert_pause();
+                count++;
+            }
+            if (count != KNAPP_SYNC_CYCLES) return true;
         } else {
             //ts = get_usec();
-            while ((c1 + 1) != nThreads)
+            while ((c1 + 1) != nThreads && count < KNAPP_SYNC_CYCLES) {
                 insert_pause();
+                count++;
+            }
+            if (count != KNAPP_SYNC_CYCLES) return true;
             c1 = 0;
             /*
             uint64_t tdiff = get_usec() - ts;
@@ -75,6 +83,7 @@ public:
             }
             */
         }
+        return false;
     }
 
 };
@@ -94,7 +103,7 @@ public:
         pthread_spin_init(&lock, PTHREAD_PROCESS_SHARED);
     }
 
-    void here(intptr_t iThread)
+    bool here(intptr_t iThread)
     {
         if (iThread) {
             while (c1)
@@ -111,6 +120,7 @@ public:
             c1 = 0;
             pthread_spin_unlock(&lock);
         }
+        return false;
     }
 
 };

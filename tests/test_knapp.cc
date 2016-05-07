@@ -65,14 +65,14 @@ TEST(KnappCommunicationTest, RawPing) {
     uint32_t msgsz = request.ByteSize();
     request.SerializeToArray(buf, msgsz);
     rc = scif_send(sock, &msgsz, sizeof(msgsz), SCIF_SEND_BLOCK);
-    ASSERT_EQ(sizeof(msgsz), rc);
+    ASSERT_EQ(sizeof(msgsz), (unsigned) rc);
     rc = scif_send(sock, buf, msgsz, SCIF_SEND_BLOCK);
-    ASSERT_EQ(msgsz, rc);
+    ASSERT_EQ(msgsz, (unsigned) rc);
 
     rc = scif_recv(sock, &msgsz, sizeof(msgsz), SCIF_RECV_BLOCK);
-    ASSERT_EQ(sizeof(msgsz), rc);
+    ASSERT_EQ(sizeof(msgsz), (unsigned) rc);
     rc = scif_recv(sock, buf, msgsz, SCIF_RECV_BLOCK);
-    ASSERT_EQ(msgsz, rc);
+    ASSERT_EQ(msgsz, (unsigned) rc);
     response.ParseFromArray(buf, msgsz);
 
     EXPECT_EQ(CtrlResponse::SUCCESS, response.reply());
@@ -271,7 +271,8 @@ TEST(KnappRMATest, H2DWrite) {
         ctrl_invoke(api_epd, request, response);
         EXPECT_EQ(CtrlResponse::SUCCESS, response.reply());
         ring.set_peer_ra(response.resource().peer_ra());
-        printf("ring: va=%p, ra=%p, peer_ra=%p\n", ring.va(), ring.ra(), ring.peer_ra());
+        printf("ring: va=%p, ra=%p, peer_ra=%p\n",
+               (void*) ring.va(), (void*) ring.ra(), (void*) ring.peer_ra());
 
         request.Clear();
         request.set_type(CtrlRequest::CREATE_RMABUFFER);
@@ -283,30 +284,20 @@ TEST(KnappRMATest, H2DWrite) {
         ctrl_invoke(api_epd, request, response);
         EXPECT_EQ(CtrlResponse::SUCCESS, response.reply());
         buf.set_peer_ra(response.resource().peer_ra());
-        printf("rma: va=%p, ra=%p, peer_ra=%p\n", buf.va(), buf.ra(), buf.peer_ra());
+        printf("rma: va=%p, ra=%p, peer_ra=%p\n",
+               (void*) buf.va(), (void*) buf.ra(), (void*) buf.peer_ra());
 
-        EXPECT_FALSE(ring.poll(0, 99));
-        ring.notify(0, 99);
-        EXPECT_TRUE(ring.poll(0, 99));
+        ring.notify(0, KNAPP_OFFLOAD_COMPLETE);
         memset((void *) buf.va(), 1, sizeof(int));
         buf.write(0, sizeof(int));
-        ring.remote_notify(0, 99);
+        ring.remote_notify(0, KNAPP_TERMINATE);
 
         // TODO: take back the RMA buffer and check the content.
 
-        request.Clear();
-        request.set_type(CtrlRequest::DESTROY_POLLRING);
-        request.mutable_pollring_ref()->set_vdev_handle((uintptr_t) vdev_handle);
-        request.mutable_pollring_ref()->set_ring_id(0);
-        ctrl_invoke(api_epd, request, response);
-        EXPECT_EQ(CtrlResponse::SUCCESS, response.reply());
-
-        request.Clear();
-        request.set_type(CtrlRequest::DESTROY_RMABUFFER);
-        request.mutable_rma_ref()->set_vdev_handle((uintptr_t) vdev_handle);
-        request.mutable_rma_ref()->set_buffer_id(0);
-        ctrl_invoke(api_epd, request, response);
-        EXPECT_EQ(CtrlResponse::SUCCESS, response.reply());
+        /* Remote poll_rings & rma_buffers are destroyed along with vDevice.
+         * Destroying them manually may cause nullptr references in
+         * master/worker threads loop that are still running.
+         */
     }
 
     request.Clear();

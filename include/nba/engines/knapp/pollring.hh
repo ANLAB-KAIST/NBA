@@ -28,7 +28,7 @@ public:
     void get(poll_item_t &value);
     void put(const poll_item_t value);
 #endif
-    void wait(const unsigned idx, const poll_item_t value);
+    bool wait(const unsigned idx, const poll_item_t value);
     bool poll(const unsigned idx, const poll_item_t value);
     void notify(const unsigned idx, const poll_item_t value);
     void remote_notify(const unsigned idx, const poll_item_t value);

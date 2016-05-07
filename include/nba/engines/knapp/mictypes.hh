@@ -52,6 +52,7 @@ struct vdevice {
     RMABuffer *rma_buffers[KNAPP_VDEV_MAX_RMABUFFERS];
 
     pthread_barrier_t *master_ready_barrier;
+    pthread_barrier_t *term_barrier;
     Barrier **data_ready_barriers;
     Barrier **task_done_barriers;
 
@@ -71,9 +72,14 @@ struct vdevice {
 
     uint32_t offload_batch_size;
     union u_worker u;
-    std::atomic<bool> exit;
     std::vector<int> pcores;
     std::vector<int> lcores;
+
+    void *_reserved0[0] __cache_aligned;
+
+    std::atomic<bool> exit __cache_aligned;
+
+    void *_reserved1[0] __cache_aligned;
 
     /* stats-related */
     bool first_entry;

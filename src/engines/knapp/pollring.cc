@@ -1,4 +1,5 @@
 #include <nba/core/intrinsic.hh>
+#include <nba/engines/knapp/defs.hh>
 #include <nba/engines/knapp/pollring.hh>
 #include <cstring>
 #include <cassert>
@@ -51,7 +52,8 @@ PollRing::~PollRing()
 {
     int rc;
     rc = scif_unregister(_epd, (off_t) _local_ra, _alloc_bytes);
-    assert(0 == rc);
+    if (rc < 0)
+        perror("~PollRing: scif_unregister");
     rte_free(_local_va);
 }
 
@@ -70,12 +72,17 @@ void PollRing::put(const poll_item_t value)
     rte_ring_enqueue(_id_pool, (void *) value);
 }
 
-void PollRing::wait(const unsigned idx, const poll_item_t value)
+bool PollRing::wait(const unsigned idx, const poll_item_t value)
 {
     poll_item_t volatile *_ring = _local_va;
+    uint32_t count = 0;
     compiler_fence();
-    while (_ring[idx] != value)
+    while (_ring[idx] != value && count < KNAPP_SYNC_CYCLES) {
         insert_pause();
+        count++;
+    }
+    /* Return true if waited too long. */
+    return count != KNAPP_SYNC_CYCLES;
 }
 
 bool PollRing::poll(const unsigned idx, const poll_item_t value)

@@ -4,6 +4,7 @@
 #include <rte_config.h>
 #include <rte_malloc.h>
 #include <cassert>
+#include <cstdio>
 
 using namespace nba::knapp;
 
@@ -32,7 +33,8 @@ RMABuffer::~RMABuffer()
 {
     int rc;
     rc = scif_unregister(_epd, _local_ra, _size);
-    assert(0 == rc);
+    if (rc < 0)
+        perror("~RMABuffer: scif_unregister");
     if (!_extern_base)
         rte_free((void *) _local_va);
 }

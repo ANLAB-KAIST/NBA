@@ -2,6 +2,7 @@
 #include <nba/engines/knapp/mictypes.hh>
 #include <nba/engines/knapp/sharedtypes.hh>
 #include <nba/engines/knapp/sharedutils.hh>
+#include <nba/engines/knapp/micintrinsic.hh>
 #include <nba/engines/knapp/micbarrier.hh>
 #include <nba/engines/knapp/micutils.hh>
 #include <nba/engines/knapp/ctrl.pb.h>
@@ -131,9 +132,15 @@ static struct vdevice *nba::knapp::create_vdev(
         vdev->task_done_barriers[i]  = new Barrier(vdev->num_worker_threads, vdev->device_id, KNAPP_BARRIER_PROFILE_INTERVAL);
     }
 
+    memzero(vdev->poll_rings, KNAPP_VDEV_MAX_POLLRINGS);
+    memzero(vdev->rma_buffers, KNAPP_VDEV_MAX_RMABUFFERS);
+
     /* Spawn the master thread. */
     vdev->threads_alive = true;
     vdev->master_ready_barrier = ready_barrier;
+    vdev->term_barrier = new pthread_barrier_t;
+    pthread_barrier_init(vdev->term_barrier, nullptr, vdev->num_worker_threads + 2);
+
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     int master_lcore = mic_pcore_to_lcore(pcore_begin, KNAPP_MAX_THREADS_PER_CORE - 1);
@@ -149,19 +156,13 @@ static struct vdevice *nba::knapp::create_vdev(
 static void nba::knapp::destroy_vdev(struct vdevice *vdev)
 {
     /* Destroy master and worker threads. */
-    vdev->exit = true;
     log_device(vdev->device_id, "Deleting vDevice...\n");
-    if (vdev->threads_alive) {
-        pthread_kill(vdev->master_thread, SIGINT);
-        for (int i = 0; i < vdev->num_worker_threads; i++) {
-            log_device(vdev->device_id, "killing worker[%d]...\n", i);
-            pthread_kill(vdev->worker_threads[i], SIGINT);
-        }
-        pthread_join(vdev->master_thread, nullptr);
-        for (int i = 0; i < vdev->num_worker_threads; i++)
-            pthread_join(vdev->worker_threads[i], nullptr);
-        vdev->threads_alive = false;
-    }
+    vdev->exit = true;
+    log_device(vdev->device_id, "killing all workers...\n");
+    pthread_barrier_wait(vdev->term_barrier);
+    vdev->threads_alive = false;
+    scif_close(vdev->data_epd);
+    scif_close(vdev->data_listen_epd);
 
     for (int c : vdev->pcores)
         pcore_used[c] = false;
@@ -172,6 +173,14 @@ static void nba::knapp::destroy_vdev(struct vdevice *vdev)
     }
     _mm_free(vdev->data_ready_barriers);
     _mm_free(vdev->task_done_barriers);
+    for (int i = 0; i < KNAPP_VDEV_MAX_POLLRINGS; i++) {
+        if (vdev->poll_rings[i] != nullptr)
+            delete vdev->poll_rings[i];
+    }
+    for (int i = 0; i < KNAPP_VDEV_MAX_RMABUFFERS; i++) {
+        if (vdev->rma_buffers[i] != nullptr)
+            delete vdev->rma_buffers[i];
+    }
     _mm_free(vdev->thread_info_array);
     for (unsigned pd = 0; pd < vdev->pipeline_depth; pd++) {
         _mm_free(vdev->per_thread_work_info[pd]);
@@ -235,52 +244,78 @@ static void *nba::knapp::worker_thread_loop(void *arg)
     pthread_barrier_wait(info->worker_ready_barrier);
     info->worker_ready_barrier = nullptr;
 
-    // TODO: retrieve from per-task info
-    //worker_func_t pktproc_func = info->pktproc_func;
-
     while (!vdev->exit) {
-#if 0
+
+        if (unlikely(vdev->poll_rings[0] == nullptr)) {
+            /* The host has not initialized yet! */
+            insert_pause();
+            continue;
+        }
+
+        bool timeout = false;
+
         /* former worker_preproc() */
         {
             struct worker *w =
                     &vdev->per_thread_work_info[vdev->next_task_id][tid];
+
             if (tid != 0) {
-                w->data_ready_barrier->here(tid);
+                while (true) {
+                    timeout = !w->data_ready_barrier->here(tid);
+                    if (timeout && vdev->exit)
+                        goto finish_worker;
+                }
             }
             if (tid == 0) {
                 uint32_t task_id = vdev->next_task_id;
                 vdev->cur_task_id = task_id;
 
-                vdev->poll_rings[0]->wait(task_id, KNAPP_TASK_READY);
+                while (true) {
+                    timeout = !vdev->poll_rings[0]->wait(task_id, KNAPP_TASK_READY);
+                    if (timeout && vdev->exit)
+                        goto finish_worker;
+                }
 
                 /* init latency/stat measurement */
 
                 vdev->poll_rings[0]->notify(task_id, KNAPP_COPY_PENDING);
 
-                w->data_ready_barrier->here(0);
+                while (true) {
+                    timeout = !w->data_ready_barrier->here(0);
+                    if (timeout && vdev->exit)
+                        goto finish_worker;
+                }
                 vdev->next_task_id = (task_id + 1) % vdev->poll_rings[0]->len();
             }
         }
 
-        uint32_t task_id = vdev->cur_task_id;
-        struct worker *w = &vdev->per_thread_work_info[task_id][tid];
+        {
+            uint32_t task_id = vdev->cur_task_id;
+            struct worker *w = &vdev->per_thread_work_info[task_id][tid];
 
-        //TODO: pktproc_func(w);
+            //TODO: pktproc_func(w);
 
-        w->task_done_barrier->here(tid);
+            while (true) {
+                timeout = !w->task_done_barrier->here(tid);
+                if (timeout && vdev->exit)
+                    goto finish_worker;
+            }
 
-        if (tid == 0) { /* former worker_postproc() */
+            /* former worker_postproc() */
+            if (tid == 0) {
 
-            /* finalize latency/stat measurement */
+                /* finalize latency/stat measurement */
 
-            //TODO: vdev->output_rma->write();
+                //TODO: vdev->output_rma->write();
 
-            vdev->poll_rings[0]->remote_notify(task_id, KNAPP_OFFLOAD_COMPLETE);
+                vdev->poll_rings[0]->remote_notify(task_id, KNAPP_OFFLOAD_COMPLETE);
+            }
         }
-#endif
         insert_pause();
     }
+finish_worker:
     log_device(vdev->device_id, "Terminating worker[%d]\n", tid);
+    pthread_barrier_wait(vdev->term_barrier);
     return nullptr;
 }
 
@@ -344,7 +379,7 @@ static void *nba::knapp::master_thread_loop(void *arg)
     for (auto&& pair : enumerate(vdev->lcores)) {
         int i, lcore;
         std::tie(i, lcore) = pair;
-        log_device(vdev->device_id, "Creating worker[%d] for lcore %d...\n", i, lcore);
+        log_device(vdev->device_id, "Creating worker[%d] at lcore %d...\n", i, lcore);
         pthread_attr_t attr;
         pthread_attr_init(&attr);
         set_cpu_mask(&attr, lcore, mic_num_lcores);
@@ -371,15 +406,26 @@ static void *nba::knapp::master_thread_loop(void *arg)
                "local port %d and peer(%d) port %d.\n",
                data_port, temp.node, temp.port);
 
-
     log_device(vdev->device_id, "Running processing daemon...\n");
     uint32_t cur_task_id = 0;
     while (!vdev->exit) {
-#if 0
-        vdev->poll_rings[0]->wait(cur_task_id, KNAPP_OFFLOAD_COMPLETE);
+        bool timeout = false;
+
+        /* The host has not initialized yet! */
+        if (unlikely(vdev->poll_rings[0] == nullptr)) {
+            insert_pause();
+            continue;
+        }
+
+        while (true) {
+            timeout = !vdev->poll_rings[0]->wait(cur_task_id, KNAPP_OFFLOAD_COMPLETE);
+            if (timeout && vdev->exit)
+                goto finish_master;
+        }
 
         // TODO: read taskitem from vdev->input_rma.
         //uint8_t *inputbuf_va = bufarray_get_va(&vdev->inputbuf_array, cur_task_id);
+#if 0
         struct taskitem *ti = (struct taskitem *) nullptr;
 
         if (ti->task_id != cur_task_id) {
@@ -395,28 +441,15 @@ static void *nba::knapp::master_thread_loop(void *arg)
             w->num_items = MIN(remaining, w->max_num_items);
             remaining -= w->num_items;
         }
-
+#endif
         /* Now we are ready to run the processing function. */
         vdev->poll_rings[0]->notify(cur_task_id, KNAPP_TASK_READY);
 
-        /* If we are terminating, inform worker threads as well. */
-        if (vdev->exit == true) {
-            for ( int i = 0; i < vdev->num_worker_threads; i++ ) {
-                for ( int pdepth = 0; pdepth < vdev->pipeline_depth; pdepth++ ) {
-                    vdev->per_thread_work_info[pdepth][i].exit = true;
-                }
-            }
-            break;
-        }
-
         cur_task_id = (cur_task_id + 1) % (vdev->poll_rings[0]->len());
-#endif
-        insert_pause();
     }
-
+finish_master:
     log_device(vdev->device_id, "Terminating master thread.\n");
-    scif_close(vdev->data_epd);
-    scif_close(vdev->data_listen_epd);
+    pthread_barrier_wait(vdev->term_barrier);
     return nullptr;
 }
 
