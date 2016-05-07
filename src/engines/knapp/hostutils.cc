@@ -37,45 +37,4 @@ void nba::knapp::ctrl_invoke(scif_epd_t ep, const CtrlRequest &req, CtrlResponse
     resp.ParseFromArray(buf, msgsz);
 }
 
-void nba::knapp::connect_with_retry(struct vdevice *vdev)
-{
-    int rc = 0;
-    fprintf(stderr, "connect_with_retry\n");
-    for (unsigned retry = 0; retry < KNAPP_SCIF_MAX_CONN_RETRY; retry++) {
-        rc = scif_connect(vdev->data_epd, &vdev->remote_data_port);
-        if (rc < 0) {
-            fprintf(stderr, "vdevice %d could not connect to remote data port (%d, %d). Retrying (%u) ...\n",
-                    vdev->device_id, vdev->remote_data_port.node, vdev->remote_data_port.port, retry + 1);
-            usleep(500000);
-            continue;
-        }
-        fprintf(stderr, "vdevice %d connected to remote data port (%d, %d).\n",
-                vdev->device_id, vdev->remote_data_port.node, vdev->remote_data_port.port);
-        break;
-    }
-    if (rc < 0) {
-        fprintf(stderr, "Failed to connect vdevice %d to remote data port (%d, %d). Error code %d\n",
-                vdev->device_id, vdev->remote_data_port.node, vdev->remote_data_port.port, rc);
-        rte_exit(EXIT_FAILURE, "All 5 data port connection attemps have failed\n");
-    }
-    for (unsigned retry = 0; retry < KNAPP_SCIF_MAX_CONN_RETRY; retry++) {
-        rc = scif_connect(vdev->ctrl_epd, &vdev->remote_ctrl_port);
-        if (rc < 0) {
-            fprintf(stderr, "vdevice %d could not connect to remote control port (%d, %d). Retrying (%u) ...\n",
-                    vdev->device_id, vdev->remote_ctrl_port.node, vdev->remote_ctrl_port.port, retry + 1);
-            usleep(500000);
-            continue;
-        }
-        fprintf(stderr, "vdevice %d connected to remote control port (%d, %d).\n",
-                vdev->device_id, vdev->remote_ctrl_port.node, vdev->remote_ctrl_port.port);
-        break;
-    }
-    if (rc < 0) {
-        fprintf(stderr, "Failed to connect vdevice %d to remote control port (%d, %d). Error code %d\n",
-                vdev->device_id, vdev->remote_ctrl_port.node, vdev->remote_ctrl_port.port, rc);
-        rte_exit(EXIT_FAILURE, "All 5 control port connection attemps have failed\n");
-    }
-}
-
-
 // vim: ts=8 sts=4 sw=4 et

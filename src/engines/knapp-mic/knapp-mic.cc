@@ -255,23 +255,18 @@ static void *nba::knapp::worker_thread_loop(void *arg)
 static void *nba::knapp::master_thread_loop(void *arg)
 {
     struct vdevice *vdev = (struct vdevice *) arg;
-    /* At this point, vdev is already initialized completely. */
 
     int backlog = 1;
     int rc = 0;
     uint16_t data_port = get_mic_data_port(vdev->device_id);
 
-    log_device(vdev->device_id, "Listening on data channel (port %u)\n", data_port);
+    log_device(vdev->device_id, "Opening data channel (port %u)\n", data_port);
     vdev->data_listen_epd = scif_open();
     assert(SCIF_OPEN_FAILED != vdev->data_listen_epd);
     rc = scif_bind(vdev->data_listen_epd, data_port);
     assert(data_port == (uint16_t) rc);
     rc = scif_listen(vdev->data_listen_epd, backlog);
     assert(0 == rc);
-    //vdev->ctrl_listen_epd = scif_open();
-    //assert(SCIF_OPEN_FAILED != vdev->ctrl_listen_epd);
-    //rc == scif_listen(vdev->ctrl_listen_epd, backlog);
-    //assert(0 == rc);
 
     struct scif_portID temp;
     rc = scif_accept(vdev->data_listen_epd, &temp,
@@ -281,13 +276,6 @@ static void *nba::knapp::master_thread_loop(void *arg)
                "local dataport (%d, %d) and remote dataport (%d, %d)\n",
                1, data_port,
                temp.node, temp.port);
-    //rc = scif_accept(vdev->ctrl_listen_epd, &vdev->remote_ctrl_port,
-    //                 &vdev->ctrl_epd, SCIF_ACCEPT_SYNC);
-    //assert(0 == rc);
-    //log_device(vdev->device_id, "Connection established between "
-    //           "local ctrlport (%d, %d) and remote ctrlport (%d, %d)\n",
-    //           vdev->local_ctrl_port.node, vdev->local_ctrl_port.port,
-    //           vdev->remote_ctrl_port.node, vdev->remote_ctrl_port.port);
 
 #if 0
     /* Initialize worker thread info. */
@@ -330,19 +318,14 @@ static void *nba::knapp::master_thread_loop(void *arg)
         //log_device(vdev->device_id, "Creating thread for lcore %d (%d, %d) and thread %d\n", lcore, pcore, ht, i);
         pthread_attr_t attr;
         pthread_attr_init(&attr);
-        size_t cpuset_sz = CPU_ALLOC_SIZE(vdev->lcores.size());
-        cpu_set_t *cpuset = CPU_ALLOC(vdev->lcores.size());
-        CPU_ZERO_S(cpuset_sz, cpuset);
-        CPU_SET_S(vdev->lcores[i], cpuset_sz, cpuset); // pin to the first core.
-        pthread_attr_setaffinity_np(&attr, cpuset_sz, cpuset);
-        CPU_FREE(cpuset);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+        set_cpu_mask(&attr, vdev->lcores[i], mic_num_lcores);
         rc = pthread_create(&vdev->worker_threads[i], &attr,
                             worker_thread_loop,
                             (void *) &vdev->thread_info_array[i]);
         assert(0 == rc);
     }
 #endif
-
     log_device(vdev->device_id, "Running processing daemon...\n");
     uint32_t cur_task_id = 0;
     while (!vdev->exit) {
@@ -388,8 +371,6 @@ static void *nba::knapp::master_thread_loop(void *arg)
     log_device(vdev->device_id, "Terminating master thread.\n");
     scif_close(vdev->data_epd);
     scif_close(vdev->data_listen_epd);
-    //scif_close(vdev->ctrl_epd);
-    //scif_close(vdev->ctrl_listen_epd);
     return nullptr;
 }
 
@@ -633,12 +614,7 @@ int main (int argc, char *argv[])
     {
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-        size_t cpuset_sz = CPU_ALLOC_SIZE(mic_num_lcores);
-        cpu_set_t *cpuset_master = CPU_ALLOC(mic_num_lcores);
-        CPU_ZERO_S(cpuset_sz, cpuset_master);
-        CPU_SET_S(0, cpuset_sz, cpuset_master); // pin to the first core.
-        pthread_attr_setaffinity_np(&attr, cpuset_sz, cpuset_master);
-        CPU_FREE(cpuset_master);
+        set_cpu_mask(&attr, 0, mic_num_lcores);
     }
     rc = pthread_create(&control_thread, &attr, control_thread_loop, nullptr);
     assert(0 == rc);

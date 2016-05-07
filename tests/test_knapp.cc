@@ -262,8 +262,10 @@ TEST(KnappRMATest, H2DWrite) {
     ASSERT_LT(0, rc);
 
     {
-        PollRing ring(vdev_data_epd, 15, 0);
+        /* Intentionally reverse buf/ring declaration and API calls
+         * to see if ra/peer_ra are set correctly. */
         RMABuffer buf(vdev_data_epd, 4096, 0);
+        PollRing ring(vdev_data_epd, 15, 0);
 
         request.Clear();
         request.set_type(CtrlRequest::CREATE_POLLRING);

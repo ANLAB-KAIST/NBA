@@ -46,18 +46,10 @@ struct vdevice {
     scif_epd_t data_listen_epd;
     scif_epd_t ctrl_listen_epd;
     struct scif_portID master_port;
-    struct scif_portID local_data_port;
-    struct scif_portID local_ctrl_port;
-    struct scif_portID remote_data_port;
-    struct scif_portID remote_ctrl_port;
+    struct scif_portID mic_data_port;
+
     PollRing *poll_rings[KNAPP_VDEV_MAX_POLLRINGS];
     RMABuffer *rma_buffers[KNAPP_VDEV_MAX_RMABUFFERS];
-
-    off_t remote_writebuf_base_ra;
-    off_t remote_poll_ring_window;
-
-    // ---
-    uint8_t *ctrlbuf;
     Barrier **data_ready_barriers;
     Barrier **task_done_barriers;
 
@@ -66,14 +58,11 @@ struct vdevice {
     bool threads_alive;
 
     struct worker_thread_info *thread_info_array;
-    unsigned master_core; //former masteR_cpu
+    unsigned master_core; //former master_cpu
     unsigned num_worker_threads;
     unsigned next_task_id;
     unsigned cur_task_id;
     //unsigned num_packets_in_cur_task;
-
-    struct bufarray inputbuf_array;
-    struct bufarray resultbuf_array;
 
     struct worker **per_thread_work_info;
     worker_func_t worker_func;

@@ -36,10 +36,9 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
     vdev.pipeline_depth = NBA_MAX_IO_BASES; // Key adaptation: app-specific I/O buffers -> io_base_t
     const unsigned num_cores_per_vdev = 2;  // FIXME: set from config
 
-    NEW(node_id, vdev.cores, FixedRing<int>, KNAPP_MAX_CORES_PER_DEVICE, node_id);
-    for (unsigned i = 0; i < num_cores_per_vdev; i++) {
-        vdev.cores->push_back(i + ctx_id * num_cores_per_vdev);
-    }
+    /* TODO: Create vDevice. */
+    // We don't have know which MIC cores vDevice is using.
+    // It is just matter of MIC-side daemon.
 
     /* Initialize vDev communication channels. */
     vdev.master_port = (dynamic_cast<KnappComputeDevice*>(mother))->master_port;
@@ -49,26 +48,20 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
     vdev.ctrl_epd = scif_open();
     if (vdev.ctrl_epd == SCIF_OPEN_FAILED)
         rte_exit(EXIT_FAILURE, "scif_open() for ctrl_epd failed.");
-    vdev.local_data_port.node = knapp::local_node;
-    vdev.local_data_port.port = knapp::get_host_data_port(ctx_id);
-    vdev.local_ctrl_port.node = knapp::local_node;
-    vdev.local_ctrl_port.port = knapp::get_host_ctrl_port(ctx_id);
-    vdev.remote_ctrl_port.node = knapp::remote_scif_nodes[0];
-    vdev.remote_ctrl_port.port = knapp::get_mic_data_port(ctx_id);
-    vdev.remote_ctrl_port.node = knapp::remote_scif_nodes[0];
-    vdev.remote_ctrl_port.port = knapp::get_mic_ctrl_port(ctx_id);
-    rc = scif_bind(vdev.data_epd, vdev.local_data_port.port);
-    assert(rc == vdev.local_data_port.port);
-    rc = scif_bind(vdev.ctrl_epd, vdev.local_ctrl_port.port);
-    assert(rc == vdev.local_ctrl_port.port);
+    vdev.mic_data_port.node = knapp::remote_scif_nodes[0];
+    vdev.mic_data_port.port = knapp::get_mic_data_port(ctx_id);
+    rc = scif_connect(vdev.data_epd, &vdev.mic_data_port);
+    assert(0 < rc);
 
+    /* TODO: Create pollrings & RMA buffers. */
+
+    vdev.next_poll = 0;
+
+    /* Prepare offload task structures. */
     vdev.tasks_in_flight = (struct knapp::offload_task *) rte_zmalloc_socket(nullptr,
             sizeof(struct knapp::offload_task) * vdev.pipeline_depth,
             CACHE_LINE_SIZE, node_id);
     assert(vdev.tasks_in_flight != nullptr);
-
-    vdev.next_poll = 0;
-    // TODO: knapp::pollring_init(&vdev.pollring, vdev.pipeline_depth, vdev.data_epd, node_id);
 
     /* Initialize I/O buffers. */
     NEW(node_id, io_base_ring, FixedRing<unsigned>, NBA_MAX_IO_BASES, node_id);
@@ -83,9 +76,6 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
         //_cpu_mempool_in[i]->init_with_flags(nullptr, cudaHostAllocPortable);
         //_cpu_mempool_out[i]->init_with_flags(nullptr, cudaHostAllocPortable);
     }
-
-    /* Connect to the MIC-side daemon. */
-    knapp::connect_with_retry(&vdev);
 }
 
 const struct rte_memzone *KnappComputeContext::reserve_memory(ComputeDevice *mother)
@@ -106,7 +96,6 @@ KnappComputeContext::~KnappComputeContext()
         rte_memzone_free(mz);
     scif_close(vdev.data_epd);
     scif_close(vdev.ctrl_epd);
-    rte_free(vdev.ctrlbuf);
     rte_free(vdev.tasks_in_flight);
 }
 

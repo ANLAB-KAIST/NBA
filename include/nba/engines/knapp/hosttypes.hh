@@ -36,20 +36,10 @@ struct vdevice {
     scif_epd_t data_epd;
     scif_epd_t ctrl_epd;
     struct scif_portID master_port;
-    struct scif_portID local_data_port;
-    struct scif_portID local_ctrl_port;
-    struct scif_portID remote_data_port;
-    struct scif_portID remote_ctrl_port;
-    struct poll_ring poll_ring;
-
-    off_t remote_writebuf_base_ra;
-    off_t remote_poll_ring_window;
-
-    uint8_t *ctrlbuf;
+    struct scif_portID mic_data_port;
 
     // ---
     int next_poll;
-    FixedRing<int> *cores;
 };
 
 #define SERIALIZED_LEN_INVALID 0x7fFfFfFfu

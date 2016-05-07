@@ -18,8 +18,19 @@ namespace nba { namespace knapp {
 
 using namespace nba::knapp;
 
+void nba::knapp::set_cpu_mask(
+        pthread_attr_t *attr, unsigned pinned_core, unsigned num_cores)
+{
+    size_t cpuset_sz = CPU_ALLOC_SIZE(num_cores);
+    cpu_set_t *cpuset = CPU_ALLOC(num_cores);
+    CPU_ZERO_S(cpuset_sz, cpuset);
+    CPU_SET_S(pinned_core, cpuset_sz, cpuset);
+    pthread_attr_setaffinity_np(attr, cpuset_sz, cpuset);
+    CPU_FREE(cpuset);
+}
 
-bool nba::knapp::recv_ctrlmsg(scif_epd_t epd, CtrlRequest &req, sigset_t *orig_sigmask)
+bool nba::knapp::recv_ctrlmsg(
+        scif_epd_t epd, CtrlRequest &req, sigset_t *orig_sigmask)
 {
     int rc;
     char buf[1024];

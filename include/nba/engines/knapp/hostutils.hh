@@ -18,10 +18,6 @@ extern uint16_t local_node;
 
 void ctrl_invoke(scif_epd_t ep, const CtrlRequest &req, CtrlResponse &resp);
 
-void connect_with_retry(struct vdevice *vdev);
-
-int pollring_init(struct poll_ring *r, int32_t n, scif_epd_t epd, int node);
-
 }} // endns(nba::knapp)
 
 

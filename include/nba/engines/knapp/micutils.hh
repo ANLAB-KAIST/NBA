@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <scif.h>
+#include <pthread.h>
 #include <signal.h>
 
 namespace nba {
@@ -71,18 +72,13 @@ static inline void log_device(int vdevice_id, const char *format, ... )
 
 int get_least_utilized_ht(int pcore);
 
-int pollring_init(struct poll_ring *r, int32_t n, scif_epd_t epd);
+void set_cpu_mask(pthread_attr_t *attr, unsigned pinned_core, unsigned num_cores);
 
-bool recv_ctrlmsg(scif_epd_t epd, CtrlRequest &req, sigset_t *orig_sigmask = nullptr);
+bool recv_ctrlmsg(scif_epd_t epd,
+                  CtrlRequest &req,
+                  sigset_t *orig_sigmask = nullptr);
 
 bool send_ctrlresp(scif_epd_t epd, const CtrlResponse &resp);
-
-static inline uint8_t *bufarray_get_va(struct bufarray *ba, int index) {
-    if (ba->initialized && index >= 0 && index < (int) ba->size) {
-        return ba->bufs[index];
-    }
-    return nullptr;
-}
 
 } // endns(knapp)
 } // endns(nba)
