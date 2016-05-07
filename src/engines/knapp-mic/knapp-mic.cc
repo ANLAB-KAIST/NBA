@@ -7,12 +7,15 @@
 #include <nba/engines/knapp/ctrl.pb.h>
 #include <nba/engines/knapp/pollring.hh>
 #include <nba/engines/knapp/rma.hh>
+#include <nba/core/enumerate.hh>
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <tuple>
 #include <vector>
+#include <unordered_set>
 #include <map>
 #include <unistd.h>
 #include <poll.h>
@@ -23,7 +26,6 @@ namespace nba { namespace knapp {
 
 extern char **kernel_paths;
 extern char **kernel_names;
-std::vector<struct nba::knapp::vdevice *> vdevs;
 extern worker_func_t worker_funcs[];
 
 /* MIC daemon consists of 3 types of threads:
@@ -39,6 +41,7 @@ static uint32_t mic_num_lcores = 0;
 static uint64_t global_vdevice_counter = 0;
 static bool pcore_used[KNAPP_NUM_CORES];
 static pthread_t control_thread;
+static std::unordered_set<struct nba::knapp::vdevice *> vdevs;
 static volatile bool exit_flag = false;
 
 void *control_thread_loop(void *arg);
@@ -130,13 +133,14 @@ static struct vdevice *nba::knapp::create_vdev(
 
     /* Spawn the master thread. */
     vdev->threads_alive = true;
-    vdev->ready_barrier = ready_barrier;
+    vdev->master_ready_barrier = ready_barrier;
     pthread_attr_t attr;
     pthread_attr_init(&attr);
-    set_cpu_mask(&attr, pcore_begin, mic_num_lcores);
+    int master_lcore = mic_pcore_to_lcore(pcore_begin, KNAPP_MAX_THREADS_PER_CORE - 1);
+    set_cpu_mask(&attr, master_lcore, mic_num_lcores);
     rc = pthread_create(&vdev->master_thread, &attr, master_thread_loop, (void *) vdev);
     assert(0 == rc);
-    log_device(vdev->device_id, "Spawned the master thread.\n");
+    log_device(vdev->device_id, "Spawned the master thread at lcore %d.\n", master_lcore);
     pthread_attr_destroy(&attr);
 
     return vdev;
@@ -146,13 +150,16 @@ static void nba::knapp::destroy_vdev(struct vdevice *vdev)
 {
     /* Destroy master and worker threads. */
     vdev->exit = true;
+    log_device(vdev->device_id, "Deleting vDevice...\n");
     if (vdev->threads_alive) {
         pthread_kill(vdev->master_thread, SIGINT);
-        //for (int i = 0; i < vdev->num_worker_threads; i++)
-        //    pthread_kill(vdev->worker_threads[i], SIGINT);
+        for (int i = 0; i < vdev->num_worker_threads; i++) {
+            log_device(vdev->device_id, "killing worker[%d]...\n", i);
+            pthread_kill(vdev->worker_threads[i], SIGINT);
+        }
         pthread_join(vdev->master_thread, nullptr);
-        //for (int i = 0; i < vdev->num_worker_threads; i++)
-        //    pthread_join(vdev->worker_threads[i], nullptr);
+        for (int i = 0; i < vdev->num_worker_threads; i++)
+            pthread_join(vdev->worker_threads[i], nullptr);
         vdev->threads_alive = false;
     }
 
@@ -165,6 +172,11 @@ static void nba::knapp::destroy_vdev(struct vdevice *vdev)
     }
     _mm_free(vdev->data_ready_barriers);
     _mm_free(vdev->task_done_barriers);
+    _mm_free(vdev->thread_info_array);
+    for (unsigned pd = 0; pd < vdev->pipeline_depth; pd++) {
+        _mm_free(vdev->per_thread_work_info[pd]);
+    }
+    _mm_free(vdev->per_thread_work_info);
     log_device(vdev->device_id, "Deleted vDevice.\n");
     delete vdev;
 }
@@ -216,13 +228,18 @@ static bool nba::knapp::destroy_rma(
 static void *nba::knapp::worker_thread_loop(void *arg)
 {
     struct worker_thread_info *info = (struct worker_thread_info *) arg;
-    int tid = info->thread_id;
+    const int tid        = info->thread_id;
     struct vdevice *vdev = info->vdev;
+    log_device(vdev->device_id, "Starting worker[%d]\n", tid);
+
+    pthread_barrier_wait(info->worker_ready_barrier);
+    info->worker_ready_barrier = nullptr;
 
     // TODO: retrieve from per-task info
     //worker_func_t pktproc_func = info->pktproc_func;
 
     while (!vdev->exit) {
+#if 0
         /* former worker_preproc() */
         {
             struct worker *w =
@@ -260,7 +277,10 @@ static void *nba::knapp::worker_thread_loop(void *arg)
 
             vdev->poll_rings[0]->remote_notify(task_id, KNAPP_OFFLOAD_COMPLETE);
         }
+#endif
+        insert_pause();
     }
+    log_device(vdev->device_id, "Terminating worker[%d]\n", tid);
     return nullptr;
 }
 
@@ -280,23 +300,9 @@ static void *nba::knapp::master_thread_loop(void *arg)
     rc = scif_listen(vdev->data_listen_epd, backlog);
     assert(0 == rc);
 
-    pthread_barrier_wait(vdev->ready_barrier);
-    vdev->ready_barrier = nullptr;
-
-    struct scif_portID temp;
-    rc = scif_accept(vdev->data_listen_epd, &temp,
-                     &vdev->data_epd, SCIF_ACCEPT_SYNC);
-    assert(0 == rc);
-    log_device(vdev->device_id, "Connection established between "
-               "local dataport (%d, %d) and remote dataport (%d, %d)\n",
-               1, data_port,
-               temp.node, temp.port);
-
     /* Initialize worker thread info. */
-    vdev->worker_threads = (pthread_t *) _mm_malloc(
-            sizeof(pthread_t) * vdev->num_worker_threads,
-            CACHE_LINE_SIZE);
-    assert(nullptr != vdev->worker_threads);
+    pthread_barrier_t worker_ready_barrier;
+    pthread_barrier_init(&worker_ready_barrier, nullptr, vdev->num_worker_threads + 1);
     vdev->thread_info_array = (struct worker_thread_info *) _mm_malloc(
             sizeof(struct worker_thread_info) * vdev->num_worker_threads,
             CACHE_LINE_SIZE);
@@ -304,7 +310,8 @@ static void *nba::knapp::master_thread_loop(void *arg)
     for (unsigned i = 0; i < vdev->num_worker_threads; i++) {
         struct worker_thread_info *info = &vdev->thread_info_array[i];
         info->thread_id = i;
-        info->vdev = vdev;
+        info->vdev      = vdev;
+        info->worker_ready_barrier = &worker_ready_barrier;
     }
 
     /* Initialize pipelined worker info. */
@@ -312,13 +319,14 @@ static void *nba::knapp::master_thread_loop(void *arg)
             sizeof(struct worker *) * vdev->pipeline_depth,
             CACHE_LINE_SIZE);
     assert(nullptr != vdev->per_thread_work_info);
+
     for (unsigned pd = 0; pd < vdev->pipeline_depth; pd++) {
         vdev->per_thread_work_info[pd] = (struct worker *) _mm_malloc(
                 sizeof(struct worker) * vdev->num_worker_threads,
                 CACHE_LINE_SIZE);
         assert(nullptr != vdev->per_thread_work_info[pd]);
     }
-    log_device(vdev->device_id, "Allocated %d per-worker-thread work info\n", vdev->num_worker_threads);
+    log_device(vdev->device_id, "Allocated %d per-worker-thread work info.\n", vdev->num_worker_threads);
     for (unsigned pd = 0; pd < vdev->pipeline_depth; pd++) {
         for (unsigned i = 0; i < vdev->num_worker_threads; i++) {
             struct worker &w = vdev->per_thread_work_info[pd][i];
@@ -327,21 +335,43 @@ static void *nba::knapp::master_thread_loop(void *arg)
         }
     }
 
-#if 0
     /* Spawn worker threads for this vDevice. */
-    for ( unsigned i = 0; i < vdev->lcores.size(); i++ ) {
-        //log_device(vdev->device_id, "Creating thread for lcore %d (%d, %d) and thread %d\n", lcore, pcore, ht, i);
+    vdev->worker_threads = (pthread_t *) _mm_malloc(
+            sizeof(pthread_t) * vdev->num_worker_threads,
+            CACHE_LINE_SIZE);
+    assert(nullptr != vdev->worker_threads);
+    assert(vdev->num_worker_threads == vdev->lcores.size());
+    for (auto&& pair : enumerate(vdev->lcores)) {
+        int i, lcore;
+        std::tie(i, lcore) = pair;
+        log_device(vdev->device_id, "Creating worker[%d] for lcore %d...\n", i, lcore);
         pthread_attr_t attr;
         pthread_attr_init(&attr);
-        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-        set_cpu_mask(&attr, vdev->lcores[i], mic_num_lcores);
+        set_cpu_mask(&attr, lcore, mic_num_lcores);
         rc = pthread_create(&vdev->worker_threads[i], &attr,
                             worker_thread_loop,
                             (void *) &vdev->thread_info_array[i]);
         assert(0 == rc);
         pthread_attr_destroy(&attr);
     }
-#endif
+
+    /* Wait until all workers starts. */
+    pthread_barrier_wait(&worker_ready_barrier);
+    pthread_barrier_destroy(&worker_ready_barrier);
+
+    /* Now we are ready to respond the API client. */
+    pthread_barrier_wait(vdev->master_ready_barrier);
+    vdev->master_ready_barrier = nullptr;
+
+    struct scif_portID temp;
+    rc = scif_accept(vdev->data_listen_epd, &temp,
+                     &vdev->data_epd, SCIF_ACCEPT_SYNC);
+    assert(0 == rc);
+    log_device(vdev->device_id, "Data channel established between "
+               "local port %d and peer(%d) port %d.\n",
+               data_port, temp.node, temp.port);
+
+
     log_device(vdev->device_id, "Running processing daemon...\n");
     uint32_t cur_task_id = 0;
     while (!vdev->exit) {
@@ -485,6 +515,7 @@ static void *nba::knapp::control_thread_loop(void *arg)
                     } else {
                         pthread_barrier_wait(&ready_barrier);
                         pthread_barrier_destroy(&ready_barrier);
+                        vdevs.insert(vdev);
                         resp.set_reply(CtrlResponse::SUCCESS);
                         resp.mutable_resource()->set_handle((uintptr_t) vdev);
                         resp.mutable_resource()->set_id(vdev->device_id);
@@ -498,6 +529,7 @@ static void *nba::knapp::control_thread_loop(void *arg)
                 if (request.has_resource()) {
                     struct vdevice *vdev = (struct vdevice *) request.resource().handle();
                     destroy_vdev(vdev);
+                    vdevs.erase(vdev);
                     resp.set_reply(CtrlResponse::SUCCESS);
                 } else {
                     resp.set_reply(CtrlResponse::INVALID);
@@ -584,20 +616,13 @@ static void nba::knapp::stop_all() {
 
     log_info("Stopping...\n");
 
-    /* Ensure propagation of signals. */
-    for (auto vdev : vdevs)
-        if (vdev->threads_alive) {
-            pthread_kill(vdev->master_thread, SIGINT);
-            vdev->threads_alive = false;
-        }
-    pthread_kill(control_thread, SIGINT);
+    for (auto vdev : vdevs) {
+        destroy_vdev(vdev);
+    }
+    vdevs.clear();
 
-    /* Wait until all finishes. */
-    for (auto vdev : vdevs)
-        if (vdev->threads_alive) {
-            pthread_join(vdev->master_thread, nullptr);
-            vdev->threads_alive = false;
-        }
+    /* Ensure propagation of signals. */
+    pthread_kill(control_thread, SIGINT);
     pthread_join(control_thread, nullptr);
 }
 

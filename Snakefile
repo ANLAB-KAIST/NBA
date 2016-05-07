@@ -347,7 +347,6 @@ for case in _test_cases:
     requires = [joinpath(OBJ_DIR, f) for f in compilelib.get_requires(fmt('tests/test_{case}.cc'), 'src')]
     src = fmt('tests/test_{case}.cc')
     if compilelib.has_string(src, 'int main'):
-        print("TEST {} has main!".format(case))
         rule:  # for individual tests
             input: src, includes, GTEST_FUSED_OBJ, req=requires
             output: fmt('tests/test_{case}')

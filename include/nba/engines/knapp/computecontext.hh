@@ -65,12 +65,9 @@ public:
 
 private:
 
-    uint8_t *checkbits_d;
-    uint8_t *checkbits_h;
-
     /* vDevice context. */
     struct knapp::vdevice vdev;
-    
+
     /* Inherited from KnappComputeDevice. */
     scif_epd_t ctrl_epd;
 
@@ -81,9 +78,6 @@ private:
 
     const struct rte_memzone *reserve_memory(ComputeDevice *mother);
     const struct rte_memzone *mz;
-
-    host_mem_t dummy_host_buf;
-    dev_mem_t dummy_dev_buf;
 
     size_t num_kernel_args;
     struct kernel_arg kernel_args[KNAPP_MAX_KERNEL_ARGS];

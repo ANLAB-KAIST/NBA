@@ -23,7 +23,7 @@ struct cuda_event_context {
 #define IO_MEMPOOL_ALIGN (8lu)
 
 KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
- : ComputeContext(ctx_id, mother), checkbits_d(NULL), checkbits_h(NULL),
+ : ComputeContext(ctx_id, mother),
    mz(reserve_memory(mother)), num_kernel_args(0)
 {
     type_name = "knapp.phi";
@@ -31,10 +31,10 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
     int rc;
 
     /* Initialize Knapp vDev Parameters. */
-    vdev.device_id = ctx_id;
+    vdev.device_id = 0;    // TODO: retrieve from CREATE_VDEV API call.
     vdev.ht_per_core = 2;                   // FIXME: set from config
     vdev.pipeline_depth = NBA_MAX_IO_BASES; // Key adaptation: app-specific I/O buffers -> io_base_t
-    const unsigned num_cores_per_vdev = 2;  // FIXME: set from config
+    const unsigned num_cores_per_vdev = 4;  // FIXME: set from config
 
     /* Take ctrl_epd from the mother device. */
     ctrl_epd = (dynamic_cast<KnappComputeDevice*>(mother))->ctrl_epd;

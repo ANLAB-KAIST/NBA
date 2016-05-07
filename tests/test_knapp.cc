@@ -52,7 +52,7 @@ TEST(KnappCommunicationTest, RawPing) {
     std::string msg = "hello world";
     int rc;
     scif_epd_t sock = scif_open();
-    struct scif_portID remote = { 1, KNAPP_MASTER_PORT };
+    struct scif_portID remote = { 1, KNAPP_CTRL_PORT };
     rc = scif_connect(sock, &remote);
     ASSERT_LT(0, rc);
 
@@ -85,7 +85,7 @@ TEST(KnappCommunicationTest, Ping) {
     std::string msg = "goodbye world";
     int rc;
     scif_epd_t sock = scif_open();
-    struct scif_portID remote = { 1, KNAPP_MASTER_PORT };
+    struct scif_portID remote = { 1, KNAPP_CTRL_PORT };
     rc = scif_connect(sock, &remote);
     ASSERT_LT(0, rc);
 
@@ -105,7 +105,7 @@ TEST(KnappCommunicationTest, Ping) {
 TEST(KnappCommunicationTest, InvalidPing) {
     int rc;
     scif_epd_t sock = scif_open();
-    struct scif_portID remote = { 1, KNAPP_MASTER_PORT };
+    struct scif_portID remote = { 1, KNAPP_CTRL_PORT };
     rc = scif_connect(sock, &remote);
     ASSERT_LT(0, rc);
 
@@ -124,7 +124,7 @@ TEST(KnappCommunicationTest, InvalidPing) {
 TEST(KnappMallocTest, Small) {
     int rc;
     scif_epd_t sock = scif_open();
-    struct scif_portID remote = { 1, KNAPP_MASTER_PORT };
+    struct scif_portID remote = { 1, KNAPP_CTRL_PORT };
     rc = scif_connect(sock, &remote);
     ASSERT_LT(0, rc);
 
@@ -153,7 +153,7 @@ TEST(KnappMallocTest, Small) {
 TEST(KnappMallocTest, Large) {
     int rc;
     scif_epd_t sock = scif_open();
-    struct scif_portID remote = { 1, KNAPP_MASTER_PORT };
+    struct scif_portID remote = { 1, KNAPP_CTRL_PORT };
     rc = scif_connect(sock, &remote);
     ASSERT_LT(0, rc);
 
@@ -190,7 +190,7 @@ TEST(KnappMallocTest, Large) {
 TEST(KnappvDeviceTest, Single) {
     int rc;
     scif_epd_t api_epd = scif_open();
-    struct scif_portID remote = { 1, KNAPP_MASTER_PORT };
+    struct scif_portID remote = { 1, KNAPP_CTRL_PORT };
     rc = scif_connect(api_epd, &remote);
     ASSERT_LT(0, rc);
 
@@ -199,8 +199,8 @@ TEST(KnappvDeviceTest, Single) {
 
     request.set_type(CtrlRequest::CREATE_VDEV);
     CtrlRequest::vDeviceInfoParam *v = request.mutable_vdevinfo();
-    v->set_num_pcores(1);
-    v->set_num_lcores_per_pcore(4);
+    v->set_num_pcores(2);
+    v->set_num_lcores_per_pcore(3);
     v->set_pipeline_depth(32);
     ctrl_invoke(api_epd, request, response);
     EXPECT_EQ(CtrlResponse::SUCCESS, response.reply());
@@ -230,7 +230,7 @@ TEST(KnappRMATest, H2DWrite) {
     int rc;
     scif_epd_t api_epd = scif_open();
     ASSERT_NE(SCIF_OPEN_FAILED, api_epd);
-    struct scif_portID remote = { 1, KNAPP_MASTER_PORT };
+    struct scif_portID remote = { 1, KNAPP_CTRL_PORT };
     rc = scif_connect(api_epd, &remote);
     ASSERT_LT(0, rc);
 

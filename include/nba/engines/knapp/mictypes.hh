@@ -51,7 +51,7 @@ struct vdevice {
     PollRing *poll_rings[KNAPP_VDEV_MAX_POLLRINGS];
     RMABuffer *rma_buffers[KNAPP_VDEV_MAX_RMABUFFERS];
 
-    pthread_barrier_t *ready_barrier;
+    pthread_barrier_t *master_ready_barrier;
     Barrier **data_ready_barriers;
     Barrier **task_done_barriers;
 
@@ -105,6 +105,7 @@ struct worker {
 struct worker_thread_info {
      int thread_id;
      struct vdevice *vdev;
+    pthread_barrier_t *worker_ready_barrier;
 } __cache_aligned;
 
 }} // endns(nba::knapp)
