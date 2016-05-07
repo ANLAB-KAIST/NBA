@@ -70,7 +70,6 @@ bool destroy_rma(
 
 }} // endns(nba::knapp)
 
-using namespace nba;
 using namespace nba::knapp;
 
 static struct vdevice *nba::knapp::create_vdev(
@@ -118,7 +117,8 @@ static struct vdevice *nba::knapp::create_vdev(
     vdev->num_worker_threads = vdev->pcores.size() * num_lcores_per_pcore;
     vdev->master_core = pcore_begin;
     vdev->threads_alive = false;
-    log_device(vdev->device_id, "created (pcore_begin=%d, num_workers=%d)\n", pcore_begin, vdev->num_worker_threads);
+    log_device(vdev->device_id, "Created. (pcore_begin=%d, pcores=%u, num_workers=%u)\n",
+               pcore_begin, vdev->pcores.size(), vdev->num_worker_threads);
 
     /* Initialize barriers. */
     vdev->data_ready_barriers = (Barrier **) _mm_malloc(sizeof(Barrier *) * vdev->pipeline_depth, CACHE_LINE_SIZE);
@@ -128,13 +128,16 @@ static struct vdevice *nba::knapp::create_vdev(
         vdev->task_done_barriers[i]  = new Barrier(vdev->num_worker_threads, vdev->device_id, KNAPP_BARRIER_PROFILE_INTERVAL);
     }
 
-    /* Spawn master/worker threads. */
-    // TODO: attr
+    /* Spawn the master thread. */
     vdev->threads_alive = true;
     vdev->ready_barrier = ready_barrier;
-    rc = pthread_create(&vdev->master_thread, nullptr, master_thread_loop, (void *) vdev);
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    set_cpu_mask(&attr, pcore_begin, mic_num_lcores);
+    rc = pthread_create(&vdev->master_thread, &attr, master_thread_loop, (void *) vdev);
     assert(0 == rc);
-    log_device(vdev->device_id, "spawned master thread.\n");
+    log_device(vdev->device_id, "Spawned the master thread.\n");
+    pthread_attr_destroy(&attr);
 
     return vdev;
 }
@@ -153,12 +156,16 @@ static void nba::knapp::destroy_vdev(struct vdevice *vdev)
         vdev->threads_alive = false;
     }
 
+    for (int c : vdev->pcores)
+        pcore_used[c] = false;
+
     for (uint32_t i = 0; i < vdev->pipeline_depth; i++) {
         delete vdev->data_ready_barriers[i];
         delete vdev->task_done_barriers[i];
     }
     _mm_free(vdev->data_ready_barriers);
     _mm_free(vdev->task_done_barriers);
+    log_device(vdev->device_id, "Deleted vDevice.\n");
     delete vdev;
 }
 
@@ -180,6 +187,7 @@ static bool nba::knapp::destroy_pollring(
 {
     delete vdev->poll_rings[ring_id];
     vdev->poll_rings[ring_id] = nullptr;
+    log_device(vdev->device_id, "Deleting PollRing[%u]\n", ring_id);
     return true;
 }
 
@@ -201,6 +209,7 @@ static bool nba::knapp::destroy_rma(
 {
     delete vdev->rma_buffers[buffer_id];
     vdev->rma_buffers[buffer_id] = nullptr;
+    log_device(vdev->device_id, "Deleting RMABuffer[%u]\n", buffer_id);
     return true;
 }
 
@@ -283,7 +292,6 @@ static void *nba::knapp::master_thread_loop(void *arg)
                1, data_port,
                temp.node, temp.port);
 
-#if 0
     /* Initialize worker thread info. */
     vdev->worker_threads = (pthread_t *) _mm_malloc(
             sizeof(pthread_t) * vdev->num_worker_threads,
@@ -319,6 +327,7 @@ static void *nba::knapp::master_thread_loop(void *arg)
         }
     }
 
+#if 0
     /* Spawn worker threads for this vDevice. */
     for ( unsigned i = 0; i < vdev->lcores.size(); i++ ) {
         //log_device(vdev->device_id, "Creating thread for lcore %d (%d, %d) and thread %d\n", lcore, pcore, ht, i);
@@ -330,6 +339,7 @@ static void *nba::knapp::master_thread_loop(void *arg)
                             worker_thread_loop,
                             (void *) &vdev->thread_info_array[i]);
         assert(0 == rc);
+        pthread_attr_destroy(&attr);
     }
 #endif
     log_device(vdev->device_id, "Running processing daemon...\n");
@@ -468,12 +478,13 @@ static void *nba::knapp::control_thread_loop(void *arg)
                                                        request.vdevinfo().num_lcores_per_pcore(),
                                                        request.vdevinfo().pipeline_depth(),
                                                        &ready_barrier);
-                    pthread_barrier_wait(&ready_barrier);
-                    pthread_barrier_destroy(&ready_barrier);
                     if (vdev == nullptr) {
+                        pthread_barrier_destroy(&ready_barrier);
                         resp.set_reply(CtrlResponse::FAILURE);
                         resp.mutable_text()->set_msg("vDevice creation failed.");
                     } else {
+                        pthread_barrier_wait(&ready_barrier);
+                        pthread_barrier_destroy(&ready_barrier);
                         resp.set_reply(CtrlResponse::SUCCESS);
                         resp.mutable_resource()->set_handle((uintptr_t) vdev);
                         resp.mutable_resource()->set_id(vdev->device_id);
@@ -621,14 +632,16 @@ int main (int argc, char *argv[])
     }
 #endif
     exit_flag = false;
-    pthread_attr_t attr;
     {
+        pthread_attr_t attr;
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
         set_cpu_mask(&attr, 0, mic_num_lcores);
+        pcore_used[0] = true;
+        rc = pthread_create(&control_thread, &attr, control_thread_loop, nullptr);
+        assert(0 == rc);
+        pthread_attr_destroy(&attr);
     }
-    rc = pthread_create(&control_thread, &attr, control_thread_loop, nullptr);
-    assert(0 == rc);
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
     pthread_join(control_thread, nullptr);
