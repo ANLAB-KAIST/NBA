@@ -446,7 +446,8 @@ static void *nba::knapp::master_thread_loop(void *arg)
             remaining -= w->num_items;
         }
 #endif
-        /* Now we are ready to run the processing function. */
+        /* Now we are ready to run the processing function.
+         * Notify worker threads. */
         vdev->poll_rings[0]->notify(cur_task_id, KNAPP_TASK_READY);
 
         cur_task_id = (cur_task_id + 1) % (vdev->poll_rings[0]->len());

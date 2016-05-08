@@ -1,6 +1,7 @@
 #include <nba/core/intrinsic.hh>
 #include <nba/framework/logging.hh>
 #include <nba/engines/cuda/computedevice.hh>
+#include <nba/engines/cuda/computecontext.hh>
 
 using namespace std;
 using namespace nba;

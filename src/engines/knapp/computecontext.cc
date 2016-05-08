@@ -64,7 +64,7 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
     if (vdev.data_epd == SCIF_OPEN_FAILED)
         rte_exit(EXIT_FAILURE, "scif_open() for data_epd failed.");
     vdev.mic_data_port.node = remote_scif_nodes[0];
-    vdev.mic_data_port.port = get_mic_data_port(ctx_id);
+    vdev.mic_data_port.port = get_mic_data_port(vdev.device_id);
     rc = scif_connect(vdev.data_epd, &vdev.mic_data_port);
     assert(0 < rc);
     vdev.next_poll = 0;

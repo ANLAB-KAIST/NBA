@@ -10,10 +10,11 @@
 #include <nba/core/threading.hh>
 #include <cuda.h>
 #include <nba/engines/cuda/utils.hh>
-#include <nba/engines/cuda/computecontext.hh>
 
 namespace nba
 {
+
+class CUDAComputeContext;
 
 class CUDAComputeDevice: public ComputeDevice
 {

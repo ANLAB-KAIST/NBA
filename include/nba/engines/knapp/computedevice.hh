@@ -9,11 +9,11 @@
 #include <nba/framework/computecontext.hh>
 #include <nba/core/threading.hh>
 #include <nba/engines/knapp/defs.hh>
-#include <nba/engines/knapp/computecontext.hh>
 #include <scif.h>
 
-namespace nba
-{
+namespace nba {
+
+class KnappComputeContext;
 
 class KnappComputeDevice: public ComputeDevice
 {

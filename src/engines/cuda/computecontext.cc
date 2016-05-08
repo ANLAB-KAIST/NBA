@@ -1,5 +1,6 @@
 #include <nba/core/intrinsic.hh>
 #include <nba/engines/cuda/computecontext.hh>
+#include <nba/engines/cuda/mempool.hh>
 #include <rte_memzone.h>
 #include <unistd.h>
 

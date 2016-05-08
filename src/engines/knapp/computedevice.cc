@@ -4,6 +4,7 @@
 #include <nba/engines/knapp/hosttypes.hh>
 #include <nba/engines/knapp/hostutils.hh>
 #include <nba/engines/knapp/computedevice.hh>
+#include <nba/engines/knapp/computecontext.hh>
 #include <nba/engines/knapp/ctrl.pb.h>
 #include <rte_memory.h>
 #include <scif.h>

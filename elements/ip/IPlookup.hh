@@ -34,6 +34,9 @@ public:
         #ifdef USE_PHI
         device_names.push_back("phi");
         #endif
+        #ifdef USE_KNAPP
+        device_names.push_back("knapp.phi");
+        #endif
     }
 
     size_t get_used_datablocks(int *datablock_ids)
@@ -52,6 +55,10 @@ public:
     #ifdef USE_CUDA
     void cuda_init_handler(ComputeDevice *device);
     void cuda_compute_handler(ComputeContext *ctx, struct resource_param *res);
+    #endif
+    #ifdef USE_KNAPP
+    void knapp_init_handler(ComputeDevice *device);
+    void knapp_compute_handler(ComputeContext *ctx, struct resource_param *res);
     #endif
     int postproc(int input_port, void *custom_output, Packet *pkt);
 

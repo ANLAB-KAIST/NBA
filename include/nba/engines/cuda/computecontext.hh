@@ -6,7 +6,6 @@
 #include <nba/framework/computedevice.hh>
 #include <nba/framework/computecontext.hh>
 #include <cuda.h>
-#include <nba/engines/cuda/mempool.hh>
 #include <nba/engines/cuda/utils.hh>
 
 struct rte_memzone;
@@ -15,6 +14,9 @@ struct rte_memzone;
 
 namespace nba
 {
+
+class CUDAMemoryPool;
+class CPUMemoryPool;
 
 class CUDAComputeContext: public ComputeContext
 {
