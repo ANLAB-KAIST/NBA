@@ -72,6 +72,11 @@ public:
         return ctx_id;
     }
 
+    ComputeDevice *mother() {
+        // FIXME: lift off const_cast
+        return const_cast<ComputeDevice *>(mother_device);
+    }
+
 public:
     std::string type_name;
     volatile unsigned state __cache_aligned;

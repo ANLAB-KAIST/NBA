@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <deque>
 
 #include <nba/framework/computedevice.hh>
@@ -12,6 +13,12 @@
 #include <scif.h>
 
 namespace nba {
+
+namespace knapp {
+
+class RMABuffer;
+
+} // endns(knapp)
 
 class KnappComputeContext;
 
@@ -26,9 +33,11 @@ public:
     int get_spec(struct compute_device_spec *spec);
     int get_utilization(struct compute_device_util *util);
     host_mem_t alloc_host_buffer(size_t size, int flags);
-    dev_mem_t alloc_device_buffer(size_t size, int flags);
-    void free_host_buffer(host_mem_t ptr);
-    void free_device_buffer(dev_mem_t ptr);
+    dev_mem_t alloc_device_buffer(size_t size, int flags, host_mem_t &assoc_host_buf);
+    void free_host_buffer(host_mem_t m);
+    void free_device_buffer(dev_mem_t m);
+    void *unwrap_host_buffer(const host_mem_t m);
+    void *unwrap_device_buffer(const dev_mem_t m);
     void memwrite(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size);
     void memread(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size);
 
@@ -36,10 +45,13 @@ private:
     ComputeContext *_get_available_context();
     void _return_context(ComputeContext *ctx);
 
+    uint32_t find_new_buffer_id();
+
     scif_epd_t ctrl_epd;
 
     std::deque<KnappComputeContext *> _ready_contexts;
     std::deque<KnappComputeContext *> _active_contexts;
+    std::unordered_map<uint32_t, knapp::RMABuffer *> buffer_registry;
     Lock _lock;
     CondVar _ready_cond;
 };

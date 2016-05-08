@@ -82,9 +82,19 @@ host_mem_t DummyComputeDevice::alloc_host_buffer(size_t size, int flags)
     return { malloc(size) };
 }
 
-dev_mem_t DummyComputeDevice::alloc_device_buffer(size_t size, int flags)
+dev_mem_t DummyComputeDevice::alloc_device_buffer(size_t size, int flags, host_mem_t &assoc_host_buf)
 {
     return { malloc(size) };
+}
+
+void *DummyComputeDevice::unwrap_host_buffer(const host_mem_t m)
+{
+    return m.ptr;
+}
+
+void *DummyComputeDevice::unwrap_device_buffer(const dev_mem_t m)
+{
+    return m.ptr;
 }
 
 void DummyComputeDevice::free_host_buffer(host_mem_t m)

@@ -16,10 +16,16 @@ typedef union {
     #ifdef USE_PHI
     cl_mem clmem;
     #endif
+    #ifdef USE_KNAPP
+    uint32_t buffer_id;
+    #endif
 } dev_mem_t;
 
 typedef union {
     void *ptr;
+    #ifdef USE_KNAPP
+    uint32_t buffer_id;
+    #endif
 } host_mem_t;
 
 typedef union {

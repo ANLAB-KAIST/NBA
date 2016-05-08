@@ -36,7 +36,9 @@ static uint64_t ntohll(uint64_t val)
 LookupIP6Route::LookupIP6Route(): OffloadableElement()
 {
     #ifdef USE_CUDA
-    auto ch = [this](ComputeContext *ctx, struct resource_param *res) { this->cuda_compute_handler(ctx, res); };
+    auto ch = [this](ComputeDevice *cdev, ComputeContext *ctx, struct resource_param *res) {
+        this->cuda_compute_handler(cdev, ctx, res);
+    };
     offload_compute_handlers.insert({{"cuda", ch},});
     auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
     offload_init_handlers.insert({{"cuda", ih},});
@@ -172,7 +174,9 @@ size_t LookupIP6Route::get_desired_workgroup_size(const char *device_name) const
 }
 
 #ifdef USE_CUDA
-void LookupIP6Route::cuda_compute_handler(ComputeContext *cctx, struct resource_param *res)
+void LookupIP6Route::cuda_compute_handler(ComputeDevice *cdev,
+                                          ComputeContext *cctx,
+                                          struct resource_param *res)
 {
     struct kernel_arg arg;
     arg = {(void *) &d_tables->ptr, sizeof(void *), alignof(void *)};
@@ -198,6 +202,7 @@ void LookupIP6Route::cuda_init_handler(ComputeDevice *device)
     /* table_ptrs_in_d keeps track of the temporary host-side references to tables in
      * the device for initialization and copy.
      * d_tables is the actual device buffer to store pointers in table_ptrs_in_d. */
+    // TODO: use unwrap_device_buffer()
     for (int i = 0; i < 128; i++) {
         table_sizes[i] = _original_table.m_Tables[i]->m_TableSize;
         size_t copy_size = sizeof(Item) * table_sizes[i] * 2;

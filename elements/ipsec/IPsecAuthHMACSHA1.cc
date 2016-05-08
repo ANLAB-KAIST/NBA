@@ -30,7 +30,9 @@ unordered_map<struct ipaddr_pair, int> hmac_sa_table;
 IPsecAuthHMACSHA1::IPsecAuthHMACSHA1(): OffloadableElement()
 {
     #ifdef USE_CUDA
-    auto ch = [this](ComputeContext *ctx, struct resource_param *res) { this->cuda_compute_handler(ctx, res); };
+    auto ch = [this](ComputeDevice *cdev, ComputeContext *ctx, struct resource_param *res) {
+        this->cuda_compute_handler(cdev, ctx, res);
+    };
     offload_compute_handlers.insert({{"cuda", ch},});
     auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
     offload_init_handlers.insert({{"cuda", ih},});
@@ -187,11 +189,12 @@ void IPsecAuthHMACSHA1::cuda_init_handler(ComputeDevice *device)
     *p = flows_in_device;
 }
 
-void IPsecAuthHMACSHA1::cuda_compute_handler(ComputeContext *cctx,
+void IPsecAuthHMACSHA1::cuda_compute_handler(ComputeDevice *cdev,
+                                             ComputeContext *cctx,
                                              struct resource_param *res)
 {
     struct kernel_arg arg;
-    arg = {(void *) &d_flows_ptr->ptr, sizeof(void *), alignof(void *)};
+    arg = {cdev->unwrap_device_buffer(d_flows_ptr), sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
 
     dev_kernel_t kern;

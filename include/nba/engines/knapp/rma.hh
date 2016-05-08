@@ -18,7 +18,8 @@ public:
 
     virtual ~RMABuffer();
 
-    void write(off_t offset, size_t size);
+    void write(off_t offset, size_t size, bool sync = false);
+    void read(off_t offset, size_t size, bool sync = false);
 
     off_t va() const { return _local_va; }
     off_t ra() const { return _local_ra; }

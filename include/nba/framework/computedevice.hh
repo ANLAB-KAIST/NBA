@@ -92,9 +92,11 @@ public:
     }
 
     virtual host_mem_t alloc_host_buffer(size_t size, int flags) = 0;
-    virtual dev_mem_t alloc_device_buffer(size_t size, int flags = AGNOSTIC) = 0;
-    virtual void free_host_buffer(host_mem_t ptr) = 0;
-    virtual void free_device_buffer(dev_mem_t ptr) = 0;
+    virtual dev_mem_t alloc_device_buffer(size_t size, int flags, host_mem_t &assoc_host_buf) = 0;
+    virtual void free_host_buffer(host_mem_t m) = 0;
+    virtual void free_device_buffer(dev_mem_t m) = 0;
+    virtual void *unwrap_host_buffer(const host_mem_t m) = 0;
+    virtual void *unwrap_device_buffer(const dev_mem_t m) = 0;
 
     /* Synchronous versions */
     virtual void memwrite(host_mem_t host_buf, dev_mem_t dev_buf,

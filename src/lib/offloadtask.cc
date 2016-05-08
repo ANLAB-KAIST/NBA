@@ -345,7 +345,7 @@ void OffloadTask::execute()
          * initate launch. */
         kernel_skipped = false;
         offload_compute_handler &handler = elem->offload_compute_handlers[cctx->type_name];
-        handler(cctx, &res);
+        handler(cctx->mother(), cctx, &res);
 
     } else {
 

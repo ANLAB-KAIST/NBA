@@ -273,7 +273,8 @@ int OffloadableElement::dispatch(uint64_t loop_count, PacketBatch*& out_batch, u
     return 0;
 }
 
-void OffloadableElement::dummy_compute_handler(ComputeContext *ctx,
+void OffloadableElement::dummy_compute_handler(ComputeDevice *cdev,
+                                               ComputeContext *ctx,
                                                struct resource_param *res)
 {
     return;

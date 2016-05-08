@@ -39,7 +39,7 @@ RMABuffer::~RMABuffer()
         rte_free((void *) _local_va);
 }
 
-void RMABuffer::write(off_t offset, size_t size)
+void RMABuffer::write(off_t offset, size_t size, bool sync)
 {
     int rc;
     assert(size <= _size);
@@ -47,6 +47,30 @@ void RMABuffer::write(off_t offset, size_t size)
     if (rc < 0)
         perror("RMABuffer: scif_writeto");
     assert(0 == rc);
+    if (sync) {
+        int mark;
+        rc = scif_fence_mark(_epd, SCIF_FENCE_INIT_SELF, &mark);
+        assert(0 == rc);
+        rc = scif_fence_wait(_epd, mark);
+        assert(0 == rc);
+    }
+}
+
+void RMABuffer::read(off_t offset, size_t size, bool sync)
+{
+    int rc;
+    assert(size <= _size);
+    rc = scif_readfrom(_epd, _local_ra + offset, size, _peer_ra + offset, 0);
+    if (rc < 0)
+        perror("RMABuffer: scif_readfrom");
+    assert(0 == rc);
+    if (sync) {
+        int mark;
+        rc = scif_fence_mark(_epd, SCIF_FENCE_INIT_SELF, &mark);
+        assert(0 == rc);
+        rc = scif_fence_wait(_epd, mark);
+        assert(0 == rc);
+    }
 }
 
 

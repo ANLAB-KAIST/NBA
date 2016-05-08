@@ -6,11 +6,13 @@
 #include <nba/engines/knapp/computedevice.hh>
 #include <nba/engines/knapp/computecontext.hh>
 #include <nba/engines/knapp/ctrl.pb.h>
+#include <nba/engines/knapp/rma.hh>
 #include <rte_memory.h>
 #include <scif.h>
 
 using namespace std;
 using namespace nba;
+using namespace nba::knapp;
 
 KnappComputeDevice::KnappComputeDevice(
         unsigned node_id, unsigned device_id, size_t num_contexts
@@ -38,6 +40,7 @@ KnappComputeDevice::KnappComputeDevice(
         assert(knapp::CtrlResponse::SUCCESS == response.reply());
         assert("hello" == response.text().msg());
     }
+    RTE_LOG(DEBUG, COPROC, "KnappComputeDevice: connected.\n");
 
     for (unsigned i = 0; i < num_contexts; i++) {
         KnappComputeContext *ctx = nullptr;
@@ -56,6 +59,15 @@ KnappComputeDevice::~KnappComputeDevice()
         delete ctx;
     }
     scif_close(ctrl_epd);
+}
+
+static uint32_t _knapp_cctx_buffer_count = 0;
+
+uint32_t KnappComputeDevice::find_new_buffer_id()
+{
+    /* We assume that it is rare to free buffers
+     * and allocate others in datap-palen apps. */
+    return ++_knapp_cctx_buffer_count; 
 }
 
 int KnappComputeDevice::get_spec(struct compute_device_spec *spec)
@@ -108,42 +120,103 @@ void KnappComputeDevice::_return_context(ComputeContext *cctx)
 
 host_mem_t KnappComputeDevice::alloc_host_buffer(size_t size, int flags)
 {
-    void *ptr = nullptr;
-    //int nvflags = 0;
-    //nvflags |= (flags & HOST_PINNED) ? cudaHostAllocPortable : 0;
-    //nvflags |= (flags & HOST_MAPPED) ? cudaHostAllocMapped : 0;
-    //nvflags |= (flags & HOST_WRITECOMBINED) ? cudaHostAllocWriteCombined : 0;
-    //cutilSafeCall(cudaHostAlloc(&ptr, size, nvflags));
-    assert(ptr != nullptr);
-    return { ptr };
+    size_t aligned_size = ALIGN_CEIL(size, PAGE_SIZE);
+    CtrlRequest request;
+    CtrlResponse response;
+    uint32_t buffer_id = find_new_buffer_id();
+    RMABuffer *buf = new RMABuffer(ctrl_epd, aligned_size, 0);
+    request.set_type(CtrlRequest::CREATE_RMABUFFER);
+    CtrlRequest::RMABufferParam *rma_param = request.mutable_rma();
+    rma_param->set_vdev_handle((uintptr_t) 0);  // global buffer
+    rma_param->set_buffer_id(buffer_id);
+    rma_param->set_size(aligned_size);
+    rma_param->set_local_ra((uint64_t) buf->ra());
+    ctrl_invoke(ctrl_epd, request, response);
+    assert(CtrlResponse::SUCCESS == response.reply());
+    buf->set_peer_ra(response.resource().peer_ra());
+    buf->set_peer_va(response.resource().peer_va());
+    buffer_registry.insert({ buffer_id, buf });
+    host_mem_t m;
+    m.buffer_id = buffer_id;
+    return m;
 }
 
-dev_mem_t KnappComputeDevice::alloc_device_buffer(size_t size, int flags)
+dev_mem_t KnappComputeDevice::alloc_device_buffer(size_t size, int flags, host_mem_t &assoc_host_buf)
 {
-    void *ptr = nullptr;
-    //cutilSafeCall(cudaMalloc(&ptr, size));
-    assert(ptr != nullptr);
-    return { ptr };
+    size_t aligned_size = ALIGN_CEIL(size, PAGE_SIZE);
+    uint32_t buffer_id = assoc_host_buf.buffer_id;
+    auto buf = buffer_registry.find(buffer_id);
+    if (buf == buffer_registry.end()) {
+        CtrlRequest request;
+        CtrlResponse response;
+        buffer_id = find_new_buffer_id();
+        RMABuffer *buf = new RMABuffer(ctrl_epd, aligned_size, 0);
+        request.set_type(CtrlRequest::CREATE_RMABUFFER);
+        CtrlRequest::RMABufferParam *rma_param = request.mutable_rma();
+        rma_param->set_vdev_handle((uintptr_t) 0);  // global
+        rma_param->set_buffer_id(buffer_id);
+        rma_param->set_size(aligned_size);
+        rma_param->set_local_ra((uint64_t) buf->ra());
+        ctrl_invoke(ctrl_epd, request, response);
+        assert(CtrlResponse::SUCCESS == response.reply());
+        buf->set_peer_ra(response.resource().peer_ra());
+        buf->set_peer_va(response.resource().peer_va());
+        buffer_registry.insert({ buffer_id, buf });
+    }
+    dev_mem_t m;
+    m.buffer_id = buffer_id;
+    return m;
 }
 
 void KnappComputeDevice::free_host_buffer(host_mem_t m)
 {
-    //cutilSafeCall(cudaFreeHost(m.ptr));
+    return;
 }
 
 void KnappComputeDevice::free_device_buffer(dev_mem_t m)
 {
-    //cutilSafeCall(cudaFree(m.ptr));
+    auto buf = buffer_registry.find(m.buffer_id);
+    if (buf == buffer_registry.end())
+        return;
+    else {
+        CtrlRequest request;
+        CtrlResponse response;
+        request.set_type(CtrlRequest::DESTROY_RMABUFFER);
+        request.mutable_rma_ref()->set_vdev_handle((uintptr_t) 0); // global
+        request.mutable_rma_ref()->set_buffer_id(m.buffer_id);
+        ctrl_invoke(ctrl_epd, request, response);
+        assert(CtrlResponse::SUCCESS == response.reply());
+        buffer_registry.erase(m.buffer_id);
+        delete (*buf).second;
+    }
+}
+
+void *KnappComputeDevice::unwrap_host_buffer(const host_mem_t m)
+{
+    auto buf = buffer_registry.find(m.buffer_id);
+    assert(buf != buffer_registry.end());
+    return (void *) (*buf).second->va();
+}
+
+void *KnappComputeDevice::unwrap_device_buffer(const dev_mem_t m)
+{
+    auto buf = buffer_registry.find(m.buffer_id);
+    assert(buf != buffer_registry.end());
+    return (void *) (*buf).second->peer_va();
 }
 
 void KnappComputeDevice::memwrite(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size)
 {
-    //cutilSafeCall(cudaMemcpy((uint8_t *) dev_buf.ptr + offset, host_buf.ptr, size, cudaMemcpyHostToDevice));
+    auto buf = buffer_registry.find(host_buf.buffer_id);
+    assert(buf != buffer_registry.end());
+    (*buf).second->write(offset, size);
 }
 
 void KnappComputeDevice::memread(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size)
 {
-    //cutilSafeCall(cudaMemcpy(host_buf.ptr, (uint8_t *) dev_buf.ptr + offset, size, cudaMemcpyDeviceToHost));
+    auto buf = buffer_registry.find(host_buf.buffer_id);
+    assert(buf != buffer_registry.end());
+    (*buf).second->read(offset, size);
 }
 
 // vim: ts=8 sts=4 sw=4 et

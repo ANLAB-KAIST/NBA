@@ -49,7 +49,15 @@ public:
     /* Offloaded methods */
     #ifdef USE_CUDA
     void cuda_init_handler(ComputeDevice *device);
-    void cuda_compute_handler(ComputeContext *ctx, struct resource_param *res);
+    void cuda_compute_handler(ComputeDevice *dev,
+                              ComputeContext *ctx,
+                              struct resource_param *res);
+    #endif
+    #ifdef USE_KNAPP
+    void knapp_init_handler(ComputeDevice *device);
+    void knapp_compute_handler(ComputeDevice *dev,
+                               ComputeContext *ctx,
+                               struct resource_param *res);
     #endif
     int postproc(int input_port, void *custom_output, Packet *pkt);
     size_t get_desired_workgroup_size(const char *device_name) const;
