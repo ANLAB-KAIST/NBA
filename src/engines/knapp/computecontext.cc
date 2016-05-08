@@ -5,13 +5,16 @@
 #include <nba/engines/knapp/sharedutils.hh>
 #include <nba/engines/knapp/computecontext.hh>
 #include <nba/engines/knapp/computedevice.hh>
+#include <nba/engines/knapp/rma.hh>
+#include <nba/engines/knapp/mempool.hh>
+#include <nba/engines/knapp/pollring.hh>
 #include <rte_memzone.h>
 #include <rte_memory.h>
 #include <unistd.h>
 #include <scif.h>
 
-using namespace std;
 using namespace nba;
+using namespace nba::knapp;
 
 struct cuda_event_context {
     ComputeContext *computectx;
@@ -40,26 +43,35 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
     ctrl_epd = (dynamic_cast<KnappComputeDevice*>(mother))->ctrl_epd;
     vdev.ctrl_epd = ctrl_epd;
 
-    /* TODO: Create vDevice. */
-    // We don't have know which MIC cores vDevice is using.
+    /* Create a vDevice. */
+    // We don't have to know which MIC cores vDevice is using.
     // It is just matter of MIC-side daemon.
+    CtrlRequest request;
+    CtrlResponse response;
+    request.set_type(CtrlRequest::CREATE_VDEV);
+    CtrlRequest::vDeviceInfoParam *v = request.mutable_vdevinfo();
+    // NOTE: Junhyun used 2x2 with vectorization while Keunhong used 8x2.
+    v->set_num_pcores(2);
+    v->set_num_lcores_per_pcore(2);
+    v->set_pipeline_depth(32);
+    ctrl_invoke(ctrl_epd, request, response);
+    assert(CtrlResponse::SUCCESS == response.reply());
+    vdev.handle    = (void *) response.resource().handle();
+    vdev.device_id = response.resource().id();
 
-    /* Initialize vDev communication channels. */
+    /* Initialize the vDev data channel. */
     vdev.data_epd = scif_open();
     if (vdev.data_epd == SCIF_OPEN_FAILED)
         rte_exit(EXIT_FAILURE, "scif_open() for data_epd failed.");
-    vdev.mic_data_port.node = knapp::remote_scif_nodes[0];
-    vdev.mic_data_port.port = knapp::get_mic_data_port(ctx_id);
+    vdev.mic_data_port.node = remote_scif_nodes[0];
+    vdev.mic_data_port.port = get_mic_data_port(ctx_id);
     rc = scif_connect(vdev.data_epd, &vdev.mic_data_port);
     assert(0 < rc);
-
-    /* TODO: Create pollrings & RMA buffers. */
-
     vdev.next_poll = 0;
 
     /* Prepare offload task structures. */
-    vdev.tasks_in_flight = (struct knapp::offload_task *) rte_zmalloc_socket(nullptr,
-            sizeof(struct knapp::offload_task) * vdev.pipeline_depth,
+    vdev.tasks_in_flight = (struct offload_task *) rte_zmalloc_socket(nullptr,
+            sizeof(struct offload_task) * vdev.pipeline_depth,
             CACHE_LINE_SIZE, node_id);
     assert(vdev.tasks_in_flight != nullptr);
 
@@ -67,14 +79,43 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
     NEW(node_id, io_base_ring, FixedRing<unsigned>, NBA_MAX_IO_BASES, node_id);
     for (unsigned i = 0; i < NBA_MAX_IO_BASES; i++) {
         io_base_ring->push_back(i);
-        //NEW(node_id, _cuda_mempool_in[i], KnappMemoryPool, io_base_size, IO_MEMPOOL_ALIGN);
-        //NEW(node_id, _cuda_mempool_out[i], KnappMemoryPool, io_base_size, IO_MEMPOOL_ALIGN);
-        //_cuda_mempool_in[i]->init();
-        //_cuda_mempool_out[i]->init();
-        NEW(node_id, _cpu_mempool_in[i], CPUMemoryPool, io_base_size, IO_MEMPOOL_ALIGN, 0);
-        NEW(node_id, _cpu_mempool_out[i], CPUMemoryPool, io_base_size, IO_MEMPOOL_ALIGN, 0);
-        //_cpu_mempool_in[i]->init_with_flags(nullptr, cudaHostAllocPortable);
-        //_cpu_mempool_out[i]->init_with_flags(nullptr, cudaHostAllocPortable);
+        RMABuffer *rma_inbuf, *rma_outbuf;
+        CtrlRequest::RMABufferParam *rma_param;
+        NEW(node_id, rma_inbuf, RMABuffer, vdev.data_epd, io_base_size, node_id);
+        NEW(node_id, rma_outbuf, RMABuffer, vdev.data_epd, io_base_size, node_id);
+
+        request.Clear();
+        request.set_type(CtrlRequest::CREATE_RMABUFFER);
+        rma_param = request.mutable_rma();
+        rma_param->set_vdev_handle((uintptr_t) vdev.handle);
+        rma_param->set_buffer_id(ID_INPUT);
+        rma_param->set_size(io_base_size);
+        rma_param->set_local_ra((uint64_t) rma_inbuf->ra());
+        ctrl_invoke(ctrl_epd, request, response);
+        assert(CtrlResponse::SUCCESS == response.reply());
+        rma_inbuf->set_peer_ra(response.resource().peer_ra());
+        rma_inbuf->set_peer_va(response.resource().peer_va());
+
+        request.Clear();
+        request.set_type(CtrlRequest::CREATE_RMABUFFER);
+        rma_param = request.mutable_rma();
+        rma_param->set_vdev_handle((uintptr_t) vdev.handle);
+        rma_param->set_buffer_id(ID_OUTPUT);
+        rma_param->set_size(io_base_size);
+        rma_param->set_local_ra((uint64_t) rma_outbuf->ra());
+        ctrl_invoke(ctrl_epd, request, response);
+        assert(CtrlResponse::SUCCESS == response.reply());
+        rma_outbuf->set_peer_ra(response.resource().peer_ra());
+        rma_outbuf->set_peer_va(response.resource().peer_va());
+
+        NEW(node_id, _local_mempool_in[i], RMALocalMemoryPool, rma_inbuf);
+        NEW(node_id, _local_mempool_out[i], RMALocalMemoryPool, rma_outbuf);
+        NEW(node_id, _peer_mempool_in[i], RMAPeerMemoryPool, rma_inbuf);
+        NEW(node_id, _peer_mempool_out[i], RMAPeerMemoryPool, rma_outbuf);
+        _local_mempool_in[i]->init();
+        _local_mempool_out[i]->init();
+        _peer_mempool_in[i]->init();
+        _peer_mempool_out[i]->init();
     }
 }
 
@@ -87,13 +128,31 @@ KnappComputeContext::~KnappComputeContext()
 {
     //cutilSafeCall(cudaStreamDestroy(_stream));
     for (unsigned i = 0; i < NBA_MAX_IO_BASES; i++) {
-        //_cuda_mempool_in[i]->destroy();
-        //_cuda_mempool_out[i]->destroy();
-        _cpu_mempool_in[i]->destroy();
-        _cpu_mempool_out[i]->destroy();
+        _local_mempool_in[i]->destroy();
+        _local_mempool_out[i]->destroy();
+        _peer_mempool_in[i]->destroy();
+        _peer_mempool_out[i]->destroy();
+        _local_mempool_in[i]->rma_buffer()->~RMABuffer();
+        _local_mempool_out[i]->rma_buffer()->~RMABuffer();
+        rte_free(_local_mempool_in[i]->rma_buffer());
+        rte_free(_local_mempool_out[i]->rma_buffer());
+        rte_free(_local_mempool_in[i]);
+        rte_free(_local_mempool_out[i]);
+        rte_free(_peer_mempool_in[i]->rma_buffer());
+        rte_free(_peer_mempool_out[i]->rma_buffer());
+        rte_free(_peer_mempool_in[i]);
+        rte_free(_peer_mempool_out[i]);
     }
     if (mz != nullptr)
         rte_memzone_free(mz);
+
+    CtrlRequest request;
+    CtrlResponse response;
+    request.set_type(CtrlRequest::DESTROY_VDEV);
+    request.mutable_resource()->set_handle((uintptr_t) vdev.handle);
+    ctrl_invoke(ctrl_epd, request, response);
+    assert(CtrlResponse::SUCCESS == response.reply());
+
     scif_close(vdev.data_epd);
     rte_free(vdev.tasks_in_flight);
 }
@@ -110,8 +169,8 @@ int KnappComputeContext::alloc_input_buffer(io_base_t io_base, size_t size,
                                            host_mem_t &host_mem, dev_mem_t &dev_mem)
 {
     unsigned i = io_base;
-    assert(0 == _cpu_mempool_in[i]->alloc(size, host_mem));
-    //assert(0 == _cuda_mempool_in[i]->alloc(size, dev_mem));
+    assert(0 == _local_mempool_in[i]->alloc(size, host_mem));
+    assert(0 == _peer_mempool_in[i]->alloc(size, dev_mem));
     // for debugging
     //assert(((uintptr_t)host_mem.ptr & 0xffff) == ((uintptr_t)dev_mem.ptr & 0xffff));
     return 0;
@@ -121,8 +180,8 @@ int KnappComputeContext::alloc_output_buffer(io_base_t io_base, size_t size,
                                             host_mem_t &host_mem, dev_mem_t &dev_mem)
 {
     unsigned i = io_base;
-    assert(0 == _cpu_mempool_out[i]->alloc(size, host_mem));
-    //assert(0 == _cuda_mempool_out[i]->alloc(size, dev_mem));
+    assert(0 == _local_mempool_out[i]->alloc(size, host_mem));
+    assert(0 == _peer_mempool_out[i]->alloc(size, dev_mem));
     // for debugging
     //assert(((uintptr_t)host_mem.ptr & 0xffff) == ((uintptr_t)dev_mem.ptr & 0xffff));
     return 0;
@@ -132,8 +191,8 @@ void KnappComputeContext::map_input_buffer(io_base_t io_base, size_t offset, siz
                                           host_mem_t &hbuf, dev_mem_t &dbuf) const
 {
     unsigned i = io_base;
-    hbuf.ptr = (void *) ((uintptr_t) _cpu_mempool_in[i]->get_base_ptr().ptr + offset);
-    //dbuf.ptr = (void *) ((uintptr_t) _cuda_mempool_in[i]->get_base_ptr().ptr + offset);
+    hbuf.ptr = (void *) ((uintptr_t) _local_mempool_in[i]->get_base_ptr().ptr + offset);
+    dbuf.ptr = (void *) ((uintptr_t) _peer_mempool_in[i]->get_base_ptr().ptr + offset);
     // len is ignored.
 }
 
@@ -141,8 +200,8 @@ void KnappComputeContext::map_output_buffer(io_base_t io_base, size_t offset, si
                                            host_mem_t &hbuf, dev_mem_t &dbuf) const
 {
     unsigned i = io_base;
-    hbuf.ptr = (void *) ((uintptr_t) _cpu_mempool_out[i]->get_base_ptr().ptr + offset);
-    //dbuf.ptr = (void *) ((uintptr_t) _cuda_mempool_out[i]->get_base_ptr().ptr + offset);
+    hbuf.ptr = (void *) ((uintptr_t) _local_mempool_out[i]->get_base_ptr().ptr + offset);
+    dbuf.ptr = (void *) ((uintptr_t) _peer_mempool_out[i]->get_base_ptr().ptr + offset);
     // len is ignored.
 }
 
@@ -159,22 +218,22 @@ void *KnappComputeContext::unwrap_device_buffer(const dev_mem_t dbuf) const
 size_t KnappComputeContext::get_input_size(io_base_t io_base) const
 {
     unsigned i = io_base;
-    return _cpu_mempool_in[i]->get_alloc_size();
+    return _local_mempool_in[i]->get_alloc_size();
 }
 
 size_t KnappComputeContext::get_output_size(io_base_t io_base) const
 {
     unsigned i = io_base;
-    return _cpu_mempool_out[i]->get_alloc_size();
+    return _local_mempool_out[i]->get_alloc_size();
 }
 
 void KnappComputeContext::clear_io_buffers(io_base_t io_base)
 {
     unsigned i = io_base;
-    _cpu_mempool_in[i]->reset();
-    _cpu_mempool_out[i]->reset();
-    //_cuda_mempool_in[i]->reset();
-    //_cuda_mempool_out[i]->reset();
+    _local_mempool_in[i]->reset();
+    _local_mempool_out[i]->reset();
+    _peer_mempool_in[i]->reset();
+    _peer_mempool_out[i]->reset();
     io_base_ring->push_back(i);
 }
 

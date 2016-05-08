@@ -278,10 +278,11 @@ void protobuf_AssignDesc_ctrl_2eproto() {
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_TextResponse, _internal_metadata_),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_TextResponse, _is_default_instance_));
   CtrlResponse_ResourceResponse_descriptor_ = CtrlResponse_descriptor_->nested_type(1);
-  static const int CtrlResponse_ResourceResponse_offsets_[3] = {
+  static const int CtrlResponse_ResourceResponse_offsets_[4] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_ResourceResponse, handle_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_ResourceResponse, id_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_ResourceResponse, peer_ra_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CtrlResponse_ResourceResponse, peer_va_),
   };
   CtrlResponse_ResourceResponse_reflection_ =
     ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
@@ -401,15 +402,16 @@ void protobuf_AddDesc_ctrl_2eproto() {
     "CREATE_VDEV\020\003\022\020\n\014DESTROY_VDEV\020\004\022\023\n\017CREAT"
     "E_POLLRING\020\005\022\024\n\020DESTROY_POLLRING\020\006\022\024\n\020CR"
     "EATE_RMABUFFER\020\007\022\025\n\021DESTROY_RMABUFFER\020\010B"
-    "\010\n\006params\"\306\002\n\014CtrlResponse\022,\n\005reply\030\001 \001("
+    "\010\n\006params\"\327\002\n\014CtrlResponse\022,\n\005reply\030\001 \001("
     "\0162\035.nba.knapp.CtrlResponse.Reply\0224\n\004text"
     "\030\002 \001(\0132$.nba.knapp.CtrlResponse.TextResp"
     "onseH\000\022<\n\010resource\030\003 \001(\0132(.nba.knapp.Ctr"
     "lResponse.ResourceResponseH\000\032\033\n\014TextResp"
-    "onse\022\013\n\003msg\030\001 \001(\t\032\?\n\020ResourceResponse\022\016\n"
+    "onse\022\013\n\003msg\030\001 \001(\t\032P\n\020ResourceResponse\022\016\n"
     "\006handle\030\001 \001(\004\022\n\n\002id\030\002 \001(\r\022\017\n\007peer_ra\030\003 \001"
-    "(\004\".\n\005Reply\022\013\n\007SUCCESS\020\000\022\013\n\007FAILURE\020\001\022\013\n"
-    "\007INVALID\020\002B\006\n\004datab\006proto3", 1546);
+    "(\004\022\017\n\007peer_va\030\004 \001(\004\".\n\005Reply\022\013\n\007SUCCESS\020"
+    "\000\022\013\n\007FAILURE\020\001\022\013\n\007INVALID\020\002B\006\n\004datab\006pro"
+    "to3", 1563);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "ctrl.proto", &protobuf_RegisterTypes);
   CtrlRequest::default_instance_ = new CtrlRequest();
@@ -4365,6 +4367,7 @@ void CtrlResponse_TextResponse::InternalSwap(CtrlResponse_TextResponse* other) {
 const int CtrlResponse_ResourceResponse::kHandleFieldNumber;
 const int CtrlResponse_ResourceResponse::kIdFieldNumber;
 const int CtrlResponse_ResourceResponse::kPeerRaFieldNumber;
+const int CtrlResponse_ResourceResponse::kPeerVaFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 CtrlResponse_ResourceResponse::CtrlResponse_ResourceResponse()
@@ -4391,6 +4394,7 @@ void CtrlResponse_ResourceResponse::SharedCtor() {
   handle_ = GOOGLE_ULONGLONG(0);
   id_ = 0u;
   peer_ra_ = GOOGLE_ULONGLONG(0);
+  peer_va_ = GOOGLE_ULONGLONG(0);
 }
 
 CtrlResponse_ResourceResponse::~CtrlResponse_ResourceResponse() {
@@ -4503,6 +4507,21 @@ bool CtrlResponse_ResourceResponse::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
+        if (input->ExpectTag(32)) goto parse_peer_va;
+        break;
+      }
+
+      // optional uint64 peer_va = 4;
+      case 4: {
+        if (tag == 32) {
+         parse_peer_va:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
+                 input, &peer_va_)));
+
+        } else {
+          goto handle_unusual;
+        }
         if (input->ExpectAtEnd()) goto success;
         break;
       }
@@ -4546,6 +4565,11 @@ void CtrlResponse_ResourceResponse::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteUInt64(3, this->peer_ra(), output);
   }
 
+  // optional uint64 peer_va = 4;
+  if (this->peer_va() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(4, this->peer_va(), output);
+  }
+
   // @@protoc_insertion_point(serialize_end:nba.knapp.CtrlResponse.ResourceResponse)
 }
 
@@ -4565,6 +4589,11 @@ void CtrlResponse_ResourceResponse::SerializeWithCachedSizes(
   // optional uint64 peer_ra = 3;
   if (this->peer_ra() != 0) {
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(3, this->peer_ra(), target);
+  }
+
+  // optional uint64 peer_va = 4;
+  if (this->peer_va() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(4, this->peer_va(), target);
   }
 
   // @@protoc_insertion_point(serialize_to_array_end:nba.knapp.CtrlResponse.ResourceResponse)
@@ -4594,6 +4623,13 @@ int CtrlResponse_ResourceResponse::ByteSize() const {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::UInt64Size(
         this->peer_ra());
+  }
+
+  // optional uint64 peer_va = 4;
+  if (this->peer_va() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt64Size(
+        this->peer_va());
   }
 
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
@@ -4629,6 +4665,9 @@ void CtrlResponse_ResourceResponse::MergeFrom(const CtrlResponse_ResourceRespons
   if (from.peer_ra() != 0) {
     set_peer_ra(from.peer_ra());
   }
+  if (from.peer_va() != 0) {
+    set_peer_va(from.peer_va());
+  }
 }
 
 void CtrlResponse_ResourceResponse::CopyFrom(const ::google::protobuf::Message& from) {
@@ -4658,6 +4697,7 @@ void CtrlResponse_ResourceResponse::InternalSwap(CtrlResponse_ResourceResponse* 
   std::swap(handle_, other->handle_);
   std::swap(id_, other->id_);
   std::swap(peer_ra_, other->peer_ra_);
+  std::swap(peer_va_, other->peer_va_);
   _internal_metadata_.Swap(&other->_internal_metadata_);
   std::swap(_cached_size_, other->_cached_size_);
 }
@@ -5093,6 +5133,20 @@ void CtrlResponse_ResourceResponse::clear_peer_ra() {
   
   peer_ra_ = value;
   // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.ResourceResponse.peer_ra)
+}
+
+// optional uint64 peer_va = 4;
+void CtrlResponse_ResourceResponse::clear_peer_va() {
+  peer_va_ = GOOGLE_ULONGLONG(0);
+}
+ ::google::protobuf::uint64 CtrlResponse_ResourceResponse::peer_va() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.ResourceResponse.peer_va)
+  return peer_va_;
+}
+ void CtrlResponse_ResourceResponse::set_peer_va(::google::protobuf::uint64 value) {
+  
+  peer_va_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.ResourceResponse.peer_va)
 }
 
 // -------------------------------------------------------------------

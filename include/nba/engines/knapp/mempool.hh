@@ -1,38 +1,32 @@
 #ifndef __NBA_KNAPP_MEMPOOL_HH__
 #define __NBA_KNAPP_MEMPOOL_HH__
 
-#include <nba/engines/knapp/hostutils.hh>
 #include <nba/core/mempool.hh>
 #include <nba/core/offloadtypes.hh>
+#include <nba/engines/knapp/rma.hh>
 #include <cstdint>
 #include <cassert>
-#include <scif.h>
+
 
 namespace nba {
 
-class KnappMemoryPool : public MemoryPool<dev_mem_t>
+class RMAPeerMemoryPool : public MemoryPool<dev_mem_t>
 {
 public:
-    explicit KnappMemoryPool()
-        : MemoryPool(), base(nullptr)
-    { }
+    RMAPeerMemoryPool(knapp::RMABuffer *rma_buffer)
+        : MemoryPool(), _rma_buffer(rma_buffer), base(nullptr)
+    {
+        /* Use peer-side virtual address. */
+        base = (void *) _rma_buffer->peer_va();
+    }
 
-    explicit KnappMemoryPool(size_t max_size)
-        : MemoryPool(max_size), base(nullptr)
-    { }
-
-    explicit KnappMemoryPool(size_t max_size, size_t align)
-        : MemoryPool(max_size, align), base(nullptr)
-    { }
-
-    virtual ~KnappMemoryPool()
+    virtual ~RMAPeerMemoryPool()
     {
         destroy();
     }
 
     bool init()
     {
-        //cutilSafeCall(cudaMalloc((void **) &base, max_size));
         return true;
     }
 
@@ -52,66 +46,37 @@ public:
 
     void destroy()
     {
-        //if (base != NULL)
-        //    cudaFree(base);
+        // do nothing.
+    }
+
+    knapp::RMABuffer *rma_buffer()
+    {
+        return _rma_buffer;
     }
 
 private:
+    knapp::RMABuffer *_rma_buffer;
     void *base;
 };
 
-class CPUMemoryPool : public MemoryPool<host_mem_t>
+class RMALocalMemoryPool : public MemoryPool<host_mem_t>
 {
 public:
-    explicit CPUMemoryPool(int cuda_flags)
-        : MemoryPool(), base(nullptr), flags(cuda_flags), use_external(false)
-    { }
+    RMALocalMemoryPool(knapp::RMABuffer *rma_buffer)
+        : MemoryPool(), _rma_buffer(rma_buffer), base(nullptr)
+    {
+        /* Use my local virtual address. */
+        base = (void *) _rma_buffer->va();
+    }
 
-    explicit CPUMemoryPool(size_t max_size, int cuda_flags)
-        : MemoryPool(max_size), base(nullptr), flags(cuda_flags), use_external(false)
-    { }
-
-    explicit CPUMemoryPool(size_t max_size, size_t align, int cuda_flags)
-        : MemoryPool(max_size, align), base(nullptr), flags(cuda_flags), use_external(false)
-    { }
-
-    virtual ~CPUMemoryPool()
+    virtual ~RMALocalMemoryPool()
     {
         destroy();
     }
 
     bool init()
     {
-        //cutilSafeCall(cudaHostAlloc((void **) &base, max_size,
-        //              this->flags));
         return true;
-    }
-
-    bool init_with_flags(void *ext_ptr, int flags)
-    {
-        if (ext_ptr != nullptr) {
-            base = ext_ptr;
-            use_external = true;
-        } else {
-            //cutilSafeCall(cudaHostAlloc((void **) &base, max_size,
-            //              flags));
-        }
-        return true;
-    }
-
-    int alloc(size_t size, host_mem_t &m)
-    {
-        size_t offset;
-        int ret = _alloc(size, &offset);
-        if (ret == 0)
-            m.ptr = (void *) ((uintptr_t) base + offset);
-        return ret;
-    }
-
-    void destroy()
-    {
-        //if (base != NULL && !use_external)
-        //    cudaFreeHost(base);
     }
 
     host_mem_t get_base_ptr() const
@@ -119,10 +84,28 @@ public:
         return { base };
     }
 
+    int alloc(size_t size, host_mem_t &ptr)
+    {
+        size_t offset;
+        int ret = _alloc(size, &offset);
+        if (ret == 0)
+            ptr.ptr = (void *) ((uintptr_t) base + offset);
+        return ret;
+    }
+
+    void destroy()
+    {
+        // do nothing.
+    }
+
+    knapp::RMABuffer *rma_buffer()
+    {
+        return _rma_buffer;
+    }
+
 private:
+    knapp::RMABuffer *_rma_buffer;
     void *base;
-    int flags;
-    bool use_external;
 };
 
 }

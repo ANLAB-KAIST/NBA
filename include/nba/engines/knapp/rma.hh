@@ -24,6 +24,10 @@ public:
     off_t ra() const { return _local_ra; }
     void set_peer_ra(off_t value) { this->_peer_ra = value; }
     off_t peer_ra() const { return _peer_ra; }
+#ifndef __MIC__
+    void set_peer_va(off_t value) { this->_peer_va = value; }
+    off_t peer_va() const { return _peer_va; }
+#endif
 
 private:
     scif_epd_t _epd;
@@ -32,6 +36,9 @@ private:
 
     off_t _local_va;
     off_t _local_ra;
+#ifndef __MIC__
+    off_t _peer_va;
+#endif
     off_t _peer_ra;
 };
 

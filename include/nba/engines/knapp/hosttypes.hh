@@ -29,7 +29,8 @@ class RMABuffer;
 
 /* Host-side vDevice context */
 struct vdevice {
-    int device_id;
+    int device_id;  /* MIC-allocted device ID. */
+    void *handle;   /* MIC-side key (ptr) */
 
     uint32_t pipeline_depth;
     size_t ht_per_core;

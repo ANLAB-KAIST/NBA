@@ -77,6 +77,7 @@ message CtrlResponse {
 	uint64 handle = 1;
 	uint32 id     = 2;  // used for CREATE_VDEVICE
 	uint64 peer_ra = 3; // used for CREATE_{POLLRING|RMABUFFER}
+	uint64 peer_va = 4; // used for CREATE_{POLLRING|RMABUFFER}
     }
 
     oneof data {

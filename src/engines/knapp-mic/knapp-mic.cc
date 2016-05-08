@@ -607,6 +607,7 @@ static void *nba::knapp::control_thread_loop(void *arg)
                     if (create_rma(vdev, id, request.rma().size(),
                                    request.rma().local_ra())) {
                         resp.mutable_resource()->set_peer_ra((uint64_t) vdev->rma_buffers[id]->ra());
+                        resp.mutable_resource()->set_peer_va((uint64_t) vdev->rma_buffers[id]->va());
                         resp.set_reply(CtrlResponse::SUCCESS);
                     } else
                         resp.set_reply(CtrlResponse::FAILURE);

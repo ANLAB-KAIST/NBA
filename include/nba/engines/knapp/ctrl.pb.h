@@ -1203,6 +1203,12 @@ class CtrlResponse_ResourceResponse : public ::google::protobuf::Message {
   ::google::protobuf::uint64 peer_ra() const;
   void set_peer_ra(::google::protobuf::uint64 value);
 
+  // optional uint64 peer_va = 4;
+  void clear_peer_va();
+  static const int kPeerVaFieldNumber = 4;
+  ::google::protobuf::uint64 peer_va() const;
+  void set_peer_va(::google::protobuf::uint64 value);
+
   // @@protoc_insertion_point(class_scope:nba.knapp.CtrlResponse.ResourceResponse)
  private:
 
@@ -1210,6 +1216,7 @@ class CtrlResponse_ResourceResponse : public ::google::protobuf::Message {
   bool _is_default_instance_;
   ::google::protobuf::uint64 handle_;
   ::google::protobuf::uint64 peer_ra_;
+  ::google::protobuf::uint64 peer_va_;
   ::google::protobuf::uint32 id_;
   mutable int _cached_size_;
   friend void  protobuf_AddDesc_ctrl_2eproto();
@@ -2201,6 +2208,20 @@ inline void CtrlResponse_ResourceResponse::set_peer_ra(::google::protobuf::uint6
   
   peer_ra_ = value;
   // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.ResourceResponse.peer_ra)
+}
+
+// optional uint64 peer_va = 4;
+inline void CtrlResponse_ResourceResponse::clear_peer_va() {
+  peer_va_ = GOOGLE_ULONGLONG(0);
+}
+inline ::google::protobuf::uint64 CtrlResponse_ResourceResponse::peer_va() const {
+  // @@protoc_insertion_point(field_get:nba.knapp.CtrlResponse.ResourceResponse.peer_va)
+  return peer_va_;
+}
+inline void CtrlResponse_ResourceResponse::set_peer_va(::google::protobuf::uint64 value) {
+  
+  peer_va_ = value;
+  // @@protoc_insertion_point(field_set:nba.knapp.CtrlResponse.ResourceResponse.peer_va)
 }
 
 // -------------------------------------------------------------------

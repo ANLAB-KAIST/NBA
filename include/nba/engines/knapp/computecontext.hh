@@ -5,16 +5,24 @@
 #include <nba/framework/config.hh>
 #include <nba/framework/computedevice.hh>
 #include <nba/framework/computecontext.hh>
-#include <nba/engines/knapp/mempool.hh>
-#include <nba/engines/knapp/defs.hh>
+#include <nba/engines/knapp/hosttypes.hh>
 #include <scif.h>
 
 struct rte_memzone;
 
 #define KNAPP_MAX_KERNEL_ARGS    (16)
 
+namespace nba { namespace knapp {
+
+class RMABuffer;
+
+}} //endns(nba::knapp)
+
 namespace nba
 {
+
+class RMALocalMemoryPool;
+class RMAPeerMemoryPool;
 
 /**
  * Knapp abstracts a Xeon Phi processor as multiple "virtual devices."
@@ -71,10 +79,10 @@ private:
     /* Inherited from KnappComputeDevice. */
     scif_epd_t ctrl_epd;
 
-    //KnappMemoryPool *_cuda_mempool_in[NBA_MAX_IO_BASES];
-    //KnappMemoryPool *_cuda_mempool_out[NBA_MAX_IO_BASES];
-    CPUMemoryPool *_cpu_mempool_in[NBA_MAX_IO_BASES];
-    CPUMemoryPool *_cpu_mempool_out[NBA_MAX_IO_BASES];
+    RMALocalMemoryPool *_local_mempool_in[NBA_MAX_IO_BASES];
+    RMALocalMemoryPool *_local_mempool_out[NBA_MAX_IO_BASES];
+    RMAPeerMemoryPool *_peer_mempool_in[NBA_MAX_IO_BASES];
+    RMAPeerMemoryPool *_peer_mempool_out[NBA_MAX_IO_BASES];
 
     const struct rte_memzone *reserve_memory(ComputeDevice *mother);
     const struct rte_memzone *mz;
