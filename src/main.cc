@@ -528,7 +528,9 @@ int main(int argc, char **argv)
 
     /* Spawn the coprocessor handler threads. */
     num_coprocessors = coproc_thread_confs.size();
-    coprocessor_threads = new struct spawned_thread[num_coprocessors];
+    coprocessor_threads = new struct spawned_thread[num_nodes];
+    for (unsigned node_id = 0; node_id < num_nodes; ++node_id)
+        coprocessor_threads[node_id].coproc_ctx = nullptr;
     {
         /* per-node data structures */
         unsigned per_node_counts[NBA_MAX_NODES] = {0,};
@@ -548,8 +550,8 @@ int main(int argc, char **argv)
 
             ctx->terminate_watcher = (struct ev_async *) rte_malloc_socket(NULL, sizeof(struct ev_async), CACHE_LINE_SIZE, node_id);
             ev_async_init(ctx->terminate_watcher, NULL);
-            coprocessor_threads[i].terminate_watcher = ctx->terminate_watcher;
-            coprocessor_threads[i].coproc_ctx = ctx;
+            coprocessor_threads[node_id].terminate_watcher = ctx->terminate_watcher;
+            coprocessor_threads[node_id].coproc_ctx = ctx;
             ctx->thread_init_done_barrier = new CountedBarrier(1);
             ctx->offloadable_init_barrier = new CountedBarrier(1);
             ctx->offloadable_init_done_barrier = new CountedBarrier(1);
@@ -604,7 +606,7 @@ int main(int argc, char **argv)
 
             threading::bind_cpu(ctx->loc.core_id); /* To ensure the thread is spawned in the node. */
             pthread_yield();
-            assert(0 == pthread_create(&coprocessor_threads[i].tid,
+            assert(0 == pthread_create(&coprocessor_threads[node_id].tid,
                                        nullptr, nba::coproc_loop, ctx));
 
             /* Initialize one-by-one. */
@@ -742,12 +744,19 @@ int main(int argc, char **argv)
 
     /* Initialize elements for each NUMA node. */
     bool node_initialized[NBA_MAX_NODES];
+    unordered_set<unsigned> existing_nodes;
+    for (comp_thread_context *ctx : comp_thread_ctxs) {
+        existing_nodes.insert(ctx->loc.node_id);
+    }
+    for (unsigned node_id : existing_nodes) {
+        RTE_LOG(NOTICE, MAIN, "existing numa node: %u\n", node_id);
+    }
+
     for (unsigned node_id = 0; node_id < num_nodes; ++node_id) {
         node_initialized[node_id] = false;
     }
-    for (unsigned node_id = 0; node_id < num_nodes; ++node_id) {
-        for (auto it = comp_thread_ctxs.begin(); it != comp_thread_ctxs.end(); ++it) {
-            comp_thread_context *ctx = (comp_thread_context *) *it;
+    for (unsigned node_id : existing_nodes) {
+        for (comp_thread_context *ctx : comp_thread_ctxs) {
             if (ctx->loc.node_id == node_id && !node_initialized[node_id]) {
                 threading::bind_cpu(ctx->loc.core_id);
                 ctx->initialize_graph_per_node();
@@ -761,12 +770,12 @@ int main(int argc, char **argv)
         for (unsigned node_id = 0; node_id < num_nodes; ++node_id) {
             node_initialized[node_id] = false;
         }
-        for (unsigned node_id = 0; node_id < num_nodes; ++node_id) {
+        for (unsigned node_id : existing_nodes) {
             // TODO: generalize mapping of core and coprocessors
-            for (auto it = comp_thread_ctxs.begin(); it != comp_thread_ctxs.end(); ++it) {
-                comp_thread_context *ctx= (comp_thread_context *) *it;
+            for (comp_thread_context *ctx : comp_thread_ctxs) {
+                RTE_LOG(NOTICE, MAIN, "comp_thread_context at node %d core %d\n", ctx->loc.node_id, ctx->loc.core_id);
                 if (ctx->loc.node_id == node_id && !node_initialized[node_id]) {
-                    RTE_LOG(DEBUG, MAIN, "initializing offloadables in coproc-thread@%u(%u) with comp-thread@%u\n",
+                    RTE_LOG(NOTICE, MAIN, "initializing offloadables in coproc-thread@%u(%u) with comp-thread@%u\n",
                             coprocessor_threads[node_id].coproc_ctx->loc.core_id,
                             node_id, ctx->loc.core_id);
                     coprocessor_threads[node_id].coproc_ctx->comp_ctx_to_init_offloadable = ctx;
@@ -779,16 +788,15 @@ int main(int argc, char **argv)
     }
 
     /* Initialize elements for each computation thread. */
-    for (auto it = comp_thread_ctxs.begin(); it != comp_thread_ctxs.end(); ++it) {
-        comp_thread_context *ctx = (comp_thread_context *) *it;
+    for (comp_thread_context *ctx : comp_thread_ctxs) {
         threading::bind_cpu(ctx->loc.core_id);
         ctx->initialize_graph_per_thread();
     }
 
     /* Let the coprocessor threads to run its loop as we initialized
      * all necessary stuffs including computation threads. */
-    for (unsigned i = 0; i < num_coprocessors; ++i) {
-        coprocessor_threads[i].coproc_ctx->loopstart_barrier->proceed();
+    for (unsigned node_id : existing_nodes) {
+        coprocessor_threads[node_id].coproc_ctx->loopstart_barrier->proceed();
     }
 
     /* Spawn the IO threads. */
@@ -968,9 +976,11 @@ static void handle_signal(int) {
     if (threading::is_thread_equal(main_thread_id, threading::self())) {
         RTE_LOG(NOTICE, MAIN, "terminating...\n");
 
-        for (i = 0; i < num_coproc_threads; i++) {
-            ev_async_send(coprocessor_threads[i].coproc_ctx->loop,
-                          coprocessor_threads[i].terminate_watcher);
+        for (i = 0; i < num_nodes; i++) {
+            if (coprocessor_threads[i].coproc_ctx != nullptr) {
+                ev_async_send(coprocessor_threads[i].coproc_ctx->loop,
+                              coprocessor_threads[i].terminate_watcher);
+            }
         }
         for (i = 0; i < num_io_threads; i++) {
             ev_async_send(io_threads[i].io_ctx->loop,

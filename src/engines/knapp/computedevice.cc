@@ -67,7 +67,8 @@ uint32_t KnappComputeDevice::find_new_buffer_id()
 {
     /* We assume that it is rare to free buffers
      * and allocate others in datap-palen apps. */
-    return ++_knapp_cctx_buffer_count;
+    assert(_knapp_cctx_buffer_count < KNAPP_GLOBAL_MAX_RMABUFFERS);
+    return ++ _knapp_cctx_buffer_count;
 }
 
 int KnappComputeDevice::get_spec(struct compute_device_spec *spec)
