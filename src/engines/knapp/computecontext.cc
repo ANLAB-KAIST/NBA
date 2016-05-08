@@ -241,6 +241,8 @@ int KnappComputeContext::enqueue_memwrite_op(const host_mem_t host_buf,
     // TODO: retrieve relevant RMALocalMemoryPool from host_buf.
     // cur_task_id == io_base ID.
     // TODO: get rma_buffer() and call ->write(offset, size);
+    // this may be deferred to enqueue_kernel_laucn()
+    // to send along with taskitem.
     return 0;
 }
 

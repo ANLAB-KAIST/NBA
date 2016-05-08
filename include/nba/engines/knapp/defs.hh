@@ -5,13 +5,13 @@
 
 /* Behavioral limits. */
 #define KNAPP_MAX_KERNEL_ARGS (16)
-#define KNAPP_SCIF_MAX_CONN_RETRY (5)
 #define KNAPP_SYNC_CYCLES (1000000u)
 #define KNAPP_VDEV_PROFILE_INTERVAL 1000
 #define KNAPP_BARRIER_PROFILE_INTERVAL 100
 
 /* Software limits. */
 #define KNAPP_VDEV_MAX_POLLRINGS (8)
+// TODO: should be increased to cover combined io base IDs.
 #define KNAPP_VDEV_MAX_RMABUFFERS (8)
 #define KNAPP_GLOBAL_MAX_RMABUFFERS (256)
 
@@ -51,6 +51,8 @@ inline int mic_pcore_to_lcore(int pcore, int ht) {
     return (pcore * KNAPP_MAX_THREADS_PER_CORE + ht + 1)
            % (KNAPP_NUM_CORES * KNAPP_MAX_THREADS_PER_CORE);
 }
+
+// TODO: define iobase/taskid separator.
 
 }} // endns(nba::knapp)
 
