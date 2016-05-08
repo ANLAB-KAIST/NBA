@@ -91,6 +91,8 @@ private:
     struct kernel_arg kernel_args[KNAPP_MAX_KERNEL_ARGS];
 
     FixedRing<unsigned> *io_base_ring;
+
+    uint32_t cur_task_id;
 };
 
 }

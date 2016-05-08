@@ -34,7 +34,6 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
     int rc;
 
     /* Initialize Knapp vDev Parameters. */
-    vdev.device_id = 0;    // TODO: retrieve from CREATE_VDEV API call.
     vdev.ht_per_core = 2;                   // FIXME: set from config
     vdev.pipeline_depth = NBA_MAX_IO_BASES; // Key adaptation: app-specific I/O buffers -> io_base_t
     const unsigned num_cores_per_vdev = 4;  // FIXME: set from config
@@ -88,6 +87,7 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
         request.set_type(CtrlRequest::CREATE_RMABUFFER);
         rma_param = request.mutable_rma();
         rma_param->set_vdev_handle((uintptr_t) vdev.handle);
+        // TODO: combine io_base ID with ID_INPUT.
         rma_param->set_buffer_id(ID_INPUT);
         rma_param->set_size(io_base_size);
         rma_param->set_local_ra((uint64_t) rma_inbuf->ra());
@@ -100,6 +100,7 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
         request.set_type(CtrlRequest::CREATE_RMABUFFER);
         rma_param = request.mutable_rma();
         rma_param->set_vdev_handle((uintptr_t) vdev.handle);
+        // TODO: combine io_base ID with ID_OUTPUT.
         rma_param->set_buffer_id(ID_OUTPUT);
         rma_param->set_size(io_base_size);
         rma_param->set_local_ra((uint64_t) rma_outbuf->ra());
@@ -171,8 +172,6 @@ int KnappComputeContext::alloc_input_buffer(io_base_t io_base, size_t size,
     unsigned i = io_base;
     assert(0 == _local_mempool_in[i]->alloc(size, host_mem));
     assert(0 == _peer_mempool_in[i]->alloc(size, dev_mem));
-    // for debugging
-    //assert(((uintptr_t)host_mem.ptr & 0xffff) == ((uintptr_t)dev_mem.ptr & 0xffff));
     return 0;
 }
 
@@ -182,8 +181,6 @@ int KnappComputeContext::alloc_output_buffer(io_base_t io_base, size_t size,
     unsigned i = io_base;
     assert(0 == _local_mempool_out[i]->alloc(size, host_mem));
     assert(0 == _peer_mempool_out[i]->alloc(size, dev_mem));
-    // for debugging
-    //assert(((uintptr_t)host_mem.ptr & 0xffff) == ((uintptr_t)dev_mem.ptr & 0xffff));
     return 0;
 }
 
@@ -241,7 +238,9 @@ int KnappComputeContext::enqueue_memwrite_op(const host_mem_t host_buf,
                                             const dev_mem_t dev_buf,
                                             size_t offset, size_t size)
 {
-    /* TODO: scif_writeto() to the vDevice's input RMA. */
+    // TODO: retrieve relevant RMALocalMemoryPool from host_buf.
+    // cur_task_id == io_base ID.
+    // TODO: get rma_buffer() and call ->write(offset, size);
     return 0;
 }
 
@@ -249,7 +248,8 @@ int KnappComputeContext::enqueue_memread_op(const host_mem_t host_buf,
                                            const dev_mem_t dev_buf,
                                            size_t offset, size_t size)
 {
-    /* TODO: scif_send() the params to the vDevice's master. */
+    // TODO: retrieve relevant RMALocalMemoryPool from host_buf.
+    // TODO: scif_send() the params to via vdev.data_epd. */
     return 0;
 }
 
@@ -266,22 +266,22 @@ void KnappComputeContext::push_kernel_arg(struct kernel_arg &arg)
 
 void KnappComputeContext::push_common_kernel_args()
 {
-    // TODO: implement?
+    // do nothing.
 }
 
 int KnappComputeContext::enqueue_kernel_launch(dev_kernel_t kernel, struct resource_param *res)
 {
     if (unlikely(res->num_workgroups == 0))
         res->num_workgroups = 1;
-    void *raw_args[num_kernel_args];
-    for (unsigned i = 0; i < num_kernel_args; i++) {
-        raw_args[i] = kernel_args[i].ptr;
-    }
+    // TODO: initialize taskitem information. (kernel ID, arguments)
+    //void *raw_args[num_kernel_args];
+    //for (unsigned i = 0; i < num_kernel_args; i++) {
+    //    raw_args[i] = kernel_args[i].ptr;
+    //}
     state = ComputeContext::RUNNING;
-    //cutilSafeCall(cudaLaunchKernel(kernel.ptr, dim3(res->num_workgroups),
-    //                               dim3(res->num_threads_per_workgroup),
-    //                               (void **) &raw_args[0], 1024, _stream));
+
     // TODO: scif_fence_signal() to the vDevice's input pollring.
+    vdev.poll_rings[0]->remote_notify(cur_task_id, KNAPP_H2D_COMPLETE);
     return 0;
 }
 
@@ -299,8 +299,7 @@ bool KnappComputeContext::poll_kernel_finished()
 
 bool KnappComputeContext::poll_output_finished()
 {
-    // TODO: compiler_fence() + check vDevice's output pollring.
-    //vdev.poll_ring->wait();
+    vdev.poll_rings[0]->wait(cur_task_id, KNAPP_D2H_COMPLETE);
     return true;
 }
 

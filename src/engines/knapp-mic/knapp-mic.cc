@@ -337,7 +337,9 @@ static void *nba::knapp::worker_thread_loop(void *arg)
 
                 /* finalize latency/stat measurement */
 
-                //TODO: vdev->output_rma->write();
+                // TODO: scif_recv(vdev->data_epd) to get d2h copy info (offset, size).
+                // TODO: combine ID_OUTPUT with task ID.
+                // TODO: vdev->rma_buffers[ID_OUTPUT]->write(offset, size);
 
                 vdev->poll_rings[0]->remote_notify(task_id, KNAPP_D2H_COMPLETE);
             }
@@ -454,8 +456,9 @@ static void *nba::knapp::master_thread_loop(void *arg)
                 goto finish_master;
         }
 
-        // TODO: read taskitem from vdev->input_rma.
-        //uint8_t *inputbuf_va = bufarray_get_va(&vdev->inputbuf_array, cur_task_id);
+        // TODO: combine ID_INPUT with task ID.
+        // TODO: read taskitem from vdev->rma_buffers[ID_INPUT]->va();
+        // TODO: set workload type (kernel ID) in w.
 #if 0
         struct taskitem *ti = (struct taskitem *) nullptr;
 
