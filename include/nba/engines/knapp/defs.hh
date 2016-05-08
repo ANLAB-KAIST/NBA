@@ -13,6 +13,7 @@
 /* Software limits. */
 #define KNAPP_VDEV_MAX_POLLRINGS (8)
 #define KNAPP_VDEV_MAX_RMABUFFERS (8)
+#define KNAPP_GLOBAL_MAX_RMABUFFERS (256)
 
 /* Hardware limits. */
 #define KNAPP_THREADS_LIMIT (240)
@@ -33,9 +34,10 @@
 namespace nba { namespace knapp {
 
 enum poll_ring_state : uint64_t {
-    KNAPP_OFFLOAD_COMPLETE = 0xdeadbeefull,
+    KNAPP_H2D_COMPLETE = 0xdeadbeefull,
+    KNAPP_D2H_COMPLETE = 0xeadbeedfull,
     KNAPP_TASK_READY = 0xcafebabeull,
-    KNAPP_COPY_PENDING = (~((uint64_t)0)),
+    KNAPP_COPY_PENDING = (~(0ull)),
     KNAPP_TERMINATE = 0xfff0f0cccull
 };
 

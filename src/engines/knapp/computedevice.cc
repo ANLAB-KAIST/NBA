@@ -67,7 +67,7 @@ uint32_t KnappComputeDevice::find_new_buffer_id()
 {
     /* We assume that it is rare to free buffers
      * and allocate others in datap-palen apps. */
-    return ++_knapp_cctx_buffer_count; 
+    return ++_knapp_cctx_buffer_count;
 }
 
 int KnappComputeDevice::get_spec(struct compute_device_spec *spec)
@@ -124,10 +124,13 @@ host_mem_t KnappComputeDevice::alloc_host_buffer(size_t size, int flags)
     CtrlRequest request;
     CtrlResponse response;
     uint32_t buffer_id = find_new_buffer_id();
+    const auto &search = buffer_registry.find(buffer_id);
+    assert(search == buffer_registry.end());
+
     RMABuffer *buf = new RMABuffer(ctrl_epd, aligned_size, 0);
     request.set_type(CtrlRequest::CREATE_RMABUFFER);
     CtrlRequest::RMABufferParam *rma_param = request.mutable_rma();
-    rma_param->set_vdev_handle((uintptr_t) 0);  // global buffer
+    rma_param->set_vdev_handle((uintptr_t) 0);  // global
     rma_param->set_buffer_id(buffer_id);
     rma_param->set_size(aligned_size);
     rma_param->set_local_ra((uint64_t) buf->ra());
@@ -145,8 +148,8 @@ dev_mem_t KnappComputeDevice::alloc_device_buffer(size_t size, int flags, host_m
 {
     size_t aligned_size = ALIGN_CEIL(size, PAGE_SIZE);
     uint32_t buffer_id = assoc_host_buf.buffer_id;
-    auto buf = buffer_registry.find(buffer_id);
-    if (buf == buffer_registry.end()) {
+    const auto &search = buffer_registry.find(buffer_id);
+    if (search == buffer_registry.end()) {
         CtrlRequest request;
         CtrlResponse response;
         buffer_id = find_new_buffer_id();
@@ -175,10 +178,10 @@ void KnappComputeDevice::free_host_buffer(host_mem_t m)
 
 void KnappComputeDevice::free_device_buffer(dev_mem_t m)
 {
-    auto buf = buffer_registry.find(m.buffer_id);
-    if (buf == buffer_registry.end())
+    const auto &search = buffer_registry.find(m.buffer_id);
+    if (search == buffer_registry.end()) {
         return;
-    else {
+    } else {
         CtrlRequest request;
         CtrlResponse response;
         request.set_type(CtrlRequest::DESTROY_RMABUFFER);
@@ -187,36 +190,36 @@ void KnappComputeDevice::free_device_buffer(dev_mem_t m)
         ctrl_invoke(ctrl_epd, request, response);
         assert(CtrlResponse::SUCCESS == response.reply());
         buffer_registry.erase(m.buffer_id);
-        delete (*buf).second;
+        delete (*search).second;
     }
 }
 
 void *KnappComputeDevice::unwrap_host_buffer(const host_mem_t m)
 {
-    auto buf = buffer_registry.find(m.buffer_id);
-    assert(buf != buffer_registry.end());
-    return (void *) (*buf).second->va();
+    const auto &search = buffer_registry.find(m.buffer_id);
+    assert(search != buffer_registry.end());
+    return (void *) (*search).second->va();
 }
 
 void *KnappComputeDevice::unwrap_device_buffer(const dev_mem_t m)
 {
-    auto buf = buffer_registry.find(m.buffer_id);
-    assert(buf != buffer_registry.end());
-    return (void *) (*buf).second->peer_va();
+    const auto &search = buffer_registry.find(m.buffer_id);
+    assert(search != buffer_registry.end());
+    return (void *) (*search).second->peer_va();
 }
 
 void KnappComputeDevice::memwrite(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size)
 {
-    auto buf = buffer_registry.find(host_buf.buffer_id);
-    assert(buf != buffer_registry.end());
-    (*buf).second->write(offset, size);
+    const auto &search = buffer_registry.find(host_buf.buffer_id);
+    assert(search != buffer_registry.end());
+    (*search).second->write(offset, size, true);
 }
 
 void KnappComputeDevice::memread(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size)
 {
-    auto buf = buffer_registry.find(host_buf.buffer_id);
-    assert(buf != buffer_registry.end());
-    (*buf).second->read(offset, size);
+    const auto &search = buffer_registry.find(host_buf.buffer_id);
+    assert(search != buffer_registry.end());
+    (*search).second->read(offset, size, true);
 }
 
 // vim: ts=8 sts=4 sw=4 et

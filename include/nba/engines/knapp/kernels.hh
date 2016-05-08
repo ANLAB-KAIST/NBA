@@ -1,5 +1,5 @@
-#ifndef __NBA_KNAPP_KENRELS_HH__
-#define __NBA_KNAPP_KENRELS_HH__
+#ifndef __NBA_KNAPP_KERNELS_HH__
+#define __NBA_KNAPP_KERNELS_HH__
 
 namespace nba { namespace knapp {
 
@@ -12,6 +12,6 @@ enum kernel_types : uintptr_t {
 
 }} //endns(nba::knapp)
 
-#endif //__NBA_KNAPP_KENRELS_HH__
+#endif //__NBA_KNAPP_KERNELS_HH__
 
 // vim: ts=8 sts=4 sw=4 et

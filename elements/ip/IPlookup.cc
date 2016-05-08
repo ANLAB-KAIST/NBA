@@ -85,15 +85,18 @@ int IPlookup::initialize_per_node()
     ctx->node_local_storage->alloc("TBLlong_dev_memobj", sizeof(dev_mem_t));
 
     printf("element::IPlookup: Initializing FIB from the global RIB for NUMA node %d...\n", node_idx);
+
     ipv4route::build_direct_fib(tables,
         (uint16_t *) ctx->node_local_storage->get_alloc("TBL24"),
         (uint16_t *) ctx->node_local_storage->get_alloc("TBLlong"));
+    fprintf(stderr, "element::IPlookup: Done.\n");
 
     return 0;
 }
 
 int IPlookup::initialize()
 {
+    fprintf(stderr, "element::IPlookup: per-instnace init...\n");
     /* Get routing table pointers from the node-local storage. */
     TBL24_h = (host_mem_t *) ctx->node_local_storage->get_alloc("TBL24_host_memobj");
     TBLlong_h = (host_mem_t *) ctx->node_local_storage->get_alloc("TBLlong_host_memobj");
@@ -105,6 +108,7 @@ int IPlookup::initialize()
     /* Get device pointers from the node-local storage. */
     TBL24_d   = (dev_mem_t *) ctx->node_local_storage->get_alloc("TBL24_dev_memobj");
     TBLlong_d = (dev_mem_t *) ctx->node_local_storage->get_alloc("TBLlong_dev_memobj");
+    fprintf(stderr, "element::IPlookup: per-instnace init done.\n");
 
     rr_port = 0;
     return 0;
@@ -200,7 +204,7 @@ void IPlookup::cuda_init_handler(ComputeDevice *device)
     *TBL24_h   = device->alloc_host_buffer(TBL24_alloc_size, 0);
     *TBLlong_h = device->alloc_host_buffer(TBLlong_alloc_size, 0);
     memcpy(device->unwrap_host_buffer(*TBL24_h), TBL24, TBL24_alloc_size);
-    memcpy(device->unwrap_host_buffer(*TBLlong_h), TBLlong, TBL24_alloc_size);
+    memcpy(device->unwrap_host_buffer(*TBLlong_h), TBLlong, TBLlong_alloc_size);
 
     TBL24_d   = (dev_mem_t *) ctx->node_local_storage->get_alloc("TBL24_dev_memobj");
     TBLlong_d = (dev_mem_t *) ctx->node_local_storage->get_alloc("TBLlong_dev_memobj");
@@ -238,6 +242,7 @@ void IPlookup::knapp_init_handler(ComputeDevice *device)
     size_t TBLlong_alloc_size = sizeof(uint16_t) * ipv4route::get_TBLlong_size();
     // As it is before initialize() is called, we need to get the pointers
     // from the node-local storage by ourselves here.
+    fprintf(stderr, "knapp_init_handler step -1\n");
 
     TBL24 = (uint16_t *) ctx->node_local_storage->get_alloc("TBL24");
     TBLlong = (uint16_t *) ctx->node_local_storage->get_alloc("TBLlong");
@@ -245,17 +250,21 @@ void IPlookup::knapp_init_handler(ComputeDevice *device)
     TBLlong_h = (host_mem_t *) ctx->node_local_storage->get_alloc("TBLlong_host_memobj");
     *TBL24_h   = device->alloc_host_buffer(TBL24_alloc_size, 0);
     *TBLlong_h = device->alloc_host_buffer(TBLlong_alloc_size, 0);
+    fprintf(stderr, "knapp_init_handler step 0\n");
     memcpy(device->unwrap_host_buffer(*TBL24_h), TBL24, TBL24_alloc_size);
-    memcpy(device->unwrap_host_buffer(*TBLlong_h), TBLlong, TBL24_alloc_size);
+    memcpy(device->unwrap_host_buffer(*TBLlong_h), TBLlong, TBLlong_alloc_size);
+    fprintf(stderr, "knapp_init_handler step 1\n");
 
     TBL24_d   = (dev_mem_t *) ctx->node_local_storage->get_alloc("TBL24_dev_memobj");
     TBLlong_d = (dev_mem_t *) ctx->node_local_storage->get_alloc("TBLlong_dev_memobj");
     *TBL24_d   = device->alloc_device_buffer(TBL24_alloc_size, 0, *TBL24_h);
     *TBLlong_d = device->alloc_device_buffer(TBLlong_alloc_size, 0, *TBLlong_h);
+    fprintf(stderr, "knapp_init_handler step 2\n");
 
     /* Convert host-side routing table to host_mem_t and copy the routing table. */
     device->memwrite(*TBL24_h,   *TBL24_d,   0, TBL24_alloc_size);
     device->memwrite(*TBLlong_h, *TBLlong_d, 0, TBLlong_alloc_size);
+    fprintf(stderr, "knapp_init_handler step 3\n");
 }
 
 void IPlookup::knapp_compute_handler(ComputeDevice *cdev,

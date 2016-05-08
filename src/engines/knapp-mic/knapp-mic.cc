@@ -45,6 +45,8 @@ static pthread_t control_thread;
 static std::unordered_set<struct nba::knapp::vdevice *> vdevs;
 static volatile bool exit_flag = false;
 
+static RMABuffer *global_rma_buffers[KNAPP_GLOBAL_MAX_RMABUFFERS];
+
 void *control_thread_loop(void *arg);
 void *master_thread_loop(void *arg);
 void *worker_thread_loop(void *arg);
@@ -67,6 +69,10 @@ bool destroy_pollring(
 
 bool create_rma(
         struct vdevice *vdev, uint32_t buffer_id,
+        size_t size, off_t peer_ra);
+
+bool create_rma(
+        scif_epd_t ctrl_epd, uint32_t buffer_id,
         size_t size, off_t peer_ra);
 
 bool destroy_rma(
@@ -212,7 +218,7 @@ static bool nba::knapp::destroy_pollring(
 {
     delete vdev->poll_rings[ring_id];
     vdev->poll_rings[ring_id] = nullptr;
-    log_device(vdev->device_id, "Deleting PollRing[%u]\n", ring_id);
+    log_device(vdev->device_id, "Deleted PollRing[%u].\n", ring_id);
     return true;
 }
 
@@ -224,17 +230,38 @@ static bool nba::knapp::create_rma(
     log_device(vdev->device_id, "Creating RMABuffer[%u] "
                "(size %'u bytes, ra %p, peer_ra %p).\n",
                buffer_id, size, b->ra(), peer_ra);
-    b->set_peer_ra(peer_ra);
+    assert(nullptr == vdev->rma_buffers[buffer_id]);
     vdev->rma_buffers[buffer_id] = b;
+    b->set_peer_ra(peer_ra);
+    return true;
+}
+
+static bool nba::knapp::create_rma(
+        scif_epd_t ctrl_epd, uint32_t buffer_id,
+        size_t size, off_t peer_ra)
+{
+    RMABuffer *b = new RMABuffer(ctrl_epd, size);
+    log_info("Creating global RMABuffer[%d] "
+             "(size %'u bytes, ra %p, peer_ra %p).\n",
+             buffer_id, size, b->ra(), peer_ra);
+    assert(nullptr == global_rma_buffers[buffer_id]);
+    global_rma_buffers[buffer_id] = b;
+    b->set_peer_ra(peer_ra);
     return true;
 }
 
 static bool nba::knapp::destroy_rma(
         struct vdevice *vdev, uint32_t buffer_id)
 {
-    delete vdev->rma_buffers[buffer_id];
-    vdev->rma_buffers[buffer_id] = nullptr;
-    log_device(vdev->device_id, "Deleting RMABuffer[%u]\n", buffer_id);
+    if (vdev == nullptr) {
+        delete global_rma_buffers[buffer_id];
+        global_rma_buffers[buffer_id] = nullptr;
+        log_info("Deleted global RMABuffer[%u].\n", buffer_id);
+    } else {
+        delete vdev->rma_buffers[buffer_id];
+        vdev->rma_buffers[buffer_id] = nullptr;
+        log_device(vdev->device_id, "Deleted RMABuffer[%u].\n", buffer_id);
+    }
     return true;
 }
 
@@ -312,7 +339,7 @@ static void *nba::knapp::worker_thread_loop(void *arg)
 
                 //TODO: vdev->output_rma->write();
 
-                vdev->poll_rings[0]->remote_notify(task_id, KNAPP_OFFLOAD_COMPLETE);
+                vdev->poll_rings[0]->remote_notify(task_id, KNAPP_D2H_COMPLETE);
             }
         }
         insert_pause();
@@ -422,7 +449,7 @@ static void *nba::knapp::master_thread_loop(void *arg)
         }
 
         while (true) {
-            timeout = !vdev->poll_rings[0]->wait(cur_task_id, KNAPP_OFFLOAD_COMPLETE);
+            timeout = !vdev->poll_rings[0]->wait(cur_task_id, KNAPP_H2D_COMPLETE);
             if (timeout && vdev->exit)
                 goto finish_master;
         }
@@ -605,13 +632,23 @@ static void *nba::knapp::control_thread_loop(void *arg)
                 if (request.has_rma()) {
                     struct vdevice *vdev = (struct vdevice *) request.rma().vdev_handle();
                     uint32_t id = request.rma().buffer_id();
-                    if (create_rma(vdev, id, request.rma().size(),
-                                   request.rma().local_ra())) {
-                        resp.mutable_resource()->set_peer_ra((uint64_t) vdev->rma_buffers[id]->ra());
-                        resp.mutable_resource()->set_peer_va((uint64_t) vdev->rma_buffers[id]->va());
-                        resp.set_reply(CtrlResponse::SUCCESS);
-                    } else
-                        resp.set_reply(CtrlResponse::FAILURE);
+                    if (vdev == nullptr) {
+                        if (create_rma(ctrl_epd, id, request.rma().size(),
+                                       request.rma().local_ra())) {
+                            resp.mutable_resource()->set_peer_ra((uint64_t) global_rma_buffers[id]->ra());
+                            resp.mutable_resource()->set_peer_va((uint64_t) global_rma_buffers[id]->va());
+                            resp.set_reply(CtrlResponse::SUCCESS);
+                        } else
+                            resp.set_reply(CtrlResponse::FAILURE);
+                    } else {
+                        if (create_rma(vdev, id, request.rma().size(),
+                                       request.rma().local_ra())) {
+                            resp.mutable_resource()->set_peer_ra((uint64_t) vdev->rma_buffers[id]->ra());
+                            resp.mutable_resource()->set_peer_va((uint64_t) vdev->rma_buffers[id]->va());
+                            resp.set_reply(CtrlResponse::SUCCESS);
+                        } else
+                            resp.set_reply(CtrlResponse::FAILURE);
+                    }
                 } else {
                     resp.set_reply(CtrlResponse::INVALID);
                     resp.mutable_text()->set_msg("Invalid parameter.");
@@ -620,9 +657,9 @@ static void *nba::knapp::control_thread_loop(void *arg)
             case CtrlRequest::DESTROY_RMABUFFER:
                 if (request.has_rma_ref()) {
                     struct vdevice *vdev = (struct vdevice *) request.rma_ref().vdev_handle();
-                    if (destroy_rma(vdev, request.rma_ref().buffer_id()))
+                    if (destroy_rma(vdev, request.rma_ref().buffer_id())) {
                         resp.set_reply(CtrlResponse::SUCCESS);
-                    else
+                    } else
                         resp.set_reply(CtrlResponse::FAILURE);
                 } else {
                     resp.set_reply(CtrlResponse::INVALID);
@@ -682,6 +719,7 @@ int main (int argc, char *argv[])
     mic_num_lcores = sysconf(_SC_NPROCESSORS_ONLN);
     mic_num_pcores = sysconf(_SC_NPROCESSORS_ONLN) / KNAPP_MAX_THREADS_PER_CORE;
     memzero(pcore_used, KNAPP_NUM_CORES);
+    memzero(global_rma_buffers, KNAPP_GLOBAL_MAX_RMABUFFERS);
     log_info("%ld lcores (%ld pcores) detected.\n", mic_num_lcores, mic_num_pcores);
 
     setlocale(LC_NUMERIC, "");
