@@ -179,9 +179,12 @@ void LookupIP6Route::cuda_compute_handler(ComputeDevice *cdev,
                                           struct resource_param *res)
 {
     struct kernel_arg arg;
-    arg = {(void *) &d_tables->ptr, sizeof(void *), alignof(void *)};
+    void *ptr_args[2];
+    ptr_args[0] = cdev->unwrap_device_buffer(*d_tables);
+    arg = {&ptr_args[0], sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
-    arg = {(void *) &d_table_sizes->ptr, sizeof(void *), alignof(void *)};
+    ptr_args[1] = cdev->unwrap_device_buffer(*d_table_sizes);
+    arg = {&ptr_args[1], sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
     dev_kernel_t kern;
     kern.ptr = ipv6_route_lookup_get_cuda_kernel();
@@ -190,28 +193,38 @@ void LookupIP6Route::cuda_compute_handler(ComputeDevice *cdev,
 
 void LookupIP6Route::cuda_init_handler(ComputeDevice *device)
 {
-    size_t table_sizes[128];
-    void *table_ptrs_in_d[128];
+    size_t *table_sizes;
+    void **table_ptrs;
+    host_mem_t table_ptrs_h;  // <-> d_tables
+    host_mem_t table_sizes_h; // <-> d_table_sizes
 
     /* Store the device pointers for per-thread instances. */
     d_tables      = (dev_mem_t *) ctx->node_local_storage->get_alloc("dev_tables");
     d_table_sizes = (dev_mem_t *) ctx->node_local_storage->get_alloc("dev_table_sizes");
-    *d_tables      = device->alloc_device_buffer(sizeof(void *) * 128);
-    *d_table_sizes = device->alloc_device_buffer(sizeof(size_t) * 128);
+    table_ptrs_h   = device->alloc_host_buffer(sizeof(void *) * 128, 0);
+    table_sizes_h  = device->alloc_host_buffer(sizeof(size_t) * 128, 0);
+    *d_tables      = device->alloc_device_buffer(sizeof(void *) * 128, 0, table_ptrs_h);
+    *d_table_sizes = device->alloc_device_buffer(sizeof(size_t) * 128, 0, table_sizes_h);
 
-    /* table_ptrs_in_d keeps track of the temporary host-side references to tables in
+    table_sizes = (size_t*) device->unwrap_host_buffer(table_sizes_h);
+    table_ptrs  = (void **) device->unwrap_host_buffer(table_ptrs_h);
+
+    /* table_ptrs_h keeps track of the temporary host-side references to tables in
      * the device for initialization and copy.
-     * d_tables is the actual device buffer to store pointers in table_ptrs_in_d. */
-    // TODO: use unwrap_device_buffer()
+     * d_tables is the actual device buffer to store pointers in table_ptrs_h. */
     for (int i = 0; i < 128; i++) {
         table_sizes[i] = _original_table.m_Tables[i]->m_TableSize;
         size_t copy_size = sizeof(Item) * table_sizes[i] * 2;
-        table_ptrs_in_d[i] = device->alloc_device_buffer(copy_size).ptr;
-        device->memwrite({ _original_table.m_Tables[i]->m_Table }, {table_ptrs_in_d[i]},
-                         0, copy_size);
+        host_mem_t table_content_h;
+        dev_mem_t table_content_d;
+        table_content_h = device->alloc_host_buffer(copy_size, 0);
+        table_content_d = device->alloc_device_buffer(copy_size, 0, table_content_h);
+        table_ptrs[i] = device->unwrap_device_buffer(table_content_d);
+        memcpy(device->unwrap_host_buffer(table_content_h), _original_table.m_Tables[i]->m_Table, copy_size);
+        device->memwrite(table_content_h, table_content_d, 0, copy_size);
     }
-    device->memwrite({ table_ptrs_in_d }, *d_tables, 0, sizeof(void *) * 128);
-    device->memwrite({ table_sizes }, *d_table_sizes, 0, sizeof(size_t) * 128);
+    device->memwrite(table_ptrs_h, *d_tables, 0, sizeof(void *) * 128);
+    device->memwrite(table_sizes_h, *d_table_sizes, 0, sizeof(size_t) * 128);
 
 }
 #endif

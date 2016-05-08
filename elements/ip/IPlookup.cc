@@ -96,7 +96,6 @@ int IPlookup::initialize_per_node()
 
 int IPlookup::initialize()
 {
-    fprintf(stderr, "element::IPlookup: per-instnace init...\n");
     /* Get routing table pointers from the node-local storage. */
     TBL24_h = (host_mem_t *) ctx->node_local_storage->get_alloc("TBL24_host_memobj");
     TBLlong_h = (host_mem_t *) ctx->node_local_storage->get_alloc("TBLlong_host_memobj");
@@ -108,7 +107,6 @@ int IPlookup::initialize()
     /* Get device pointers from the node-local storage. */
     TBL24_d   = (dev_mem_t *) ctx->node_local_storage->get_alloc("TBL24_dev_memobj");
     TBLlong_d = (dev_mem_t *) ctx->node_local_storage->get_alloc("TBLlong_dev_memobj");
-    fprintf(stderr, "element::IPlookup: per-instnace init done.\n");
 
     rr_port = 0;
     return 0;
@@ -223,10 +221,10 @@ void IPlookup::cuda_compute_handler(ComputeDevice *cdev,
     struct kernel_arg arg;
     void *ptr_args[2];
     ptr_args[0] = cdev->unwrap_device_buffer(*TBL24_d);
-    arg = {(void *) &ptr_args[0], sizeof(void *), alignof(void *)};
+    arg = {&ptr_args[0], sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
     ptr_args[1] = cdev->unwrap_device_buffer(*TBLlong_d);
-    arg = {(void *) &ptr_args[1], sizeof(void *), alignof(void *)};
+    arg = {&ptr_args[1], sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
     dev_kernel_t kern;
     kern.ptr = ipv4_route_lookup_get_cuda_kernel();

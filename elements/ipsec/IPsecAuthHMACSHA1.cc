@@ -181,7 +181,8 @@ void IPsecAuthHMACSHA1::cuda_init_handler(ComputeDevice *device)
     // Put key array content to device space.
     size_t flows_size = sizeof(struct hmac_sa_entry) * num_tunnels;
     h_flows = (struct hmac_sa_entry *) ctx->node_local_storage->get_alloc("h_hmac_flows");
-    dev_mem_t flows_in_device = device->alloc_device_buffer(flows_size);
+    host_mem_t unused = { nullptr };
+    dev_mem_t flows_in_device = device->alloc_device_buffer(flows_size, 0, unused);
     device->memwrite({ h_flows }, flows_in_device, 0, flows_size);
 
     // Store the device pointer for per-thread instances.
@@ -194,7 +195,9 @@ void IPsecAuthHMACSHA1::cuda_compute_handler(ComputeDevice *cdev,
                                              struct resource_param *res)
 {
     struct kernel_arg arg;
-    arg = {cdev->unwrap_device_buffer(d_flows_ptr), sizeof(void *), alignof(void *)};
+    void *ptr_args[1];
+    ptr_args[0] = cdev->unwrap_device_buffer(*d_flows_ptr);
+    arg = {&ptr_args[0], sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
 
     dev_kernel_t kern;
