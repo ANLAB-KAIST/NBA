@@ -160,9 +160,10 @@ static void nba::knapp::destroy_vdev(struct vdevice *vdev)
     vdev->exit = true;
     log_device(vdev->device_id, "killing all workers...\n");
     pthread_barrier_wait(vdev->term_barrier);
+    pthread_barrier_destroy(vdev->term_barrier);
+    delete vdev->term_barrier;
+
     vdev->threads_alive = false;
-    scif_close(vdev->data_epd);
-    scif_close(vdev->data_listen_epd);
 
     for (int c : vdev->pcores)
         pcore_used[c] = false;
@@ -187,6 +188,9 @@ static void nba::knapp::destroy_vdev(struct vdevice *vdev)
     }
     _mm_free(vdev->per_thread_work_info);
     log_device(vdev->device_id, "Deleted vDevice.\n");
+
+    scif_close(vdev->data_epd);
+    scif_close(vdev->data_listen_epd);
     delete vdev;
 }
 
