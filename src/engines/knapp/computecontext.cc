@@ -74,6 +74,20 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
             CACHE_LINE_SIZE, node_id);
     assert(vdev.tasks_in_flight != nullptr);
 
+    /* Initialize poll ring. */
+    PollRing *pollring;
+    NEW(node_id, pollring, PollRing, vdev.data_epd, NBA_MAX_IO_BASES, node_id);
+    request.set_type(CtrlRequest::CREATE_POLLRING);
+    CtrlRequest::PollRingParam *ring_param = request.mutable_pollring();
+    ring_param->set_vdev_handle((uintptr_t) vdev.handle);
+    ring_param->set_ring_id(0);
+    ring_param->set_len(NBA_MAX_IO_BASES);
+    ring_param->set_local_ra((uint64_t) pollring->ra());
+    ctrl_invoke(ctrl_epd, request, response);
+    assert(CtrlResponse::SUCCESS == response.reply());
+    pollring->set_peer_ra(response.resource().peer_ra());
+    vdev.poll_rings[0] = pollring;
+
     /* Initialize I/O buffers. */
     NEW(node_id, io_base_ring, FixedRing<unsigned>, NBA_MAX_IO_BASES, node_id);
     for (unsigned i = 0; i < NBA_MAX_IO_BASES; i++) {
@@ -107,10 +121,10 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
         rma_outbuf->set_peer_ra(response.resource().peer_ra());
         rma_outbuf->set_peer_va(response.resource().peer_va());
 
-        NEW(node_id, _local_mempool_in[i], RMALocalMemoryPool, i, rma_inbuf);
-        NEW(node_id, _local_mempool_out[i], RMALocalMemoryPool, i, rma_outbuf);
-        NEW(node_id, _peer_mempool_in[i], RMAPeerMemoryPool, i, rma_inbuf);
-        NEW(node_id, _peer_mempool_out[i], RMAPeerMemoryPool, i, rma_outbuf);
+        NEW(node_id, _local_mempool_in[i], RMALocalMemoryPool, i, rma_inbuf, io_base_size);
+        NEW(node_id, _local_mempool_out[i], RMALocalMemoryPool, i, rma_outbuf, io_base_size);
+        NEW(node_id, _peer_mempool_in[i], RMAPeerMemoryPool, i, rma_inbuf, io_base_size);
+        NEW(node_id, _peer_mempool_out[i], RMAPeerMemoryPool, i, rma_outbuf, io_base_size);
         _local_mempool_in[i]->init();
         _local_mempool_out[i]->init();
         _peer_mempool_in[i]->init();
@@ -144,6 +158,9 @@ KnappComputeContext::~KnappComputeContext()
     }
     if (mz != nullptr)
         rte_memzone_free(mz);
+
+    vdev.poll_rings[0]->~PollRing();
+    rte_free(vdev.poll_rings[0]);
 
     CtrlRequest request;
     CtrlResponse response;
@@ -306,7 +323,7 @@ int KnappComputeContext::enqueue_kernel_launch(dev_kernel_t kernel, struct resou
     t.task_id = cur_task_id;
     t.kernel_id = kernel.kernel_id;
     t.num_items = res->num_workitems;
-    t.num_kernel_args = num_kernel_args;
+    t.num_args = num_kernel_args;
     for (unsigned i = 0; i < num_kernel_args; i++) {
         t.args[i] = kernel_args[i].ptr;
     }

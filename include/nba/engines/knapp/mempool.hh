@@ -13,8 +13,8 @@ namespace nba {
 class RMAPeerMemoryPool : public MemoryPool<dev_mem_t>
 {
 public:
-    RMAPeerMemoryPool(uint32_t buffer_id, knapp::RMABuffer *rma_buffer)
-        : MemoryPool(), _buffer_id(buffer_id), _rma_buffer(rma_buffer), base(nullptr)
+    RMAPeerMemoryPool(uint32_t buffer_id, knapp::RMABuffer *rma_buffer, size_t max_size)
+        : MemoryPool(max_size), _buffer_id(buffer_id), _rma_buffer(rma_buffer), base(nullptr)
     {
         /* Use peer-side virtual address. */
         base = (void *) _rma_buffer->peer_va();
@@ -39,11 +39,13 @@ public:
 
     int alloc(size_t size, dev_mem_t &dbuf)
     {
-        assert(dbuf.m.buffer_id == _buffer_id);
         size_t offset;
         int ret = _alloc(size, &offset);
         if (ret == 0) {
-            dbuf.m.unwrap_ptr = (void *) ((uintptr_t) base + offset);
+            dbuf.m = {
+                _buffer_id,
+                (void *) ((uintptr_t) base + offset)
+            };
         }
         return ret;
     }
@@ -67,8 +69,8 @@ private:
 class RMALocalMemoryPool : public MemoryPool<host_mem_t>
 {
 public:
-    RMALocalMemoryPool(uint32_t buffer_id, knapp::RMABuffer *rma_buffer)
-        : MemoryPool(), _buffer_id(buffer_id), _rma_buffer(rma_buffer), base(nullptr)
+    RMALocalMemoryPool(uint32_t buffer_id, knapp::RMABuffer *rma_buffer, size_t max_size)
+        : MemoryPool(max_size), _buffer_id(buffer_id), _rma_buffer(rma_buffer), base(nullptr)
     {
         /* Use my local virtual address. */
         base = (void *) _rma_buffer->va();
@@ -93,11 +95,14 @@ public:
 
     int alloc(size_t size, host_mem_t &hbuf)
     {
-        assert(hbuf.m.buffer_id == _buffer_id);
         size_t offset;
         int ret = _alloc(size, &offset);
-        if (ret == 0)
-            hbuf.m.unwrap_ptr = (void *) ((uintptr_t) base + offset);
+        if (ret == 0) {
+            hbuf.m = {
+                _buffer_id,
+                (void *) ((uintptr_t) base + offset)
+            };
+        }
         return ret;
     }
 

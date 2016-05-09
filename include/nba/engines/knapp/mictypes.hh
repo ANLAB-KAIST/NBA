@@ -20,18 +20,13 @@
 namespace nba { namespace knapp {
 
 /* Forward decls. */
-struct worker;
+struct work;
 class PollRing;
 class RMABuffer;
 
 /* Callback defs. */
-typedef void (*worker_func_t)(struct worker *work);
+typedef void (*worker_func_t)(struct work *work);
 
-
-// TODO: deprecate
-union u_worker {
-    void *kernel_specific_data;
-};
 
 /* MIC-side vDevice context */
 struct vdevice {
@@ -67,11 +62,10 @@ struct vdevice {
     unsigned cur_task_id;
     //unsigned num_packets_in_cur_task;
 
-    struct worker **per_thread_work_info;
+    struct work **per_thread_work_info;
     worker_func_t worker_func;
 
     uint32_t offload_batch_size;
-    union u_worker u;
     std::vector<int> pcores;
     std::vector<int> lcores;
 
@@ -95,7 +89,7 @@ struct vdevice {
     uint64_t acc_batch_transfer_us_sq;
 };
 
-struct worker {
+struct work {
     // To be used by all threads:
     int thread_id;
     struct vdevice *vdev;
@@ -103,9 +97,11 @@ struct worker {
     Barrier *task_done_barrier;
 
     uint32_t max_num_items;
-    volatile int num_items;
+    uint32_t num_items;
+    uint32_t num_args;
+    void *args[KNAPP_MAX_KERNEL_ARGS];
+
     std::atomic<bool> exit;
-    union u_worker u;
 } __cache_aligned;
 
 struct worker_thread_info {

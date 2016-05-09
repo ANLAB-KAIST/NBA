@@ -287,7 +287,7 @@ static void *nba::knapp::worker_thread_loop(void *arg)
 
         /* former worker_preproc() */
         {
-            struct worker *w =
+            struct work *w =
                     &vdev->per_thread_work_info[vdev->next_task_id][tid];
 
             if (tid != 0) {
@@ -322,7 +322,7 @@ static void *nba::knapp::worker_thread_loop(void *arg)
 
         {
             uint32_t task_id = vdev->cur_task_id;
-            struct worker *w = &vdev->per_thread_work_info[task_id][tid];
+            struct work *w = &vdev->per_thread_work_info[task_id][tid];
 
             //TODO: pktproc_func(w);
 
@@ -336,10 +336,11 @@ static void *nba::knapp::worker_thread_loop(void *arg)
             if (tid == 0) {
 
                 /* finalize latency/stat measurement */
-
-                // TODO: scif_recv(vdev->data_epd) to get d2h copy info (offset, size).
-                // TODO: combine ID_OUTPUT with task ID.
-                // TODO: vdev->rma_buffers[ID_OUTPUT]->write(offset, size);
+                struct d2hcopy c;
+                scif_recv(vdev->data_epd, &c, sizeof(c), SCIF_RECV_BLOCK);
+                RMABuffer *b = vdev->rma_buffers[c.buffer_id];
+                assert(nullptr != b);
+                b->write(c.offset, c.size, false);
 
                 vdev->poll_rings[0]->remote_notify(task_id, KNAPP_D2H_COMPLETE);
             }
@@ -383,21 +384,21 @@ static void *nba::knapp::master_thread_loop(void *arg)
     }
 
     /* Initialize pipelined worker info. */
-    vdev->per_thread_work_info = (struct worker **) _mm_malloc(
-            sizeof(struct worker *) * vdev->pipeline_depth,
+    vdev->per_thread_work_info = (struct work **) _mm_malloc(
+            sizeof(struct work *) * vdev->pipeline_depth,
             CACHE_LINE_SIZE);
     assert(nullptr != vdev->per_thread_work_info);
 
     for (unsigned pd = 0; pd < vdev->pipeline_depth; pd++) {
-        vdev->per_thread_work_info[pd] = (struct worker *) _mm_malloc(
-                sizeof(struct worker) * vdev->num_worker_threads,
+        vdev->per_thread_work_info[pd] = (struct work *) _mm_malloc(
+                sizeof(struct work) * vdev->num_worker_threads,
                 CACHE_LINE_SIZE);
         assert(nullptr != vdev->per_thread_work_info[pd]);
     }
     log_device(vdev->device_id, "Allocated %d per-worker-thread work info.\n", vdev->num_worker_threads);
     for (unsigned pd = 0; pd < vdev->pipeline_depth; pd++) {
         for (unsigned i = 0; i < vdev->num_worker_threads; i++) {
-            struct worker &w = vdev->per_thread_work_info[pd][i];
+            struct work &w = vdev->per_thread_work_info[pd][i];
             w.data_ready_barrier = vdev->data_ready_barriers[pd];
             w.task_done_barrier  = vdev->task_done_barriers[pd];
         }
@@ -456,26 +457,24 @@ static void *nba::knapp::master_thread_loop(void *arg)
                 goto finish_master;
         }
 
-        // TODO: combine ID_INPUT with task ID.
-        // TODO: read taskitem from vdev->rma_buffers[ID_INPUT]->va();
-        // TODO: set workload type (kernel ID) in w.
-#if 0
-        struct taskitem *ti = (struct taskitem *) nullptr;
+        struct taskitem ti;
+        scif_recv(vdev->data_epd, &ti, sizeof(ti), SCIF_RECV_BLOCK);
 
-        if (ti->task_id != cur_task_id) {
-            log_device(vdev->device_id, "offloaded task id (%d) doesn't match pending id (%d)\n", ti->task_id, cur_task_id);
+        if (ti.task_id != cur_task_id) {
+            log_device(vdev->device_id, "offloaded task id (%d) doesn't match pending id (%d)\n", ti.task_id, cur_task_id);
             exit(1);
         }
 
         /* Split the input items for each worker thread. */
-        uint8_t *inputbuf_payload_va = (uint8_t *)(ti + 1);
-        int32_t remaining = ti->num_items;
+        int32_t remaining = ti.num_items;
         for (int i = 0; i < vdev->num_worker_threads; i++) {
-            struct worker *w = &vdev->per_thread_work_info[cur_task_id][i];
+            struct work *w = &vdev->per_thread_work_info[cur_task_id][i];
             w->num_items = MIN(remaining, w->max_num_items);
+            w->num_args = ti.num_args;
+            memcpy(w->args, ti.args, ti.num_args);
             remaining -= w->num_items;
         }
-#endif
+
         /* Now we are ready to run the processing function.
          * Notify worker threads. */
         vdev->poll_rings[0]->notify(cur_task_id, KNAPP_TASK_READY);

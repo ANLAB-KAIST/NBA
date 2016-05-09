@@ -70,7 +70,7 @@
 #define NBA_MAX_TASKPOOL_SIZE       (2048u)
 #define NBA_MAX_BATCHPOOL_SIZE      (2048u)
 #ifdef USE_KNAPP
-#define NBA_MAX_IO_BASES    (8)
+#define NBA_MAX_IO_BASES    (7)
 #else
 #define NBA_MAX_IO_BASES    (1)
 #endif
