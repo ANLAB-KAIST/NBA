@@ -55,9 +55,9 @@ public:
     int enqueue_event_callback(void (*func_ptr)(ComputeContext *ctx, void *user_arg),
                                void *user_arg);
 
-    bool poll_input_finished();
-    bool poll_kernel_finished();
-    bool poll_output_finished();
+    bool poll_input_finished(io_base_t io_base);
+    bool poll_kernel_finished(io_base_t io_base);
+    bool poll_output_finished(io_base_t io_base);
 
     void sync()
     {

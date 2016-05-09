@@ -232,13 +232,13 @@ int CUDAComputeContext::enqueue_kernel_launch(dev_kernel_t kernel, struct resour
     return 0;
 }
 
-bool CUDAComputeContext::poll_input_finished()
+bool CUDAComputeContext::poll_input_finished(io_base_t io_base)
 {
     /* Proceed to kernel launch without waiting. */
     return true;
 }
 
-bool CUDAComputeContext::poll_kernel_finished()
+bool CUDAComputeContext::poll_kernel_finished(io_base_t io_base)
 {
     /* Check the checkbits if kernel has finished. */
     if (checkbits_h == nullptr) {
@@ -252,7 +252,7 @@ bool CUDAComputeContext::poll_kernel_finished()
     return true;
 }
 
-bool CUDAComputeContext::poll_output_finished()
+bool CUDAComputeContext::poll_output_finished(io_base_t io_base)
 {
     cudaError_t ret = cudaStreamQuery(_stream);
     if (ret == cudaErrorNotReady)

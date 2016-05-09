@@ -39,12 +39,16 @@ bool PollRing::wait(const unsigned idx, const poll_item_t value)
     poll_item_t volatile *_ring = _local_va;
     uint32_t count = 0;
     compiler_fence();
-    while (_ring[idx] != value && count < KNAPP_SYNC_CYCLES) {
+    while (_ring[idx] != value) {
         insert_pause();
-        count++;
     }
-    /* Return true if waited too long. */
-    return count != KNAPP_SYNC_CYCLES;
+    return true;
+    //while (_ring[idx] != value && count < KNAPP_SYNC_CYCLES) {
+    //    insert_pause();
+    //    count++;
+    //}
+    ///* Return true if waited too long. */
+    //return count != KNAPP_SYNC_CYCLES;
 }
 
 bool PollRing::poll(const unsigned idx, const poll_item_t value)

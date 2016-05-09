@@ -59,6 +59,7 @@ struct resource_param {
     uint32_t num_workitems;
     uint32_t num_workgroups;
     uint32_t num_threads_per_workgroup;
+    uint32_t task_id; // FIXME: refactor
 };
 
 struct kernel_arg {

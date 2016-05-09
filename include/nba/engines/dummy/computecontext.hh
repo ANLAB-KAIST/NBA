@@ -48,9 +48,9 @@ public:
                                void *user_arg);
 
     void sync() { return; }
-    bool poll_input_finished() { return true; }
-    bool poll_kernel_finished() { return true; }
-    bool poll_output_finished() { return true; }
+    bool poll_input_finished(io_base_t io_base) { return true; }
+    bool poll_kernel_finished(io_base_t io_base) { return true; }
+    bool poll_output_finished(io_base_t io_base) { return true; }
 
 
 private:

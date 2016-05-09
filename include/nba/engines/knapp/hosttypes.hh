@@ -44,6 +44,8 @@ struct vdevice {
 
     PollRing *poll_rings[KNAPP_VDEV_MAX_POLLRINGS];
     RMABuffer *rma_buffers[KNAPP_VDEV_MAX_RMABUFFERS];
+    RMABuffer *task_params;
+    RMABuffer *d2h_params;
     int next_poll;
 };
 

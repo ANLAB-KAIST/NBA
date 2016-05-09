@@ -54,6 +54,10 @@ inline int mic_pcore_to_lcore(int pcore, int ht) {
            % (KNAPP_NUM_CORES * KNAPP_MAX_THREADS_PER_CORE);
 }
 
+/* Special buffers. */
+const uint32_t BUFFER_TASK_PARAMS = 0x80000001u;
+const uint32_t BUFFER_D2H_PARAMS = 0x80000002u;
+
 /* Buffer ID = 4 bits task ID + 1 bit direction (input or output) */
 constexpr uint32_t BUFFER_GLOBAL_FLAG    = 0x20u;
 constexpr uint32_t BUFFER_TASKID_MASK    = 0x1eu;

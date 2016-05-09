@@ -63,9 +63,9 @@ public:
     virtual int enqueue_event_callback(void (*func_ptr)(ComputeContext *ctx, void *user_arg),
                                        void *user_arg) = 0;
 
-    virtual bool poll_input_finished() = 0;
-    virtual bool poll_kernel_finished() = 0;
-    virtual bool poll_output_finished() = 0;
+    virtual bool poll_input_finished(io_base_t io_base) = 0;
+    virtual bool poll_kernel_finished(io_base_t io_base) = 0;
+    virtual bool poll_output_finished(io_base_t io_base) = 0;
 
     unsigned get_id()
     {

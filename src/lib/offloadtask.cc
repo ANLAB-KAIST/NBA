@@ -295,6 +295,7 @@ void OffloadTask::execute()
         _debug_print_inb("execute.item_counts", nullptr, 0);
         uint32_t *item_counts = (uint32_t *) cctx->unwrap_host_buffer(item_counts_h);
         uint32_t num_batches = batches.size();
+        res.task_id = static_cast<uint32_t>(io_base);
         res.num_workitems = all_item_count;
         res.num_threads_per_workgroup = elem->get_desired_workgroup_size(cctx->type_name.c_str());
         res.num_workgroups = (all_item_count + res.num_threads_per_workgroup - 1)
@@ -370,12 +371,12 @@ bool OffloadTask::copy_d2h()
 
 bool OffloadTask::poll_kernel_finished()
 {
-    return kernel_skipped || cctx->poll_kernel_finished();
+    return kernel_skipped || cctx->poll_kernel_finished(io_base);
 }
 
 bool OffloadTask::poll_d2h_copy_finished()
 {
-    return cctx->poll_output_finished();
+    return cctx->poll_output_finished(io_base);
 }
 
 void OffloadTask::notify_completion()

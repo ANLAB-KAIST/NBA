@@ -140,6 +140,8 @@ static struct vdevice *nba::knapp::create_vdev(
 
     memzero(vdev->poll_rings, KNAPP_VDEV_MAX_POLLRINGS);
     memzero(vdev->rma_buffers, KNAPP_VDEV_MAX_RMABUFFERS);
+    vdev->task_params = nullptr;
+    vdev->d2h_params = nullptr;
 
     /* Spawn the master thread. */
     vdev->threads_alive = true;
@@ -188,6 +190,10 @@ static void nba::knapp::destroy_vdev(struct vdevice *vdev)
         if (vdev->rma_buffers[i] != nullptr)
             delete vdev->rma_buffers[i];
     }
+    if (vdev->task_params != nullptr)
+        delete vdev->task_params;
+    if (vdev->d2h_params != nullptr)
+        delete vdev->d2h_params;
     _mm_free(vdev->thread_info_array);
     for (unsigned pd = 0; pd < vdev->pipeline_depth; pd++) {
         _mm_free(vdev->per_thread_work_info[pd]);
@@ -227,12 +233,23 @@ static bool nba::knapp::create_rma(
         size_t size, off_t peer_ra)
 {
     RMABuffer *b = new RMABuffer(vdev->data_epd, size);
+    b->set_peer_ra(peer_ra);
     log_device(vdev->device_id, "Creating RMABuffer[%u] "
                "(size %'u bytes, ra %p, peer_ra %p).\n",
                buffer_id, size, b->ra(), peer_ra);
-    assert(nullptr == vdev->rma_buffers[buffer_id]);
-    vdev->rma_buffers[buffer_id] = b;
-    b->set_peer_ra(peer_ra);
+    switch (buffer_id) {
+    case BUFFER_TASK_PARAMS:
+        assert(nullptr == vdev->task_params);
+        vdev->task_params = b;
+        break;
+    case BUFFER_D2H_PARAMS:
+        assert(nullptr == vdev->d2h_params);
+        vdev->d2h_params = b;
+        break;
+    default:
+        assert(nullptr == vdev->rma_buffers[buffer_id]);
+        vdev->rma_buffers[buffer_id] = b;
+    }
     return true;
 }
 
@@ -291,31 +308,34 @@ static void *nba::knapp::worker_thread_loop(void *arg)
                     &vdev->per_thread_work_info[vdev->next_task_id][tid];
 
             if (tid != 0) {
-                while (true) {
-                    timeout = !w->data_ready_barrier->here(tid);
-                    if (timeout && vdev->exit)
-                        goto finish_worker;
-                }
+                w->data_ready_barrier->here(tid);
+                //while (true) {
+                //    timeout = !w->data_ready_barrier->here(tid);
+                //    if (timeout && vdev->exit)
+                //        goto finish_worker;
+                //}
             }
             if (tid == 0) {
                 uint32_t task_id = vdev->next_task_id;
                 vdev->cur_task_id = task_id;
 
-                while (true) {
-                    timeout = !vdev->poll_rings[0]->wait(task_id, KNAPP_TASK_READY);
-                    if (timeout && vdev->exit)
-                        goto finish_worker;
-                }
+                vdev->poll_rings[0]->wait(task_id, KNAPP_TASK_READY);
+                //while (true) {
+                //    timeout = !vdev->poll_rings[0]->wait(task_id, KNAPP_TASK_READY);
+                //    if (timeout && vdev->exit)
+                //        goto finish_worker;
+                //}
 
                 /* init latency/stat measurement */
 
                 vdev->poll_rings[0]->notify(task_id, KNAPP_COPY_PENDING);
 
-                while (true) {
-                    timeout = !w->data_ready_barrier->here(0);
-                    if (timeout && vdev->exit)
-                        goto finish_worker;
-                }
+                w->data_ready_barrier->here(0);
+                //while (true) {
+                //    timeout = !w->data_ready_barrier->here(0);
+                //    if (timeout && vdev->exit)
+                //        goto finish_worker;
+                //}
                 vdev->next_task_id = (task_id + 1) % vdev->poll_rings[0]->len();
             }
         }
@@ -324,20 +344,23 @@ static void *nba::knapp::worker_thread_loop(void *arg)
             uint32_t task_id = vdev->cur_task_id;
             struct work *w = &vdev->per_thread_work_info[task_id][tid];
 
+            //log_device(vdev->device_id, "worker[%u] loop pktproc\n", tid);
             //TODO: pktproc_func(w);
 
-            while (true) {
-                timeout = !w->task_done_barrier->here(tid);
-                if (timeout && vdev->exit)
-                    goto finish_worker;
-            }
+            w->task_done_barrier->here(tid);
+            //while (true) {
+            //    timeout = !w->task_done_barrier->here(tid);
+            //    if (timeout && vdev->exit)
+            //        goto finish_worker;
+            //}
 
             /* former worker_postproc() */
             if (tid == 0) {
 
                 /* finalize latency/stat measurement */
-                struct d2hcopy c;
-                scif_recv(vdev->data_epd, &c, sizeof(c), SCIF_RECV_BLOCK);
+                //struct d2hcopy c;
+                //scif_recv(vdev->data_epd, &c, sizeof(c), SCIF_RECV_BLOCK);
+                struct d2hcopy &c = reinterpret_cast<struct d2hcopy *>(vdev->d2h_params->va())[task_id];
                 RMABuffer *b = vdev->rma_buffers[c.buffer_id];
                 assert(nullptr != b);
                 b->write(c.offset, c.size, false);
@@ -347,7 +370,7 @@ static void *nba::knapp::worker_thread_loop(void *arg)
         }
         insert_pause();
     }
-finish_worker:
+//finish_worker:
     log_device(vdev->device_id, "Terminating worker[%d]\n", tid);
     pthread_barrier_wait(vdev->term_barrier);
     return nullptr;
@@ -451,14 +474,16 @@ static void *nba::knapp::master_thread_loop(void *arg)
             continue;
         }
 
-        while (true) {
-            timeout = !vdev->poll_rings[0]->wait(cur_task_id, KNAPP_H2D_COMPLETE);
-            if (timeout && vdev->exit)
-                goto finish_master;
-        }
+        vdev->poll_rings[0]->wait(cur_task_id, KNAPP_H2D_COMPLETE);
+        //while (true) {
+        //    timeout = !vdev->poll_rings[0]->wait(cur_task_id, KNAPP_H2D_COMPLETE);
+        //    if (timeout && vdev->exit)
+        //        goto finish_master;
+        //}
 
-        struct taskitem ti;
-        scif_recv(vdev->data_epd, &ti, sizeof(ti), SCIF_RECV_BLOCK);
+        //struct taskitem ti;
+        //scif_recv(vdev->data_epd, &ti, sizeof(ti), SCIF_RECV_BLOCK);
+        struct taskitem &ti = reinterpret_cast<struct taskitem *>(vdev->task_params->va())[cur_task_id];
 
         if (ti.task_id != cur_task_id) {
             log_device(vdev->device_id, "offloaded task id (%d) doesn't match pending id (%d)\n", ti.task_id, cur_task_id);
@@ -481,7 +506,7 @@ static void *nba::knapp::master_thread_loop(void *arg)
 
         cur_task_id = (cur_task_id + 1) % (vdev->poll_rings[0]->len());
     }
-finish_master:
+//finish_master:
     log_device(vdev->device_id, "Terminating master thread.\n");
     pthread_barrier_wait(vdev->term_barrier);
     return nullptr;
@@ -642,20 +667,41 @@ static void *nba::knapp::control_thread_loop(void *arg)
                         assert(dir == INPUT);
                         if (create_rma(ctrl_epd, buffer_id, request.rma().size(),
                                        request.rma().local_ra())) {
-                            resp.mutable_resource()->set_peer_ra((uint64_t) global_rma_buffers[buffer_id]->ra());
-                            resp.mutable_resource()->set_peer_va((uint64_t) global_rma_buffers[buffer_id]->va());
+                            resp.mutable_resource()->set_peer_ra(static_cast<uint64_t>(global_rma_buffers[buffer_id]->ra()));
+                            resp.mutable_resource()->set_peer_va(static_cast<uint64_t>(global_rma_buffers[buffer_id]->va()));
                             resp.set_reply(CtrlResponse::SUCCESS);
                         } else
                             resp.set_reply(CtrlResponse::FAILURE);
                     } else {
-                        assert(!is_global);
-                        if (create_rma(vdev, buffer_id, request.rma().size(),
-                                       request.rma().local_ra())) {
-                            resp.mutable_resource()->set_peer_ra((uint64_t) vdev->rma_buffers[buffer_id]->ra());
-                            resp.mutable_resource()->set_peer_va((uint64_t) vdev->rma_buffers[buffer_id]->va());
-                            resp.set_reply(CtrlResponse::SUCCESS);
-                        } else
-                            resp.set_reply(CtrlResponse::FAILURE);
+                        switch (buffer_id) {
+                        case BUFFER_TASK_PARAMS:
+                            if (create_rma(vdev, buffer_id, request.rma().size(),
+                                           request.rma().local_ra())) {
+                                resp.mutable_resource()->set_peer_ra(static_cast<uint64_t>(vdev->task_params->ra()));
+                                resp.mutable_resource()->set_peer_va(static_cast<uint64_t>(vdev->task_params->va()));
+                                resp.set_reply(CtrlResponse::SUCCESS);
+                            } else
+                                resp.set_reply(CtrlResponse::FAILURE);
+                            break;
+                        case BUFFER_D2H_PARAMS:
+                            if (create_rma(vdev, buffer_id, request.rma().size(),
+                                           request.rma().local_ra())) {
+                                resp.mutable_resource()->set_peer_ra(static_cast<uint64_t>(vdev->d2h_params->ra()));
+                                resp.mutable_resource()->set_peer_va(static_cast<uint64_t>(vdev->d2h_params->va()));
+                                resp.set_reply(CtrlResponse::SUCCESS);
+                            } else
+                                resp.set_reply(CtrlResponse::FAILURE);
+                            break;
+                        default:
+                            assert(!is_global);
+                            if (create_rma(vdev, buffer_id, request.rma().size(),
+                                           request.rma().local_ra())) {
+                                resp.mutable_resource()->set_peer_ra(static_cast<uint64_t>(vdev->rma_buffers[buffer_id]->ra()));
+                                resp.mutable_resource()->set_peer_va(static_cast<uint64_t>(vdev->rma_buffers[buffer_id]->va()));
+                                resp.set_reply(CtrlResponse::SUCCESS);
+                            } else
+                                resp.set_reply(CtrlResponse::FAILURE);
+                        }
                     }
                 } else {
                     resp.set_reply(CtrlResponse::INVALID);

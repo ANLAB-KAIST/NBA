@@ -65,9 +65,9 @@ public:
     int enqueue_event_callback(void (*func_ptr)(ComputeContext *ctx, void *user_arg),
                                void *user_arg);
 
-    bool poll_input_finished();
-    bool poll_kernel_finished();
-    bool poll_output_finished();
+    bool poll_input_finished(io_base_t io_base);
+    bool poll_kernel_finished(io_base_t io_base);
+    bool poll_output_finished(io_base_t io_base);
 
     static const int MAX_BLOCKS = 16384;
 
@@ -91,8 +91,6 @@ private:
     struct kernel_arg kernel_args[KNAPP_MAX_KERNEL_ARGS];
 
     FixedRing<unsigned> *io_base_ring;
-
-    uint32_t cur_task_id;
 };
 
 }

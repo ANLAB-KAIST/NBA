@@ -14,7 +14,7 @@ RMABuffer::RMABuffer(
     assert(0 != _local_va);
     _local_ra = scif_register(epd, (void *) _local_va, size, 0,
                             SCIF_PROT_READ | SCIF_PROT_WRITE, 0);
-    assert(0 != _local_ra);
+    assert(SCIF_REGISTER_FAILED != _local_ra);
 }
 
 RMABuffer::RMABuffer(scif_epd_t epd, void *extern_arena, size_t size)
@@ -24,7 +24,7 @@ RMABuffer::RMABuffer(scif_epd_t epd, void *extern_arena, size_t size)
     assert(0 != _local_va);
     _local_ra = scif_register(_epd, (void *) _local_va, size, 0,
                             SCIF_PROT_READ | SCIF_PROT_WRITE, 0);
-    assert(0 != _local_ra);
+    assert(SCIF_REGISTER_FAILED != _local_ra);
 }
 
 RMABuffer::~RMABuffer()

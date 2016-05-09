@@ -54,18 +54,25 @@ public:
         uint32_t count = 0;
         if (iThread) {
             __sync_add_and_fetch((volatile int64_t*)&c1, 1);
-            while (c1 && count < KNAPP_SYNC_CYCLES) {
+            while (c1) {
                 insert_pause();
-                count++;
             }
-            if (count != KNAPP_SYNC_CYCLES) return true;
+            //if (count != KNAPP_SYNC_CYCLES) return true;
+            //while (c1 && count < KNAPP_SYNC_CYCLES) {
+            //    insert_pause();
+            //    count++;
+            //}
+            //if (count != KNAPP_SYNC_CYCLES) return true;
         } else {
             //ts = get_usec();
-            while ((c1 + 1) != nThreads && count < KNAPP_SYNC_CYCLES) {
+            while ((c1 + 1) != nThreads) {
                 insert_pause();
-                count++;
             }
-            if (count != KNAPP_SYNC_CYCLES) return true;
+            //while ((c1 + 1) != nThreads && count < KNAPP_SYNC_CYCLES) {
+            //    insert_pause();
+            //    count++;
+            //}
+            //if (count != KNAPP_SYNC_CYCLES) return true;
             c1 = 0;
             /*
             uint64_t tdiff = get_usec() - ts;
@@ -83,7 +90,7 @@ public:
             }
             */
         }
-        return false;
+        return true;
     }
 
 };
