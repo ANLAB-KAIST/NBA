@@ -48,6 +48,24 @@ int main(int argc, char **argv) {
     return RUN_ALL_TESTS();
 }
 
+TEST(KnappUtilityTest, BufferIDComposition) {
+    uint32_t buffer_id;
+    bool is_global;
+    uint32_t task_id;
+    rma_direction dir;
+    buffer_id = compose_buffer_id(true, 0xc, INPUT);
+    EXPECT_EQ(0x38u, buffer_id);
+    buffer_id = compose_buffer_id(false, 0x9, OUTPUT);
+    EXPECT_EQ(0x13u , buffer_id);
+    std::tie(std::ignore, task_id, dir) = decompose_buffer_id(0x12345);
+    EXPECT_EQ(2u, task_id);
+    EXPECT_EQ(OUTPUT, dir);
+    std::tie(is_global, task_id, dir) = decompose_buffer_id(0x29);
+    EXPECT_TRUE(is_global);
+    EXPECT_EQ(4u, task_id);
+    EXPECT_EQ(OUTPUT, dir);
+}
+
 TEST(KnappCommunicationTest, RawPing) {
     std::string msg = "hello world";
     int rc;

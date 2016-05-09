@@ -34,12 +34,12 @@ public:
     int get_utilization(struct compute_device_util *util);
     host_mem_t alloc_host_buffer(size_t size, int flags);
     dev_mem_t alloc_device_buffer(size_t size, int flags, host_mem_t &assoc_host_buf);
-    void free_host_buffer(host_mem_t m);
-    void free_device_buffer(dev_mem_t m);
-    void *unwrap_host_buffer(const host_mem_t m);
-    void *unwrap_device_buffer(const dev_mem_t m);
-    void memwrite(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size);
-    void memread(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size);
+    void free_host_buffer(host_mem_t hbuf);
+    void free_device_buffer(dev_mem_t dbuf);
+    void *unwrap_host_buffer(const host_mem_t hbuf);
+    void *unwrap_device_buffer(const dev_mem_t dbuf);
+    void memwrite(host_mem_t hbuf, dev_mem_t duf, size_t offset, size_t size);
+    void memread(host_mem_t hbuf, dev_mem_t duf, size_t offset, size_t size);
 
 private:
     ComputeContext *_get_available_context();

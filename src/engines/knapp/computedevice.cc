@@ -132,7 +132,7 @@ host_mem_t KnappComputeDevice::alloc_host_buffer(size_t size, int flags)
     request.set_type(CtrlRequest::CREATE_RMABUFFER);
     CtrlRequest::RMABufferParam *rma_param = request.mutable_rma();
     rma_param->set_vdev_handle((uintptr_t) 0);  // global
-    rma_param->set_buffer_id(buffer_id);
+    rma_param->set_buffer_id(compose_buffer_id(true, buffer_id, INPUT));
     rma_param->set_size(aligned_size);
     rma_param->set_local_ra((uint64_t) buf->ra());
     ctrl_invoke(ctrl_epd, request, response);
@@ -140,25 +140,31 @@ host_mem_t KnappComputeDevice::alloc_host_buffer(size_t size, int flags)
     buf->set_peer_ra(response.resource().peer_ra());
     buf->set_peer_va(response.resource().peer_va());
     buffer_registry.insert({ buffer_id, buf });
-    host_mem_t m;
-    m.buffer_id = buffer_id;
-    return m;
+    host_mem_t hbuf;
+    hbuf.m = {
+        compose_buffer_id(false, buffer_id, INPUT),
+        reinterpret_cast<void *>(buf->va())
+    };
+    return hbuf;
 }
 
 dev_mem_t KnappComputeDevice::alloc_device_buffer(size_t size, int flags, host_mem_t &assoc_host_buf)
 {
     size_t aligned_size = ALIGN_CEIL(size, PAGE_SIZE);
-    uint32_t buffer_id = assoc_host_buf.buffer_id;
+    uint32_t buffer_id;
+    std::tie(std::ignore, buffer_id, std::ignore) =
+            decompose_buffer_id(assoc_host_buf.m.buffer_id);
     const auto &search = buffer_registry.find(buffer_id);
+    RMABuffer *buf = nullptr;
     if (search == buffer_registry.end()) {
         CtrlRequest request;
         CtrlResponse response;
         buffer_id = find_new_buffer_id();
-        RMABuffer *buf = new RMABuffer(ctrl_epd, aligned_size, 0);
+        buf = new RMABuffer(ctrl_epd, aligned_size, 0);
         request.set_type(CtrlRequest::CREATE_RMABUFFER);
         CtrlRequest::RMABufferParam *rma_param = request.mutable_rma();
         rma_param->set_vdev_handle((uintptr_t) 0);  // global
-        rma_param->set_buffer_id(buffer_id);
+        rma_param->set_buffer_id(compose_buffer_id(true, buffer_id, INPUT));
         rma_param->set_size(aligned_size);
         rma_param->set_local_ra((uint64_t) buf->ra());
         ctrl_invoke(ctrl_epd, request, response);
@@ -166,20 +172,27 @@ dev_mem_t KnappComputeDevice::alloc_device_buffer(size_t size, int flags, host_m
         buf->set_peer_ra(response.resource().peer_ra());
         buf->set_peer_va(response.resource().peer_va());
         buffer_registry.insert({ buffer_id, buf });
-    }
-    dev_mem_t m;
-    m.buffer_id = buffer_id;
-    return m;
+    } else
+        buf = (*search).second;
+    dev_mem_t dbuf;
+    dbuf.m = {
+        compose_buffer_id(false, buffer_id, INPUT),
+        reinterpret_cast<void *>(buf->peer_va())
+    };
+    return dbuf;
 }
 
-void KnappComputeDevice::free_host_buffer(host_mem_t m)
+void KnappComputeDevice::free_host_buffer(host_mem_t hbuf)
 {
     return;
 }
 
-void KnappComputeDevice::free_device_buffer(dev_mem_t m)
+void KnappComputeDevice::free_device_buffer(dev_mem_t dbuf)
 {
-    const auto &search = buffer_registry.find(m.buffer_id);
+    uint32_t buffer_id;
+    std::tie(std::ignore, buffer_id, std::ignore) =
+            decompose_buffer_id(dbuf.m.buffer_id);
+    const auto &search = buffer_registry.find(buffer_id);
     if (search == buffer_registry.end()) {
         return;
     } else {
@@ -187,39 +200,61 @@ void KnappComputeDevice::free_device_buffer(dev_mem_t m)
         CtrlResponse response;
         request.set_type(CtrlRequest::DESTROY_RMABUFFER);
         request.mutable_rma_ref()->set_vdev_handle((uintptr_t) 0); // global
-        request.mutable_rma_ref()->set_buffer_id(m.buffer_id);
+        request.mutable_rma_ref()->set_buffer_id(buffer_id);
         ctrl_invoke(ctrl_epd, request, response);
         assert(CtrlResponse::SUCCESS == response.reply());
-        buffer_registry.erase(m.buffer_id);
+        buffer_registry.erase(buffer_id);
         delete (*search).second;
     }
 }
 
-void *KnappComputeDevice::unwrap_host_buffer(const host_mem_t m)
+void *KnappComputeDevice::unwrap_host_buffer(const host_mem_t hbuf)
 {
-    const auto &search = buffer_registry.find(m.buffer_id);
+    uint32_t buffer_id;
+    std::tie(std::ignore, buffer_id, std::ignore) =
+            decompose_buffer_id(hbuf.m.buffer_id);
+    const auto &search = buffer_registry.find(buffer_id);
     assert(search != buffer_registry.end());
-    return (void *) (*search).second->va();
+    assert(hbuf.m.unwrap_ptr == reinterpret_cast<void *>((*search).second->va()));
+    return reinterpret_cast<void *>((*search).second->va());
 }
 
-void *KnappComputeDevice::unwrap_device_buffer(const dev_mem_t m)
+void *KnappComputeDevice::unwrap_device_buffer(const dev_mem_t dbuf)
 {
-    const auto &search = buffer_registry.find(m.buffer_id);
+    uint32_t buffer_id;
+    std::tie(std::ignore, buffer_id, std::ignore) =
+            decompose_buffer_id(dbuf.m.buffer_id);
+    const auto &search = buffer_registry.find(buffer_id);
     assert(search != buffer_registry.end());
-    return (void *) (*search).second->peer_va();
+    assert(dbuf.m.unwrap_ptr == reinterpret_cast<void *>((*search).second->peer_va()));
+    return reinterpret_cast<void *>((*search).second->peer_va());
 }
 
-void KnappComputeDevice::memwrite(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size)
+void KnappComputeDevice::memwrite(host_mem_t hbuf, dev_mem_t dbuf,
+                                  size_t offset, size_t size)
 {
-    const auto &search = buffer_registry.find(host_buf.buffer_id);
+    uint32_t buffer_id;
+    std::tie(std::ignore, buffer_id, std::ignore) =
+            decompose_buffer_id(hbuf.m.buffer_id);
+    assert(hbuf.m.buffer_id == dbuf.m.buffer_id);
+    const auto &search = buffer_registry.find(buffer_id);
     assert(search != buffer_registry.end());
+    assert(hbuf.m.unwrap_ptr == reinterpret_cast<void *>((*search).second->va()));
+    assert(dbuf.m.unwrap_ptr == reinterpret_cast<void *>((*search).second->peer_va()));
     (*search).second->write(offset, size, true);
 }
 
-void KnappComputeDevice::memread(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size)
+void KnappComputeDevice::memread(host_mem_t hbuf, dev_mem_t dbuf,
+                                 size_t offset, size_t size)
 {
-    const auto &search = buffer_registry.find(host_buf.buffer_id);
+    uint32_t buffer_id;
+    std::tie(std::ignore, buffer_id, std::ignore) =
+            decompose_buffer_id(hbuf.m.buffer_id);
+    assert(hbuf.m.buffer_id == dbuf.m.buffer_id);
+    const auto &search = buffer_registry.find(buffer_id);
     assert(search != buffer_registry.end());
+    assert(hbuf.m.unwrap_ptr == reinterpret_cast<void *>((*search).second->va()));
+    assert(dbuf.m.unwrap_ptr == reinterpret_cast<void *>((*search).second->peer_va()));
     (*search).second->read(offset, size, true);
 }
 

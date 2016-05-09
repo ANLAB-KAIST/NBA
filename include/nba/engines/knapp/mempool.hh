@@ -13,8 +13,8 @@ namespace nba {
 class RMAPeerMemoryPool : public MemoryPool<dev_mem_t>
 {
 public:
-    RMAPeerMemoryPool(knapp::RMABuffer *rma_buffer)
-        : MemoryPool(), _rma_buffer(rma_buffer), base(nullptr)
+    RMAPeerMemoryPool(uint32_t buffer_id, knapp::RMABuffer *rma_buffer)
+        : MemoryPool(), _buffer_id(buffer_id), _rma_buffer(rma_buffer), base(nullptr)
     {
         /* Use peer-side virtual address. */
         base = (void *) _rma_buffer->peer_va();
@@ -32,15 +32,19 @@ public:
 
     dev_mem_t get_base_ptr() const
     {
-        return { base };
+        dev_mem_t ret;
+        ret.m = { _buffer_id, base };
+        return ret;
     }
 
-    int alloc(size_t size, dev_mem_t &ptr)
+    int alloc(size_t size, dev_mem_t &dbuf)
     {
+        assert(dbuf.m.buffer_id == _buffer_id);
         size_t offset;
         int ret = _alloc(size, &offset);
-        if (ret == 0)
-            ptr.ptr = (void *) ((uintptr_t) base + offset);
+        if (ret == 0) {
+            dbuf.m.unwrap_ptr = (void *) ((uintptr_t) base + offset);
+        }
         return ret;
     }
 
@@ -55,6 +59,7 @@ public:
     }
 
 private:
+    uint32_t _buffer_id;
     knapp::RMABuffer *_rma_buffer;
     void *base;
 };
@@ -62,8 +67,8 @@ private:
 class RMALocalMemoryPool : public MemoryPool<host_mem_t>
 {
 public:
-    RMALocalMemoryPool(knapp::RMABuffer *rma_buffer)
-        : MemoryPool(), _rma_buffer(rma_buffer), base(nullptr)
+    RMALocalMemoryPool(uint32_t buffer_id, knapp::RMABuffer *rma_buffer)
+        : MemoryPool(), _buffer_id(buffer_id), _rma_buffer(rma_buffer), base(nullptr)
     {
         /* Use my local virtual address. */
         base = (void *) _rma_buffer->va();
@@ -81,15 +86,18 @@ public:
 
     host_mem_t get_base_ptr() const
     {
-        return { base };
+        host_mem_t ret;
+        ret.m = { _buffer_id, base };
+        return ret;
     }
 
-    int alloc(size_t size, host_mem_t &ptr)
+    int alloc(size_t size, host_mem_t &hbuf)
     {
+        assert(hbuf.m.buffer_id == _buffer_id);
         size_t offset;
         int ret = _alloc(size, &offset);
         if (ret == 0)
-            ptr.ptr = (void *) ((uintptr_t) base + offset);
+            hbuf.m.unwrap_ptr = (void *) ((uintptr_t) base + offset);
         return ret;
     }
 
@@ -104,6 +112,7 @@ public:
     }
 
 private:
+    uint32_t _buffer_id;
     knapp::RMABuffer *_rma_buffer;
     void *base;
 };

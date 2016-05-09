@@ -87,8 +87,7 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
         request.set_type(CtrlRequest::CREATE_RMABUFFER);
         rma_param = request.mutable_rma();
         rma_param->set_vdev_handle((uintptr_t) vdev.handle);
-        // TODO: combine io_base ID with ID_INPUT.
-        rma_param->set_buffer_id(ID_INPUT);
+        rma_param->set_buffer_id(compose_buffer_id(false, i, INPUT));
         rma_param->set_size(io_base_size);
         rma_param->set_local_ra((uint64_t) rma_inbuf->ra());
         ctrl_invoke(ctrl_epd, request, response);
@@ -100,8 +99,7 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
         request.set_type(CtrlRequest::CREATE_RMABUFFER);
         rma_param = request.mutable_rma();
         rma_param->set_vdev_handle((uintptr_t) vdev.handle);
-        // TODO: combine io_base ID with ID_OUTPUT.
-        rma_param->set_buffer_id(ID_OUTPUT);
+        rma_param->set_buffer_id(compose_buffer_id(false, i, OUTPUT));
         rma_param->set_size(io_base_size);
         rma_param->set_local_ra((uint64_t) rma_outbuf->ra());
         ctrl_invoke(ctrl_epd, request, response);
@@ -109,10 +107,10 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
         rma_outbuf->set_peer_ra(response.resource().peer_ra());
         rma_outbuf->set_peer_va(response.resource().peer_va());
 
-        NEW(node_id, _local_mempool_in[i], RMALocalMemoryPool, rma_inbuf);
-        NEW(node_id, _local_mempool_out[i], RMALocalMemoryPool, rma_outbuf);
-        NEW(node_id, _peer_mempool_in[i], RMAPeerMemoryPool, rma_inbuf);
-        NEW(node_id, _peer_mempool_out[i], RMAPeerMemoryPool, rma_outbuf);
+        NEW(node_id, _local_mempool_in[i], RMALocalMemoryPool, i, rma_inbuf);
+        NEW(node_id, _local_mempool_out[i], RMALocalMemoryPool, i, rma_outbuf);
+        NEW(node_id, _peer_mempool_in[i], RMAPeerMemoryPool, i, rma_inbuf);
+        NEW(node_id, _peer_mempool_out[i], RMAPeerMemoryPool, i, rma_outbuf);
         _local_mempool_in[i]->init();
         _local_mempool_out[i]->init();
         _peer_mempool_in[i]->init();
@@ -188,8 +186,14 @@ void KnappComputeContext::map_input_buffer(io_base_t io_base, size_t offset, siz
                                           host_mem_t &hbuf, dev_mem_t &dbuf) const
 {
     unsigned i = io_base;
-    hbuf.ptr = (void *) ((uintptr_t) _local_mempool_in[i]->get_base_ptr().ptr + offset);
-    dbuf.ptr = (void *) ((uintptr_t) _peer_mempool_in[i]->get_base_ptr().ptr + offset);
+    hbuf.m = {
+        compose_buffer_id(false, io_base, INPUT),
+        (void *) ((uintptr_t) _local_mempool_in[i]->get_base_ptr().ptr + offset)
+    };
+    dbuf.m = {
+        compose_buffer_id(false, io_base, INPUT),
+        (void *) ((uintptr_t) _peer_mempool_in[i]->get_base_ptr().ptr + offset)
+    };
     // len is ignored.
 }
 
@@ -197,19 +201,25 @@ void KnappComputeContext::map_output_buffer(io_base_t io_base, size_t offset, si
                                            host_mem_t &hbuf, dev_mem_t &dbuf) const
 {
     unsigned i = io_base;
-    hbuf.ptr = (void *) ((uintptr_t) _local_mempool_out[i]->get_base_ptr().ptr + offset);
-    dbuf.ptr = (void *) ((uintptr_t) _peer_mempool_out[i]->get_base_ptr().ptr + offset);
+    hbuf.m = {
+        compose_buffer_id(false, io_base, OUTPUT),
+        (void *) ((uintptr_t) _local_mempool_out[i]->get_base_ptr().ptr + offset)
+    };
+    dbuf.m = {
+        compose_buffer_id(false, io_base, OUTPUT),
+        (void *) ((uintptr_t) _peer_mempool_out[i]->get_base_ptr().ptr + offset)
+    };
     // len is ignored.
 }
 
 void *KnappComputeContext::unwrap_host_buffer(const host_mem_t hbuf) const
 {
-    return hbuf.ptr;
+    return hbuf.m.unwrap_ptr;
 }
 
 void *KnappComputeContext::unwrap_device_buffer(const dev_mem_t dbuf) const
 {
-    return dbuf.ptr;
+    return dbuf.m.unwrap_ptr;
 }
 
 size_t KnappComputeContext::get_input_size(io_base_t io_base) const
@@ -234,24 +244,41 @@ void KnappComputeContext::clear_io_buffers(io_base_t io_base)
     io_base_ring->push_back(i);
 }
 
-int KnappComputeContext::enqueue_memwrite_op(const host_mem_t host_buf,
-                                            const dev_mem_t dev_buf,
+int KnappComputeContext::enqueue_memwrite_op(const host_mem_t hbuf,
+                                            const dev_mem_t dbuf,
                                             size_t offset, size_t size)
 {
-    // TODO: retrieve relevant RMALocalMemoryPool from host_buf.
-    // cur_task_id == io_base ID.
-    // TODO: get rma_buffer() and call ->write(offset, size);
-    // this may be deferred to enqueue_kernel_laucn()
-    // to send along with taskitem.
+    assert(hbuf.m.buffer_id == dbuf.m.buffer_id);
+    bool is_global;
+    uint32_t task_id;
+    rma_direction dir;
+    std::tie(is_global, task_id, dir) = decompose_buffer_id(hbuf.m.buffer_id);
+    cur_task_id = task_id; // remember task_id for later use
+    assert(!is_global);
+    assert(dir == INPUT);
+    RMABuffer *b = _local_mempool_in[task_id]->rma_buffer();
+    b->write(offset, size, false);
     return 0;
 }
 
-int KnappComputeContext::enqueue_memread_op(const host_mem_t host_buf,
-                                           const dev_mem_t dev_buf,
+int KnappComputeContext::enqueue_memread_op(const host_mem_t hbuf,
+                                           const dev_mem_t dbuf,
                                            size_t offset, size_t size)
 {
-    // TODO: retrieve relevant RMALocalMemoryPool from host_buf.
-    // TODO: scif_send() the params to via vdev.data_epd. */
+    assert(hbuf.m.buffer_id == dbuf.m.buffer_id);
+    bool is_global;
+    uint32_t task_id;
+    rma_direction dir;
+    std::tie(is_global, task_id, dir) = decompose_buffer_id(hbuf.m.buffer_id);
+    assert(!is_global);
+    assert(dir == OUTPUT);
+    //RMABuffer *b = _local_mempool_out[task_id]->rma_buffer();
+
+    struct d2hcopy c;
+    c.buffer_id = hbuf.m.buffer_id;
+    c.offset = (uint32_t) offset;
+    c.size = (uint32_t) size;
+    scif_send(vdev.data_epd, &c, sizeof(c), SCIF_SEND_BLOCK);
     return 0;
 }
 
@@ -275,14 +302,17 @@ int KnappComputeContext::enqueue_kernel_launch(dev_kernel_t kernel, struct resou
 {
     if (unlikely(res->num_workgroups == 0))
         res->num_workgroups = 1;
-    // TODO: initialize taskitem information. (kernel ID, arguments)
-    //void *raw_args[num_kernel_args];
-    //for (unsigned i = 0; i < num_kernel_args; i++) {
-    //    raw_args[i] = kernel_args[i].ptr;
-    //}
+    struct taskitem t;
+    t.task_id = cur_task_id;
+    t.kernel_id = kernel.kernel_id;
+    t.num_items = res->num_workitems;
+    t.num_kernel_args = num_kernel_args;
+    for (unsigned i = 0; i < num_kernel_args; i++) {
+        t.args[i] = kernel_args[i].ptr;
+    }
     state = ComputeContext::RUNNING;
-
-    // TODO: scif_fence_signal() to the vDevice's input pollring.
+    // TODO: nonblock?
+    scif_send(vdev.data_epd, &t, sizeof(t), SCIF_SEND_BLOCK);
     vdev.poll_rings[0]->remote_notify(cur_task_id, KNAPP_H2D_COMPLETE);
     return 0;
 }
@@ -301,7 +331,11 @@ bool KnappComputeContext::poll_kernel_finished()
 
 bool KnappComputeContext::poll_output_finished()
 {
-    vdev.poll_rings[0]->wait(cur_task_id, KNAPP_D2H_COMPLETE);
+    while (true) {
+        bool timeout = !vdev.poll_rings[0]->wait(cur_task_id, KNAPP_D2H_COMPLETE);
+        if (timeout)
+            continue;
+    }
     return true;
 }
 

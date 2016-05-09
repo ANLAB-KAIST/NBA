@@ -10,6 +10,13 @@
 #include <CL/opencl.h>
 #endif
 
+#ifdef USE_KNAPP
+struct knapp_memobj {
+    uint32_t buffer_id;
+    void *unwrap_ptr;
+};
+#endif
+
 /* Common object types */
 typedef union {
     void *ptr;
@@ -17,14 +24,14 @@ typedef union {
     cl_mem clmem;
     #endif
     #ifdef USE_KNAPP
-    uint32_t buffer_id;
+    struct knapp_memobj m;
     #endif
 } dev_mem_t;
 
 typedef union {
     void *ptr;
     #ifdef USE_KNAPP
-    uint32_t buffer_id;
+    struct knapp_memobj m;
     #endif
 } host_mem_t;
 
@@ -32,6 +39,9 @@ typedef union {
     void *ptr;
     #ifdef USE_PHI
     cl_kernel clkernel;
+    #endif
+    #ifdef USE_KNAPP
+    int kernel_id;
     #endif
 } dev_kernel_t;
 

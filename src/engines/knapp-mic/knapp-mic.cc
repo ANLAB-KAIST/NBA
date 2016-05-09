@@ -634,20 +634,26 @@ static void *nba::knapp::control_thread_loop(void *arg)
             case CtrlRequest::CREATE_RMABUFFER:
                 if (request.has_rma()) {
                     struct vdevice *vdev = (struct vdevice *) request.rma().vdev_handle();
-                    uint32_t id = request.rma().buffer_id();
+                    uint32_t buffer_id = request.rma().buffer_id();
+                    bool is_global;
+                    rma_direction dir;
+                    std::tie(is_global, std::ignore, dir) = decompose_buffer_id(buffer_id);
                     if (vdev == nullptr) {
-                        if (create_rma(ctrl_epd, id, request.rma().size(),
+                        assert(is_global);
+                        assert(dir == INPUT);
+                        if (create_rma(ctrl_epd, buffer_id, request.rma().size(),
                                        request.rma().local_ra())) {
-                            resp.mutable_resource()->set_peer_ra((uint64_t) global_rma_buffers[id]->ra());
-                            resp.mutable_resource()->set_peer_va((uint64_t) global_rma_buffers[id]->va());
+                            resp.mutable_resource()->set_peer_ra((uint64_t) global_rma_buffers[buffer_id]->ra());
+                            resp.mutable_resource()->set_peer_va((uint64_t) global_rma_buffers[buffer_id]->va());
                             resp.set_reply(CtrlResponse::SUCCESS);
                         } else
                             resp.set_reply(CtrlResponse::FAILURE);
                     } else {
-                        if (create_rma(vdev, id, request.rma().size(),
+                        assert(!is_global);
+                        if (create_rma(vdev, buffer_id, request.rma().size(),
                                        request.rma().local_ra())) {
-                            resp.mutable_resource()->set_peer_ra((uint64_t) vdev->rma_buffers[id]->ra());
-                            resp.mutable_resource()->set_peer_va((uint64_t) vdev->rma_buffers[id]->va());
+                            resp.mutable_resource()->set_peer_ra((uint64_t) vdev->rma_buffers[buffer_id]->ra());
+                            resp.mutable_resource()->set_peer_va((uint64_t) vdev->rma_buffers[buffer_id]->va());
                             resp.set_reply(CtrlResponse::SUCCESS);
                         } else
                             resp.set_reply(CtrlResponse::FAILURE);
