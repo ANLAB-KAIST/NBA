@@ -36,13 +36,18 @@ static void nba::knapp::ipv4_route_lookup (
     uint16_t *TBL24   = static_cast<uint16_t *>(args[0]);
     uint16_t *TBLlong = static_cast<uint16_t *>(args[1]);
 
-    for (uint32_t idx = begin_idx; idx < end_idx; ++ idx) {
-        uint32_t batch_idx, item_idx;
-        nba::get_accum_idx(item_counts, num_batches,
-                           idx, batch_idx, item_idx);
+    uint32_t batch_idx, item_idx;
+    nba::get_accum_idx(item_counts, num_batches,
+                       begin_idx, batch_idx, item_idx);
+
+    for (uint32_t idx = 0; idx < end_idx - begin_idx; ++idx) {
+        if (item_idx == item_counts[batch_idx]) {
+            batch_idx ++;
+            item_idx = 0;
+        }
+
         uint32_t daddr = (static_cast<uint32_t*>(db_dest_addrs->batches[batch_idx].buffer_bases))[item_idx];
         uint16_t &lookup_result = (static_cast<uint16_t*>(db_results->batches[batch_idx].buffer_bases))[item_idx];
-
         lookup_result = 0xffff;
         uint32_t ip = ntohl(daddr);
         uint16_t temp_dest = TBL24[ip >> 8];
@@ -51,6 +56,8 @@ static void nba::knapp::ipv4_route_lookup (
             temp_dest = TBLlong[idx2];
         }
         lookup_result = temp_dest;
+
+        item_idx ++;
     }
 }
 
