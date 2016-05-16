@@ -161,11 +161,6 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
     assert(CtrlResponse::SUCCESS == response.reply());
     vdev.d2h_params->set_peer_ra(response.resource().peer_ra());
     vdev.d2h_params->set_peer_va(response.resource().peer_va());
-
-    fprintf(stderr, "KCC[%u] task_params va=%p ra=%p pra=%p\n",
-            ctx_id, vdev.task_params->va(), vdev.task_params->ra(), vdev.task_params->peer_ra());
-    fprintf(stderr, "KCC[%u] d2h va=%p ra=%p pra=%p\n",
-            ctx_id, vdev.d2h_params->va(), vdev.d2h_params->ra(), vdev.d2h_params->peer_ra());
 }
 
 const struct rte_memzone *KnappComputeContext::reserve_memory(ComputeDevice *mother)
@@ -328,15 +323,14 @@ int KnappComputeContext::enqueue_memread_op(const host_mem_t hbuf,
     std::tie(is_global, task_id, dir) = decompose_buffer_id(hbuf.m.buffer_id);
     assert(!is_global);
     assert(dir == OUTPUT);
-    //RMABuffer *b = _local_mempool_out[task_id]->rma_buffer();
 
+    // FIXME: merge with h2d datablock copy
     RMABuffer *cb = vdev.d2h_params;
     struct d2hcopy &c = reinterpret_cast<struct d2hcopy *>(cb->va())[task_id];
     c.buffer_id = hbuf.m.buffer_id;
     c.offset = (uint32_t) offset;
     c.size = (uint32_t) size;
     cb->write(sizeof(struct d2hcopy) * task_id, sizeof(struct d2hcopy), false);
-    //scif_send(vdev.data_epd, &c, sizeof(c), SCIF_SEND_BLOCK);
     vdev.poll_rings[0]->remote_notify(task_id, KNAPP_H2D_COMPLETE);
     return 0;
 }
@@ -361,6 +355,7 @@ int KnappComputeContext::enqueue_kernel_launch(dev_kernel_t kernel, struct resou
 {
     if (unlikely(res->num_workgroups == 0))
         res->num_workgroups = 1;
+    // FIXME: merge with h2d datablock copy
     uint32_t task_id = res->task_id;
     RMABuffer *tb = vdev.task_params;
     struct taskitem &t = reinterpret_cast<struct taskitem *>(tb->va())[task_id];
@@ -369,13 +364,10 @@ int KnappComputeContext::enqueue_kernel_launch(dev_kernel_t kernel, struct resou
     t.num_items = res->num_workitems;
     t.num_args = num_kernel_args;
     for (unsigned i = 0; i < num_kernel_args; i++) {
-        t.args[i] = kernel_args[i].ptr;
+        memcpy(&t.args[i], kernel_args[i].ptr, kernel_args[i].size);
     }
     state = ComputeContext::RUNNING;
     tb->write(sizeof(struct taskitem) * task_id, sizeof(struct taskitem), false);
-    // TODO: nonblock?
-    //scif_send(vdev.data_epd, &t, sizeof(t), SCIF_SEND_BLOCK);
-    //vdev.poll_rings[0]->remote_notify(task_id, KNAPP_H2D_COMPLETE);
     return 0;
 }
 
@@ -395,11 +387,6 @@ bool KnappComputeContext::poll_output_finished(io_base_t io_base)
 {
     uint32_t task_id = static_cast<uint32_t>(io_base);
     return vdev.poll_rings[0]->poll(io_base, KNAPP_D2H_COMPLETE);
-    //while (true) {
-    //    bool timeout = !vdev.poll_rings[0]->wait(task_id, KNAPP_D2H_COMPLETE);
-    //    if (timeout)
-    //        continue;
-    //}
 }
 
 int KnappComputeContext::enqueue_event_callback(

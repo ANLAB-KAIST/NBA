@@ -8,6 +8,8 @@
 #include <nba/engines/knapp/ctrl.pb.h>
 #include <nba/engines/knapp/pollring.hh>
 #include <nba/engines/knapp/rma.hh>
+#include <nba/engines/knapp/kernels.hh>
+#include "apps/ipv4route.hh"
 #include <nba/core/enumerate.hh>
 #include <cassert>
 #include <cstdio>
@@ -25,9 +27,7 @@
 
 namespace nba { namespace knapp {
 
-extern char **kernel_paths;
-extern char **kernel_names;
-extern worker_func_t worker_funcs[];
+worker_func_t worker_funcs[KNAPP_MAX_KERNEL_TYPES];
 
 /* MIC daemon consists of 3 types of threads:
  * (1) control_thread_loop: global state mgmt (e.g., "cudaMalloc", "cudaMmecpy")
@@ -304,62 +304,49 @@ static void *nba::knapp::worker_thread_loop(void *arg)
 
         /* former worker_preproc() */
         {
-            struct work *w =
-                    &vdev->per_thread_work_info[vdev->next_task_id][tid];
+            struct work &w =
+                    vdev->per_thread_work_info[vdev->next_task_id][tid];
 
             if (tid != 0) {
-                w->data_ready_barrier->here(tid);
-                //while (true) {
-                //    timeout = !w->data_ready_barrier->here(tid);
-                //    if (timeout && vdev->exit)
-                //        goto finish_worker;
-                //}
+                w.data_ready_barrier->here(tid);
             }
             if (tid == 0) {
                 uint32_t task_id = vdev->next_task_id;
                 vdev->cur_task_id = task_id;
 
                 vdev->poll_rings[0]->wait(task_id, KNAPP_TASK_READY);
-                //while (true) {
-                //    timeout = !vdev->poll_rings[0]->wait(task_id, KNAPP_TASK_READY);
-                //    if (timeout && vdev->exit)
-                //        goto finish_worker;
-                //}
 
                 /* init latency/stat measurement */
 
                 vdev->poll_rings[0]->notify(task_id, KNAPP_COPY_PENDING);
 
-                w->data_ready_barrier->here(0);
-                //while (true) {
-                //    timeout = !w->data_ready_barrier->here(0);
-                //    if (timeout && vdev->exit)
-                //        goto finish_worker;
-                //}
+                w.data_ready_barrier->here(0);
                 vdev->next_task_id = (task_id + 1) % vdev->poll_rings[0]->len();
             }
         }
 
         {
             uint32_t task_id = vdev->cur_task_id;
-            struct work *w = &vdev->per_thread_work_info[task_id][tid];
+            struct work &w = vdev->per_thread_work_info[task_id][tid];
+            auto &pktproc_func = worker_funcs[w.kernel_id];
 
-            //log_device(vdev->device_id, "worker[%u] loop pktproc\n", tid);
-            //TODO: pktproc_func(w);
+            struct datablock_kernel_arg **datablocks
+                    = static_cast<struct datablock_kernel_arg **>(w.args[0]);
+            // count (w.args[1]) is not used.
+            uint32_t *item_counts = static_cast<uint32_t *>(w.args[2]);
+            uint32_t num_batches;
+            memcpy(&num_batches, &w.args[3], sizeof(uint32_t));
+            size_t num_remaining_args = w.num_args - 4;
+            pktproc_func(w.begin_idx, w.begin_idx + w.num_items,
+                         datablocks, item_counts, num_batches,
+                         num_remaining_args, &w.args[4]);
 
-            w->task_done_barrier->here(tid);
-            //while (true) {
-            //    timeout = !w->task_done_barrier->here(tid);
-            //    if (timeout && vdev->exit)
-            //        goto finish_worker;
-            //}
+            w.task_done_barrier->here(tid);
 
             /* former worker_postproc() */
             if (tid == 0) {
 
                 /* finalize latency/stat measurement */
-                //struct d2hcopy c;
-                //scif_recv(vdev->data_epd, &c, sizeof(c), SCIF_RECV_BLOCK);
                 struct d2hcopy &c = reinterpret_cast<struct d2hcopy *>(vdev->d2h_params->va())[task_id];
                 RMABuffer *b = vdev->rma_buffers[c.buffer_id];
                 assert(nullptr != b);
@@ -370,7 +357,6 @@ static void *nba::knapp::worker_thread_loop(void *arg)
         }
         insert_pause();
     }
-//finish_worker:
     log_device(vdev->device_id, "Terminating worker[%d]\n", tid);
     pthread_barrier_wait(vdev->term_barrier);
     return nullptr;
@@ -475,16 +461,8 @@ static void *nba::knapp::master_thread_loop(void *arg)
         }
 
         vdev->poll_rings[0]->wait(cur_task_id, KNAPP_H2D_COMPLETE);
-        //while (true) {
-        //    timeout = !vdev->poll_rings[0]->wait(cur_task_id, KNAPP_H2D_COMPLETE);
-        //    if (timeout && vdev->exit)
-        //        goto finish_master;
-        //}
 
-        //struct taskitem ti;
-        //scif_recv(vdev->data_epd, &ti, sizeof(ti), SCIF_RECV_BLOCK);
         struct taskitem &ti = reinterpret_cast<struct taskitem *>(vdev->task_params->va())[cur_task_id];
-
         if (ti.task_id != cur_task_id) {
             log_device(vdev->device_id, "offloaded task id (%d) doesn't match pending id (%d)\n", ti.task_id, cur_task_id);
             exit(1);
@@ -492,12 +470,16 @@ static void *nba::knapp::master_thread_loop(void *arg)
 
         /* Split the input items for each worker thread. */
         int32_t remaining = ti.num_items;
+        uint32_t max_num_items = (ti.num_items + vdev->num_worker_threads)
+                                 / vdev->num_worker_threads;
         for (int i = 0; i < vdev->num_worker_threads; i++) {
-            struct work *w = &vdev->per_thread_work_info[cur_task_id][i];
-            w->num_items = MIN(remaining, w->max_num_items);
-            w->num_args = ti.num_args;
-            memcpy(w->args, ti.args, ti.num_args);
-            remaining -= w->num_items;
+            struct work &w = vdev->per_thread_work_info[cur_task_id][i];
+            w.num_items = MIN(remaining, max_num_items);
+            w.begin_idx = remaining - w.num_items;
+            w.num_args = ti.num_args;
+            w.kernel_id = ti.kernel_id;
+            memcpy(w.args, ti.args, sizeof(void*) * ti.num_args);
+            remaining -= w.num_items;
         }
 
         /* Now we are ready to run the processing function.
@@ -506,7 +488,7 @@ static void *nba::knapp::master_thread_loop(void *arg)
 
         cur_task_id = (cur_task_id + 1) % (vdev->poll_rings[0]->len());
     }
-//finish_master:
+
     log_device(vdev->device_id, "Terminating master thread.\n");
     pthread_barrier_wait(vdev->term_barrier);
     return nullptr;

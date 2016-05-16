@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <atomic>
 #include <vector>
+#include <functional>
 #include <scif.h>
 #include <nba/engines/knapp/defs.hh>
 #include <nba/engines/knapp/sharedtypes.hh>
@@ -25,7 +26,14 @@ class PollRing;
 class RMABuffer;
 
 /* Callback defs. */
-typedef void (*worker_func_t)(struct work *work);
+typedef std::function<void(
+        uint32_t begin_idx,
+        uint32_t end_idx,
+        struct datablock_kernel_arg **datablocks,
+        uint32_t *item_counts,
+        uint32_t num_batches,
+        size_t num_args,
+        void **args)> worker_func_t;
 
 
 /* MIC-side vDevice context */
@@ -92,17 +100,20 @@ struct vdevice {
 };
 
 struct work {
-    // To be used by all threads:
+    // Initialized on start-up.
     int thread_id;
     struct vdevice *vdev;
     Barrier *data_ready_barrier;
     Barrier *task_done_barrier;
 
-    uint32_t max_num_items;
+    // Updated for each offloaded task.
+    uint32_t begin_idx;
     uint32_t num_items;
     uint32_t num_args;
-    void *args[KNAPP_MAX_KERNEL_ARGS];
+    uint64_t kernel_id;
+    void *args[KNAPP_MAX_KERNEL_ARGS] __cache_aligned;
 
+    // For termination.
     std::atomic<bool> exit;
 } __cache_aligned;
 

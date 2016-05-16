@@ -10,6 +10,8 @@ enum kernel_types : uintptr_t {
     ID_KERNEL_IPSEC_HMACSHA1 = 4u,
 };
 
+#define KNAPP_MAX_KERNEL_TYPES (4u)
+
 }} //endns(nba::knapp)
 
 #endif //__NBA_KNAPP_KERNELS_HH__

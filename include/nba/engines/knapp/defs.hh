@@ -12,7 +12,6 @@
 
 /* Software limits. */
 #define KNAPP_VDEV_MAX_POLLRINGS (8)
-// TODO: should be increased to cover combined io base IDs.
 // 4bits: iobase_id (==task_id)
 // 1bit:  input or output
 #define KNAPP_VDEV_MAX_RMABUFFERS (32)

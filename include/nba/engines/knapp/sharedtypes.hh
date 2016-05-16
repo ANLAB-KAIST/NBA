@@ -9,14 +9,15 @@
 #else
 #include <nba/core/intrinsic.hh>
 #endif
+#include <nba/framework/datablock_shared.hh>
 
 namespace nba { namespace knapp {
 
 struct taskitem {
     uint32_t task_id;
-    int32_t kernel_id;
     uint32_t num_items;
     uint32_t num_args;
+    uint64_t kernel_id;
     void *args[KNAPP_MAX_KERNEL_ARGS];
 } __cache_aligned;
 
