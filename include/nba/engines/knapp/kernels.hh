@@ -5,12 +5,14 @@ namespace nba { namespace knapp {
 
 enum kernel_types : uintptr_t {
     ID_KERNEL_IPV4LOOKUP = 1u,
-    ID_KERNEL_IPV6LOOKUP = 2u,
-    ID_KERNEL_IPSEC_AES = 3u,
-    ID_KERNEL_IPSEC_HMACSHA1 = 4u,
+    ID_KERNEL_IPV4LOOKUP_VECTOR = 2u,
+    ID_KERNEL_IPV6LOOKUP = 3u,
+    ID_KERNEL_IPV6LOOKUP_VECTOR = 3u,
+    ID_KERNEL_IPSEC_AES = 4u,
+    ID_KERNEL_IPSEC_HMACSHA1 = 5u,
 };
 
-#define KNAPP_MAX_KERNEL_TYPES (4u)
+#define KNAPP_MAX_KERNEL_TYPES (6u)
 
 }} //endns(nba::knapp)
 
