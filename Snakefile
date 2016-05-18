@@ -206,6 +206,8 @@ if USE_PHI:
 SSL_PATH = os.getenv('NBA_OPENSSL_PATH') or '/usr'
 CFLAGS  += ' -I{SSL_PATH}/include'
 LIBS    += ' -L{SSL_PATH}/lib -lcrypto'
+if USE_KNAPP:
+    MIC_CFLAGS  += ' -I{SSL_PATH}/include -I{SSL_PATH}/include/x86_64-linux-gnu'
 
 # Python configurations (assuming we use the same version of Python for Snakemake and configuration scripts)
 PYTHON_VERSION = '{0.major}.{0.minor}'.format(sys.version_info)

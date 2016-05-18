@@ -4,8 +4,11 @@
 #include <openssl/aes.h>
 #include <openssl/evp.h>
 
-enum {
-    // AES_BLOCK_SIZE is defined at openssl/aes.h
+#ifdef AES_BLOCK_SIZE
+#undef AES_BLOCK_SIZE
+#endif
+enum : int {
+    AES_BLOCK_SIZE = 16,
     HMAC_KEY_SIZE = 64,
 };
 

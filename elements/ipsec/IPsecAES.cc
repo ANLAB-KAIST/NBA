@@ -2,6 +2,9 @@
 #ifdef USE_CUDA
 #include "IPsecAES_kernel.hh"
 #endif
+#ifdef USE_KNAPP
+#include <nba/engines/knapp/kernels.hh>
+#endif
 #include <nba/element/annotation.hh>
 #include <nba/element/nodelocalstorage.hh>
 #include <nba/framework/threadcontext.hh>
@@ -33,11 +36,19 @@ IPsecAES::IPsecAES(): OffloadableElement()
 {
     #ifdef USE_CUDA
     auto ch = [this](ComputeDevice *cdev, ComputeContext *ctx, struct resource_param *res) {
-        this->cuda_compute_handler(cdev, ctx, res);
+        this->accel_compute_handler(cdev, ctx, res);
     };
     offload_compute_handlers.insert({{"cuda", ch},});
-    auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
+    auto ih = [this](ComputeDevice *dev) { this->accel_init_handler(dev); };
     offload_init_handlers.insert({{"cuda", ih},});
+    #endif
+    #ifdef USE_KNAPP
+    auto ch = [this](ComputeDevice *cdev, ComputeContext *ctx, struct resource_param *res) {
+        this->accel_compute_handler(cdev, ctx, res);
+    };
+    offload_compute_handlers.insert({{"knapp.phi", ch},});
+    auto ih = [this](ComputeDevice *dev) { this->accel_init_handler(dev); };
+    offload_init_handlers.insert({{"knapp.phi", ih},});
     #endif
     num_tunnels = 0;
 }
@@ -50,10 +61,10 @@ int IPsecAES::initialize()
     h_sa_table = (unordered_map<struct ipaddr_pair, int> *)ctx->node_local_storage->get_alloc("h_aes_sa_table");
 
     /* Storage for host aes key array */
-    h_flows = (struct aes_sa_entry *) ctx->node_local_storage->get_alloc("h_aes_flows");
+    flows = (struct aes_sa_entry *) ctx->node_local_storage->get_alloc("h_aes_flows");
 
     /* Get device pointer from the node local storage. */
-    d_flows_ptr = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_aes_flows_ptr");
+    flows_d = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_aes_flows_ptr");
 
     if (aes_sa_entry_array != NULL) {
         free(aes_sa_entry_array);
@@ -158,7 +169,7 @@ int IPsecAES::process(int input_port, Packet *pkt)
     struct aes_sa_entry *sa_entry = NULL;
 
     if (likely(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID))) {
-        sa_entry = &h_flows[anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)];
+        sa_entry = &flows[anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)];
         unsigned mode = 0;
 #ifdef USE_OPENSSL_EVP
         int cipher_body_len = 0;
@@ -180,36 +191,38 @@ int IPsecAES::process(int input_port, Packet *pkt)
     return 0;
 }
 
-#ifdef USE_CUDA
-void IPsecAES::cuda_init_handler(ComputeDevice *device)
+void IPsecAES::accel_init_handler(ComputeDevice *device)
 {
     // Put key array content to device space.
     size_t flows_size = sizeof(struct aes_sa_entry) * num_tunnels;
-    h_flows = (struct aes_sa_entry *) ctx->node_local_storage->get_alloc("h_aes_flows");
-    host_mem_t unused = { nullptr };
-    dev_mem_t flows_in_device = device->alloc_device_buffer(flows_size, 0, unused);
-    device->memwrite({ h_flows }, flows_in_device, 0, flows_size);
-
-    // Store the device pointer for per-thread instances.
-    dev_mem_t *p = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_aes_flows_ptr");
-    *p = flows_in_device;
+    flows = (struct aes_sa_entry *) ctx->node_local_storage->get_alloc("h_aes_flows");
+    flows_d  = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_aes_flows_ptr");
+    host_mem_t flows_h;
+    flows_h  = device->alloc_host_buffer(flows_size, 0);
+    *flows_d = device->alloc_device_buffer(flows_size, 0, flows_h);
+    memcpy(device->unwrap_host_buffer(flows_h), flows, flows_size);
+    device->memwrite(flows_h, *flows_d, 0, flows_size);
 }
 
-void IPsecAES::cuda_compute_handler(ComputeDevice *cdev,
-                                    ComputeContext *cctx,
-                                    struct resource_param *res)
+void IPsecAES::accel_compute_handler(ComputeDevice *cdev,
+                                     ComputeContext *cctx,
+                                     struct resource_param *res)
 {
     struct kernel_arg arg;
     void *ptr_args[1];
-    ptr_args[0] = cdev->unwrap_device_buffer(*d_flows_ptr);
+    ptr_args[0] = cdev->unwrap_device_buffer(*flows_d);
     arg = {&ptr_args[0], sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
 
     dev_kernel_t kern;
+#ifdef USE_CUDA
     kern.ptr = ipsec_aes_encryption_get_cuda_kernel();
+#endif
+#ifdef USE_KNAPP
+    kern.ptr = (void *) (uintptr_t) knapp::ID_KERNEL_IPSEC_AES;
+#endif
     cctx->enqueue_kernel_launch(kern, res);
 }
-#endif
 
 size_t IPsecAES::get_desired_workgroup_size(const char *device_name) const
 {
