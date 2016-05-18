@@ -33,18 +33,18 @@ IPlookup::IPlookup() : OffloadableElement(),
     #endif
     #ifdef USE_CUDA
     auto ch = [this](ComputeDevice *cdev, ComputeContext *ctx, struct resource_param *res) {
-        this->cuda_compute_handler(cdev, ctx, res);
+        this->accel_compute_handler(cdev, ctx, res);
     };
     offload_compute_handlers.insert({{"cuda", ch},});
-    auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
+    auto ih = [this](ComputeDevice *dev) { this->accel_init_handler(dev); };
     offload_init_handlers.insert({{"cuda", ih},});
     #endif
     #ifdef USE_KNAPP
     auto ch = [this](ComputeDevice *cdev, ComputeContext *ctx, struct resource_param *res) {
-        this->knapp_compute_handler(cdev, ctx, res);
+        this->accel_compute_handler(cdev, ctx, res);
     };
     offload_compute_handlers.insert({{"knapp.phi", ch},});
-    auto ih = [this](ComputeDevice *dev) { this->knapp_init_handler(dev); };
+    auto ih = [this](ComputeDevice *dev) { this->accel_init_handler(dev); };
     offload_init_handlers.insert({{"knapp.phi", ih},});
     #endif
 
@@ -185,8 +185,7 @@ size_t IPlookup::get_desired_workgroup_size(const char *device_name) const
     return 256u;
 }
 
-#ifdef USE_CUDA
-void IPlookup::cuda_init_handler(ComputeDevice *device)
+void IPlookup::accel_init_handler(ComputeDevice *device)
 {
     /* Store the device pointers for per-thread element instances. */
     size_t TBL24_alloc_size   = sizeof(uint16_t) * ipv4route::get_TBL24_size();
@@ -194,9 +193,9 @@ void IPlookup::cuda_init_handler(ComputeDevice *device)
     // As it is before initialize() is called, we need to get the pointers
     // from the node-local storage by ourselves here.
 
-    TBL24 = (uint16_t *) ctx->node_local_storage->get_alloc("TBL24");
+    TBL24   = (uint16_t *) ctx->node_local_storage->get_alloc("TBL24");
     TBLlong = (uint16_t *) ctx->node_local_storage->get_alloc("TBLlong");
-    TBL24_h = (host_mem_t *) ctx->node_local_storage->get_alloc("TBL24_host_memobj");
+    TBL24_h   = (host_mem_t *) ctx->node_local_storage->get_alloc("TBL24_host_memobj");
     TBLlong_h = (host_mem_t *) ctx->node_local_storage->get_alloc("TBLlong_host_memobj");
     *TBL24_h   = device->alloc_host_buffer(TBL24_alloc_size, 0);
     *TBLlong_h = device->alloc_host_buffer(TBLlong_alloc_size, 0);
@@ -213,9 +212,9 @@ void IPlookup::cuda_init_handler(ComputeDevice *device)
     device->memwrite(*TBLlong_h, *TBLlong_d, 0, TBLlong_alloc_size);
 }
 
-void IPlookup::cuda_compute_handler(ComputeDevice *cdev,
-                                    ComputeContext *cctx,
-                                    struct resource_param *res)
+void IPlookup::accel_compute_handler(ComputeDevice *cdev,
+                                     ComputeContext *cctx,
+                                     struct resource_param *res)
 {
     struct kernel_arg arg;
     void *ptr_args[2];
@@ -226,55 +225,13 @@ void IPlookup::cuda_compute_handler(ComputeDevice *cdev,
     arg = {&ptr_args[1], sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
     dev_kernel_t kern;
+#ifdef USE_CUDA
     kern.ptr = ipv4_route_lookup_get_cuda_kernel();
-    cctx->enqueue_kernel_launch(kern, res);
-}
 #endif
-
 #ifdef USE_KNAPP
-void IPlookup::knapp_init_handler(ComputeDevice *device)
-{
-    /* Store the device pointers for per-thread element instances. */
-    size_t TBL24_alloc_size   = sizeof(uint16_t) * ipv4route::get_TBL24_size();
-    size_t TBLlong_alloc_size = sizeof(uint16_t) * ipv4route::get_TBLlong_size();
-    // As it is before initialize() is called, we need to get the pointers
-    // from the node-local storage by ourselves here.
-
-    TBL24 = (uint16_t *) ctx->node_local_storage->get_alloc("TBL24");
-    TBLlong = (uint16_t *) ctx->node_local_storage->get_alloc("TBLlong");
-    TBL24_h = (host_mem_t *) ctx->node_local_storage->get_alloc("TBL24_host_memobj");
-    TBLlong_h = (host_mem_t *) ctx->node_local_storage->get_alloc("TBLlong_host_memobj");
-    *TBL24_h   = device->alloc_host_buffer(TBL24_alloc_size, 0);
-    *TBLlong_h = device->alloc_host_buffer(TBLlong_alloc_size, 0);
-    memcpy(device->unwrap_host_buffer(*TBL24_h), TBL24, TBL24_alloc_size);
-    memcpy(device->unwrap_host_buffer(*TBLlong_h), TBLlong, TBLlong_alloc_size);
-
-    TBL24_d   = (dev_mem_t *) ctx->node_local_storage->get_alloc("TBL24_dev_memobj");
-    TBLlong_d = (dev_mem_t *) ctx->node_local_storage->get_alloc("TBLlong_dev_memobj");
-    *TBL24_d   = device->alloc_device_buffer(TBL24_alloc_size, 0, *TBL24_h);
-    *TBLlong_d = device->alloc_device_buffer(TBLlong_alloc_size, 0, *TBLlong_h);
-
-    /* Convert host-side routing table to host_mem_t and copy the routing table. */
-    device->memwrite(*TBL24_h,   *TBL24_d,   0, TBL24_alloc_size);
-    device->memwrite(*TBLlong_h, *TBLlong_d, 0, TBLlong_alloc_size);
-}
-
-void IPlookup::knapp_compute_handler(ComputeDevice *cdev,
-                                     ComputeContext *cctx,
-                                     struct resource_param *res)
-{
-    struct kernel_arg arg;
-    void *ptr_args[2];
-    ptr_args[0] = cdev->unwrap_device_buffer(*TBL24_d);
-    arg = {(void *) &ptr_args[0], sizeof(void *), alignof(void *)};
-    cctx->push_kernel_arg(arg);
-    ptr_args[1] = cdev->unwrap_device_buffer(*TBLlong_d);
-    arg = {(void *) &ptr_args[1], sizeof(void *), alignof(void *)};
-    cctx->push_kernel_arg(arg);
-    dev_kernel_t kern;
     kern.ptr = (void *) (uintptr_t) knapp::ID_KERNEL_IPV4LOOKUP;
+#endif
     cctx->enqueue_kernel_launch(kern, res);
 }
-#endif
 
 // vim: ts=8 sts=4 sw=4 et

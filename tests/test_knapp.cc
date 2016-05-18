@@ -54,13 +54,13 @@ TEST(KnappUtilityTest, BufferIDComposition) {
     uint32_t task_id;
     rma_direction dir;
     buffer_id = compose_buffer_id(true, 0xc, INPUT);
-    EXPECT_EQ(0x38u, buffer_id);
+    EXPECT_EQ(0x218u, buffer_id);
     buffer_id = compose_buffer_id(false, 0x9, OUTPUT);
     EXPECT_EQ(0x13u , buffer_id);
     std::tie(std::ignore, task_id, dir) = decompose_buffer_id(0x12345);
     EXPECT_EQ(2u, task_id);
     EXPECT_EQ(OUTPUT, dir);
-    std::tie(is_global, task_id, dir) = decompose_buffer_id(0x29);
+    std::tie(is_global, task_id, dir) = decompose_buffer_id(0x209);
     EXPECT_TRUE(is_global);
     EXPECT_EQ(4u, task_id);
     EXPECT_EQ(OUTPUT, dir);
@@ -296,7 +296,7 @@ TEST(KnappRMATest, H2DWrite) {
         request.set_type(CtrlRequest::CREATE_RMABUFFER);
         CtrlRequest::RMABufferParam *rma_param = request.mutable_rma();
         rma_param->set_vdev_handle((uintptr_t) 0); // global
-        rma_param->set_buffer_id(0);
+        rma_param->set_buffer_id(compose_buffer_id(true, 0, INPUT));
         rma_param->set_size(4096);
         rma_param->set_local_ra((uint64_t) buf.ra());
         ctrl_invoke(ctrl_epd, request, response);
@@ -321,7 +321,7 @@ TEST(KnappRMATest, H2DWrite) {
         request.Clear();
         request.set_type(CtrlRequest::DESTROY_RMABUFFER);
         request.mutable_rma_ref()->set_vdev_handle((uintptr_t) 0); // global
-        request.mutable_rma_ref()->set_buffer_id(0);
+        request.mutable_rma_ref()->set_buffer_id(compose_buffer_id(true, 0, INPUT));
         ctrl_invoke(ctrl_epd, request, response);
         assert(CtrlResponse::SUCCESS == response.reply());
     }

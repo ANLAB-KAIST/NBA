@@ -52,18 +52,10 @@ public:
     /* Offloaded methods */
     size_t get_desired_workgroup_size(const char *device_name) const;
     int get_offload_item_counter_dbid() const { return dbid_ipv4_dest_addrs; }
-    #ifdef USE_CUDA
-    void cuda_init_handler(ComputeDevice *device);
-    void cuda_compute_handler(ComputeDevice *dev,
-                              ComputeContext *ctx,
-                              struct resource_param *res);
-    #endif
-    #ifdef USE_KNAPP
-    void knapp_init_handler(ComputeDevice *device);
-    void knapp_compute_handler(ComputeDevice *dev,
+    void accel_init_handler(ComputeDevice *device);
+    void accel_compute_handler(ComputeDevice *dev,
                                ComputeContext *ctx,
                                struct resource_param *res);
-    #endif
     int postproc(int input_port, void *custom_output, Packet *pkt);
 
 protected:

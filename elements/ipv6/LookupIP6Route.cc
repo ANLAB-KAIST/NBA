@@ -21,6 +21,9 @@
 #include <cuda.h>
 #include <nba/engines/cuda/utils.hh>
 #endif
+#ifdef USE_KNAPP
+#include <nba/engines/knapp/kernels.hh>
+#endif
 
 using namespace std;
 using namespace nba;
@@ -37,11 +40,19 @@ LookupIP6Route::LookupIP6Route(): OffloadableElement()
 {
     #ifdef USE_CUDA
     auto ch = [this](ComputeDevice *cdev, ComputeContext *ctx, struct resource_param *res) {
-        this->cuda_compute_handler(cdev, ctx, res);
+        this->accel_compute_handler(cdev, ctx, res);
     };
     offload_compute_handlers.insert({{"cuda", ch},});
-    auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
+    auto ih = [this](ComputeDevice *dev) { this->accel_init_handler(dev); };
     offload_init_handlers.insert({{"cuda", ih},});
+    #endif
+    #ifdef USE_KNAPP
+    auto ch = [this](ComputeDevice *cdev, ComputeContext *ctx, struct resource_param *res) {
+        this->accel_compute_handler(cdev, ctx, res);
+    };
+    offload_compute_handlers.insert({{"knapp.phi", ch},});
+    auto ih = [this](ComputeDevice *dev) { this->accel_init_handler(dev); };
+    offload_init_handlers.insert({{"knapp.phi", ih},});
     #endif
 
     num_tx_ports = 0;
@@ -173,10 +184,9 @@ size_t LookupIP6Route::get_desired_workgroup_size(const char *device_name) const
     return 256u;
 }
 
-#ifdef USE_CUDA
-void LookupIP6Route::cuda_compute_handler(ComputeDevice *cdev,
-                                          ComputeContext *cctx,
-                                          struct resource_param *res)
+void LookupIP6Route::accel_compute_handler(ComputeDevice *cdev,
+                                           ComputeContext *cctx,
+                                           struct resource_param *res)
 {
     struct kernel_arg arg;
     void *ptr_args[2];
@@ -187,11 +197,16 @@ void LookupIP6Route::cuda_compute_handler(ComputeDevice *cdev,
     arg = {&ptr_args[1], sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
     dev_kernel_t kern;
+#ifdef USE_CUDA
     kern.ptr = ipv6_route_lookup_get_cuda_kernel();
+#endif
+#ifdef USE_KNAPP
+    kern.ptr = (void *) (uintptr_t) knapp::ID_KERNEL_IPV6LOOKUP;
+#endif
     cctx->enqueue_kernel_launch(kern, res);
 }
 
-void LookupIP6Route::cuda_init_handler(ComputeDevice *device)
+void LookupIP6Route::accel_init_handler(ComputeDevice *device)
 {
     size_t *table_sizes;
     void **table_ptrs;
@@ -217,6 +232,7 @@ void LookupIP6Route::cuda_init_handler(ComputeDevice *device)
         size_t copy_size = sizeof(Item) * table_sizes[i] * 2;
         host_mem_t table_content_h;
         dev_mem_t table_content_d;
+        fprintf(stderr, "ipv6 table alloc [%d]\n", i);
         table_content_h = device->alloc_host_buffer(copy_size, 0);
         table_content_d = device->alloc_device_buffer(copy_size, 0, table_content_h);
         table_ptrs[i] = device->unwrap_device_buffer(table_content_d);
@@ -227,6 +243,5 @@ void LookupIP6Route::cuda_init_handler(ComputeDevice *device)
     device->memwrite(table_sizes_h, *d_table_sizes, 0, sizeof(size_t) * 128);
 
 }
-#endif
 
 // vim: ts=8 sts=4 sw=4 et

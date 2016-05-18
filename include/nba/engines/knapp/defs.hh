@@ -15,7 +15,7 @@
 // 4bits: iobase_id (==task_id)
 // 1bit:  input or output
 #define KNAPP_VDEV_MAX_RMABUFFERS (32)
-#define KNAPP_GLOBAL_MAX_RMABUFFERS (64)
+#define KNAPP_GLOBAL_MAX_RMABUFFERS (256)
 
 /* Hardware limits. */
 #define KNAPP_THREADS_LIMIT (240)
@@ -58,18 +58,19 @@ const uint32_t BUFFER_TASK_PARAMS = 0x80000001u;
 const uint32_t BUFFER_D2H_PARAMS = 0x80000002u;
 
 /* Buffer ID = 4 bits task ID + 1 bit direction (input or output) */
-constexpr uint32_t BUFFER_GLOBAL_FLAG    = 0x20u;
-constexpr uint32_t BUFFER_TASKID_MASK    = 0x1eu;
+constexpr uint32_t BUFFER_GLOBAL_FLAG    = 0x200u;
+constexpr uint32_t BUFFER_GLOBAL_MASK    = 0x1feu;
+constexpr uint32_t BUFFER_TASKID_MASK    = 0x01eu;
 constexpr uint32_t BUFFER_TASKID_SHIFT   = 1u;
-constexpr uint32_t BUFFER_DIRECTION_MASK = 0x01u;
+constexpr uint32_t BUFFER_DIRECTION_MASK = 0x001u;
 
-static_assert((BUFFER_GLOBAL_FLAG | BUFFER_TASKID_MASK | BUFFER_DIRECTION_MASK) <= KNAPP_GLOBAL_MAX_RMABUFFERS,
+static_assert((BUFFER_GLOBAL_MASK >> BUFFER_DIRECTION_MASK) <= KNAPP_GLOBAL_MAX_RMABUFFERS,
         "KNAPP_GLOBAL_MAX_RMABUFFERS cannot represent all possible buffer IDs.");
 
 constexpr uint32_t compose_buffer_id(bool is_global, uint32_t task_id, rma_direction dir)
 {
     return (is_global ? BUFFER_GLOBAL_FLAG : 0u)
-           | ((task_id << BUFFER_TASKID_SHIFT) & BUFFER_TASKID_MASK)
+           | ((task_id << BUFFER_TASKID_SHIFT) & (is_global ? BUFFER_GLOBAL_MASK : BUFFER_TASKID_MASK))
            | static_cast<uint32_t>(dir);
 }
 
@@ -83,6 +84,11 @@ constexpr uint32_t to_task_id(uint32_t buffer_id)
     return (buffer_id & BUFFER_TASKID_MASK) >> BUFFER_TASKID_SHIFT;
 }
 
+constexpr uint32_t to_global_idx(uint32_t buffer_id)
+{
+    return (buffer_id & BUFFER_GLOBAL_MASK) >> BUFFER_TASKID_SHIFT;
+}
+
 constexpr rma_direction to_direction(uint32_t buffer_id)
 {
     return static_cast<rma_direction>(buffer_id & BUFFER_DIRECTION_MASK);
@@ -92,9 +98,14 @@ const inline std::tuple<bool, uint32_t, rma_direction>
 decompose_buffer_id(uint32_t buffer_id)
 {
     bool is_global    = is_global_buffer(buffer_id);
-    uint32_t task_id  = to_task_id(buffer_id);
+    uint32_t idx;
+    if (is_global) {
+        idx = to_global_idx(buffer_id);
+    } else {
+        idx = to_task_id(buffer_id);
+    }
     rma_direction dir = to_direction(buffer_id);
-    return std::make_tuple(is_global, task_id, dir);
+    return std::make_tuple(is_global, idx, dir);
 }
 
 }} // endns(nba::knapp)

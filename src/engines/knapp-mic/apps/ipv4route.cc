@@ -9,6 +9,8 @@
 
 namespace nba { namespace knapp {
 
+extern worker_func_t worker_funcs[];
+
 static void ipv4_route_lookup(
         uint32_t begin_idx,
         uint32_t end_idx,
@@ -31,8 +33,8 @@ static void nba::knapp::ipv4_route_lookup (
         size_t num_args,
         void **args)
 {
-    struct datablock_kernel_arg *db_dest_addrs = datablocks[0];
-    struct datablock_kernel_arg *db_results    = datablocks[1];
+    struct datablock_kernel_arg *db_daddrs  = datablocks[0];
+    struct datablock_kernel_arg *db_results = datablocks[1];
     uint16_t *TBL24   = static_cast<uint16_t *>(args[0]);
     uint16_t *TBLlong = static_cast<uint16_t *>(args[1]);
 
@@ -46,8 +48,12 @@ static void nba::knapp::ipv4_route_lookup (
             item_idx = 0;
         }
 
-        uint32_t daddr = (static_cast<uint32_t*>(db_dest_addrs->batches[batch_idx].buffer_bases))[item_idx];
-        uint16_t &lookup_result = (static_cast<uint16_t*>(db_results->batches[batch_idx].buffer_bases))[item_idx];
+        void *dbase = db_daddrs->batches[batch_idx].buffer_bases;
+        void *rbase = db_results->batches[batch_idx].buffer_bases;
+        uint32_t daddr
+                = (static_cast<uint32_t*>(dbase))[item_idx];
+        uint16_t &lookup_result
+                = (static_cast<uint16_t*>(rbase))[item_idx];
         lookup_result = 0xffff;
         uint32_t ip = ntohl(daddr);
         uint16_t temp_dest = TBL24[ip >> 8];

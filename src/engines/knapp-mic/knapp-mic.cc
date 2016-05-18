@@ -254,15 +254,15 @@ static bool nba::knapp::create_rma(
 }
 
 static bool nba::knapp::create_rma(
-        scif_epd_t ctrl_epd, uint32_t buffer_id,
+        scif_epd_t ctrl_epd, uint32_t global_idx,
         size_t size, off_t peer_ra)
 {
     RMABuffer *b = new RMABuffer(ctrl_epd, size);
     log_info("Creating global RMABuffer[%d] "
              "(size %'u bytes, ra %p, peer_ra %p).\n",
-             buffer_id, size, b->ra(), peer_ra);
-    assert(nullptr == global_rma_buffers[buffer_id]);
-    global_rma_buffers[buffer_id] = b;
+             global_idx, size, b->ra(), peer_ra);
+    assert(nullptr == global_rma_buffers[global_idx]);
+    global_rma_buffers[global_idx] = b;
     b->set_peer_ra(peer_ra);
     return true;
 }
@@ -271,9 +271,11 @@ static bool nba::knapp::destroy_rma(
         struct vdevice *vdev, uint32_t buffer_id)
 {
     if (vdev == nullptr) {
-        delete global_rma_buffers[buffer_id];
-        global_rma_buffers[buffer_id] = nullptr;
-        log_info("Deleted global RMABuffer[%u].\n", buffer_id);
+        uint32_t global_idx;
+        tie(std::ignore, global_idx, std::ignore) = decompose_buffer_id(buffer_id);
+        delete global_rma_buffers[global_idx];
+        global_rma_buffers[global_idx] = nullptr;
+        log_info("Deleted global RMABuffer[%u].\n", global_idx);
     } else {
         delete vdev->rma_buffers[buffer_id];
         vdev->rma_buffers[buffer_id] = nullptr;
@@ -641,16 +643,17 @@ static void *nba::knapp::control_thread_loop(void *arg)
                 if (request.has_rma()) {
                     struct vdevice *vdev = (struct vdevice *) request.rma().vdev_handle();
                     uint32_t buffer_id = request.rma().buffer_id();
+                    uint32_t global_idx;
                     bool is_global;
                     rma_direction dir;
-                    std::tie(is_global, std::ignore, dir) = decompose_buffer_id(buffer_id);
+                    std::tie(is_global, global_idx, dir) = decompose_buffer_id(buffer_id);
                     if (vdev == nullptr) {
                         assert(is_global);
                         assert(dir == INPUT);
-                        if (create_rma(ctrl_epd, buffer_id, request.rma().size(),
+                        if (create_rma(ctrl_epd, global_idx, request.rma().size(),
                                        request.rma().local_ra())) {
-                            resp.mutable_resource()->set_peer_ra(static_cast<uint64_t>(global_rma_buffers[buffer_id]->ra()));
-                            resp.mutable_resource()->set_peer_va(static_cast<uint64_t>(global_rma_buffers[buffer_id]->va()));
+                            resp.mutable_resource()->set_peer_ra(static_cast<uint64_t>(global_rma_buffers[global_idx]->ra()));
+                            resp.mutable_resource()->set_peer_va(static_cast<uint64_t>(global_rma_buffers[global_idx]->va()));
                             resp.set_reply(CtrlResponse::SUCCESS);
                         } else
                             resp.set_reply(CtrlResponse::FAILURE);
