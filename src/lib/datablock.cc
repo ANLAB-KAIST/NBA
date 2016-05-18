@@ -87,7 +87,7 @@ tuple<size_t, size_t> DataBlock::calc_read_buffer_size(PacketBatch *batch)
                                        + read_roi.length + read_roi.size_delta;
                 unsigned aligned_len = RTE_ALIGN_CEIL(exact_len, align);
                 t->aligned_item_sizes->offsets[pkt_idx] = read_buffer_size;
-                t->aligned_item_sizes->sizes[pkt_idx]   = aligned_len;
+                t->aligned_item_sizes->sizes[pkt_idx]   = exact_len;
                 read_buffer_size += aligned_len;
             #if (NBA_BATCHING_SCHEME == NBA_BATCHING_TRADITIONAL) \
                 || (NBA_BATCHING_SCHEME == NBA_BATCHING_BITVECTOR)
