@@ -2,6 +2,9 @@
 #ifdef USE_CUDA
 #include "IPsecAuthHMACSHA1_kernel.hh"
 #endif
+#ifdef USE_KNAPP
+#include <nba/engines/knapp/kernels.hh>
+#endif
 #include <nba/element/annotation.hh>
 #include <nba/element/nodelocalstorage.hh>
 #include <nba/framework/threadcontext.hh>
@@ -31,11 +34,19 @@ IPsecAuthHMACSHA1::IPsecAuthHMACSHA1(): OffloadableElement()
 {
     #ifdef USE_CUDA
     auto ch = [this](ComputeDevice *cdev, ComputeContext *ctx, struct resource_param *res) {
-        this->cuda_compute_handler(cdev, ctx, res);
+        this->accel_compute_handler(cdev, ctx, res);
     };
     offload_compute_handlers.insert({{"cuda", ch},});
-    auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
+    auto ih = [this](ComputeDevice *dev) { this->accel_init_handler(dev); };
     offload_init_handlers.insert({{"cuda", ih},});
+    #endif
+    #ifdef USE_KNAPP
+    auto ch = [this](ComputeDevice *cdev, ComputeContext *ctx, struct resource_param *res) {
+        this->accel_compute_handler(cdev, ctx, res);
+    };
+    offload_compute_handlers.insert({{"knapp.phi", ch},});
+    auto ih = [this](ComputeDevice *dev) { this->accel_init_handler(dev); };
+    offload_init_handlers.insert({{"knapp.phi", ih},});
     #endif
 
     num_tunnels = 0;
@@ -50,10 +61,10 @@ int IPsecAuthHMACSHA1::initialize()
     h_sa_table = (unordered_map<struct ipaddr_pair, int> *)ctx->node_local_storage->get_alloc("h_hmac_sa_table");
 
     /* Storage for host hmac key array */
-    h_flows = (struct hmac_sa_entry *) ctx->node_local_storage->get_alloc("h_hmac_flows");
+    flows = (struct hmac_sa_entry *) ctx->node_local_storage->get_alloc("h_hmac_flows");
 
     /* Get device pointer from the node local storage. */
-    d_flows_ptr = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_hmac_flows_ptr");
+    flows_d = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_hmac_flows_ptr");
 
     if (hmac_sa_entry_array != NULL) {
         free(hmac_sa_entry_array);
@@ -153,7 +164,7 @@ int IPsecAuthHMACSHA1::process(int input_port, Packet *pkt)
 
     uint8_t *hmac_key;
     if (likely(anno_isset(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID))) {
-        sa_entry = &h_flows[anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)];
+        sa_entry = &flows[anno_get(&pkt->anno, NBA_ANNO_IPSEC_FLOW_ID)];
         hmac_key = sa_entry->hmac_key;
 
         rte_memcpy(hmac_buf + 64, payload_out, payload_len);
@@ -175,36 +186,38 @@ int IPsecAuthHMACSHA1::process(int input_port, Packet *pkt)
     return 0;
 }
 
-#ifdef USE_CUDA
-void IPsecAuthHMACSHA1::cuda_init_handler(ComputeDevice *device)
+void IPsecAuthHMACSHA1::accel_init_handler(ComputeDevice *device)
 {
     // Put key array content to device space.
     size_t flows_size = sizeof(struct hmac_sa_entry) * num_tunnels;
-    h_flows = (struct hmac_sa_entry *) ctx->node_local_storage->get_alloc("h_hmac_flows");
-    host_mem_t unused = { nullptr };
-    dev_mem_t flows_in_device = device->alloc_device_buffer(flows_size, 0, unused);
-    device->memwrite({ h_flows }, flows_in_device, 0, flows_size);
-
-    // Store the device pointer for per-thread instances.
-    dev_mem_t *p = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_hmac_flows_ptr");
-    *p = flows_in_device;
+    flows = (struct hmac_sa_entry *) ctx->node_local_storage->get_alloc("h_hmac_flows");
+    flows_d  = (dev_mem_t *) ctx->node_local_storage->get_alloc("d_hmac_flows_ptr");
+    host_mem_t flows_h;
+    flows_h  = device->alloc_host_buffer(flows_size, 0);
+    *flows_d = device->alloc_device_buffer(flows_size, 0, flows_h);
+    memcpy(device->unwrap_host_buffer(flows_h), flows, flows_size);
+    device->memwrite(flows_h, *flows_d, 0, flows_size);
 }
 
-void IPsecAuthHMACSHA1::cuda_compute_handler(ComputeDevice *cdev,
-                                             ComputeContext *cctx,
-                                             struct resource_param *res)
+void IPsecAuthHMACSHA1::accel_compute_handler(ComputeDevice *cdev,
+                                              ComputeContext *cctx,
+                                              struct resource_param *res)
 {
     struct kernel_arg arg;
     void *ptr_args[1];
-    ptr_args[0] = cdev->unwrap_device_buffer(*d_flows_ptr);
+    ptr_args[0] = cdev->unwrap_device_buffer(*flows_d);
     arg = {&ptr_args[0], sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
 
     dev_kernel_t kern;
+#ifdef USE_CUDA
     kern.ptr = ipsec_hsha1_encryption_get_cuda_kernel();
+#endif
+#ifdef USE_KNAPP
+    kern.ptr = (void *) (uintptr_t) knapp::ID_KERNEL_IPSEC_HMACSHA1;
+#endif
     cctx->enqueue_kernel_launch(kern, res);
 }
-#endif
 
 size_t IPsecAuthHMACSHA1::get_desired_workgroup_size(const char *device_name) const
 {

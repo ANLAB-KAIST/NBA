@@ -9,7 +9,6 @@
 #include "../../../../elements/ipsec/util_sa_entry.hh"
 #include <cstdio>
 #include <cassert>
-#include <arpa/inet.h>
 
 namespace nba { namespace knapp {
 
@@ -706,10 +705,11 @@ static void nba::knapp::ipsec_aes(
         size_t num_args,
         void **args)
 {
-    struct datablock_kernel_arg *db_daddrs  = datablocks[0];
-    struct datablock_kernel_arg *db_results = datablocks[1];
-    uint16_t *TBL24   = static_cast<uint16_t *>(args[0]);
-    uint16_t *TBLlong = static_cast<uint16_t *>(args[1]);
+    const struct datablock_kernel_arg *db_enc_payloads    = datablocks[dbid_enc_payloads_d];
+    const struct datablock_kernel_arg *const db_flow_ids        = datablocks[dbid_flow_ids_d];
+    const struct datablock_kernel_arg *const db_iv              = datablocks[dbid_iv_d];
+    const struct datablock_kernel_arg *const db_aes_block_info  = datablocks[dbid_aes_block_info_d];
+    struct aes_sa_entry *flows = static_cast<struct aes_sa_entry *>(args[0]);
 
     uint32_t batch_idx, item_idx;
     nba::get_accum_idx(item_counts, num_batches,
@@ -721,12 +721,7 @@ static void nba::knapp::ipsec_aes(
             item_idx = 0;
         }
 
-        const struct datablock_kernel_arg *db_enc_payloads    = datablocks[dbid_enc_payloads_d];
-        const struct datablock_kernel_arg *const db_flow_ids        = datablocks[dbid_flow_ids_d];
-        const struct datablock_kernel_arg *const db_iv              = datablocks[dbid_iv_d];
-        const struct datablock_kernel_arg *const db_aes_block_info  = datablocks[dbid_aes_block_info_d];
         assert(item_idx < db_aes_block_info->batches[batch_idx].item_count);
-        struct aes_sa_entry *flows = static_cast<struct aes_sa_entry *>(args[0]);
 
         uint64_t flow_id = 65536;
         const struct aes_block_info &cur_block_info = ((struct aes_block_info *)
@@ -753,7 +748,7 @@ static void nba::knapp::ipsec_aes(
             const uint8_t *enc_payload = ((uint8_t *) db_enc_payloads->batches[batch_idx].buffer_bases) + offset;
             uint4 ecounter = {0,0,0,0};
 
-            assert(enc_payload != NULL);
+            assert(enc_payload != nullptr);
 
             /* Step 3: Update the IV counters. */
             AES_ctr128_inc(iv, block_idx_local);
@@ -785,3 +780,4 @@ void __attribute__((constructor, used)) ipsec_aes_register()
     worker_funcs[ID_KERNEL_IPSEC_AES] = ipsec_aes;
 }
 
+// vim: ts=8 sts=4 sw=4 et
