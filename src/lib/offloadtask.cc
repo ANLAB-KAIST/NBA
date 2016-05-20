@@ -36,6 +36,7 @@ OffloadTask::OffloadTask()
     completion_queue   = nullptr;
     cctx = nullptr;
     io_base = INVALID_IO_BASE;
+    task_id = INVALID_TASK_ID;
     offload_start = 0;
     num_pkts = 0;
     num_bytes = 0;
@@ -49,6 +50,7 @@ OffloadTask::~OffloadTask()
 {
 }
 
+//#define DEBUG_OFFLOAD
 #ifdef DEBUG_OFFLOAD
 #define _debug_print_inb(tag, batch, dbid) { \
     size_t end = cctx->get_input_size(io_base); \
@@ -77,13 +79,13 @@ OffloadTask::~OffloadTask()
 
 void OffloadTask::prepare_read_buffer()
 {
-    // write: host-to-device input
-    // read: device-to-host output
     input_begin  = cctx->get_input_size(io_base);
     output_begin = cctx->get_output_size(io_base);
     _debug_print_inb("at-beginning", nullptr, 0);
     _debug_print_outb("at-beginning", nullptr, 0);
 
+    // write: host-to-device input
+    // read: device-to-host output
     for (int dbid : datablocks) {
         if (elemgraph->check_preproc(elem, dbid)) {
             DataBlock *db = comp_ctx->datablock_registry[dbid];
@@ -120,7 +122,9 @@ void OffloadTask::prepare_read_buffer()
     for (int dbid : datablocks) {
         if (elemgraph->check_preproc(elem, dbid)) {
             DataBlock *db = comp_ctx->datablock_registry[dbid];
+            struct write_roi_info wri;
             struct read_roi_info rri;
+            db->get_write_roi(&wri);
             db->get_read_roi(&rri);
             if (rri.type == READ_NONE) {
                 for (PacketBatch *batch : batches) {
@@ -129,15 +133,33 @@ void OffloadTask::prepare_read_buffer()
                     t->in_count = 0;
                 }
             } else {
-                for (PacketBatch *batch : batches) {
-                    struct datablock_tracker *t = &batch->datablock_states[dbid];
-                    tie(t->in_size, t->in_count) = db->calc_read_buffer_size(batch);
-                    // Now aligned_item_sizes has valid values.
-                    if (t->in_size > 0 && t->in_count > 0) {
-                        cctx->alloc_input_buffer(io_base, t->in_size,
-                                                 t->host_in_ptr, t->dev_in_ptr);
-                        void *inp = cctx->unwrap_host_buffer(t->host_in_ptr);
-                        db->preprocess(batch, inp);
+                if (rri.type == READ_WHOLE_PACKET) {
+                    size_t shift = cctx->get_input_size(io_base) - input_begin;
+                    cctx->shift_inout_base(io_base, shift);
+                    inout_begin = shift;
+                    for (PacketBatch *batch : batches) {
+                        struct datablock_tracker *t = &batch->datablock_states[dbid];
+                        tie(t->in_size, t->in_count) = db->calc_read_buffer_size(batch);
+                        if (t->in_size > 0 && t->in_count > 0) {
+                            cctx->alloc_inout_buffer(io_base, t->in_size,
+                                                     t->host_in_ptr,
+                                                     t->dev_in_ptr);
+                            void *inp = cctx->unwrap_host_buffer(t->host_in_ptr);
+                            db->preprocess(batch, inp);
+                        }
+                    }
+                } else {
+                    for (PacketBatch *batch : batches) {
+                        struct datablock_tracker *t = &batch->datablock_states[dbid];
+                        tie(t->in_size, t->in_count) = db->calc_read_buffer_size(batch);
+                        // Now aligned_item_sizes has valid values.
+                        if (t->in_size > 0 && t->in_count > 0) {
+                            cctx->alloc_input_buffer(io_base, t->in_size,
+                                                     t->host_in_ptr,
+                                                     t->dev_in_ptr);
+                            void *inp = cctx->unwrap_host_buffer(t->host_in_ptr);
+                            db->preprocess(batch, inp);
+                        }
                     }
                 }
                 _debug_print_inb("prepare_read_buffer.preproc", nullptr, dbid);
@@ -162,16 +184,16 @@ void OffloadTask::prepare_write_buffer()
                     t->out_count = 0;
                 }
             } else {
-                //if (rri.type == READ_WHOLE_PACKET && wri.type == WRITE_WHOLE_PACKET) {
-                //    for (PacketBatch *batch : batches) {
-                //        struct datablock_tracker *t = &batch->datablock_states[dbid];
-                //        /* Reuse read_roi currently. Do NOT update size & count here! */
-                //        t->out_size  = t->in_size;
-                //        t->out_count = t->in_count;
-                //        t->host_out_ptr = t->host_in_ptr;
-                //        t->dev_out_ptr  = t->dev_in_ptr;
-                //    }
-                //} else {
+                if (rri.type == READ_WHOLE_PACKET && wri.type == WRITE_WHOLE_PACKET) {
+                    // reuse inout buffer.
+                    for (PacketBatch *batch : batches) {
+                        struct datablock_tracker *t = &batch->datablock_states[dbid];
+                        t->out_size  = t->in_size;
+                        t->out_count = t->in_count;
+                        t->host_out_ptr = t->host_in_ptr;
+                        t->dev_out_ptr  = t->dev_in_ptr;
+                    }
+                } else {
                     for (PacketBatch *batch : batches) {
                         struct datablock_tracker *t = &batch->datablock_states[dbid];
                         tie(t->out_size, t->out_count) = db->calc_write_buffer_size(batch);
@@ -182,7 +204,7 @@ void OffloadTask::prepare_write_buffer()
                         }
                     }
                     _debug_print_outb("prepare_write_buffer", nullptr, dbid);
-                //} /* endif(rri.type, wri.type) */
+                } /* endif(rri.type, wri.type) */
             } /* endif(wri.type) */
         } /* endif(check_preproc) */
     } /* endfor(dbid) */
@@ -295,7 +317,7 @@ void OffloadTask::execute()
         _debug_print_inb("execute.item_counts", nullptr, 0);
         uint32_t *item_counts = (uint32_t *) cctx->unwrap_host_buffer(item_counts_h);
         uint32_t num_batches = batches.size();
-        res.task_id = static_cast<uint32_t>(io_base);
+        res.task_id = task_id;
         res.num_workitems = all_item_count;
         res.num_threads_per_workgroup = elem->get_desired_workgroup_size(cctx->type_name.c_str());
         res.num_workgroups = (all_item_count + res.num_threads_per_workgroup - 1)
@@ -310,9 +332,10 @@ void OffloadTask::execute()
         // ipsec@64B: ~ 5M
         host_mem_t host_input;
         dev_mem_t dev_input;
-        cctx->map_input_buffer(io_base, input_begin, total_input_size,
-                               host_input, dev_input);
-        cctx->enqueue_memwrite_op(host_input, dev_input, 0, total_input_size);
+        cctx->map_input_buffer(io_base, 0, 0 /*ignored*/, host_input, dev_input);
+        cctx->enqueue_memwrite_op(task_id, host_input, dev_input,
+                                  input_begin, total_input_size);
+        cctx->h2d_done(task_id);
 
         cctx->clear_kernel_args();
 
@@ -360,12 +383,32 @@ bool OffloadTask::copy_d2h()
     state = TASK_D2H_COPYING;
 
     /* Coalesced D2H data copy. */
-    size_t total_output_size = cctx->get_output_size(io_base) - output_begin;
-    host_mem_t host_output;
-    dev_mem_t dev_output;
-    cctx->map_output_buffer(io_base, output_begin, total_output_size,
-                            host_output, dev_output);
-    cctx->enqueue_memread_op(host_output, dev_output, 0, total_output_size);
+    bool has_output = false;
+    for (int dbid : datablocks) {
+        if (elemgraph->check_postproc(elem, dbid)) {
+            DataBlock *db = comp_ctx->datablock_registry[dbid];
+            struct write_roi_info wri;
+            db->get_write_roi(&wri);
+            if (wri.type != WRITE_NONE) {
+                has_output = true;
+                break;
+            }
+        }
+    }
+    if (has_output) {
+        host_mem_t hbuf;
+        dev_mem_t dbuf;
+
+        size_t total_inout_size = cctx->get_inout_size(io_base);
+        cctx->map_inout_buffer(io_base, 0, 0, hbuf, dbuf);
+        cctx->enqueue_memread_op(task_id, hbuf, dbuf,
+                                 inout_begin, total_inout_size);
+        size_t total_output_size = cctx->get_output_size(io_base) - output_begin;
+        cctx->map_output_buffer(io_base, 0, 0 /*ignored*/, hbuf, dbuf);
+        cctx->enqueue_memread_op(task_id, hbuf, dbuf,
+                                 output_begin, total_output_size);
+    }
+    cctx->d2h_done(task_id);
     return true;
 }
 
@@ -392,8 +435,6 @@ void OffloadTask::postprocess()
     for (int dbid : datablocks) {
         if (elemgraph->check_postproc(elem, dbid)) {
             DataBlock *db = comp_ctx->datablock_registry[dbid];
-            struct write_roi_info wri;
-            db->get_write_roi(&wri);
             for (auto&& pair : enumerate(batches)) {
                 PacketBatch *batch = pair.second;
                 struct datablock_tracker *t = &batch->datablock_states[dbid];

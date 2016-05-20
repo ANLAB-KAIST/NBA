@@ -1,8 +1,12 @@
 #ifndef __NBA_IPSEC_SA_ENTRY_HH__
 #define __NBA_IPSEC_SA_ENTRY_HH__
 
+#ifdef __MIC__
+#include <nba/engines/knapp/openssl-compat.hh>
+#else
 #include <openssl/aes.h>
 #include <openssl/evp.h>
+#endif
 
 #ifdef AES_BLOCK_SIZE
 #undef AES_BLOCK_SIZE

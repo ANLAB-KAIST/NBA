@@ -13,6 +13,8 @@
 
 namespace nba { namespace knapp {
 
+#define NBA_KNAPP_MAX_D2HCOPIES 8
+
 struct taskitem {
     uint32_t task_id;
     uint32_t num_items;
@@ -22,9 +24,10 @@ struct taskitem {
 } __cache_aligned;
 
 struct d2hcopy {
-    uint32_t buffer_id;
-    uint32_t offset;
-    uint32_t size;
+    uint16_t num_copies;
+    uint32_t buffer_id[NBA_KNAPP_MAX_D2HCOPIES];
+    uint32_t offset[NBA_KNAPP_MAX_D2HCOPIES];
+    uint32_t size[NBA_KNAPP_MAX_D2HCOPIES];
 } __cache_aligned;
 
 }} // endns(nba::knapp)

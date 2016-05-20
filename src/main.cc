@@ -37,8 +37,6 @@
 #include <nba/engines/phi/computedevice.hh>
 #include <nba/engines/phi/computecontext.hh>
 #endif
-#include <nba/engines/dummy/computedevice.hh>
-#include <nba/engines/dummy/computecontext.hh>
 
 #include <set>
 #include <string>
@@ -146,7 +144,6 @@ int main(int argc, char **argv)
     rte_set_application_usage_hook([] (const char *prgname) {
         printf("Usage: %s [EAL options] -- [-l LEVEL] ... <system-config-path> <pipeline-config-path>\n\n", prgname);
         printf("NBA options:\n");
-        printf("  --dummy-device             : Use dummy offloading devices. (default: false)\n");
         printf("  -l, --loglevel=[LEVEL]     : The log level to control output verbosity.\n"
                "                               The default is \"info\".  Available values are:\n"
                "                               debug, info, notice, warning, error, critical, alert, emergency.\n");
@@ -161,13 +158,11 @@ int main(int argc, char **argv)
     argv += ret;
 
     /* Parse command-line arguments. */
-    dummy_device = false;
     bool preserve_latency = false;
     char *system_config = new char[PATH_MAX];
     char *pipeline_config = new char[PATH_MAX];
 
     struct option long_opts[] = {
-        {"dummy-device", no_argument, NULL, 0},
         {"preserve-latency", no_argument, NULL, 0},
         {"loglevel", required_argument, NULL, 'l'},
         {0, 0, 0, 0}
@@ -179,9 +174,7 @@ int main(int argc, char **argv)
         switch (c) {
         case 0:
             /* Process {long_opts[optidx].name}:{optarg} kv pairs. */
-            if (!strcmp("dummy-device", long_opts[optidx].name)) {
-                dummy_device = true;
-            } else if (!strcmp("preserve-latency", long_opts[optidx].name)) {
+            if (!strcmp("preserve-latency", long_opts[optidx].name)) {
                 preserve_latency = true;
             }
             break;
@@ -579,27 +572,21 @@ int main(int argc, char **argv)
              * classes and malloc should use the subclass' size! */
             // TODO: (generalization) apply factory pattern for arbitrary device.
             ctx->device = nullptr;
-            if (dummy_device) {
-                ctx->device = (ComputeDevice *) rte_malloc_socket(nullptr,
-                        sizeof(DummyComputeDevice),
-                        CACHE_LINE_SIZE, ctx->loc.node_id);
-            } else {
-                #ifdef USE_CUDA
-                ctx->device = (ComputeDevice *) rte_malloc_socket(nullptr,
-                        sizeof(CUDAComputeDevice),
-                        CACHE_LINE_SIZE, ctx->loc.node_id);
-                #endif
-                #ifdef USE_KNAPP
-                ctx->device = (ComputeDevice *) rte_malloc_socket(nullptr,
-                        sizeof(KnappComputeDevice),
-                        CACHE_LINE_SIZE, ctx->loc.node_id);
-                #endif
-                #ifdef USE_PHI
-                ctx->device = (ComputeDevice *) rte_malloc_socket(nullptr,
-                        sizeof(PhiComputeDevice),
-                        CACHE_LINE_SIZE, ctx->loc.node_id);
-                #endif
-            }
+            #ifdef USE_CUDA
+            ctx->device = (ComputeDevice *) rte_malloc_socket(nullptr,
+                    sizeof(CUDAComputeDevice),
+                    CACHE_LINE_SIZE, ctx->loc.node_id);
+            #endif
+            #ifdef USE_KNAPP
+            ctx->device = (ComputeDevice *) rte_malloc_socket(nullptr,
+                    sizeof(KnappComputeDevice),
+                    CACHE_LINE_SIZE, ctx->loc.node_id);
+            #endif
+            #ifdef USE_PHI
+            ctx->device = (ComputeDevice *) rte_malloc_socket(nullptr,
+                    sizeof(PhiComputeDevice),
+                    CACHE_LINE_SIZE, ctx->loc.node_id);
+            #endif
             assert(ctx->device != nullptr);
 
             queue_privs[conf.taskinq_idx] = ctx;

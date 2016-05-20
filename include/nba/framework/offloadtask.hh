@@ -73,6 +73,7 @@ public:
     coproc_thread_context *coproc_ctx;
     ComputeContext *cctx;
     io_base_t io_base;
+    uint32_t task_id;
     ElementGraph *elemgraph;
     FixedArray<PacketBatch*, NBA_MAX_COPROC_PPDEPTH> batches;
     FixedArray<int, NBA_MAX_COPROC_PPDEPTH> input_ports;
@@ -85,13 +86,13 @@ public:
     struct ev_async *completion_watcher __cache_aligned;
     struct rte_ring *completion_queue __cache_aligned;
 
-    uint64_t task_id; // for deubgging
 private:
     friend class OffloadableElement;
 
     bool kernel_skipped;
 
     size_t input_begin;
+    size_t inout_begin;
     size_t output_begin;
 
     size_t last_input_size;   // for debugging

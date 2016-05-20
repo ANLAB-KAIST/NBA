@@ -33,7 +33,10 @@ public:
     dev_mem_t get_base_ptr() const
     {
         dev_mem_t ret;
-        ret.m = { _buffer_id, base };
+        ret.m = {
+            _buffer_id,
+            (void *) ((uintptr_t) base + shifts)
+        };
         return ret;
     }
 
@@ -44,7 +47,7 @@ public:
         if (ret == 0) {
             dbuf.m = {
                 _buffer_id,
-                (void *) ((uintptr_t) base + offset)
+                (void *) ((uintptr_t) base + shifts + offset)
             };
         }
         return ret;
@@ -89,7 +92,10 @@ public:
     host_mem_t get_base_ptr() const
     {
         host_mem_t ret;
-        ret.m = { _buffer_id, base };
+        ret.m = {
+            _buffer_id,
+            (void *) ((uintptr_t) base + shifts)
+        };
         return ret;
     }
 
@@ -100,7 +106,7 @@ public:
         if (ret == 0) {
             hbuf.m = {
                 _buffer_id,
-                (void *) ((uintptr_t) base + offset)
+                (void *) ((uintptr_t) base + shifts + offset)
             };
         }
         return ret;

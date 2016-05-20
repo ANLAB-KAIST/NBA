@@ -11,6 +11,7 @@
 #include <nba/engines/knapp/kernels.hh>
 #include "apps/ipv4route.hh"
 #include <nba/core/enumerate.hh>
+#include <nba/framework/datablock_shared.hh>
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -20,6 +21,7 @@
 #include <vector>
 #include <unordered_set>
 #include <map>
+#include <algorithm>
 #include <unistd.h>
 #include <poll.h>
 #include <signal.h>
@@ -320,7 +322,7 @@ static void *nba::knapp::worker_thread_loop(void *arg)
 
                 /* init latency/stat measurement */
 
-                vdev->poll_rings[0]->notify(task_id, KNAPP_COPY_PENDING);
+                //vdev->poll_rings[0]->notify(task_id, KNAPP_COPY_PENDING);
 
                 w.data_ready_barrier->here(0);
                 vdev->next_task_id = (task_id + 1) % vdev->poll_rings[0]->len();
@@ -350,9 +352,13 @@ static void *nba::knapp::worker_thread_loop(void *arg)
 
                 /* finalize latency/stat measurement */
                 struct d2hcopy &c = reinterpret_cast<struct d2hcopy *>(vdev->d2h_params->va())[task_id];
-                RMABuffer *b = vdev->rma_buffers[c.buffer_id];
-                assert(nullptr != b);
-                b->write(c.offset, c.size, false);
+                for (unsigned j = 0; j < c.num_copies; j++) {
+                    RMABuffer *b = vdev->rma_buffers[c.buffer_id[j]];
+                    assert(nullptr != b);
+                    if (c.size[j] > 0) {
+                        b->write(c.offset[j], c.size[j], false);
+                    }
+                }
 
                 vdev->poll_rings[0]->remote_notify(task_id, KNAPP_D2H_COMPLETE);
             }
@@ -471,12 +477,12 @@ static void *nba::knapp::master_thread_loop(void *arg)
         }
 
         /* Split the input items for each worker thread. */
-        int32_t remaining = ti.num_items;
+        uint32_t remaining = ti.num_items;
         uint32_t max_num_items = (ti.num_items + vdev->num_worker_threads)
                                  / vdev->num_worker_threads;
         for (int i = 0; i < vdev->num_worker_threads; i++) {
             struct work &w = vdev->per_thread_work_info[cur_task_id][i];
-            w.num_items = MIN(remaining, max_num_items);
+            w.num_items = std::min(remaining, max_num_items);
             w.begin_idx = remaining - w.num_items;
             w.num_args = ti.num_args;
             w.kernel_id = ti.kernel_id;

@@ -20,22 +20,15 @@ class Barrier
 {
 private:
     intptr_t nThreads;
-    uint64_t acc_us;
-    uint64_t acc_us_sq;
-    uint64_t ts;
     int stat_interval;
     int device_id;
-    int num_used;
-    int entry_count;
-    //bool is_first;
+
     volatile intptr_t c1 __cache_aligned;
-    //volatile intptr_t c2 __attribute__ ((aligned (64)));
 
 public:
     Barrier(int _nThreads, int _device_id, int _stat_interval) :
-            nThreads(_nThreads), c1(0), /*c2(0),*/ acc_us(0), acc_us_sq(0),
-            num_used(0), ts(0), stat_interval(_stat_interval),
-            device_id(_device_id), entry_count(0)
+            nThreads(_nThreads), c1(0),
+            device_id(_device_id)
     { }
 
     virtual ~Barrier()
@@ -49,7 +42,7 @@ public:
         return now.tv_sec * 1000000L + now.tv_nsec / 1000L;
     }
 
-    bool here(intptr_t iThread)
+    void here(intptr_t iThread)
     {
         uint32_t count = 0;
         if (iThread) {
@@ -57,40 +50,13 @@ public:
             while (c1) {
                 insert_pause();
             }
-            //if (count != KNAPP_SYNC_CYCLES) return true;
-            //while (c1 && count < KNAPP_SYNC_CYCLES) {
-            //    insert_pause();
-            //    count++;
-            //}
-            //if (count != KNAPP_SYNC_CYCLES) return true;
         } else {
             //ts = get_usec();
             while ((c1 + 1) != nThreads) {
                 insert_pause();
             }
-            //while ((c1 + 1) != nThreads && count < KNAPP_SYNC_CYCLES) {
-            //    insert_pause();
-            //    count++;
-            //}
-            //if (count != KNAPP_SYNC_CYCLES) return true;
             c1 = 0;
-            /*
-            uint64_t tdiff = get_usec() - ts;
-            num_used++;
-            acc_us += tdiff;
-            acc_us_sq += (tdiff * tdiff);
-            if ( num_used % stat_interval == 0 ) {
-                double mean_latency = acc_us / (double) num_used;
-                double mean_latency_sq = acc_us_sq / (double) num_used;
-                double var = mean_latency_sq - (mean_latency * mean_latency);
-                fprintf(stderr, "vDevice %d: %dth barrier use (Mean sync latency at %.2lf us, var %.2lf)\n", device_id, num_used, mean_latency, var);
-                num_used = 0;
-                acc_us = 0;
-                acc_us_sq = 0;
-            }
-            */
         }
-        return true;
     }
 
 };
@@ -98,36 +64,23 @@ public:
 class Barrier
 {
 private:
-    pthread_spinlock_t lock;
-    intptr_t nThreads = 0;
-    volatile intptr_t c1;
+    pthread_barrier_t b;
+    int _num_threads;
 
 public:
-    Barrier(int _nThreads)
+    Barrier(int num_threads, int device_id, int interval) : _num_threads(num_threads)
     {
-        nThreads = _nThreads;
-        c1 = 0;
-        pthread_spin_init(&lock, PTHREAD_PROCESS_SHARED);
+        pthread_barrier_init(&b, nullptr, num_threads);
     }
 
-    bool here(intptr_t iThread)
+    virtual ~Barrier()
     {
-        if (iThread) {
-            while (c1)
-                insert_pause();
-            pthread_spin_lock(&lock);
-            __sync_add_and_fetch((volatile int64_t*)&c1, 1);
-            pthread_spin_unlock(&lock);
-        } else {
-            // (iThread==0)
-            while ((c1 + 1) != nThreads)
-                insert_pause();
-            // here when all other threads of team at barrier
-            pthread_spin_lock(&lock);
-            c1 = 0;
-            pthread_spin_unlock(&lock);
-        }
-        return false;
+        pthread_barrier_destroy(&b);
+    }
+
+    void here(int cur_thread)
+    {
+        pthread_barrier_wait(&b);
     }
 
 };

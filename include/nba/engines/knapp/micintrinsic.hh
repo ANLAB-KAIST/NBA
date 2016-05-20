@@ -27,9 +27,6 @@
 
 #define ALIGN_CEIL(x,a) (((x)+(a)-1)&~((a)-1))
 
-#define MAX(x,y) (((x) > (y)) ? (x) : (y))
-#define MIN(x,y) (((x) > (y)) ? (y) : (x))
-
 #define compiler_fence() __asm__ __volatile__ ("" : : : "memory")
 
 #define memzero(ptr, n) memset((ptr), 0, sizeof(decltype((ptr)[0])) * (n))
