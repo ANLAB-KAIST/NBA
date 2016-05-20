@@ -47,11 +47,11 @@ public:
                            host_mem_t &host_ptr, dev_mem_t &dev_ptr);
     int alloc_output_buffer(io_base_t io_base, size_t size,
                             host_mem_t &host_ptr, dev_mem_t &dev_ptr);
-    void map_input_buffer(io_base_t io_base, size_t offset, size_t len,
+    void get_input_buffer(io_base_t io_base,
                           host_mem_t &hbuf, dev_mem_t &dbuf) const;
-    void map_inout_buffer(io_base_t io_base, size_t offset, size_t len,
+    void get_inout_buffer(io_base_t io_base,
                           host_mem_t &hbuf, dev_mem_t &dbuf) const;
-    void map_output_buffer(io_base_t io_base, size_t offset, size_t len,
+    void get_output_buffer(io_base_t io_base,
                            host_mem_t &hbuf, dev_mem_t &dbuf) const;
     void *unwrap_host_buffer(const host_mem_t hbuf) const;
     void *unwrap_device_buffer(const dev_mem_t dbuf) const;
