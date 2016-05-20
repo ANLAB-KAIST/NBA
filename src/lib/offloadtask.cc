@@ -332,7 +332,7 @@ void OffloadTask::execute()
         // ipsec@64B: ~ 5M
         host_mem_t host_input;
         dev_mem_t dev_input;
-        cctx->map_input_buffer(io_base, 0, 0 /*ignored*/, host_input, dev_input);
+        cctx->get_input_buffer(io_base, host_input, dev_input);
         cctx->enqueue_memwrite_op(task_id, host_input, dev_input,
                                   input_begin, total_input_size);
         cctx->h2d_done(task_id);
@@ -400,11 +400,11 @@ bool OffloadTask::copy_d2h()
         dev_mem_t dbuf;
 
         size_t total_inout_size = cctx->get_inout_size(io_base);
-        cctx->map_inout_buffer(io_base, 0, 0, hbuf, dbuf);
+        cctx->get_inout_buffer(io_base, hbuf, dbuf);
         cctx->enqueue_memread_op(task_id, hbuf, dbuf,
                                  inout_begin, total_inout_size);
         size_t total_output_size = cctx->get_output_size(io_base) - output_begin;
-        cctx->map_output_buffer(io_base, 0, 0 /*ignored*/, hbuf, dbuf);
+        cctx->get_output_buffer(io_base, hbuf, dbuf);
         cctx->enqueue_memread_op(task_id, hbuf, dbuf,
                                  output_begin, total_output_size);
     }

@@ -273,49 +273,46 @@ int KnappComputeContext::alloc_output_buffer(io_base_t io_base, size_t size,
     return 0;
 }
 
-void KnappComputeContext::map_input_buffer(io_base_t io_base, size_t offset, size_t len,
-                                          host_mem_t &hbuf, dev_mem_t &dbuf) const
+void KnappComputeContext::get_input_buffer(io_base_t io_base,
+                                           host_mem_t &hbuf, dev_mem_t &dbuf) const
 {
     unsigned i = io_base;
     hbuf.m = {
         compose_buffer_id(false, io_base, INPUT),
-        (void *) ((uintptr_t) _local_mempool_in[i]->get_base_ptr().ptr + offset)
+        (void *) ((uintptr_t) _local_mempool_in[i]->get_base_ptr().m.unwrap_ptr)
     };
     dbuf.m = {
         compose_buffer_id(false, io_base, INPUT),
-        (void *) ((uintptr_t) _peer_mempool_in[i]->get_base_ptr().ptr + offset)
+        (void *) ((uintptr_t) _peer_mempool_in[i]->get_base_ptr().m.unwrap_ptr)
     };
-    // len is ignored.
 }
 
-void KnappComputeContext::map_inout_buffer(io_base_t io_base, size_t offset, size_t len,
+void KnappComputeContext::get_inout_buffer(io_base_t io_base,
                                            host_mem_t &hbuf, dev_mem_t &dbuf) const
 {
     unsigned i = io_base;
     hbuf.m = {
         compose_buffer_id(false, io_base, OUTPUT),
-        (void *) ((uintptr_t) _local_mempool_inout[i]->get_base_ptr().ptr + offset)
+        (void *) ((uintptr_t) _local_mempool_inout[i]->get_base_ptr().m.unwrap_ptr)
     };
     dbuf.m = {
         compose_buffer_id(false, io_base, OUTPUT),
-        (void *) ((uintptr_t) _peer_mempool_inout[i]->get_base_ptr().ptr + offset)
+        (void *) ((uintptr_t) _peer_mempool_inout[i]->get_base_ptr().m.unwrap_ptr)
     };
-    // len is ignored.
 }
 
-void KnappComputeContext::map_output_buffer(io_base_t io_base, size_t offset, size_t len,
-                                           host_mem_t &hbuf, dev_mem_t &dbuf) const
+void KnappComputeContext::get_output_buffer(io_base_t io_base,
+                                            host_mem_t &hbuf, dev_mem_t &dbuf) const
 {
     unsigned i = io_base;
     hbuf.m = {
         compose_buffer_id(false, io_base, OUTPUT),
-        (void *) ((uintptr_t) _local_mempool_out[i]->get_base_ptr().ptr + offset)
+        (void *) ((uintptr_t) _local_mempool_out[i]->get_base_ptr().m.unwrap_ptr)
     };
     dbuf.m = {
         compose_buffer_id(false, io_base, OUTPUT),
-        (void *) ((uintptr_t) _peer_mempool_out[i]->get_base_ptr().ptr + offset)
+        (void *) ((uintptr_t) _peer_mempool_out[i]->get_base_ptr().m.unwrap_ptr)
     };
-    // len is ignored.
 }
 
 void *KnappComputeContext::unwrap_host_buffer(const host_mem_t hbuf) const

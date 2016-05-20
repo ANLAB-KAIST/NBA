@@ -30,8 +30,10 @@ public:
     void free_device_buffer(dev_mem_t m);
     void *unwrap_host_buffer(const host_mem_t m);
     void *unwrap_device_buffer(const dev_mem_t m);
-    void memwrite(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size);
-    void memread(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size);
+    void memwrite(host_mem_t host_buf, dev_mem_t dev_buf,
+                  size_t offset, size_t size);
+    void memread(host_mem_t host_buf, dev_mem_t dev_buf,
+                 size_t offset, size_t size);
 
 private:
     ComputeContext *_get_available_context();

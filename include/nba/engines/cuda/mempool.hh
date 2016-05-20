@@ -38,7 +38,7 @@ public:
 
     dev_mem_t get_base_ptr() const
     {
-        return { base };
+        return { (void *) ((uintptr_t) base + shifts) };
     }
 
     int alloc(size_t size, dev_mem_t &ptr)
@@ -46,7 +46,7 @@ public:
         size_t offset;
         int ret = _alloc(size, &offset);
         if (ret == 0)
-            ptr.ptr = (void *) ((uintptr_t) base + offset);
+            ptr.ptr = (void *) ((uintptr_t) base + shifts + offset);
         return ret;
     }
 
@@ -99,12 +99,17 @@ public:
         return true;
     }
 
+    host_mem_t get_base_ptr() const
+    {
+        return { (void *) ((uintptr_t) base + shifts) };
+    }
+
     int alloc(size_t size, host_mem_t &m)
     {
         size_t offset;
         int ret = _alloc(size, &offset);
         if (ret == 0)
-            m.ptr = (void *) ((uintptr_t) base + offset);
+            m.ptr = (void *) ((uintptr_t) base + shifts + offset);
         return ret;
     }
 
@@ -112,11 +117,6 @@ public:
     {
         if (base != NULL && !use_external)
             cudaFreeHost(base);
-    }
-
-    host_mem_t get_base_ptr() const
-    {
-        return { base };
     }
 
 private:

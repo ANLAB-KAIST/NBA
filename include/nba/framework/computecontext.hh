@@ -44,11 +44,11 @@ public:
                                    host_mem_t &hbuf, dev_mem_t &dbuf) = 0;
     virtual int alloc_output_buffer(io_base_t io_base, size_t size,
                                     host_mem_t &hbuf, dev_mem_t &dbuf) = 0;
-    virtual void map_input_buffer(io_base_t io_base, size_t offset, size_t len,
+    virtual void get_input_buffer(io_base_t io_base,
                                   host_mem_t &hbuf, dev_mem_t &dbuf) const = 0;
-    virtual void map_inout_buffer(io_base_t io_base, size_t offset, size_t len,
+    virtual void get_inout_buffer(io_base_t io_base,
                                   host_mem_t &hbuf, dev_mem_t &dbuf) const = 0;
-    virtual void map_output_buffer(io_base_t io_base, size_t offset, size_t len,
+    virtual void get_output_buffer(io_base_t io_base,
                                    host_mem_t &hbuf, dev_mem_t &dbuf) const = 0;
     virtual void *unwrap_host_buffer(const host_mem_t hbuf) const = 0;
     virtual void *unwrap_device_buffer(const dev_mem_t dbuf) const = 0;
