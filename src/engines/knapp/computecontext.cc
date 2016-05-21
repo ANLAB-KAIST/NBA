@@ -36,7 +36,6 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
     /* Initialize Knapp vDev Parameters. */
     vdev.ht_per_core = 2;                   // FIXME: set from config
     vdev.pipeline_depth = NBA_MAX_IO_BASES; // Key adaptation: app-specific I/O buffers -> io_base_t
-    const unsigned num_cores_per_vdev = 4;  // FIXME: set from config
 
     /* Take ctrl_epd from the mother device. */
     ctrl_epd = (dynamic_cast<KnappComputeDevice*>(mother))->ctrl_epd;
@@ -50,7 +49,7 @@ KnappComputeContext::KnappComputeContext(unsigned ctx_id, ComputeDevice *mother)
     request.set_type(CtrlRequest::CREATE_VDEV);
     CtrlRequest::vDeviceInfoParam *v = request.mutable_vdevinfo();
     // NOTE: Junhyun used 2x2 with vectorization while Keunhong used 8x2.
-    v->set_num_pcores(2);
+    v->set_num_pcores(8);
     v->set_num_lcores_per_pcore(2);
     v->set_pipeline_depth(32);
     ctrl_invoke(ctrl_epd, request, response);

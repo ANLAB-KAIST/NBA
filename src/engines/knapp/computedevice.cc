@@ -127,7 +127,6 @@ host_mem_t KnappComputeDevice::alloc_host_buffer(size_t size, int flags)
     uint32_t buffer_id = find_new_buffer_id();
     const auto &search = buffer_registry.find(buffer_id);
     assert(search == buffer_registry.end());
-    fprintf(stderr, "alloc_host_buffer with buffer_id %u\n", buffer_id);
 
     RMABuffer *buf = new RMABuffer(ctrl_epd, aligned_size, 0);
     request.set_type(CtrlRequest::CREATE_RMABUFFER);

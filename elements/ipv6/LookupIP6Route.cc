@@ -232,7 +232,6 @@ void LookupIP6Route::accel_init_handler(ComputeDevice *device)
         size_t copy_size = sizeof(Item) * table_sizes[i] * 2;
         host_mem_t table_content_h;
         dev_mem_t table_content_d;
-        fprintf(stderr, "ipv6 table alloc [%d]\n", i);
         table_content_h = device->alloc_host_buffer(copy_size, 0);
         table_content_d = device->alloc_device_buffer(copy_size, 0, table_content_h);
         table_ptrs[i] = device->unwrap_device_buffer(table_content_d);

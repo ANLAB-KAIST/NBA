@@ -23,11 +23,10 @@ CPURecord = namedtuple('CPURecord', [
 ])
 
 
-@asyncio.coroutine
-def read_stdout_into_lines_coro(proc):
+async def read_stdout_into_lines_coro(proc):
     lines = []
     while True:
-        line = yield from proc.stdout.readline()
+        line = await proc.stdout.readline()
         if not line: break
         lines.append(line)
     return lines
@@ -271,8 +270,7 @@ class ExperimentEnv:
         os.chdir(root_path)
         return os.path.relpath(root_path, my_abs_path)
 
-    @asyncio.coroutine
-    def execute_main(self, config_name, click_name,
+    async def execute_main(self, config_name, click_name,
                      running_time=30.0,
                      num_max_cores_per_node=64,
                      emulate_opts=None,
@@ -304,21 +302,28 @@ class ExperimentEnv:
         if self._verbose:
             print('Executing:', self._bin, ' '.join(args))
         self._delayed_calls = []
-        self._main_proc = yield from asyncio.create_subprocess_exec(self._bin, *args,
-                                                                    loop=self._loop,
-                                                                    stdout=subprocess.PIPE,
-                                                                    stderr=None,
-                                                                    stdin=None,
-                                                                    start_new_session=True,
-                                                                    env=self.get_merged_env())
+
+        if os.environ.get('NBA_USE_KNAPP', '0') == '1':
+            subprocess.run("ssh -f mic0 \"sh -c 'nohup ./knapp-mic 2>&1 >/dev/null </dev/null &'\" 2>&1 >/dev/null", shell=True, check=True)
+
+        self._main_proc = await asyncio.create_subprocess_exec(
+            self._bin,
+            *args,
+            loop=self._loop,
+            stdout=subprocess.PIPE,
+            stderr=None,
+            stdin=None,
+            start_new_session=True,
+            env=self.get_merged_env()
+        )
 
         assert self._main_proc.stdout is not None
 
         # Run the readers.
         if custom_stdout_coro:
-            asyncio.async(custom_stdout_coro(self._main_proc.stdout), loop=self._loop)
+            asyncio.ensure_future(custom_stdout_coro(self._main_proc.stdout), loop=self._loop)
         else:
-            asyncio.async(self._main_read_stdout_coro(self._main_proc.stdout), loop=self._loop)
+            asyncio.ensure_future(self._main_read_stdout_coro(self._main_proc.stdout), loop=self._loop)
 
         # Create timers.
         self._start_time = self._loop.time()
@@ -328,11 +333,11 @@ class ExperimentEnv:
 
         # Wait.
         if running_time > 0:
-            yield from asyncio.sleep(running_time)
+            await asyncio.sleep(running_time)
         else:
             while not self._break:
-                yield from asyncio.sleep(0.5)
-        yield from asyncio.sleep(0.2)
+                await asyncio.sleep(0.5)
+        await asyncio.sleep(0.2)
 
         # Reclaim the child.
         try:
@@ -345,7 +350,7 @@ class ExperimentEnv:
         for handle in self._delayed_calls:
             handle.cancel()
         try:
-            exitcode = yield from asyncio.wait_for(self._main_proc.wait(), 3)
+            exitcode = await asyncio.wait_for(self._main_proc.wait(), 3)
         except asyncio.TimeoutError:
             # If the termination times out, kill it.
             # (GPU/ALB configurations often hang...)
@@ -354,6 +359,8 @@ class ExperimentEnv:
             exitcode = -signal.SIGKILL
             # We don't wait it...
 
+        if os.environ.get('NBA_USE_KNAPP', '0') == '1':
+            subprocess.run("ssh mic0 'killall -9 knapp-mic'", shell=True, check=True)
         self._main_proc = None
         self._main_tasks.clear()
         self._delayed_calls = None
@@ -366,17 +373,15 @@ class ExperimentEnv:
     def break_main(self):
         self._break = True
 
-    @asyncio.coroutine
-    def _main_read_stderr_coro(self, stderr):
+    async def _main_read_stderr_coro(self, stderr):
         while True:
-            line = yield from stderr.readline()
+            line = await stderr.readline()
             if not line: break
             # Currently we do nothing with stderr.
 
-    @asyncio.coroutine
-    def _main_read_stdout_coro(self, stdout):
+    async def _main_read_stdout_coro(self, stdout):
         while True:
-            line = yield from stdout.readline()
+            line = await stdout.readline()
             if not line: break
             line = line.decode('utf8')
             cur_ts = self._loop.time() - self._start_time
@@ -417,19 +422,18 @@ class ExperimentEnv:
                 self._port_records.clear()
     '''
 
-    @asyncio.coroutine
-    def _cpu_measure_coro(self):
+    async def _cpu_measure_coro(self):
         cur_ts = self._loop.time() - self._start_time
         if self._verbose:
             self._print_timestamp()
             print('Measuring CPU utilization...')
-        proc = yield from asyncio.create_subprocess_shell(
+        proc = await asyncio.create_subprocess_shell(
             'mpstat -u -P ALL 1 2 | grep Average',
             stdout=subprocess.PIPE,
         )
         # Read all output at once.
-        lines = yield from read_stdout_into_lines_coro(proc)
-        exitcode = yield from proc.wait()
+        lines = await read_stdout_into_lines_coro(proc)
+        exitcode = await proc.wait()
         assert exitcode == 0
         # Generate the stat.
         cpu_records = OrderedDict()
@@ -454,8 +458,7 @@ class ExperimentEnv:
             # and managing them correctly incurs annoyance of tracking.
             self._delayed_calls.append(self._loop.call_later(self._cpu_measure_interval, self._cpu_timer_cb))
 
-    @asyncio.coroutine
-    def _signal_coro(self):
+    async def _signal_coro(self):
         if self._signalled: return
         self._signalled = True
         if self._main_proc:
