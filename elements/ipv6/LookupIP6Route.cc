@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <cerrno>
+#include <utility>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/ip6.h>
@@ -122,8 +123,7 @@ int LookupIP6Route::process(int input_port, Packet *pkt)
     struct ip6_hdr *ip6h   = (struct ip6_hdr *)(ethh + 1);
     uint128_t dest_addr;
     uint16_t lookup_result = 0xffff;
-    memcpy(&dest_addr.u64[1], &ip6h->ip6_dst.s6_addr32[0], sizeof(uint64_t));
-    memcpy(&dest_addr.u64[0], &ip6h->ip6_dst.s6_addr32[2], sizeof(uint64_t));
+    std::swap(dest_addr.u64[0], dest_addr.u64[1]);
     dest_addr.u64[1] = ntohll(dest_addr.u64[1]);
     dest_addr.u64[0] = ntohll(dest_addr.u64[0]);
 
