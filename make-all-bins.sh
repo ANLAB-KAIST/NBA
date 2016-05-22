@@ -48,17 +48,17 @@ if [ "$1" == "knapp" ]; then
     export NBA_BRANCHPRED_SCHEME=0
     export NBA_USE_OPENSSL_EVP=1
     export NBA_REUSE_DATABLOCKS=0
-    snakemake clean
-    snakemake -j
-    cp bin/main bin-backup/main.noreuse
+    #snakemake clean
+    #snakemake -j
+    cp bin-backup/main bin-backup/main.noreuse
 
     export NBA_BATCHING_SCHEME=2
     export NBA_BRANCHPRED_SCHEME=0
     export NBA_USE_OPENSSL_EVP=0
     export NBA_REUSE_DATABLOCKS=0
-    snakemake clean
-    snakemake -j
-    cp bin/main bin-backup/main.nosslevp.noreuse
+    #snakemake clean
+    #snakemake -j
+    cp bin-backup/main.nosslevp bin-backup/main.nosslevp.noreuse
 
 
     # restore to default setting
