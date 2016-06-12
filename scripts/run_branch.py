@@ -8,7 +8,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--branch-pred-type', choices=('on', 'off', 'always'), required=True)
     parser.add_argument('--skip-dropbox', action='store_true', default=False)
+    #parser.add_argument('--batching-scheme', choices=('0', '1', '2', '3'), default='2')
     args, extra_args = parser.parse_known_args()
+    #args.bin = 'bin-backup/main.b'+ args.batching_scheme +'.branchpred.' + args.branch_pred_type
     args.bin = 'bin-backup/main.branchpred.' + args.branch_pred_type
 
     #branch_configs = ["l2fwd-echo-branch-lv1.click"]#, "l2fwd-echo-branch-lv2.click", "l2fwd-echo-branch-lv3.click"]
@@ -40,6 +42,7 @@ if __name__ == '__main__':
     if not args.skip_dropbox: subprocess.run(['dropbox.py', 'stop'])
     main_args = [
         './run_app_perf.py',
+        #'--prefix', 'branch-pred.b' + args.batching_scheme + '.' + args.branch_pred_type,
         '--prefix', 'branch-pred.' + args.branch_pred_type,
         '-b', args.bin,
         '-p', '64',
