@@ -291,9 +291,10 @@ void comp_thread_context::initialize_offloadables_per_node(ComputeDevice *device
         string dev_name = device->type_name;
         RTE_LOG(DEBUG, COMP, "initializing offloadable element %s for device %s at node %u\n",
                 elem->class_name(), dev_name.c_str(), this->loc.node_id);
-        if (elem->offload_init_handlers.find(dev_name) == elem->offload_init_handlers.end())
+        const auto &search = elem->offload_init_handlers.find(dev_name);
+        if (search == elem->offload_init_handlers.end())
             continue;
-        elem->offload_init_handlers[dev_name](device);
+        (*search).second(device);
     }
     elemgraph_lock->release();
 }

@@ -6,14 +6,13 @@
 #include <deque>
 
 #include <nba/framework/computedevice.hh>
-#include <nba/framework/computecontext.hh>
 #include <nba/core/threading.hh>
 #include <cuda.h>
-#include <nba/engines/cuda/utils.hh>
-#include <nba/engines/cuda/computecontext.hh>
 
 namespace nba
 {
+
+class CUDAComputeContext;
 
 class CUDAComputeDevice: public ComputeDevice
 {
@@ -26,11 +25,15 @@ public:
     int get_spec(struct compute_device_spec *spec);
     int get_utilization(struct compute_device_util *util);
     host_mem_t alloc_host_buffer(size_t size, int flags);
-    dev_mem_t alloc_device_buffer(size_t size, int flags);
-    void free_host_buffer(host_mem_t ptr);
-    void free_device_buffer(dev_mem_t ptr);
-    void memwrite(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size);
-    void memread(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size);
+    dev_mem_t alloc_device_buffer(size_t size, int flags, host_mem_t &assoc_host_buf);
+    void free_host_buffer(host_mem_t m);
+    void free_device_buffer(dev_mem_t m);
+    void *unwrap_host_buffer(const host_mem_t m);
+    void *unwrap_device_buffer(const dev_mem_t m);
+    void memwrite(host_mem_t host_buf, dev_mem_t dev_buf,
+                  size_t offset, size_t size);
+    void memread(host_mem_t host_buf, dev_mem_t dev_buf,
+                 size_t offset, size_t size);
 
 private:
     ComputeContext *_get_available_context();

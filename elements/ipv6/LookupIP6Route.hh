@@ -28,8 +28,8 @@ public:
         #ifdef USE_CUDA
         device_names.push_back("cuda");
         #endif
-        #ifdef USE_PHI
-        device_names.push_back("phi");
+        #ifdef USE_KNAPP
+        device_names.push_back("knapp.phi");
         #endif
     }
 
@@ -46,10 +46,10 @@ public:
     /* Offloaded methods */
     size_t get_desired_workgroup_size(const char *device_name) const;
     int get_offload_item_counter_dbid() const { return dbid_ipv6_dest_addrs; }
-    #ifdef USE_CUDA
-    void cuda_init_handler(ComputeDevice *device);
-    void cuda_compute_handler(ComputeContext *ctx, struct resource_param *res);
-    #endif
+    void accel_init_handler(ComputeDevice *device);
+    void accel_compute_handler(ComputeDevice *dev,
+                              ComputeContext *ctx,
+                              struct resource_param *res);
     int postproc(int input_port, void *custom_output, Packet *pkt);
 
 protected:

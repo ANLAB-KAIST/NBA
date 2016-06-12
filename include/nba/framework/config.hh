@@ -69,7 +69,11 @@
 
 #define NBA_MAX_TASKPOOL_SIZE       (2048u)
 #define NBA_MAX_BATCHPOOL_SIZE      (2048u)
-#define NBA_MAX_IO_BASES            (1)
+#ifdef USE_KNAPP
+#define NBA_MAX_IO_BASES    (7)
+#else
+#define NBA_MAX_IO_BASES    (1)
+#endif
 
 #define NBA_MAX_NODELOCALSTORAGE_ENTRIES    (16)
 #define NBA_MAX_KERNEL_OVERLAP      (8)

@@ -34,6 +34,9 @@ public:
         #ifdef USE_PHI
         device_names.push_back("phi");
         #endif
+        #ifdef USE_KNAPP
+        device_names.push_back("knapp.phi");
+        #endif
     }
 
     size_t get_used_datablocks(int *datablock_ids)
@@ -49,10 +52,10 @@ public:
     /* Offloaded methods */
     size_t get_desired_workgroup_size(const char *device_name) const;
     int get_offload_item_counter_dbid() const { return dbid_ipv4_dest_addrs; }
-    #ifdef USE_CUDA
-    void cuda_init_handler(ComputeDevice *device);
-    void cuda_compute_handler(ComputeContext *ctx, struct resource_param *res);
-    #endif
+    void accel_init_handler(ComputeDevice *device);
+    void accel_compute_handler(ComputeDevice *dev,
+                               ComputeContext *ctx,
+                               struct resource_param *res);
     int postproc(int input_port, void *custom_output, Packet *pkt);
 
 protected:
@@ -61,8 +64,10 @@ protected:
     rte_rwlock_t *p_rwlock_TBL24;
     rte_rwlock_t *p_rwlock_TBLlong;
     ipv4route::route_hash_t tables[33];
-    uint16_t *TBL24_h;
-    uint16_t *TBLlong_h;
+    uint16_t *TBL24;
+    uint16_t *TBLlong;
+    host_mem_t *TBL24_h;
+    host_mem_t *TBLlong_h;
     dev_mem_t *TBL24_d;
     dev_mem_t *TBLlong_d;
 };

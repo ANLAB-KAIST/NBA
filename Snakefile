@@ -40,13 +40,16 @@ def version():
 
 logger.set_level(logging.DEBUG)
 
-USE_CUDA = bool(int(os.getenv('USE_CUDA', 1)))
-USE_PHI  = bool(int(os.getenv('USE_PHI', 0)))
-USE_NVPROF = bool(int(os.getenv('USE_NVPROF', 0)))
-USE_OPENSSL_EVP = bool(int(os.getenv('USE_OPENSSL_EVP', 1)))
+USE_CUDA   = bool(int(os.getenv('NBA_USE_CUDA', 1)))
+USE_PHI    = bool(int(os.getenv('NBA_USE_PHI', 0)))
+USE_KNAPP  = bool(int(os.getenv('NBA_USE_KNAPP', 0)))
+
+USE_NVPROF = bool(int(os.getenv('NBA_USE_NVPROF', 0)))
+USE_OPENSSL_EVP = bool(int(os.getenv('NBA_USE_OPENSSL_EVP', 1)))
+
 NO_HUGEPAGES = bool(int(os.getenv('NBA_NO_HUGE', 0)))
 # Values for batching scheme - 0: traditional, 1: continuous, 2: bitvector, 3: linkedlist
-BATCHING_SCHEME   = int(os.getenv('NBA_BATCHING_SCHEME', 0))
+BATCHING_SCHEME   = int(os.getenv('NBA_BATCHING_SCHEME', 2))
 # Values for branchpred scheme - 0: disabled, 1: enabled, 2: always
 BRANCHPRED_SCHEME = int(os.getenv('NBA_BRANCHPRED_SCHEME', 0))
 # Values for reuse datablocks - 0: disabled, 1: enabled
@@ -60,6 +63,9 @@ SOURCE_DIRS = ['src/core', 'src/lib', 'elements']
 SOURCE_DIRS += ['src/engines/dummy']
 if USE_CUDA:
     SOURCE_DIRS += ['src/engines/cuda']
+if USE_KNAPP:
+    SOURCE_DIRS += ['src/engines/knapp']
+    MIC_SOURCE_DIR = 'src/engines/knapp-mic'
 if USE_PHI:
     SOURCE_DIRS += ['src/engines/phi']
 BLACKLIST = {  # temporarily excluded for data-copy-optimization refactoring
@@ -85,24 +91,35 @@ BLACKLIST = {  # temporarily excluded for data-copy-optimization refactoring
 SOURCE_FILES = [s for s in compilelib.find_all(SOURCE_DIRS, r'^.+\.(c|cc|cpp)$') if s not in BLACKLIST]
 if USE_CUDA:
     SOURCE_FILES += [s for s in compilelib.find_all(SOURCE_DIRS, r'^.+\.cu$') if s not in BLACKLIST]
+if USE_KNAPP:
+    MIC_SOURCE_FILES = [s for s in compilelib.find_all([MIC_SOURCE_DIR], r'^.+\.cc$')]
 SOURCE_FILES.append('src/main.cc')
 HEADER_FILES         = [s for s in compilelib.find_all(SOURCE_DIRS, r'^.+\.(h|hh|hpp)$') if s not in BLACKLIST]
 ELEMENT_HEADER_FILES = [s for s in compilelib.find_all(['elements'], r'^.+\.(h|hh|hpp)$') if s not in BLACKLIST]
 
 # List of object files
 OBJ_DIR   = 'build'
-os.makedirs('build', exist_ok=True)
+os.makedirs(OBJ_DIR, exist_ok=True)
 OBJ_FILES = [joinpath(OBJ_DIR, o) for o in map(lambda s: re.sub(r'^(.+)\.(c|cc|cpp|cu)$', r'\1.o', s), SOURCE_FILES)]
 GTEST_MAIN_OBJ = 'build/src/lib/gtest/gtest_main.o'
 GTEST_FUSED_OBJ = 'build/src/lib/gtest/gtest-all.o'
 OBJ_FILES.remove(GTEST_MAIN_OBJ)
 OBJ_FILES.remove(GTEST_FUSED_OBJ)
+if USE_KNAPP:
+    MIC_OBJ_DIR   = 'build/_mic'
+    os.makedirs(MIC_OBJ_DIR, exist_ok=True)
+    MIC_OBJ_FILES = [joinpath(MIC_OBJ_DIR, o) for o in map(lambda s: re.sub(r'^(.+)\.cc$', r'\1.o', s), MIC_SOURCE_FILES)]
 
 # Common configurations
 CXXSTD = version()
 
 CC   = 'gcc'
 CXX  = 'g++ ' + CXXSTD
+if USE_KNAPP:
+    MIC_CC     = 'icpc -std=c++11 -mmic -fPIC'
+    MIC_CFLAGS = '-Wall -g -O2 -Iinclude -I{THIRD_PARTY_DIR}/protobuf-mic/src'
+    # We link protobuf statically to make the knapp-mic binary portable.
+    MIC_LIBS   = '-pthread -lscif -lrt {THIRD_PARTY_DIR}/protobuf-mic/src/.libs/libprotobuf.a'
 NVCC = 'nvcc'
 SUPPRESSED_CC_WARNINGS = (
     'unused-function',
@@ -120,6 +137,7 @@ if os.getenv('TESTING', 0):
 LIBS = '-pthread -lpcre -lrt'
 if USE_CUDA:        CFLAGS += ' -DUSE_CUDA'
 if USE_PHI:         CFLAGS += ' -DUSE_PHI'
+if USE_KNAPP:       CFLAGS += ' -DUSE_KNAPP'
 if USE_OPENSSL_EVP: CFLAGS += ' -DUSE_OPENSSL_EVP'
 if USE_NVPROF:      CFLAGS += ' -DUSE_NVPROF'
 if NO_HUGEPAGES:    CFLAGS += ' -DNBA_NO_HUGE'
@@ -168,42 +186,47 @@ if USE_CUDA:
                   + ' -gencode arch=compute_20,code=sm_21' \
                   + ' -gencode arch=compute_20,code=compute_21'
 
+if USE_KNAPP:
+    CFLAGS += ' -I{THIRD_PARTY_DIR}/protobuf/src'
+    LIBS   += ' -lscif -L{THIRD_PARTY_DIR}/protobuf/src/.libs -lprotobuf'
+
 # NVIDIA Profiler configurations
 if USE_NVPROF:
     if not USE_CUDA:
-        CFLAGS       += ' -I/usr/local/cuda/include'
-        LIBS         += ' -L/usr/local/cuda/lib64'
+        CFLAGS += ' -I/usr/local/cuda/include'
+        LIBS   += ' -L/usr/local/cuda/lib64'
     LIBS   += ' -lnvToolsExt'
 
 # Intel Xeon Phi configurations
 if USE_PHI:
-    CFLAGS    += ' -I/opt/intel/opencl/include'
-    LIBS      += ' -L/opt/intel/opencl/lib64 -lOpenCL'
+    CFLAGS += ' -I/opt/intel/opencl/include'
+    LIBS   += ' -L/opt/intel/opencl/lib64 -lOpenCL'
 
 # OpenSSL configurations
 SSL_PATH = os.getenv('NBA_OPENSSL_PATH') or '/usr'
-CFLAGS        += ' -I{SSL_PATH}/include'
-LIBS          += ' -L{SSL_PATH}/lib -lcrypto'
+CFLAGS  += ' -I{SSL_PATH}/include'
+LIBS    += ' -L{SSL_PATH}/lib -lcrypto'
 
 # Python configurations (assuming we use the same version of Python for Snakemake and configuration scripts)
-CFLAGS        += ' -I{0} -fwrapv'.format(sysconfig.get_path('include'))
-LIBS          += ' -L{0} -lpython{1}m {2} {3}'.format(sysconfig.get_config_var('LIBDIR'),
-                                                      '{0}.{1}'.format(sys.version_info.major, sys.version_info.minor),
-                                                      sysconfig.get_config_var('LIBS'),
-                                                      sysconfig.get_config_var('LINKFORSHARED'))
+PYTHON_VERSION = '{0.major}.{0.minor}'.format(sys.version_info)
+CFLAGS += ' -I{0} -fwrapv'.format(sysconfig.get_path('include'))
+LIBS   += ' -L{0} -lpython{1}m {2} {3}'.format(sysconfig.get_config_var('LIBDIR'),
+                                               PYTHON_VERSION,
+                                               sysconfig.get_config_var('LIBS'),
+                                               sysconfig.get_config_var('LINKFORSHARED'))
 
 # click-parser configurations
-CLICKPARSER_PATH = os.getenv('CLICKPARSER_PATH', fmt('{THIRD_PARTY_DIR}/click-parser'))
-CFLAGS        += ' -I{CLICKPARSER_PATH}/include'
-LIBS          += ' -L{CLICKPARSER_PATH}/build -lclickparser'
+CLICKPARSER_PATH = os.getenv('CLICKPARSER_PATH') or fmt('{THIRD_PARTY_DIR}/click-parser')
+CFLAGS += ' -I{CLICKPARSER_PATH}/include'
+LIBS   += ' -L{CLICKPARSER_PATH}/build -lclickparser'
 
 # libev configurations
 LIBEV_PREFIX = os.getenv('LIBEV_PATH', '/usr/local')
-CFLAGS       += ' -I{LIBEV_PREFIX}/include'
-LIBS         += ' -L{LIBEV_PREFIX}/lib -lev'
+CFLAGS += ' -I{LIBEV_PREFIX}/include'
+LIBS   += ' -L{LIBEV_PREFIX}/lib -lev'
 
 # PAPI configurations
-LIBS          += ' -lpapi'
+LIBS += ' -lpapi'
 
 # DPDK configurations
 DPDK_PATH = os.getenv('NBA_DPDK_PATH')
@@ -220,21 +243,24 @@ librte_pmds    = {
 librte_names   = {'ethdev', 'rte_eal', 'rte_cmdline', 'rte_sched',
                   'rte_mbuf', 'rte_mempool', 'rte_ring', 'rte_hash'}
 librte_names.update(librte_pmds[PMD])
-CFLAGS        += ' -I{DPDK_PATH}/include'
-LIBS          += ' -L{DPDK_PATH}/lib' \
-                 + ' -Wl,--whole-archive' \
-                 + ' -Wl,--start-group ' \
-                 + ' '.join('-l' + libname for libname in librte_names) \
-                 + ' -Wl,--end-group' \
-                 + ' -Wl,--no-whole-archive'
+CFLAGS += ' -I{DPDK_PATH}/include'
+LIBS   += ' -L{DPDK_PATH}/lib' \
+          + ' -Wl,--whole-archive' \
+          + ' -Wl,--start-group ' \
+          + ' '.join('-l' + libname for libname in librte_names) \
+          + ' -Wl,--end-group' \
+          + ' -Wl,--no-whole-archive'
 
 # Other dependencies
 LIBS += ' -lnuma -ldl'
 
 # Expand variables
-CFLAGS = fmt(CFLAGS)
+CFLAGS   = fmt(CFLAGS)
 CXXFLAGS = fmt(CFLAGS) + ' -Wno-literal-suffix'
-LIBS = fmt(LIBS)
+LIBS     = fmt(LIBS)
+if USE_KNAPP:
+    MIC_CFLAGS = fmt(MIC_CFLAGS)
+    MIC_LIBS   = fmt(MIC_LIBS)
 
 # Embedded 3rd party libraries to generate rules to build them
 THIRD_PARTY_LIBS = [
@@ -253,17 +279,49 @@ rule main:
     output: 'bin/main'
     shell: '{CXX} -o {output} -Wl,--whole-archive {OBJ_FILES} -Wl,--no-whole-archive {LIBS}'
 
+if USE_KNAPP:
+    # You need to run "sudo scp knapp-mic mic0:~/" to copy to MIC.
+    rule mic_main:
+        input: MIC_OBJ_FILES
+        output: 'bin/knapp-mic'
+        shell: '{MIC_CC} -o {output} {MIC_OBJ_FILES} {MIC_LIBS}'
+
+    rule pbgen:
+        input: 'include/nba/engines/knapp/ctrl.proto'
+        output: 'include/nba/engines/knapp/ctrl.pb.h', 'src/engines/knapp/ctrl.pb.cc', 'src/engines/knapp-mic/ctrl.pb.cc'
+        shell: "cd include/nba/engines/knapp;" \
+               "protoc --cpp_out . ctrl.proto && " \
+               "sed -i 's/^#include \"ctrl.pb.h\"/#include <nba\\/engines\\/knapp\\/ctrl.pb.h>/' ctrl.pb.cc;" \
+               "cp ctrl.pb.cc ../../../../src/engines/knapp;" \
+               "cp ctrl.pb.cc ../../../../src/engines/knapp-mic;" \
+               "rm ctrl.pb.cc"
+
+    for srcfile in MIC_SOURCE_FILES:
+        includes = [f for f in compilelib.get_includes(srcfile, 'include')]
+        if srcfile.endswith('.cc'):
+            objfile = re.sub(r'(.+)\.cc$', joinpath(MIC_OBJ_DIR, r'\1.o'), srcfile)
+            rule:
+                input: srcfile, includes
+                output: objfile
+                shell: '{MIC_CC} {MIC_CFLAGS} -c {input[0]} -o {output}'
+
 for lib in THIRD_PARTY_LIBS:
     rule:
         output: lib.target
         shell: lib.build_cmd
 
-_clean_cmds = '\n'.join(['rm -rf build bin/main `find . -path "lib/*_map.hh"`']
+_clean_cmds = '\n'.join(['rm -rf build bin/main bin/knapp-mic `find . -path "lib/*_map.hh"`']
                         + [lib.clean_cmd for lib in THIRD_PARTY_LIBS])
 rule clean:
     shell: _clean_cmds
 
 _test_cases, = glob_wildcards('tests/test_{case}.cc')
+if not USE_CUDA:
+    _test_cases.remove('cuda')
+    _test_cases.remove('ipv4route')
+    _test_cases.remove('ipsec')
+if not USE_KNAPP:
+    _test_cases.remove('knapp')
 TEST_OBJ_FILES = OBJ_FILES.copy()
 TEST_OBJ_FILES.append(GTEST_MAIN_OBJ)
 TEST_OBJ_FILES.append(GTEST_FUSED_OBJ)
@@ -287,36 +345,45 @@ rule testall:  # build a unified test suite
 for case in _test_cases:
     includes = [f for f in compilelib.get_includes(fmt('tests/test_{case}.cc'), 'include')]
     requires = [joinpath(OBJ_DIR, f) for f in compilelib.get_requires(fmt('tests/test_{case}.cc'), 'src')]
-    rule:  # for individual tests
-        input: fmt('tests/test_{case}.cc'), includes, GTEST_FUSED_OBJ, GTEST_MAIN_OBJ, req=requires
-        output: fmt('tests/test_{case}')
-        shell: '{CXX} {CXXFLAGS} -DTESTING -o {output} {input[0]} {input.req} {GTEST_FUSED_OBJ} {GTEST_MAIN_OBJ} {LIBS}'
-    rule:  # for unified test suite
-        input: fmt('tests/test_{case}.cc'), includes
-        output: joinpath(OBJ_DIR, fmt('tests/test_{case}.o'))
-        shell: '{CXX} {CXXFLAGS} -DTESTING -o {output} -c {input[0]}'
+    src = fmt('tests/test_{case}.cc')
+    if compilelib.has_string(src, 'int main'):
+        rule:  # for individual tests
+            input: src, includes, GTEST_FUSED_OBJ, req=requires
+            output: fmt('tests/test_{case}')
+            shell: '{CXX} {CXXFLAGS} -DTESTING -o {output} {input[0]} {input.req} {GTEST_FUSED_OBJ} {LIBS}'
+        # This should be excluded from unified test because it will
+        # duplicate the main() function.
+    else:
+        rule:  # for individual tests
+            input: src, includes, GTEST_FUSED_OBJ, GTEST_MAIN_OBJ, req=requires
+            output: fmt('tests/test_{case}')
+            shell: '{CXX} {CXXFLAGS} -DTESTING -o {output} {input[0]} {input.req} {GTEST_FUSED_OBJ} {GTEST_MAIN_OBJ} {LIBS}'
+        rule:  # for unified test suite
+            input: src, includes
+            output: joinpath(OBJ_DIR, fmt('tests/test_{case}.o'))
+            shell: '{CXX} {CXXFLAGS} -DTESTING -o {output} -c {input[0]}'
 
 for srcfile in SOURCE_FILES:
     # We generate build rules dynamically depending on the actual header
     # dependencies to fully exploit automatic dependency checks.
     includes = [f for f in compilelib.get_includes(srcfile, 'include')]
     if srcfile.endswith('.c'):
-        outputs = re.sub(r'(.+)\.c$', joinpath(OBJ_DIR, r'\1.o'), srcfile)
+        objfile = re.sub(r'(.+)\.c$', joinpath(OBJ_DIR, r'\1.o'), srcfile)
         rule:
             input: srcfile, includes
-            output: outputs
+            output: objfile
             shell: '{CC} {CFLAGS} -c {input[0]} -o {output}'
     elif srcfile.endswith('.cc') or srcfile.endswith('.cpp'):
-        outputs = re.sub(r'(.+)\.(cc|cpp)$', joinpath(OBJ_DIR, r'\1.o'), srcfile)
+        objfile = re.sub(r'(.+)\.(cc|cpp)$', joinpath(OBJ_DIR, r'\1.o'), srcfile)
         rule:
             input: srcfile, includes
-            output: outputs
+            output: objfile
             shell: '{CXX} {CXXFLAGS} -c {input[0]} -o {output}'
     elif srcfile.endswith('.cu') and USE_CUDA:
-        outputs = re.sub(r'(.+)\.cu$', joinpath(OBJ_DIR, r'\1.o'), srcfile)
+        objfile = re.sub(r'(.+)\.cu$', joinpath(OBJ_DIR, r'\1.o'), srcfile)
         rule:
             input: srcfile, includes
-            output: outputs
+            output: objfile
             shell: '{NVCC} {NVCFLAGS} -c {input[0]} -o {output}'
 
 rule elemmap:

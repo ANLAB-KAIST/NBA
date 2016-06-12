@@ -96,7 +96,8 @@ for coproc_thread in coproc_threads:
     node_local_comp_threads = [comp_thread for comp_thread in comp_threads
                                if nba.node_of_cpu(comp_thread.core_id) == node_id]
     for comp_thread in node_local_comp_threads:
-        thread_connections.append((comp_thread, coproc_thread, coproc_input_queues[node_id]))
+        local_coproc_input_queues = [q for q in coproc_input_queues if q.node_id == node_id]
+        thread_connections.append((comp_thread, coproc_thread, local_coproc_input_queues[0]))
         thread_connections.append((coproc_thread, comp_thread, coproc_completion_queues[comp_threads.index(comp_thread)]))
 
 pprint(io_threads)

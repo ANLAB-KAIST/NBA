@@ -26,8 +26,12 @@ class comp_thread_context;
 class ComputeContext;
 class ComputeDevice;
 
-typedef std::function<void(ComputeContext *ctx, struct resource_param *res)> offload_compute_handler;
-typedef std::function<void(ComputeDevice *dev)> offload_init_handler;
+typedef std::function<void(ComputeDevice *dev,
+                           ComputeContext *ctx,
+                           struct resource_param *res)>
+    offload_compute_handler;
+typedef std::function<void(ComputeDevice *dev)>
+    offload_init_handler;
 
 enum ElementType {
     /* PER_PACKET and PER_BATCH are exclusive to each other. */
@@ -219,8 +223,8 @@ public:
     OffloadableElement() : SchedulableElement()
     {
         if (dummy_device) {
-            auto ch = [this] (ComputeContext *ctx, struct resource_param *res) {
-                this->dummy_compute_handler(ctx, res);
+            auto ch = [this] (ComputeDevice *cdev, ComputeContext *ctx, struct resource_param *res) {
+                this->dummy_compute_handler(cdev, ctx, res);
             };
             offload_compute_handlers.insert({{"dummy", ch},});
         }
@@ -259,7 +263,9 @@ private:
     OffloadTask *tasks[NBA_MAX_COPROCESSOR_TYPES];
     FixedRing<PacketBatch*> *finished_batches;
     PacketBatch *finished_batches_arrbuf[MAX_FINBATCH_QLEN];
-    void dummy_compute_handler(ComputeContext *ctx, struct resource_param *res);
+    void dummy_compute_handler(ComputeDevice *cdev,
+                               ComputeContext *ctx,
+                               struct resource_param *res);
 };
 
 }

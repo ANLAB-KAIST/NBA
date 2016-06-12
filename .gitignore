@@ -5,6 +5,7 @@
 *.elf
 build
 bin/main
+bin/knapp-mic
 .snakemake
 
 # Precompiled Headers
