@@ -1,11 +1,18 @@
 #ifndef __NBA_IPSEC_SA_ENTRY_HH__
 #define __NBA_IPSEC_SA_ENTRY_HH__
 
+#ifdef __MIC__
+#include <nba/engines/knapp/openssl-compat.hh>
+#else
 #include <openssl/aes.h>
 #include <openssl/evp.h>
+#endif
 
-enum {
-    // AES_BLOCK_SIZE is defined at openssl/aes.h
+#ifdef AES_BLOCK_SIZE
+#undef AES_BLOCK_SIZE
+#endif
+enum : int {
+    AES_BLOCK_SIZE = 16,
     HMAC_KEY_SIZE = 64,
 };
 

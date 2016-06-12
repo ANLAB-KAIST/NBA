@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <cerrno>
+#include <utility>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/ip6.h>
@@ -20,6 +21,9 @@
 #ifdef USE_CUDA
 #include <cuda.h>
 #include <nba/engines/cuda/utils.hh>
+#endif
+#ifdef USE_KNAPP
+#include <nba/engines/knapp/kernels.hh>
 #endif
 
 using namespace std;
@@ -36,10 +40,20 @@ static uint64_t ntohll(uint64_t val)
 LookupIP6Route::LookupIP6Route(): OffloadableElement()
 {
     #ifdef USE_CUDA
-    auto ch = [this](ComputeContext *ctx, struct resource_param *res) { this->cuda_compute_handler(ctx, res); };
+    auto ch = [this](ComputeDevice *cdev, ComputeContext *ctx, struct resource_param *res) {
+        this->accel_compute_handler(cdev, ctx, res);
+    };
     offload_compute_handlers.insert({{"cuda", ch},});
-    auto ih = [this](ComputeDevice *dev) { this->cuda_init_handler(dev); };
+    auto ih = [this](ComputeDevice *dev) { this->accel_init_handler(dev); };
     offload_init_handlers.insert({{"cuda", ih},});
+    #endif
+    #ifdef USE_KNAPP
+    auto ch = [this](ComputeDevice *cdev, ComputeContext *ctx, struct resource_param *res) {
+        this->accel_compute_handler(cdev, ctx, res);
+    };
+    offload_compute_handlers.insert({{"knapp.phi", ch},});
+    auto ih = [this](ComputeDevice *dev) { this->accel_init_handler(dev); };
+    offload_init_handlers.insert({{"knapp.phi", ih},});
     #endif
 
     num_tx_ports = 0;
@@ -109,8 +123,7 @@ int LookupIP6Route::process(int input_port, Packet *pkt)
     struct ip6_hdr *ip6h   = (struct ip6_hdr *)(ethh + 1);
     uint128_t dest_addr;
     uint16_t lookup_result = 0xffff;
-    memcpy(&dest_addr.u64[1], &ip6h->ip6_dst.s6_addr32[0], sizeof(uint64_t));
-    memcpy(&dest_addr.u64[0], &ip6h->ip6_dst.s6_addr32[2], sizeof(uint64_t));
+    std::swap(dest_addr.u64[0], dest_addr.u64[1]);
     dest_addr.u64[1] = ntohll(dest_addr.u64[1]);
     dest_addr.u64[0] = ntohll(dest_addr.u64[0]);
 
@@ -171,44 +184,63 @@ size_t LookupIP6Route::get_desired_workgroup_size(const char *device_name) const
     return 256u;
 }
 
-#ifdef USE_CUDA
-void LookupIP6Route::cuda_compute_handler(ComputeContext *cctx, struct resource_param *res)
+void LookupIP6Route::accel_compute_handler(ComputeDevice *cdev,
+                                           ComputeContext *cctx,
+                                           struct resource_param *res)
 {
     struct kernel_arg arg;
-    arg = {(void *) &d_tables->ptr, sizeof(void *), alignof(void *)};
+    void *ptr_args[2];
+    ptr_args[0] = cdev->unwrap_device_buffer(*d_tables);
+    arg = {&ptr_args[0], sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
-    arg = {(void *) &d_table_sizes->ptr, sizeof(void *), alignof(void *)};
+    ptr_args[1] = cdev->unwrap_device_buffer(*d_table_sizes);
+    arg = {&ptr_args[1], sizeof(void *), alignof(void *)};
     cctx->push_kernel_arg(arg);
     dev_kernel_t kern;
+#ifdef USE_CUDA
     kern.ptr = ipv6_route_lookup_get_cuda_kernel();
+#endif
+#ifdef USE_KNAPP
+    kern.ptr = (void *) (uintptr_t) knapp::ID_KERNEL_IPV6LOOKUP;
+#endif
     cctx->enqueue_kernel_launch(kern, res);
 }
 
-void LookupIP6Route::cuda_init_handler(ComputeDevice *device)
+void LookupIP6Route::accel_init_handler(ComputeDevice *device)
 {
-    size_t table_sizes[128];
-    void *table_ptrs_in_d[128];
+    size_t *table_sizes;
+    void **table_ptrs;
+    host_mem_t table_ptrs_h;  // <-> d_tables
+    host_mem_t table_sizes_h; // <-> d_table_sizes
 
     /* Store the device pointers for per-thread instances. */
     d_tables      = (dev_mem_t *) ctx->node_local_storage->get_alloc("dev_tables");
     d_table_sizes = (dev_mem_t *) ctx->node_local_storage->get_alloc("dev_table_sizes");
-    *d_tables      = device->alloc_device_buffer(sizeof(void *) * 128);
-    *d_table_sizes = device->alloc_device_buffer(sizeof(size_t) * 128);
+    table_ptrs_h   = device->alloc_host_buffer(sizeof(void *) * 128, 0);
+    table_sizes_h  = device->alloc_host_buffer(sizeof(size_t) * 128, 0);
+    *d_tables      = device->alloc_device_buffer(sizeof(void *) * 128, 0, table_ptrs_h);
+    *d_table_sizes = device->alloc_device_buffer(sizeof(size_t) * 128, 0, table_sizes_h);
 
-    /* table_ptrs_in_d keeps track of the temporary host-side references to tables in
+    table_sizes = (size_t*) device->unwrap_host_buffer(table_sizes_h);
+    table_ptrs  = (void **) device->unwrap_host_buffer(table_ptrs_h);
+
+    /* table_ptrs_h keeps track of the temporary host-side references to tables in
      * the device for initialization and copy.
-     * d_tables is the actual device buffer to store pointers in table_ptrs_in_d. */
+     * d_tables is the actual device buffer to store pointers in table_ptrs_h. */
     for (int i = 0; i < 128; i++) {
         table_sizes[i] = _original_table.m_Tables[i]->m_TableSize;
         size_t copy_size = sizeof(Item) * table_sizes[i] * 2;
-        table_ptrs_in_d[i] = device->alloc_device_buffer(copy_size).ptr;
-        device->memwrite({ _original_table.m_Tables[i]->m_Table }, {table_ptrs_in_d[i]},
-                         0, copy_size);
+        host_mem_t table_content_h;
+        dev_mem_t table_content_d;
+        table_content_h = device->alloc_host_buffer(copy_size, 0);
+        table_content_d = device->alloc_device_buffer(copy_size, 0, table_content_h);
+        table_ptrs[i] = device->unwrap_device_buffer(table_content_d);
+        memcpy(device->unwrap_host_buffer(table_content_h), _original_table.m_Tables[i]->m_Table, copy_size);
+        device->memwrite(table_content_h, table_content_d, 0, copy_size);
     }
-    device->memwrite({ table_ptrs_in_d }, *d_tables, 0, sizeof(void *) * 128);
-    device->memwrite({ table_sizes }, *d_table_sizes, 0, sizeof(size_t) * 128);
+    device->memwrite(table_ptrs_h, *d_tables, 0, sizeof(void *) * 128);
+    device->memwrite(table_sizes_h, *d_table_sizes, 0, sizeof(size_t) * 128);
 
 }
-#endif
 
 // vim: ts=8 sts=4 sw=4 et

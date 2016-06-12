@@ -17,10 +17,12 @@
 #ifdef USE_CUDA
 #include <nba/engines/cuda/computedevice.hh>
 #endif
+#ifdef USE_KNAPP
+#include <nba/engines/knapp/computedevice.hh>
+#endif
 #ifdef USE_PHI
 #include <nba/engines/phi/computedevice.hh>
 #endif
-#include <nba/engines/dummy/computedevice.hh>
 
 #include <unistd.h>
 #include <numa.h>
@@ -87,6 +89,10 @@ static void coproc_task_d2h_cb(struct ev_loop *loop, struct ev_async *watcher, i
     #ifdef USE_NVPROF
     nvtxRangePush("task_d2h_cb");
     #endif
+    // FIXME: add poll_h2d_copy_finished() to OffloadTask which calls
+    //        cctx->poll_input_finished().
+    //        We currently skip this as all compute devices we support
+    //        can pipeline d2h-copy and kernel execution.
     if (ctx->d2h_pending_queue->size() > 0) {
         OffloadTask *task = ctx->d2h_pending_queue->front();
         ctx->d2h_pending_queue->pop_front();
@@ -180,20 +186,19 @@ void *coproc_loop(void *arg)
 
     size_t num_ctx_per_device = ctx->num_comp_threads_per_node * system_params["COPROC_CTX_PER_COMPTHREAD"];
 
-    if (dummy_device) {
-        new (ctx->device) DummyComputeDevice(ctx->loc.node_id, ctx->device_id, num_ctx_per_device);
-    } else {
-        #if defined(USE_CUDA) && defined(USE_PHI)
-            #error "Simultaneous running of CUDA and Phi is not supported yet."
-        #endif
-        // TODO: replace here with factory pattern
-        #ifdef USE_CUDA
-        new (ctx->device) CUDAComputeDevice(ctx->loc.node_id, ctx->device_id, num_ctx_per_device);
-        #endif
-        #ifdef USE_PHI
-        new (ctx->device) PhiComputeDevice(ctx->loc.node_id, ctx->device_id, num_ctx_per_device);
-        #endif
-    }
+    #if defined(USE_CUDA) && (defined(USE_KNAPP) || defined(USE_PHI))
+        #error "Simultaneous running of CUDA and Phi is not supported yet."
+    #endif
+    // TODO: replace here with factory pattern
+    #ifdef USE_CUDA
+    new (ctx->device) CUDAComputeDevice(ctx->loc.node_id, ctx->device_id, num_ctx_per_device);
+    #endif
+    #ifdef USE_KNAPP
+    new (ctx->device) KnappComputeDevice(ctx->loc.node_id, ctx->device_id, num_ctx_per_device);
+    #endif
+    #ifdef USE_PHI
+    new (ctx->device) PhiComputeDevice(ctx->loc.node_id, ctx->device_id, num_ctx_per_device);
+    #endif
 
     /* Register the task input watcher. */
     ctx->task_done_watcher = new struct ev_async;

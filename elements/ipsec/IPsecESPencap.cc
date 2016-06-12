@@ -11,6 +11,8 @@
 #include <openssl/sha.h>
 #include <rte_memory.h>
 #include <rte_ether.h>
+#include <rte_ip.h>
+#include <rte_udp.h>
 
 using namespace std;
 using namespace nba;
@@ -46,23 +48,30 @@ int IPsecESPencap::configure(comp_thread_context *ctx, std::vector<std::string> 
 }
 
 // Input packet: (pkt_in)
-// +----------+---------+---------+
-// | Ethernet |   IP    | payload |
-// +----------+---------+---------+
+// +----------+---------------+---------+
+// | Ethernet | IP(proto=UDP) | payload |
+// +----------+---------------+---------+
 // ^ethh      ^iph
+//
+// Input packet when latency measurement: (pkt_in)
+// +----------+---------------+-------+-------------------------------+---------+
+// | Ethernet | IP(proto=UDP) |  UDP  | 16-bit key + 64-bit timestamp | padding |
+// +----------+---------------+-------+-------------------------------+---------+
+// ^ethh      ^iph                    ^latency_ptr
+// The position of latency_ptr is overwritten after prepending the ESP header.
 //
 // Output packet: (pkt_out)
 // +----------+---------------+--------+----+------------+---------+-------+---------------------+
 // | Ethernet | IP(proto=ESP) |  ESP   | IP |  payload   | padding | extra | HMAC-SHA1 signature |
 // +----------+---------------+--------+----+------------+---------+-------+---------------------+
 //      14            20          16     20                pad_len     2    SHA_DIGEST_LENGTH = 20
-// ^ethh      ^iph            ^esph    ^encaped_iph      ^esp_trail
+// ^ethh      ^iph            ^esph    ^encapped_iph     ^esp_trail
 //
 int IPsecESPencap::process(int input_port, Packet *pkt)
 {
     // Temp: Assumes input packet is always IPv4 packet.
     // TODO: make it to handle IPv6 also.
-    // TODO: Set src & dest of encaped pkt to ip addrs from configuration.
+    // TODO: Set src & dest of encapped pkt to ip addrs from configuration.
 
     struct ether_hdr *ethh = (struct ether_hdr *) pkt->data();
     if (ntohs(ethh->ether_type) != ETHER_TYPE_IPv4) {
@@ -101,18 +110,25 @@ int IPsecESPencap::process(int input_port, Packet *pkt)
     assert(0 == (enc_size % AES_BLOCK_SIZE));
 
     struct esphdr *esph = (struct esphdr *) (iph + 1);
-    uint8_t *encaped_iph = (uint8_t *) esph + sizeof(*esph);
-    uint8_t *esp_trail = encaped_iph + ip_len;
+    uint8_t *encapped_iph = (uint8_t *) esph + sizeof(*esph);
+    uint8_t *esp_trail    = encapped_iph + ip_len;
 
     // Hack for latency measurement experiments.
-    uintptr_t payload = 0;
+    uintptr_t latency_ptr = 0;
+    constexpr uintptr_t latency_offset = sizeof(struct ether_hdr)
+                                         + sizeof(struct ipv4_hdr)
+                                         + sizeof(struct udp_hdr);
+    static_assert(sizeof(struct udp_hdr) + sizeof(uint16_t) + sizeof(uint64_t)
+                  <= sizeof(struct esphdr) + sizeof(ipv4_hdr),
+                  "Encryption may overwrite latency!");
     __m128i timestamp;  // actual size: uin16 + uint64
     if (ctx->preserve_latency) {
-        payload   = (uintptr_t) pkt->data() + sizeof(struct ether_hdr) + sizeof(struct iphdr);
-        timestamp = _mm_loadu_si128((__m128i *) payload);
+        // latency data size: 16 bit key + 64 bit timestamp
+        latency_ptr = (uintptr_t) pkt->data() + latency_offset;
+        timestamp = _mm_loadu_si128((__m128i *) latency_ptr);
     }
 
-    memmove(encaped_iph, iph, ip_len);          // copy the IP header and payload.
+    memmove(encapped_iph, iph, ip_len);         // copy the IP header and payload.
     memset(esp_trail, 0, pad_len);              // clear the padding.
     esp_trail[pad_len] = (uint8_t) pad_len;     // store pad_len at the second byte from last.
     esp_trail[pad_len + 1] = 0x04;              // store IP-in-IP protocol id at the last byte.
@@ -121,11 +137,6 @@ int IPsecESPencap::process(int input_port, Packet *pkt)
     esph->esp_spi = sa_entry->spi;
     esph->esp_rpl = sa_entry->rpl;
 
-    // Hack for latency measurement experiments.
-    if (ctx->preserve_latency) {
-        _mm_storeu_si128((__m128i *) payload, timestamp);
-    }
-
     // Generate random IV.
     uint64_t iv_first_half = rand();
     uint64_t iv_second_half = rand();
@@ -133,6 +144,11 @@ int IPsecESPencap::process(int input_port, Packet *pkt)
     _mm_storeu_si128((__m128i *) esph->esp_iv, new_iv);
     anno_set(&pkt->anno, NBA_ANNO_IPSEC_IV1, iv_first_half);
     anno_set(&pkt->anno, NBA_ANNO_IPSEC_IV2, iv_second_half);
+
+    // Hack for latency measurement experiments.
+    if (ctx->preserve_latency) {
+        _mm_storeu_si128((__m128i *) latency_ptr, timestamp);
+    }
 
     iph->ihl = (20 >> 2);               // standard IP header size.
     iph->tot_len = htons(extended_ip_len);

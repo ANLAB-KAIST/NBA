@@ -28,8 +28,8 @@ public:
         #ifdef USE_CUDA
         device_names.push_back("cuda");
         #endif
-        #ifdef USE_PHI
-        device_names.push_back("phi");
+        #ifdef USE_KNAPP
+        device_names.push_back("knapp.phi");
         #endif
     }
 
@@ -39,10 +39,10 @@ public:
     int process(int input_port, Packet *pkt);
 
     /* Offloaded methods */
-    #ifdef USE_CUDA
-    void cuda_init_handler(ComputeDevice *device);
-    void cuda_compute_handler(ComputeContext *ctx, struct resource_param *res);
-    #endif
+    void accel_init_handler(ComputeDevice *device);
+    void accel_compute_handler(ComputeDevice *dev,
+                               ComputeContext *ctx,
+                               struct resource_param *res);
     int postproc(int input_port, void *custom_output, Packet *pkt);
     size_t get_desired_workgroup_size(const char *device_name) const;
 
@@ -61,8 +61,8 @@ protected:
 
     /* Per-thread pointers, which points to the node local storage variables. */
     std::unordered_map<struct ipaddr_pair, int> *h_sa_table; // tunnel lookup is done in CPU only. No need for GPU ptr.
-    struct aes_sa_entry *h_flows = nullptr; // used in CPU.
-    dev_mem_t *d_flows_ptr;
+    struct aes_sa_entry *flows = nullptr; // used in CPU.
+    dev_mem_t *flows_d;
 };
 
 EXPORT_ELEMENT(IPsecAES);

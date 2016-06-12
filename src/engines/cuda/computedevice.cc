@@ -1,6 +1,7 @@
 #include <nba/core/intrinsic.hh>
 #include <nba/framework/logging.hh>
 #include <nba/engines/cuda/computedevice.hh>
+#include <nba/engines/cuda/computecontext.hh>
 
 using namespace std;
 using namespace nba;
@@ -100,7 +101,7 @@ host_mem_t CUDAComputeDevice::alloc_host_buffer(size_t size, int flags)
     return { ptr };
 }
 
-dev_mem_t CUDAComputeDevice::alloc_device_buffer(size_t size, int flags)
+dev_mem_t CUDAComputeDevice::alloc_device_buffer(size_t size, int flags, host_mem_t &assoc_host_buf)
 {
     void *ptr;
     cutilSafeCall(cudaMalloc(&ptr, size));
@@ -116,6 +117,16 @@ void CUDAComputeDevice::free_host_buffer(host_mem_t m)
 void CUDAComputeDevice::free_device_buffer(dev_mem_t m)
 {
     cutilSafeCall(cudaFree(m.ptr));
+}
+
+void *CUDAComputeDevice::unwrap_host_buffer(const host_mem_t m)
+{
+    return m.ptr;
+}
+
+void *CUDAComputeDevice::unwrap_device_buffer(const dev_mem_t m)
+{
+    return m.ptr;
 }
 
 void CUDAComputeDevice::memwrite(host_mem_t host_buf, dev_mem_t dev_buf, size_t offset, size_t size)

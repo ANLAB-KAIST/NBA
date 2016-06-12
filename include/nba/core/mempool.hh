@@ -18,15 +18,15 @@ class MemoryPool
 {
 public:
     MemoryPool()
-        : max_size(0), align(CACHE_LINE_SIZE), cur_pos(0)
+        : max_size(0), align(CACHE_LINE_SIZE), cur_pos(0), shifts(0)
     { }
 
     MemoryPool(size_t max_size)
-        : max_size(max_size), align(CACHE_LINE_SIZE), cur_pos(0)
+        : max_size(max_size), align(CACHE_LINE_SIZE), cur_pos(0), shifts(0)
     { }
 
     MemoryPool(size_t max_size, size_t align)
-        : max_size(max_size), align(align), cur_pos(0)
+        : max_size(max_size), align(align), cur_pos(0), shifts(0)
     { }
 
     virtual ~MemoryPool() { }
@@ -34,6 +34,11 @@ public:
     size_t get_alloc_size() const { return cur_pos; }
 
     virtual bool init() = 0;
+
+    virtual void shift_base(size_t len)
+    {
+        shifts += len;
+    }
 
     virtual T get_base_ptr() const = 0;
 
@@ -45,7 +50,11 @@ public:
     virtual void destroy() = 0;
 
     // We implement a bump allocator.
-    void reset() { cur_pos = 0; }
+    void reset()
+    {
+        cur_pos = 0;
+        shifts = 0;
+    }
 
 protected:
     int _alloc(size_t size, size_t *start_offset)
@@ -63,6 +72,7 @@ protected:
     const size_t max_size;
     const size_t align;
     size_t cur_pos;
+    size_t shifts;
 };
 
 }

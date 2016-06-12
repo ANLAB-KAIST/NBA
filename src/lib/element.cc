@@ -198,7 +198,7 @@ int OffloadableElement::offload(ElementGraph *mother, PacketBatch *batch, int in
         otask->tracker.input_port = input_port;
         otask->tracker.has_results = false;
         otask->state = TASK_INITIALIZING;
-        otask->task_id = task_id ++;
+        otask->task_id = INVALID_TASK_ID;
         otask->src_loop = ctx->loop;
         otask->comp_ctx = ctx;
         otask->completion_queue = ctx->task_completion_queue;
@@ -273,7 +273,8 @@ int OffloadableElement::dispatch(uint64_t loop_count, PacketBatch*& out_batch, u
     return 0;
 }
 
-void OffloadableElement::dummy_compute_handler(ComputeContext *ctx,
+void OffloadableElement::dummy_compute_handler(ComputeDevice *cdev,
+                                               ComputeContext *ctx,
                                                struct resource_param *res)
 {
     return;

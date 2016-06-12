@@ -99,10 +99,20 @@ void ElementGraph::send_offload_task_to_device(OffloadTask *task)
                 (p.second)->datablock_states = dbstates[p.first];
         }
 
+        task->task_id = INVALID_TASK_ID;
+        do {
+            if (unlikely(ctx->io_ctx->loop_broken)) return;
+            task->task_id = cctx->alloc_task_id();
+            if (task->task_id == INVALID_TASK_ID) {
+                /* If not available now, wait. */
+                ev_run(ctx->io_ctx->loop, 0);
+            }
+        } while (task->task_id == INVALID_TASK_ID);
+
         /* Allocate the host-device IO buffer pool. */
         while (task->io_base == INVALID_IO_BASE) {
-            task->io_base = cctx->alloc_io_base();
             if (unlikely(ctx->io_ctx->loop_broken)) return;
+            task->io_base = cctx->alloc_io_base();
             if (task->io_base == INVALID_IO_BASE) {
                 /* If not available now, wait. */
                 ev_run(ctx->io_ctx->loop, 0);
@@ -621,7 +631,6 @@ void ElementGraph::process_batch(PacketBatch *batch)
 void ElementGraph::process_offload_task(OffloadTask *otask)
 {
     uint64_t now = rte_rdtsc();
-    otask->task_id += 100000; // for debugging
     otask->offload_start = now;
     send_offload_task_to_device(otask);
 }

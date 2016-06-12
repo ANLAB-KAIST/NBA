@@ -171,6 +171,12 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
             /* Rewind the state so that it gets "prepared" by ElemGraph.
              * (e.g., update datablock list used by next element) */
             task->state = TASK_INITIALIZED;
+
+            /* Release the task ID and let ElemGraph to get another. */
+            task->cctx->release_task_id(task->task_id);
+            ev_break(ctx->io_ctx->loop, EVBREAK_ALL);
+
+            /* Enqueue it to ElemGraph. */
             ctx->elem_graph->enqueue_offload_task(task,
                                                   ctx->elem_graph->get_first_next(task->elem),
                                                   0);
@@ -187,9 +193,11 @@ static void comp_offload_task_completion_cb(struct ev_loop *loop, struct ev_asyn
             }
 
             /* Free the task object. */
+            task->cctx->release_task_id(task->task_id);
             task->cctx = nullptr;
             task->~OffloadTask();
             rte_mempool_put(ctx->task_pool, (void *) task);
+            ev_break(ctx->io_ctx->loop, EVBREAK_ALL);
         }
 
         /* Free the resources used for this offload task. */

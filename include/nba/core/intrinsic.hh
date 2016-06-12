@@ -1,6 +1,7 @@
 #ifndef __NBA_INTRINSIC_HH__
 #define __NBA_INTRINSIC_HH__
 
+#include <rte_config.h>
 #include <rte_memory.h>
 #include <type_traits>
 
@@ -11,6 +12,8 @@
 #endif
 #define __cache_aligned __attribute__((__aligned__(CACHE_LINE_SIZE)))
 
+#define PAGE_SIZE 0x1000
+
 #define ALIGN_CEIL(x,a) (((x)+(a)-1)&~((a)-1))
 
 #define TARG(...) __VA_ARGS__
@@ -18,6 +21,8 @@
     (ptr) = (cls*) rte_malloc_socket(nullptr, sizeof(cls), CACHE_LINE_SIZE, node_id); \
     new (ptr) cls(__VA_ARGS__); \
 }
+
+#define compiler_fence() __asm__ __volatile__ ("" : : : "memory")
 
 namespace nba {
 
@@ -90,6 +95,10 @@ static inline uint64_t rdtscp(void)
 }
 
 #define memzero(ptr, n) memset((ptr), 0, sizeof(decltype((ptr)[0])) * (n))
+
+static inline void insert_pause() {
+    __asm volatile ("pause" ::: "memory");
+}
 
 }
 
