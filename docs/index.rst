@@ -19,6 +19,7 @@ Note that NBA covers per-packet processing only---it does not support flow-level
    gsg/sys_reqs
    gsg/build
    gsg/running
+   gsg/docs
 
 .. _user-docs:
 

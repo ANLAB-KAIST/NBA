@@ -18,5 +18,5 @@
 
 ## Documentation
 
-[See the documentation online.](http://nba.readthedocs.org/en/latest/)
+[See the documentation online.](http://nba.readthedocs.io/en/latest/)
 

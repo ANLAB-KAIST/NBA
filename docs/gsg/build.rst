@@ -5,7 +5,7 @@ Supported Platforms
 -------------------
 
 Currently NBA is only tested on Linux x86_64 3.10 or newer kernels,
-and the Ubuntu 14.04 LTS distribution.
+and the Ubuntu 14.04/16.04 LTS distribution.
 
 Step-by-step Guide
 ------------------
@@ -38,13 +38,13 @@ Install library dependencies on your system:
 
    $ sudo apt-get install libev-dev libssl-dev libpapi-dev
 
-Install Python 3.4 on your system.
+Install Python 3.5 on your system.
 You may use the system package manager such as :code:`apt-get`.
 In that case, ensure that you also have development package as well:
 
 .. code-block:: console
 
-   $ sudo apt-get install python3.4 libpython3.4-dev
+   $ sudo apt-get install python3.5 libpython3.5-dev
 
 Then install our Python dependencies:
 
@@ -187,6 +187,11 @@ To use CUDA in NBA, do:
    $ export USE_CUDA=1
    $ snakemake clean && snakemake -j
 
+Intel Xeon Phi
+~~~~~~~~~~~~~~
+
+If you want to use Xeon Phi acceleration, install the latest Intel MPSS (many-core platform software stack) by visiting `the official website <https://software.intel.com/en-us/articles/intel-manycore-platform-software-stack-mpss>`_.
+
 CPU statistics
 ~~~~~~~~~~~~~~
 
@@ -203,7 +208,8 @@ Our build script offers a few configurable parameters as environment variables:
 * :envvar:`NBA_OPENSSL_PATH`: specifies the path of OpenSSL library (default: :code:`/usr`)
 * :envvar:`DEBUG`: build without compiler optimization (default: 0)
 * :envvar:`USE_CUDA`: activates NVIDIA CUDA support (default: 1)
-* :envvar:`USE_PHI`: activates Intel Xeon Phi support (default: 0, not fully implemented yet)
+* :envvar:`USE_KNAPP`: activates Knapp-based Intel Xeon Phi support (default: 0)
+* :envvar:`USE_PHI`: activates OpenCL-based Intel Xeon Phi support (default: 0, not implemented)
 * :envvar:`USE_NVPROF`: activates nvprof API calls to track GPU-related timings (default: 0)
 * :envvar:`USE_OPENSSL_EVP`: determines whether to use EVP API for OpenSSL that enables AES-NI support (default: 1)
 * :envvar:`NBA_NO_HUGE`: determines whether to use huge-pages (default: 1)
