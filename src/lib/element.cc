@@ -61,6 +61,7 @@ int Element::_process_batch(int input_port, PacketBatch *batch)
 
 int VectorElement::_process_batch(int input_port, PacketBatch *batch)
 {
+#ifdef USE_VEC
     #if NBA_BATCHING_SCHEME == NBA_BATCHING_CONTINUOUS
     batch->has_dropped = false;
     batch->drop_count = 0;
@@ -107,6 +108,9 @@ int VectorElement::_process_batch(int input_port, PacketBatch *batch)
     #endif
     batch->tracker.has_results = true;
     return 0;
+#else
+    return -1;
+#endif
 }
 
 int PerBatchElement::_process_batch(int input_port, PacketBatch *batch)

@@ -782,9 +782,10 @@ int main(int argc, char **argv)
 
     /* Let the coprocessor threads to run its loop as we initialized
      * all necessary stuffs including computation threads. */
-    for (unsigned node_id : existing_nodes) {
-        coprocessor_threads[node_id].coproc_ctx->loopstart_barrier->proceed();
-    }
+    if (num_coprocessors > 0)
+		for (unsigned node_id : existing_nodes) {
+			coprocessor_threads[node_id].coproc_ctx->loopstart_barrier->proceed();
+		}
 
     /* Spawn the IO threads. */
     io_threads = new struct spawned_thread[num_io_threads];
