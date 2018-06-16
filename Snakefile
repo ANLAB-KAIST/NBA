@@ -208,6 +208,8 @@ if USE_PHI:
 SSL_PATH = os.getenv('NBA_OPENSSL_PATH') or '/usr'
 CFLAGS  += ' -I{SSL_PATH}/include'
 LIBS    += ' -L{SSL_PATH}/lib -lcrypto'
+if USE_CUDA:
+    NVCFLAGS  += fmt(' -I{SSL_PATH}/include')
 
 # Python configurations (assuming we use the same version of Python for Snakemake and configuration scripts)
 PYTHON_VERSION = '{0.major}.{0.minor}'.format(sys.version_info)
