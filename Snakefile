@@ -242,7 +242,7 @@ librte_pmds    = {
     'void':  ['rte_pmd_void', 'rte_kvargs'],
     'null':  ['rte_pmd_null', 'rte_kvargs'],
 }
-librte_names   = {'ethdev', 'rte_eal', 'rte_cmdline', 'rte_sched',
+librte_names   = {'rte_ethdev', 'rte_eal', 'rte_cmdline', 'rte_sched',
                   'rte_mbuf', 'rte_mempool', 'rte_ring', 'rte_hash'}
 librte_names.update(librte_pmds[PMD])
 CFLAGS += ' -I{DPDK_PATH}/include'
