@@ -246,7 +246,7 @@ librte_pmds    = {
     'null':  ['rte_pmd_null', 'rte_kvargs'],
 }
 librte_names   = {'rte_ethdev', 'rte_eal', 'rte_cmdline', 'rte_sched',
-                  'rte_mbuf', 'rte_mempool', 'rte_ring', 'rte_hash'}
+                  'rte_mbuf', 'rte_mempool', 'rte_ring', 'rte_hash', 'rte_kvargs'}
 librte_names.update(librte_pmds[PMD])
 CFLAGS += ' -I{DPDK_PATH}/include'
 LIBS   += ' -L{DPDK_PATH}/lib' \
