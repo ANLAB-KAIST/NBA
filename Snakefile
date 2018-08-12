@@ -241,6 +241,7 @@ librte_pmds    = {
     'ixgbe': ['rte_pmd_ixgbe'],
     'i40e': ['rte_pmd_i40e'],
     'mlx4':  ['rte_pmd_mlx4', 'rte_timer', 'ibverbs'],
+    'mlx5':  ['rte_pmd_mlx5', 'rte_timer', 'ibverbs'],
     'mlnx_uio':  ['rte_pmd_mlnx_uio', 'rte_hash', 'rte_persistent'],
     'void':  ['rte_pmd_void', 'rte_kvargs'],
     'null':  ['rte_pmd_null', 'rte_kvargs'],

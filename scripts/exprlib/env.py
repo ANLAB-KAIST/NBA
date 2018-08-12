@@ -185,6 +185,8 @@ class ExperimentEnv:
             return int(execute('lspci | grep Ethernet | grep -c XL710', shell=True, read=True))
         elif pmd == 'mlx4' or pmd == 'mlnx_uio':
             return int(execute('lspci | grep Ethernet | grep -c Mellanox', shell=True, read=True))
+        elif pmd == 'mlx5':
+            return int(execute('lspci | grep Ethernet | grep -c Mellanox', shell=True, read=True))
         elif pmd == 'null':
             raise NotImplementedError()  # TODO: implement
         else:
@@ -198,6 +200,8 @@ class ExperimentEnv:
         elif pmd == 'i40e':
             return execute('lspci -D | grep Ethernet | grep XL710 | cut -d \' \' -f 1', shell=True, read=True).splitlines()
         elif pmd == 'mlx4' or pmd == 'mlnx_uio':
+            return execute('lspci -D | grep Ethernet | grep Mellanox | cut -d \' \' -f 1', shell=True, read=True).splitlines()
+        elif pmd == 'mlx5':
             return execute('lspci -D | grep Ethernet | grep Mellanox | cut -d \' \' -f 1', shell=True, read=True).splitlines()
         elif pmd == 'null':
             raise NotImplementedError()  # TODO: implement
