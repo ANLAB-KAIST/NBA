@@ -19,7 +19,7 @@ def get_cuda_arch():
     and make a pull request!
     '''
     pci_list = str(subprocess.run(['lspci', '-nn'], stdout=subprocess.PIPE).stdout)
-    supported_archs = ['MAXWELL', 'KEPLER', 'FERMI']
+    supported_archs = ['MAXWELL', 'KEPLER', 'FERMI', 'PASCAL']
     devtypes_found = set()
     for devtype in supported_archs:
         fname = devtype + '_DEVICES'

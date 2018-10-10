@@ -175,6 +175,10 @@ if USE_CUDA:
     else:
         NVCFLAGS += ' -DMP_USE_64BIT=1'
         CFLAGS   += ' -DMP_USE_64BIT=1'
+    if 'PASCAL' in CUDA_ARCHS:
+        NVCFLAGS += ' -gencode arch=compute_60,code=sm_60' \
+                  + ' -gencode arch=compute_61,code=sm_61' \
+                  + ' -gencode arch=compute_61,code=compute_61'
     if 'MAXWELL' in CUDA_ARCHS:
         NVCFLAGS += ' -gencode arch=compute_50,code=sm_50' \
                   + ' -gencode arch=compute_52,code=sm_52' \
